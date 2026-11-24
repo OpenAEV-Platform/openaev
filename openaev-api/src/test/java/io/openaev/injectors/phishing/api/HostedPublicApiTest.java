@@ -145,14 +145,12 @@ class HostedPublicApiTest extends IntegrationTest {
    * through {@code PhishingLandingPagePublicLookupService}, scoped to the one tenant the token
    * already resolved.
    *
-   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}, not a freshly created tenant: {@code
-   * phishing_results} keeps the legacy v1 {@code @Filter}, whose {@code
-   * HibernateFilterTransactionAspect} fixes the filter parameter from {@code TenantContext} on
-   * transaction entry, i.e. BEFORE {@link HostedPublicApi#bindTenant} runs inside the method body -
-   * a separate, pre-existing gap that fails every {@code resolveAndBackfillByToken} lookup for a
-   * non-default tenant regardless of the fix under test here (see the report). The default tenant
-   * sidesteps it: {@code TenantContext#getCurrentTenant()} already falls back to it, so the
-   * aspect's early read matches.
+   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}, not a freshly created tenant: the ambient
+   * {@code TenantContext} is read on transaction entry, i.e. BEFORE {@link
+   * HostedPublicApi#bindTenant} runs inside the method body - a separate, pre-existing gap that
+   * fails every {@code resolveAndBackfillByToken} lookup for a non-default tenant regardless of the
+   * fix under test here (see the report). The default tenant sidesteps it: {@code
+   * TenantContext#getCurrentTenant()} already falls back to it, so the early read matches.
    */
   @Nested
   @DisplayName("GET /api/hosted/page/{token}")

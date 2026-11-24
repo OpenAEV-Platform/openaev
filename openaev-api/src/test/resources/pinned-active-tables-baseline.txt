@@ -42,7 +42,6 @@
 # A new probe or control line raises DELIBERATE_SIZE in review. A drifts line is never added, and
 # removing one lowers DEBT_SIZE in the same change.
 
-io.openaev.aop.TenantFilterToggleReachTest | import_mappers | probe: asserts only whether the v1 tenant filter is enabled on a session, a mechanism check on bare threads and inside the background primitive, so no assertion reads a row and the armed import_mappers table decides nothing; the primitive's entry reads marking_definitions and the exercise read joins security_coverages, and no assertion depends on either
 io.openaev.aop.WorkflowUpdateEventScopedCallersTest | collectors,steps,workflows | drifts: asserts a collector update or the expiration job completes and notifies the owning step; the result rolls up through agents and assets, which production arms and this class does not
 io.openaev.api.autonomous.AutonomousObjectiveTemplateHttpIsolationTest | autonomous_objective_templates | probe: asserts gallery read isolation and write attribution on the armed objective templates table, which is the only table the endpoint touches
 io.openaev.api.autonomous.AutonomousObjectiveTemplateNonAdminIsolationTest | autonomous_objective_templates | probe: asserts a non-admin member of two tenants sees only its own templates on the armed objective templates table

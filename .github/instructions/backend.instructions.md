@@ -90,8 +90,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 
 ## Entities
 
-- Tenant-scoped: `TenantBase` + `@Filter("tenantFilter")` + `TenantBaseListener`
-- Dual-scope (Settings, User, Role, Group): `DualScopeBase` + `ModelBaseListener` only — no `@Filter`, nullable `tenant_id`, see `multi-tenancy.instructions.md`
+- Tenant-scoped: `TenantBase` + `TenantBaseListener`, no `@Filter` (reads are scoped by the statement inspector, see `multi-tenancy.instructions.md`)
+- Dual-scope (Settings, User, Role, Group): `DualScopeBase` + `ModelBaseListener` only, nullable `tenant_id`, see `multi-tenancy.instructions.md`
 - Platform-level: `Base` only + `ModelBaseListener`
 - Audit timestamps: implement `Auditable` + add `AuditableListener` (do **not** use Hibernate `@CreationTimestamp`/`@UpdateTimestamp`)
 - Column: `{entity_singular}_{field}` → `@JsonProperty("same")`

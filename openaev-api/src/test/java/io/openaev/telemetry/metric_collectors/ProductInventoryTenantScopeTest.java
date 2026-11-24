@@ -19,8 +19,8 @@ import org.springframework.test.context.TestPropertySource;
 /**
  * The product inventory gauges are deliberately platform-wide: telemetry is per-instance, not
  * per-tenant. Under v1 that came for free, because the suppliers run on the OpenTelemetry exporter
- * thread outside any {@code @Transactional} method and the Hibernate {@code tenantFilter} is only
- * enabled by {@code HibernateFilterTransactionAspect} on a transactional call.
+ * thread outside any {@code @Transactional} method, where the Hibernate {@code tenantFilter} was
+ * never enabled.
  *
  * <p>That reasoning is v1-specific and v2 falsifies it. {@code TenantStatementInspector} does not
  * care whether a transaction is active: with the table in {@code openaev.tenant.active-tables} and

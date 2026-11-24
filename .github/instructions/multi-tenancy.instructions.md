@@ -9,7 +9,7 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 
 | Tenant-scoped | Platform-level | Dual-scope (Settings, User, Role, Group) |
 |---------------|----------------|------------------------------------------|
-| `TenantBase` + `@Filter("tenantFilter")` + `TenantBaseListener` | `Base` + `ModelBaseListener` | `DualScopeBase` + `ModelBaseListener` |
+| `TenantBase` + `TenantBaseListener` (no `@Filter`) | `Base` + `ModelBaseListener` | `DualScopeBase` + `ModelBaseListener` |
 | `tenant_id NOT NULL` | No `tenant_id` | `tenant_id` **NULLABLE** |
 | Unique: composite `(field, tenant_id)` | Simple unique | Partial unique indexes |
 | Single service + single API | Single service + single API | Two services + two APIs |
@@ -21,20 +21,24 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 - Two services: `PlatformXxxService` (uses `*TenantIsNull` methods, never receives tenantId) / `TenantXxxService` (uses `*TenantId` methods, always receives tenantId)
 - Two APIs: `/api/platform-{entities}` / `TENANT_PREFIX + "/{entities}"`
 
-## V1 vs V2 Isolation — Two Mechanisms, Never Both
+## Read Isolation: the Statement Inspector
 
-| | v1 (legacy, most tables) | v2 (`openaev.tenant.active-tables=*`) |
+No entity declares a Hibernate `@Filter`, and `TenantFilterRemovedArchTest` fails the build when one
+does. Read isolation comes from `TenantStatementInspector` (`can_access_tenant`) for every tenant
+table armed by `openaev.tenant.active-tables=*`, scoped per transaction by a `TxCtx` argument.
+
+| | Tenant table (armed by `*`) | Self-isolated table (left out of `*`, reason in `TenantTables`) |
 |---|---|---|
-| Read isolation | `@Filter("tenantFilter")`, set via `TenantContext` thread-local | SQL rewritten by `TenantStatementInspector` + `can_access_tenant`, scoped per-transaction by a `TxCtx` argument |
-| Entrypoint requirement | None — filter is ambient | Every `@Transactional` entrypoint whose call graph reaches the table (directly, via another service, or via an association/join) **must** declare a `TxCtx` parameter |
-| `find()` by primary key | **Not filtered** — `@Filter` does not apply to `find()` | Filtered — the inspector rewrites by SQL text, not by Hibernate filter semantics |
-| Native query safety | Needs explicit `WHERE tenant_id` | Needs a FROM/JOIN shape the inspector already accepts (see `TenantStatementInspectorTest`); a shape it doesn't recognize fails closed (`TENANT_FILTERING_REFUSED`) |
-| Background writer | `TenantScopedTransaction` not required | Convert the job to `TenantScopedTransaction` (`openaev-model/…/context/TenantScopedTransaction.java`) so it runs inside a real per-tenant transaction |
+| Read isolation | SQL rewritten by the inspector | None ambient: every query names its tenant |
+| Entrypoint requirement | Every `@Transactional` entrypoint whose call graph reaches the table (directly, via another service, or via an association/join) **must** declare a `TxCtx` parameter | None |
+| `find()` by primary key | Filtered: the inspector rewrites the SQL text | Not filtered |
+| Native query safety | Needs a FROM/JOIN shape the inspector already accepts (see `TenantStatementInspectorTest`); a shape it does not recognize fails closed (`TENANT_FILTERING_REFUSED`) | Needs an explicit `WHERE tenant_id` |
+| Background writer | Convert the job to `TenantScopedTransaction` (`openaev-model/…/context/TenantScopedTransaction.java`) so it runs inside a real per-tenant transaction | Not required |
 
-A table is either v1 or v2-active, never both: production arms every tenant table with `*`, so a
-new tenant table is armed from the day it exists and carries no `@Filter("tenantFilter")`: leaving
-one in place is not defense in depth, it silently duplicates (and can conflict with) the
-inspector's own predicate. Only the self-isolated tables of `TenantTables` are left out.
+Production arms every tenant table with `*`, so a new tenant table is armed from the day it exists;
+only the self-isolated tables of `TenantTables` are left out. A write names its tenant explicitly:
+the tenant of the owning row, resolved in the API layer and passed as an argument. There is no
+filter to remove.
 
 **Missing `TxCtx` fails silently, not loudly.** If a v2-active table is
 reached without a `TxCtx` in scope, the inspector fail-closes the read: no
@@ -56,10 +60,10 @@ under-scopes an unrelated read.
 
 ## Critical Rules
 
-1. Native `@Query` on a **v1** table **bypasses** Hibernate filter → always add `WHERE tenant_id = :tenantId`
+1. Native `@Query` or JPQL on a table **outside `active-tables`** has no ambient read isolation → always add `WHERE tenant_id = :tenantId`
 2. Native query on a **v2-active** table → the FROM/JOIN shape must already be accepted by `TenantStatementInspector` (see table above)
 3. Every entrypoint whose call graph reaches a **v2-active** table must declare a `TxCtx` parameter — its absence is a silent empty-result regression, not a build/runtime error
-4. `@Filter("tenantFilter")` and v2 activation (`active-tables=*`) are mutually exclusive per table: never both
+4. Never declare a Hibernate `@Filter` or call `enableFilter` / `disableFilter` / `getEnabledFilter`: `TenantFilterRemovedArchTest` fails the build
 5. Never return `tenant_id` in API responses → `@JsonIgnore` on tenant relation
 6. Unique constraints on tenant-scoped entities → composite `(field, tenant_id)`
 7. Off the request thread, **both** tenant scopes must be set — see below
@@ -92,7 +96,7 @@ consumer, an `@Async` task or a `parallelStream` worker, so a background entry p
 itself:
 
 ```java
-TenantContext.setCurrentTenant(tenantId);   // v1: HibernateFilterTransactionAspect -> @Filter
+TenantContext.setCurrentTenant(tenantId);   // ambient tenant read by TenantBaseListener on insert
 try {
   tenantTx.execute(TxCtx.forTenant(tenantId), work);  // v2: transaction GUC -> inspector
 } finally {
@@ -100,31 +104,25 @@ try {
 }
 ```
 
-Setting only the v2 primitive is **not** enough while entities still carry `@Filter`, and it fails
-silently: `TenantContext.getCurrentTenant()` falls back to `Tenant.DEFAULT_TENANT_UUID`, so every
-JPQL / Criteria read resolves the DEFAULT tenant's rows and every `TenantBaseListener` insert is
-attributed there. Single-tenant deployments never see it, because the fallback is the right tenant.
-This shipped once: scheduled inject execution resolved another tenant's endpoints and created a
-customer simulation's expectations against them (`InjectsExecutionJob#executeInTenant`).
+Setting only the v2 primitive is **not** enough, and it fails silently: `TenantBaseListener` stamps
+every insert from `TenantContext.getCurrentTenant()`, which falls back to `Tenant.DEFAULT_TENANT_UUID`
+when nothing is set, so the row is attributed to the default tenant. Single-tenant deployments never
+see it, because the fallback is the right tenant. This shipped once: scheduled inject execution
+resolved another tenant's endpoints and created a customer simulation's expectations against them
+(`InjectsExecutionJob#executeInTenant`).
 
-Two details that are easy to miss: Hibernate `@Filter` does **not** apply to `find()` by primary
-key, so a green `findById` proves nothing about scoping; and a deliberately cross-tenant sweep
-must set the tenant explicitly on anything it writes.
-
-`session.disableFilter("tenantFilter")` does not make a read cross-tenant. Off a transaction it
-lands on a throwaway session, at the top of a primitive transaction there is no filter to disable,
-and the next method-level `@Transactional` re-arms it on the ambient tenant, the default one when
-none is set (`TenantFilterToggleReachTest`). A cross-tenant read goes through
-`TenantScopedTransaction` with an explicit scope. New calls fail `TenantFilterDisableArchTest`,
-whose baseline only shrinks.
+A green `findById` proves nothing about scoping on a table outside `active-tables`, and a
+deliberately cross-tenant sweep must set the tenant explicitly on anything it writes. A cross-tenant
+read goes through `TenantScopedTransaction` with an explicit scope; there is no Hibernate filter to
+disable, and `TenantFilterRemovedArchTest` fails any call that tries.
 
 **v2 activation does not retire `TenantContext.setCurrentTenant()` on its own.** Converting a job's
 reads to `TenantScopedTransaction` only changes read isolation; `TenantBaseListener.@PrePersist`
-still stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, v1 or v2. A new
+stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, active table or not. A new
 job reaches the listener through `TenantScopedJobRunner`, not a direct `TenantContext` call (the next rule
 refuses a new call). Only
 drop `setCurrentTenant()` when the job is read-only, every table it touches is v2-active, and no
-remaining code path is still v1 — otherwise its absence silently attributes inserts to
+remaining code path reads a table outside `active-tables`, otherwise its absence silently attributes inserts to
 `Tenant.DEFAULT_TENANT_UUID`.
 
 **No new v1 construct in production code**: a call to `TenantContext` or `AmbientTenantBridge`, an
@@ -144,6 +142,6 @@ stamped by the listener runs the write through `TenantScopedJobRunner`.
 | Background job setting only `TxCtx` that writes a table stamped by `TenantBaseListener` | Run the write through `TenantScopedJobRunner` (it sets the tenant the listener reads and restores the previous value); a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
-| `@Filter("tenantFilter")` on a new tenant table, which `*` arms from the day it exists | Leave it out: v1 and v2 never coexist |
+| A Hibernate `@Filter` or `enableFilter` call on a tenant entity | Leave it out: `*` arms the table and `TenantFilterRemovedArchTest` forbids the filter |
 | New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |
 | `findAllById` / `getReferenceById` on ids named in a request body | `findAllByIdInTenant(ids, tenantId)` with the tenant of the entity written (rule 10) |
