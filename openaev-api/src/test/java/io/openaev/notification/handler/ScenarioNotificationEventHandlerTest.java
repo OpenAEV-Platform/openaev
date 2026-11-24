@@ -24,7 +24,6 @@ import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.service.stream.StreamVisibility;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.InjectExpectationResultUtils.ResultDistribution;
 import java.time.Instant;
@@ -133,17 +132,13 @@ class ScenarioNotificationEventHandlerTest {
       // Detection is cross-tenant: the scenario's tenant is only known once it has been read.
       verify(tenantTx).execute(txCtxCaptor.capture(), any(Supplier.class));
       assertEquals(TxCtx.allTenants(), txCtxCaptor.getValue());
-      ArgumentCaptor<Supplier<StreamVisibility>> visibility =
-          ArgumentCaptor.forClass(Supplier.class);
       verify(notificationEngineService)
           .handleEventWithMessage(
               eq(NotificationResourceCatalog.SCENARIO),
               eq(SCENARIO_ID),
               eq(TENANT_ID),
               eq(NotificationTriggerEventType.SCORE_DEGRADATION),
-              anyString(),
-              visibility.capture());
-      assertThat(visibility.getValue().get()).isEqualTo(StreamVisibility.UNFILTERED);
+              anyString());
     }
 
     @Test
@@ -183,7 +178,7 @@ class ScenarioNotificationEventHandlerTest {
       // -- ASSERT --
       ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
       verify(notificationEngineService)
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), message.capture(), any());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), message.capture());
       assertThat(message.getValue())
           .contains(
               withLogging
@@ -213,7 +208,7 @@ class ScenarioNotificationEventHandlerTest {
 
       // -- ASSERT --
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
     }
   }
 
@@ -233,7 +228,7 @@ class ScenarioNotificationEventHandlerTest {
 
       // -- ASSERT --
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
     }
 
     @Test
@@ -253,7 +248,7 @@ class ScenarioNotificationEventHandlerTest {
       // -- ASSERT --
       verify(exerciseService, never()).isThereAScoreDegradation(anyMap(), anyMap());
       verify(notificationEngineService, never())
-          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString(), any());
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), anyString());
     }
   }
 }
