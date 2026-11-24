@@ -65,8 +65,6 @@ const Index = () => {
     user_pgp_key: user.user_pgp_key,
     user_lang: user.user_lang,
     user_theme: user.user_theme,
-    // Unset reads as pastel, the OpenAEV default.
-    user_pastel_colours: user.user_pastel_colours ?? true,
     user_is_external: user.user_is_external,
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',

@@ -17,8 +17,9 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import CVSSBadge from '../../../../components/CvssBadge';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import OpenCrqPivot, { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot, { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
+import XtmCounterpartsEmblem from '../../../../components/xtm/XtmCounterpartsEmblem';
+import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
+import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type SearchPaginationInput, type VulnerabilitySimple } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -202,10 +203,9 @@ const Vulnerabilities = () => {
         >
           {selectedVulnerability && (
             <>
-              {/* Contract v3: the icon-only emblems of the counterpart products, OpenCTI then OpenCRQ. */}
+              {/* The single XTM One emblem; its surface lists OpenCTI then OpenCRQ. */}
               <div className="flex items-center gap-1">
-                <OpenCtiPivot kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
-                <OpenCrqPivot kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
+                <XtmCounterpartsEmblem kind="vulnerabilities" objectKey={selectedVulnerability.vulnerability_external_id} />
               </div>
               <VulnerabilityDetail
                 selectedVulnerability={selectedVulnerability}

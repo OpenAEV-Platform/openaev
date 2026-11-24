@@ -1,4 +1,4 @@
-import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ChevronLeftOutlined, ChevronRightOutlined, OpenInNewOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -83,22 +83,7 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
           flexWrap: 'wrap',
         }}
         >
-          <Box
-            component="span"
-            sx={{
-              fontSize: 10,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'text.secondary',
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 0.5,
-              paddingInline: 0.75,
-              paddingBlock: '1px',
-            }}
-          >
-            {typeLabel}
-          </Box>
+          <Chip label={typeLabel} severity="neutral" />
           {markingIds.length > 0 && <ItemMarkings markingIds={markingIds} />}
           <NewAtomicTestingResult target={target} />
         </Box>

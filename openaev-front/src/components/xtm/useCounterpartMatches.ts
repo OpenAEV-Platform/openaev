@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { type CounterpartKindPath } from '../../actions/xtm/counterpart-actions';
 import { getXtmConnections, resolveCounterparts } from './counterpartStore';
 import { OPENCTI_PRODUCT } from './useCounterpart';
+import useXtmCounterparts from './useXtmCounterparts';
 
 export interface CounterpartRef {
   kind: CounterpartKindPath;
@@ -15,13 +16,15 @@ export const counterpartRefId = (ref: CounterpartRef) => `${ref.kind}|${ref.key}
  * The objects of a set (the nodes of a graph, the rows of a page) that have a counterpart in one
  * connected product. Nothing is looked up when the product is not connected; every key is asked in
  * the same tick, so counterpartStore sends one batch per kind and serves repeats from its cache. A
- * failed or unavailable lookup marks nothing: the marks are a hint and never an error.
+ * failed or unavailable lookup marks nothing: the marks are a hint and never an error. With the
+ * XTM_COUNTERPARTS feature off nothing is asked and nothing is marked.
  */
 const useCounterpartMatches = (
   refs: CounterpartRef[],
   product: string = OPENCTI_PRODUCT,
 ): Set<string> => {
   const [matched, setMatched] = useState<Set<string>>(() => new Set());
+  const enabled = useXtmCounterparts();
   // A stable dependency for the effect: the distinct ids, sorted.
   const signature = useMemo(
     () => Array.from(new Set(refs.map(counterpartRefId))).sort().join('\n'),
@@ -30,7 +33,7 @@ const useCounterpartMatches = (
 
   useEffect(() => {
     let alive = true;
-    if (!signature) {
+    if (!signature || !enabled) {
       setMatched(new Set());
       return undefined;
     }
@@ -63,7 +66,7 @@ const useCounterpartMatches = (
     return () => {
       alive = false;
     };
-  }, [signature, product]);
+  }, [signature, product, enabled]);
 
   return matched;
 };
