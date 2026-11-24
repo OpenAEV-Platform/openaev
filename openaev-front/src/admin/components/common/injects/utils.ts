@@ -114,11 +114,17 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
       rule = z.array(z.string()).min(1, { message: t('Required') }).default([]);
       break;
 
-    case 'text':
-    case 'textarea':
     case 'select':
     case 'choice':
     case 'dependency-select':
+      // A cardinality "n" select holds a list of ids; a cardinality "1" select a single id.
+      rule = field.cardinality === 'n'
+        ? z.array(z.string()).min(1, { message: t('Required') })
+        : z.string().min(1, { message: t('Required') });
+      break;
+
+    case 'text':
+    case 'textarea':
     case 'ai-target':
     case 'document':
       rule = z.string().min(1, { message: t('Required') });

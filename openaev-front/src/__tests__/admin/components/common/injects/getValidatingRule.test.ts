@@ -28,6 +28,20 @@ describe('getValidatingRule', () => {
     expect(rule.safeParse('value').success).toBe(true);
     expect(rule.safeParse('').success).toBe(false);
   });
+
+  it.each(['select', 'choice', 'dependency-select'] as const)('validates a cardinality n %s as a non-empty list of ids', (type) => {
+    const rule = getValidatingRule(field(type, 'n'), t);
+    expect(rule.safeParse(['A', 'AAAA']).success).toBe(true);
+    expect(rule.safeParse([]).success).toBe(false);
+    expect(rule.safeParse('A').success).toBe(false);
+  });
+
+  it.each(['select', 'choice', 'dependency-select'] as const)('keeps a cardinality 1 %s as a required id', (type) => {
+    const rule = getValidatingRule(field(type, '1'), t);
+    expect(rule.safeParse('A').success).toBe(true);
+    expect(rule.safeParse('').success).toBe(false);
+    expect(rule.safeParse(['A']).success).toBe(false);
+  });
 });
 
 describe('normalizeSingleSelectValue', () => {
