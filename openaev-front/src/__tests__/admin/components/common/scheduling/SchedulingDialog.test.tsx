@@ -103,5 +103,63 @@ describe('SchedulingDialog', () => {
       expect(onSubmit.mock.calls[0][1]).toBe(start);
       expect(onSubmit.mock.calls[0][2]).toBe(end);
     });
+
+    it('given_aDayPickedInTheCalendar_should_showAndSendThatDay', async () => {
+      // Arrange
+      const onSubmit = renderDialog();
+
+      // Act: pick 25 November in the start date calendar
+      fireEvent.click(screen.getAllByRole('button', { name: 'Open calendar' })[0]);
+      fireEvent.click(await screen.findByRole('gridcell', { name: /November 25, 2026/ }));
+
+      // Assert: the field, the summary and the saved start all say 25 November
+      await waitFor(() => expect(screen.getByLabelText('Start date')).toHaveValue('11/25/2026'));
+      expect(screen.getByText(/day:2026-11-25/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+      expect(onSubmit.mock.calls[0][1]).toBe(new Date(2026, 10, 25).toISOString());
+    });
+  });
+
+  it.each([
+    {
+      kind: 'one-off',
+      endDay: 26,
+    },
+    {
+      kind: 'daily',
+      endDay: 30,
+    },
+  ])('given_aScheduleSavedInLosAngeles_should_keepItsDatesWhenSavedUnchangedInParis ($kind)', async ({ endDay }) => {
+    // Arrange: dates saved from Los Angeles, then the dialog opened in Paris
+    process.env.TZ = 'America/Los_Angeles';
+    const start = new Date(2026, 10, 25).toISOString();
+    const end = new Date(2026, 10, endDay).toISOString();
+    process.env.TZ = 'Europe/Paris';
+    vi.useFakeTimers({
+      toFake: ['Date'],
+      now: NOW,
+    });
+    const onSubmit = vi.fn();
+    render(
+      <SchedulingDialog
+        open
+        onClose={vi.fn()}
+        initialValues={{
+          recurrence: '0 0 7 * * *',
+          recurrenceStart: start,
+          recurrenceEnd: end,
+        }}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // Assert
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][1]).toBe(start);
+    expect(onSubmit.mock.calls[0][2]).toBe(end);
   });
 });

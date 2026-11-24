@@ -38,6 +38,10 @@ const instantToFormDay = (instant: string) => toUtcMidnightIso(new Date(instant)
 /** The start of a form day in the user's time zone, as the instant the API expects. */
 const formDayToInstant = (day: string, plusDays = 0) => utcMidnightToLocalDay(day, plusDays).toISOString();
 
+/** Whether a saved start and end bound a one-shot schedule: a single day, which lasts 25 hours when the clocks go back, hence the extra hour. */
+const isOneDayWindow = (start?: string | null, end?: string | null) => !!start && !!end
+  && new Date(end).getTime() - new Date(start).getTime() <= MS_PER_DAY + MS_PER_HOUR;
+
 type Frequency = 'noRepeat' | 'hourly' | 'daily' | 'weekly' | 'monthly';
 
 const FREQUENCIES: Frequency[] = ['noRepeat', 'hourly', 'daily', 'weekly', 'monthly'];
@@ -183,9 +187,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
       const isHourly = existingHandler.getHours()?.getRecurrence() !== undefined;
       const time = existingHandler.getRecurrenceTime();
       // A one-shot schedule is stored as a daily cron bounded to a single day.
-      // That day lasts 25 hours when the clocks go back, hence the extra hour.
-      const isOnce = !!initialValues.recurrenceStart && !!initialValues.recurrenceEnd
-        && new Date(initialValues.recurrenceEnd).getTime() - new Date(initialValues.recurrenceStart).getTime() <= MS_PER_DAY + MS_PER_HOUR
+      const isOnce = isOneDayWindow(initialValues.recurrenceStart, initialValues.recurrenceEnd)
         && existingHandler.getRecurrenceMagnitude() === 'daily';
       const monthlyRecurrence = existingHandler.getMonthlyRecurrence();
       const defaults = defaultFormValues();
@@ -237,14 +239,20 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
 
   const submit = (data: SchedulingFormValues) => {
     const cron = buildCronExpression(data);
-    const start = formDayToInstant(data.startDate);
+    // A date the user left as it was keeps its saved instant: rebuilding it from
+    // this browser's midnight would move a schedule saved from another time zone.
+    const { recurrenceStart: savedStart, recurrenceEnd: savedEnd } = initialValues;
+    const savedOnce = isOneDayWindow(savedStart, savedEnd);
+    const startKept = !!savedStart && data.startDate === instantToFormDay(savedStart);
+    const start = startKept && savedStart ? savedStart : formDayToInstant(data.startDate);
     // A one-shot schedule is bounded to the day after its start so the
     // backend self-clears it once fired.
     let end: string | undefined;
     if (data.frequency === 'noRepeat') {
-      end = formDayToInstant(data.startDate, 1);
+      end = startKept && savedOnce && savedEnd ? savedEnd : formDayToInstant(data.startDate, 1);
     } else if (data.endDate) {
-      end = formDayToInstant(data.endDate);
+      const endKept = !savedOnce && !!savedEnd && data.endDate === instantToFormDay(savedEnd);
+      end = endKept && savedEnd ? savedEnd : formDayToInstant(data.endDate);
     }
     onSubmit(CronParser.parse(cron), start, end);
   };
