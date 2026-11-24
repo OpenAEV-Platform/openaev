@@ -40,6 +40,7 @@ import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
@@ -345,8 +346,6 @@ import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import io.openaev.xtmone.XtmOneHealthSnapshot;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -358,7 +357,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -520,15 +518,7 @@ class TenantActiveTableAccessArchTest {
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    }
-    Set<String> active =
-        Arrays.stream(props.getProperty("openaev.tenant.active-tables", "").split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toSet());
+    Set<String> active = ProductionActiveTables.names();
     assertTrue(
         GUARDED_TABLES.containsAll(active),
         "every table in openaev.tenant.active-tables needs a guard in this test; missing: "

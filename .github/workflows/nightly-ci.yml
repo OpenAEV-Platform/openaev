@@ -21,7 +21,7 @@ jobs:
       # ── Multi-tenancy v2 shadow runs (epic #6393), Elasticsearch only ──
       # Same suite, different activation. "shadow-prod" runs under the active-tables list
       # main ships, so a regression on a table that is already live surfaces the night it
-      # lands, whoever wrote it. "shadow-all" runs with every strict tenant table active,
+      # lands, whoever wrote it. "shadow-all" runs with every tenant table active,
       # which is the exhaustive list of what activating the rest would break, obtained
       # without changing anything on main. Both turn the fail-closed detector on.
       # Reports, not gates: continue_on_error keeps a red one from failing the workflow, so a

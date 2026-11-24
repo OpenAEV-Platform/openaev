@@ -56,8 +56,8 @@ import org.springframework.stereotype.Service;
  * <p>{@link #collectSecurityPlatforms()} and {@link #collectEndpoints()} carry the same scope for
  * the same reason: both count rows of the {@code assets} table (#6438).
  *
- * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to any
- * other gauge here whose table joins a future activation.
+ * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to
+ * every gauge here that counts a tenant table: under {@code *} each of them is armed.
  */
 @Slf4j
 @Service
