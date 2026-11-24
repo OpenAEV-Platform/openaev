@@ -5,8 +5,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
@@ -38,6 +40,16 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   private static final boolean SUITE_WIDE =
       "on".equals(System.getProperty("openaev.failclosed.detector"));
   private static final int SQL_HINT_LENGTH = 600;
+
+  // The function-call form, so a hypothetical identifier merely containing the name does not match.
+  private static final Pattern GATE =
+      Pattern.compile("can_access_tenant\\(", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern PLATFORM_ONLY_GATE =
+      Pattern.compile(
+          "(?:\\(|\\bAND\\s+|\\bWHERE\\s+)\\s*([\\w.]+)\\s+IS\\s+NULL\\s*\\)*\\s*AND\\s+\\(*\\s*"
+              + "can_access_tenant\\(\\s*\\1\\s*,\\s*true\\s*\\)",
+          Pattern.CASE_INSENSITIVE);
 
   private static final String READ_SCOPE_SQL =
       "SELECT coalesce(current_setting('app.current_tenants', true), '')";
@@ -75,7 +87,7 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   public void afterQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
     for (QueryInfo queryInfo : queryInfoList) {
       String sql = queryInfo.getQuery();
-      if (sql == null || !isTenantGated(sql)) {
+      if (sql == null || !isFailClosedRead(sql)) {
         continue;
       }
       if (scopeIsEmpty(execInfo)) {
@@ -91,17 +103,30 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   }
 
   /**
-   * Only a statement the inspector rewrote with {@code can_access_tenant} can fail closed: that
-   * function returns false under an empty scope, so the gated read returns zero rows. Raw-JDBC and
-   * otherwise ungated statements are never rewritten, so an unscoped read there is not a
-   * fail-closed access - which is why matching the mere presence of an active-table name
-   * over-reports massively (bulk raw-JDBC seed writers, tenant-resolution bootstrap reads) while
-   * this precise signal does not.
+   * Only a gate that is false under an empty scope can fail closed. {@code can_access_tenant(x)}
+   * always is. {@code can_access_tenant(x, true)}, the dual-scope form, returns true for a platform
+   * row ({@code x IS NULL}) before it looks at the scope, so it is false only for a tenant row. A
+   * statement whose every gate is the dual-scope form AND-ed with {@code x IS NULL} on the same
+   * expression therefore reads platform rows only and is not a fail-closed read.
+   *
+   * <p>The shape is the one the inspector produces after a {@code tenant_id IS NULL} filter, read
+   * from the statement text: {@code x IS NULL} opened by {@code (}, {@code AND} or {@code WHERE},
+   * closed by {@code AND}, then the gate on the same {@code x}. {@code x IS NULL} inside an {@code
+   * OR}, or on another alias, does not qualify and the statement is flagged. Raw-JDBC and otherwise
+   * ungated statements are never rewritten, so a statement with no gate is not flagged either.
    */
-  private static boolean isTenantGated(String sql) {
-    // The function-call form, so a hypothetical identifier merely containing the name does not
-    // match.
-    return sql.toLowerCase(Locale.ROOT).contains("can_access_tenant(");
+  static boolean isFailClosedRead(String sql) {
+    int gates = count(GATE, sql);
+    return gates > 0 && gates > count(PLATFORM_ONLY_GATE, sql);
+  }
+
+  private static int count(Pattern pattern, String sql) {
+    Matcher matcher = pattern.matcher(sql);
+    int found = 0;
+    while (matcher.find()) {
+      found++;
+    }
+    return found;
   }
 
   /**
