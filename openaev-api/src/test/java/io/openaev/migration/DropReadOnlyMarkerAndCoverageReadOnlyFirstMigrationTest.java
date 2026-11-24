@@ -52,8 +52,7 @@ class DropReadOnlyMarkerAndCoverageReadOnlyFirstMigrationTest extends Integratio
     runMigration();
 
     // Assert
-    assertThat(count(columnQuery("injectors_contracts", "injector_contract_read_only")))
-        .isZero();
+    assertThat(count(columnQuery("injectors_contracts", "injector_contract_read_only"))).isZero();
     assertThat(count(columnQuery("payloads", "payload_read_only"))).isZero();
     assertThat(
             count(

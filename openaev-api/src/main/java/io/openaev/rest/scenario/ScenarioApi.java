@@ -674,8 +674,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  @Operation(
-      summary = "Declare or clear a reachability assertion")
+  @Operation(summary = "Declare or clear a reachability assertion")
   public ScenarioOutput updateScenarioReachabilityAssertion(
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
