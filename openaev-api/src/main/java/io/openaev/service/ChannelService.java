@@ -15,7 +15,9 @@ import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.channel.model.VirtualArticle;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -132,24 +134,28 @@ public class ChannelService {
                       expectation.getId(),
                       buildMediaPressureVerdict(expectation.getExpectedScore())));
     }
-    return withDocumentLinksInitialized(channelReader);
+    return withLinksInitialized(channelReader);
   }
 
   /**
-   * Initializes the lazy document links the reader serializes ({@code article_documents} on every
-   * article, {@code exercise_documents} or {@code scenario_documents} on the parent) inside the
-   * caller's tenant-scoped transaction. The reader holds raw entities, so those collections are
-   * otherwise loaded open-in-view after the transaction commits, where the tenant scope is gone:
-   * with {@code documents} tenant-active the loads fail closed to empty arrays and the channel
-   * pages lose their media with no error. One statement per article, bounded by the articles of one
-   * channel in one simulation or scenario.
+   * Initializes the lazy links the reader serializes inside the caller's tenant-scoped transaction:
+   * the associations of the simulation or scenario ({@link ExerciseResponseHydrator}, {@link
+   * ScenarioResponseHydrator}) and the {@code article_documents} of every article. The reader holds
+   * raw entities, so those collections are otherwise loaded open-in-view after the transaction
+   * commits, where the tenant scope is gone: every one of them reads a tenant table and serializes
+   * as an empty array with no error. The articles cost one statement each, bounded by the articles
+   * of one channel in one simulation or scenario.
    */
-  public ChannelReader withDocumentLinksInitialized(ChannelReader channelReader) {
+  public ChannelReader withLinksInitialized(ChannelReader channelReader) {
     if (channelReader.getExercise() != null) {
-      Hibernate.initialize(channelReader.getExercise().getDocuments());
+      ExerciseResponseHydrator.hydrateForResponse(channelReader.getExercise());
+      // Listing the distinct players loads their user rows inside the scope, as the serializer
+      // lists them after the commit, with no scope
+      channelReader.getExercise().getUsers();
     }
     if (channelReader.getScenario() != null) {
-      Hibernate.initialize(channelReader.getScenario().getDocuments());
+      ScenarioResponseHydrator.hydrateForResponse(channelReader.getScenario());
+      channelReader.getScenario().getUsers();
     }
     channelReader
         .getChannelArticles()
