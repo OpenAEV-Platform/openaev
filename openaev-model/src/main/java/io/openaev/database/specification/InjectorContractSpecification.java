@@ -1,11 +1,16 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
 
 public class InjectorContractSpecification {
@@ -68,6 +73,35 @@ public class InjectorContractSpecification {
    * Contracts without payload, or whose payload is the default version of an installed one. A
    * variant whose versions are all revoked keeps its newest one listed, so it can be resolved.
    */
+  /**
+   * Payload drafts (Threat Arsenal Approval filter): contracts whose payload version has one of
+   * {@code statuses}, or whose payload has a draft. With no status, only the ones with a draft.
+   */
+  public static Specification<InjectorContract> withApprovalStatusOrDraft(
+      Collection<Payload.PAYLOAD_APPROVAL_STATUS> statuses) {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      Predicate hasDraft = cb.exists(draftOf(query, cb, payload));
+      return statuses.isEmpty()
+          ? hasDraft
+          : cb.or(payload.get("approvalStatus").in(statuses), hasDraft);
+    };
+  }
+
+  /** Contracts whose payload has a draft (the Draft count of the Approval facet). */
+  public static Specification<InjectorContract> withPayloadDraft() {
+    return withApprovalStatusOrDraft(List.of());
+  }
+
+  private static Subquery<Integer> draftOf(
+      CriteriaQuery<?> query, CriteriaBuilder cb, Join<Object, Object> payload) {
+    Subquery<Integer> draft = query.subquery(Integer.class);
+    Root<PayloadDraft> root = draft.from(PayloadDraft.class);
+    return draft
+        .select(cb.literal(1))
+        .where(cb.equal(root.get("identity"), payload.get("identity")));
+  }
+
   public static Specification<InjectorContract> withLatestPayload() {
     return (root, query, cb) -> {
       Join<Object, Object> payload = root.join("payload", JoinType.LEFT);

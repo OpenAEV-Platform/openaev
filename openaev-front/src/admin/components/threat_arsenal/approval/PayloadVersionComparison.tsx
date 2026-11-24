@@ -14,6 +14,8 @@ interface Props {
   pendingNumber: number | string;
   /** Heading; "What was proposed" for a rejected version. */
   title?: string;
+  /** Payload drafts: the After side is a draft (no number), compared with the version it started from. */
+  draft?: boolean;
 }
 
 // What the action runs, compared line by line like code; the other fields as Before / After.
@@ -24,18 +26,24 @@ const CODE_FIELDS = new Set(['content', 'cleanup_command', 'arguments', 'prerequ
  * Before / After. Unchanged fields are not repeated. A new action has nothing to compare with, so
  * every field it runs is shown as added, line by line: the approver sees all they approve.
  */
-const PayloadVersionComparison: FunctionComponent<Props> = ({ active, pending, activeNumber, pendingNumber, title }) => {
+const PayloadVersionComparison: FunctionComponent<Props> = ({ active, pending, activeNumber, pendingNumber, title, draft = false }) => {
   const { t } = useFormatter();
   const isNew = !active;
   const fields = useMemo(() => versionFields(active ?? {}, pending), [active, pending]);
   const changed = fields.filter(field => field.changed);
   const beforeLabel = String(t('Before · v{version}', { version: String(activeNumber ?? '-') }));
-  const afterLabel = String(t('After · v{version}', { version: String(pendingNumber) }));
+  const afterLabel = draft ? String(t('After · draft')) : String(t('After · v{version}', { version: String(pendingNumber) }));
   let summary: string;
   if (isNew) {
     summary = t('New action: nothing was approved before, so everything below is new in v{version}.', { version: String(pendingNumber) });
   } else if (changed.length === 0) {
     summary = t('No change in what the action runs.');
+  } else if (draft) {
+    summary = t(changed.length === 1 ? '1 field changed: {fields} · compared with v{version}, the version this draft started from' : '{count} fields changed: {fields} · compared with v{version}, the version this draft started from', {
+      count: String(changed.length),
+      fields: changed.map(field => t(field.label)).join(', '),
+      version: String(activeNumber),
+    });
   } else {
     summary = t(changed.length === 1 ? '1 field changed: {fields} · compared with v{version}, the version in use' : '{count} fields changed: {fields} · compared with v{version}, the version in use', {
       count: String(changed.length),

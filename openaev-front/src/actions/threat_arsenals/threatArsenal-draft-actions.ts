@@ -1,5 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type PayloadDraftInput, type ThreatArsenalActionUpdateInput } from '../../utils/api-types';
+import { type PayloadDraftInput, type ThreatArsenalActionCreateInput, type ThreatArsenalActionUpdateInput } from '../../utils/api-types';
 
 // Payload drafts: versions not published yet, never usable. Any action of the payload reaches them.
 const draftsUri = (actionId: string) => `/api/threat_arsenals/${actionId}/drafts`;
@@ -13,3 +13,19 @@ export const saveThreatArsenalDraft = (actionId: string, draftId: string, input:
 export const discardThreatArsenalDraft = (actionId: string, draftId: string) => simpleDelCall(`${draftsUri(actionId)}/${draftId}`);
 
 export const publishThreatArsenalDraft = (actionId: string, draftId: string, input: ThreatArsenalActionUpdateInput) => simplePostCall(`${draftsUri(actionId)}/${draftId}/publish`, input, undefined, true, true);
+
+// Drafts of new actions: no action and no version until published.
+const newActionDraftsUri = '/api/threat_arsenals/new_action_drafts';
+
+export const fetchNewActionDrafts = () => simpleCall(newActionDraftsUri);
+
+export const createNewActionDraft = (input: PayloadDraftInput) => simplePostCall(newActionDraftsUri, input);
+
+export const saveNewActionDraft = (draftId: string, input: PayloadDraftInput) => simplePutCall(`${newActionDraftsUri}/${draftId}`, input);
+
+export const discardNewActionDraft = (draftId: string) => simpleDelCall(`${newActionDraftsUri}/${draftId}`);
+
+export const publishNewActionDraft = (draftId: string, input: ThreatArsenalActionCreateInput) => simplePostCall(`${newActionDraftsUri}/${draftId}/publish`, input, undefined, true, true);
+
+// The drafts the current user started or saved last (My changes).
+export const fetchMyDrafts = () => simpleCall('/api/threat_arsenals/my_drafts');

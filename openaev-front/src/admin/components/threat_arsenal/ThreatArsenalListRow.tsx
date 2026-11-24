@@ -11,6 +11,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { useApprovedEarlierVersion } from './approval/approvedEarlierVersion';
+import HintChip from './HintChip';
 import PayloadVerificationTag from './PayloadVerificationTag';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
@@ -46,7 +47,8 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   disableDelete,
 }) => {
   const { classes } = useStyles();
-  const { tPick, nsdt } = useFormatter();
+  const { t, tPick, nsdt } = useFormatter();
+  const draftsCount = action.action_payload?.payload_drafts_count ?? 0;
   const bodyItemsStyles = useBodyItemsStyles();
   const isNewVersion = useApprovedEarlierVersion(
     action.injector_contract_id,
@@ -174,6 +176,9 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
               <div style={{
                 ...bodyItemsStyles.bodyItem,
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_status,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
               }}
               >
                 {/* Payload-less built-in actions need no approval: they show a dash. */}
@@ -182,6 +187,14 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                   approvalStatus={action.action_payload?.payload_approval_status}
                   pendingVersion={isNewVersion}
                 />
+                {/* Payload drafts: not published, not usable; the row still shows the version in use. */}
+                {draftsCount > 0 && (
+                  <HintChip
+                    label={draftsCount > 1 ? t('{count} drafts', { count: String(draftsCount) }) : t('Draft')}
+                    hint={t('Not published yet: open Update or the Versions tab to continue it.')}
+                    maxWidth={96}
+                  />
+                )}
               </div>
               <Typography
                 component="div"

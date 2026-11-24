@@ -24,7 +24,8 @@ import lombok.Setter;
 @Table(name = "payload_drafts")
 @EntityListeners(ModelBaseListener.class)
 // payload_drafts is a tenant-v2 active table (inspector + can_access_tenant), like payloads, so no
-// v1 @Filter; PayloadDraftService copies the tenant of the payload identity.
+// v1 @Filter; ThreatArsenalDraftService copies the tenant of the payload identity, or of the write
+// scope for a new action.
 public class PayloadDraft implements TenantBase {
 
   @Id
@@ -38,9 +39,12 @@ public class PayloadDraft implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
-  /** The payload (all its versions) the draft belongs to. */
+  /**
+   * The payload (all its versions) the draft belongs to; null for the draft of a new action, which
+   * has no version until it is published.
+   */
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_identity_id", updatable = false, nullable = false)
+  @JoinColumn(name = "payload_identity_id", updatable = false)
   @JsonIgnore
   private PayloadIdentity identity;
 

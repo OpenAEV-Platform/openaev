@@ -9,6 +9,7 @@ import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threa
 import { createThreatArsenalDraft, discardThreatArsenalDraft, fetchThreatArsenalDrafts } from '../../../actions/threat_arsenals/threatArsenal-draft-actions';
 import {
   changeThreatArsenalVersion,
+  fetchThreatArsenalHistory,
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
@@ -18,6 +19,7 @@ import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../
 import FdsPagination from '../../../components/common/pagination/FdsPagination';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type ContentHistoryOutput,
   type PayloadDraftOutput,
   type PayloadUsageOutput,
   type PayloadVersionChangeOutput,
@@ -32,6 +34,7 @@ import { buildInitialValues } from './actionFormValues';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import RejectedVersionPanel from './approval/RejectedVersionPanel';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
+import { publishedFromDrafts } from './drafts/draftSelection';
 import PayloadDraftRows from './drafts/PayloadDraftRows';
 import ThreatArsenalDraftEditor from './drafts/ThreatArsenalDraftEditor';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
@@ -58,6 +61,8 @@ interface UsagesProps {
   installAction?: ReactNode;
   // Payload drafts: start a draft from this version (fix it, when it is rejected).
   draftAction?: ReactNode;
+  // Payload drafts: the version a draft started from, when this version was published from it.
+  fromVersion?: string;
   /** The newest approved version older than this one, which a pending version is compared with. */
   baseline?: PayloadVersionOutput;
   onDecided: (decision: ThreatArsenalApprovalDecisionOutput) => void;
@@ -78,6 +83,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
   loading,
   installAction,
   draftAction,
+  fromVersion,
   baseline,
   onDecided,
   focus = false,
@@ -161,6 +167,9 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         }}
       >
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
+        {fromVersion && (
+          <Text variant="content-base" className="text-default-secondary">{t('from v{version}', { version: fromVersion })}</Text>
+        )}
         {source.payload_installed && (
           <Text variant="content-base" className="text-default-secondary">
             {`(${t('{count} injects', { count: String(loading ? usageCount : usages.length) })})`}
@@ -329,6 +338,8 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
   const [drafts, setDrafts] = useState<PayloadDraftOutput[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [duplicating, setDuplicating] = useState<string | null>(null);
+  // Payload drafts: version published from a draft -> the version the draft started from.
+  const [draftSources, setDraftSources] = useState<Record<string, string>>({});
 
   const listed = versions.filter(v => !!v.payload_version);
   // From a card's Migrate link: the older installed versions something still runs.
@@ -366,10 +377,14 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
   const loadDrafts = () => fetchThreatArsenalDrafts(actionId)
     .then((response: { data: PayloadDraftOutput[] }) => setDrafts(response.data))
     .catch(() => setDrafts(null));
+  const loadDraftSources = () => fetchThreatArsenalHistory(actionId)
+    .then((response: { data: ContentHistoryOutput[] }) => setDraftSources(publishedFromDrafts(response.data)))
+    .catch(() => setDraftSources({}));
   useEffect(() => {
     setLoading(true);
     setPage(1);
     load();
+    loadDraftSources();
     if (canManage) loadDrafts();
   }, [actionId]);
 
@@ -477,6 +492,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
               loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
               installAction={installButton(source)}
               draftAction={draftButton(source)}
+              fromVersion={source.payload_version ? draftSources[source.payload_version] : undefined}
               focus={isFocused(source)}
               folded={!!firstFocused && !isFocused(source)}
               scrollIntoView={source === firstFocused}
@@ -518,6 +534,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onD
                 onPublished={() => {
                   setEditing(null);
                   loadDrafts();
+                  loadDraftSources();
                   reload();
                 }}
               />

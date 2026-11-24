@@ -1,4 +1,4 @@
-import { type PayloadDraftOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
+import { type ContentHistoryOutput, type PayloadDraftOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
 
 /**
  * What the edit drawer works on: a draft, a rejected version to fix (a draft is made of it at its
@@ -43,4 +43,46 @@ export const defaultSelection = (actionId: string, versions: PayloadVersionOutpu
   const first = options.published[0] ?? options.rejected[0];
   if (!first) return `new:${actionId}`;
   return `${first.payload_approval_status === 'REJECTED' ? 'rejected' : 'new'}:${first.payload_action_id}`;
+};
+
+/** A rejection reason short enough for one line of the selector (the full reason is in the Versions tab). */
+export const shortReason = (reason: string, max = 60) => {
+  const line = reason.split('\n')[0].trim();
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+};
+
+/**
+ * The versions published from a draft, with the version each draft started from (History keeps it
+ * on the "Published from a draft" entry), so the Versions tab can say "from vX".
+ */
+export const publishedFromDrafts = (history: ContentHistoryOutput[]): Record<string, string> => Object.fromEntries(history
+  .filter(entry => entry.content_history_action === 'UPDATE'
+    && (entry.content_history_details as { draft?: boolean } | undefined)?.draft
+    && entry.content_history_version
+    && entry.content_history_from_version)
+  .map(entry => [entry.content_history_version as string, entry.content_history_from_version as string]));
+
+type Translate = (key: string, values?: Record<string, string>) => string;
+
+/** A draft in the selector: the version it started from, or the rejected version it fixes and why. */
+export const draftOptionLabel = (t: Translate, draft: PayloadDraftOutput) => {
+  const version = draft.draft_source_version ?? '';
+  if (!draft.draft_rework) return t('Draft from v{version}', { version });
+  return draft.draft_rework_reason
+    ? t('v{version} · Rejected, being fixed: {reason}', {
+        version,
+        reason: shortReason(draft.draft_rework_reason),
+      })
+    : t('v{version} · Rejected, being fixed', { version });
+};
+
+/** A rejected version in the selector, with the reason it was rejected. */
+export const rejectedOptionLabel = (t: Translate, version: PayloadVersionOutput) => {
+  const number = version.payload_version ?? '';
+  return version.payload_rejection_reason
+    ? t('v{version} · Rejected: {reason}', {
+        version: number,
+        reason: shortReason(version.payload_rejection_reason),
+      })
+    : t('v{version} · Rejected', { version: number });
 };

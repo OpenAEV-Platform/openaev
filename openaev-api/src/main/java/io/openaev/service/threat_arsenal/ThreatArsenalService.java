@@ -46,7 +46,9 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Join;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,6 +71,9 @@ public class ThreatArsenalService {
 
   private static final String ALL_VERSIONS_FILTER_KEY = "action_all_versions";
   private static final String PAYLOAD_STATUS_FILTER_KEY = "injector_contract_payload_status";
+  private static final String APPROVAL_FILTER_KEY = "injector_contract_payload_approval_status";
+  // Payload drafts: a value of the Approval filter that is not a version status.
+  public static final String DRAFT_APPROVAL_VALUE = "DRAFT";
 
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
@@ -190,11 +195,18 @@ public class ThreatArsenalService {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     Specification<InjectorContract> scope = versionScope(filtered);
+    // Payload drafts: the Draft row counts the actions with a draft, among the same results.
+    Map<String, Long> approvals =
+        new LinkedHashMap<>(injectorContractService.getApprovalStatusCounts(filtered, scope));
+    approvals.put(
+        DRAFT_APPROVAL_VALUE,
+        injectorContractService.countWithin(
+            filtered, scope.and(InjectorContractSpecification.withPayloadDraft())));
     // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered, scope),
         injectorContractService.getStatusCounts(filtered),
-        injectorContractService.getApprovalStatusCounts(filtered, scope));
+        approvals);
   }
 
   /**
@@ -648,6 +660,40 @@ public class ThreatArsenalService {
    * payload whose latest version waits for approval is still offered in its approved version.
    */
   private Specification<InjectorContract> versionScope(
+      SearchPaginationInput input, boolean approvedOnly) {
+    return versionsOnly(input, approvedOnly).and(draftScope(input));
+  }
+
+  /**
+   * Payload drafts: the Draft value of the Approval filter is not a version status. When it is
+   * ticked, the filter is replaced by "one of the other ticked statuses, or a payload with a
+   * draft". Removes that filter from the filters it reads.
+   */
+  private Specification<InjectorContract> draftScope(SearchPaginationInput input) {
+    Filters.FilterGroup group = input.getFilterGroup();
+    if (group == null) {
+      return Specification.unrestricted();
+    }
+    Optional<Filters.Filter> approval =
+        group
+            .findByKey(APPROVAL_FILTER_KEY)
+            .filter(f -> f.getOperator() == Filters.FilterOperator.eq)
+            .filter(f -> f.getValues() != null && f.getValues().contains(DRAFT_APPROVAL_VALUE));
+    if (approval.isEmpty()) {
+      return Specification.unrestricted();
+    }
+    group.removeByKey(APPROVAL_FILTER_KEY);
+    List<Payload.PAYLOAD_APPROVAL_STATUS> statuses =
+        approval.get().getValues().stream()
+            .flatMap(
+                v ->
+                    Arrays.stream(Payload.PAYLOAD_APPROVAL_STATUS.values())
+                        .filter(s -> s.name().equals(v)))
+            .toList();
+    return InjectorContractSpecification.withApprovalStatusOrDraft(statuses);
+  }
+
+  private Specification<InjectorContract> versionsOnly(
       SearchPaginationInput input, boolean approvedOnly) {
     Filters.FilterGroup group = input.getFilterGroup();
     List<Filters.Filter> filters =

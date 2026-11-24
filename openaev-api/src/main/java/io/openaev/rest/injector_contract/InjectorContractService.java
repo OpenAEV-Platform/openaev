@@ -1429,6 +1429,19 @@ public class InjectorContractService implements DependenciesManager {
    * sidebar can display live counts on its approval facet. Payload-less contracts are not counted:
    * they need no approval.
    */
+  /** How many contracts the filters, search and access keep within {@code scope}. */
+  public long countWithin(SearchPaginationInput input, Specification<InjectorContract> scope) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Long> q = cb.createQuery(Long.class);
+    Root<InjectorContract> root = q.from(InjectorContract.class);
+    Predicate predicate = facetBaseSpec(input, scope).toPredicate(root, q, cb);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    q.select(cb.countDistinct(root));
+    return entityManager.createQuery(q).getSingleResult();
+  }
+
   public Map<String, Long> getApprovalStatusCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();

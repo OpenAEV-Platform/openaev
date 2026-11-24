@@ -43,6 +43,12 @@ export const toExecutableContent = (action: ThreatArsenalActionFullOutput): Payl
   prerequisites: action.action_prerequisites,
 });
 
+/**
+ * Payload drafts: the content of the editor's values (a draft, or a version opened in the editor),
+ * read as an action output, so a draft compares with the version it started from field by field.
+ */
+export const toExecutableContentFromInput = (input: object): PayloadExecutableContent => toExecutableContent(input as ThreatArsenalActionFullOutput);
+
 export type DiffLineType = 'same' | 'added' | 'removed';
 
 export interface DiffLine {
