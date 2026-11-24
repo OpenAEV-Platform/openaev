@@ -798,7 +798,7 @@ class AutonomousRunServiceTest {
             eq(scenario), any(Instant.class), eq(true), any(User.class)))
         .thenReturn(freshSimulation);
     // The simulation is read back by id once the copy is done.
-    when(exerciseService.exercise("sim-new")).thenReturn(freshSimulation);
+    when(exerciseService.exercise(TX, "sim-new")).thenReturn(freshSimulation);
     when(runRepository.save(any(AutonomousRun.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
   }
@@ -930,7 +930,7 @@ class AutonomousRunServiceTest {
     when(scenarioToExerciseService.toExercise(
             eq(scenario), any(Instant.class), eq(true), any(User.class)))
         .thenReturn(simulation);
-    when(exerciseService.exercise("sim-new")).thenReturn(simulation);
+    when(exerciseService.exercise(TX, "sim-new")).thenReturn(simulation);
     // save() assigns the generated id and the follow-up start reloads it by that id.
     final AutonomousRun[] savedHolder = new AutonomousRun[1];
     when(runRepository.save(any(AutonomousRun.class)))

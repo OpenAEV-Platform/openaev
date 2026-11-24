@@ -380,7 +380,7 @@ public class AutonomousRunService {
                             .findById(launcherId)
                             .orElseThrow(ElementNotFoundException::new))
                     .getId());
-    return exerciseService.exercise(simulationId);
+    return exerciseService.exercise(ctx, simulationId);
   }
 
   /**
