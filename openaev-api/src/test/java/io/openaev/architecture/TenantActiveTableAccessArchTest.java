@@ -1732,10 +1732,6 @@ class TenantActiveTableAccessArchTest {
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
               FindingValueDisplayBackfill.class,
-              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
-              // tenant-scoped transaction of the delete entry point that calls it (pinned by
-              // DeleteKeepFindingsApiTest).
-              io.openaev.service.finding.FindingDetachService.class,
               // Re-test on demand: reached only from FindingApi#retestFindings, a TxCtx-carrying
               // @Transactional handler, with the one tenant of its scope; every read names it.
               io.openaev.service.finding.FindingRetestService.class,
