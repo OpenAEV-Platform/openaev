@@ -65,9 +65,9 @@ public class FindingHandler implements Handler<EsFinding> {
   private Map<String, Set<String>> assetGroupsOfBatch(List<RawFindingIndexing> batch) {
     Set<String> assetIds = new HashSet<>();
     batch.stream()
-        .map(RawFindingIndexing::getAsset_ids)
+        .map(RawFindingIndexing::getFinding_location_asset_id)
         .filter(Objects::nonNull)
-        .forEach(assetIds::addAll);
+        .forEach(assetIds::add);
     if (assetIds.isEmpty()) {
       return Map.of();
     }
@@ -81,8 +81,7 @@ public class FindingHandler implements Handler<EsFinding> {
   static Set<String> assetGroupsOf(
       RawFindingIndexing finding, Map<String, Set<String>> groupsByAsset) {
     Set<String> groups = new HashSet<>(orEmpty(finding.getAsset_group_ids()));
-    orEmpty(finding.getAsset_ids())
-        .forEach(assetId -> groups.addAll(groupsByAsset.getOrDefault(assetId, Set.of())));
+    groups.addAll(groupsByAsset.getOrDefault(finding.getFinding_location_asset_id(), Set.of()));
     return groups;
   }
 

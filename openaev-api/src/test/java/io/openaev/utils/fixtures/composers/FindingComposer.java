@@ -25,6 +25,7 @@ public class FindingComposer extends ComposerBase<Finding> {
     private final Finding finding;
     private Optional<InjectComposer.Composer> injectComposer = Optional.empty();
     private Optional<FindingOccurrenceComposer.Composer> occurrenceComposer = Optional.empty();
+    private Optional<FindingLocationComposer.Composer> locationComposer = Optional.empty();
     private final List<EndpointComposer.Composer> endpointComposers = new ArrayList<>();
     private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
 
@@ -60,11 +61,18 @@ public class FindingComposer extends ComposerBase<Finding> {
       return this;
     }
 
+    public Composer withLocation(FindingLocationComposer.Composer locationComposer) {
+      this.locationComposer = Optional.of(locationComposer);
+      this.finding.setLocation(locationComposer.get());
+      return this;
+    }
+
     @Override
     public FindingComposer.Composer persist() {
       injectComposer.ifPresent(InjectComposer.Composer::persist);
       endpointComposers.forEach(EndpointComposer.Composer::persist);
       tagComposers.forEach(TagComposer.Composer::persist);
+      locationComposer.ifPresent(FindingLocationComposer.Composer::persist);
       findingRepository.save(this.finding);
       occurrenceComposer.ifPresent(FindingOccurrenceComposer.Composer::persist);
       return this;
@@ -76,6 +84,7 @@ public class FindingComposer extends ComposerBase<Finding> {
       endpointComposers.forEach(EndpointComposer.Composer::delete);
       tagComposers.forEach(TagComposer.Composer::delete);
       occurrenceComposer.ifPresent(FindingOccurrenceComposer.Composer::delete);
+      locationComposer.ifPresent(FindingLocationComposer.Composer::delete);
       findingRepository.delete(this.finding);
       return this;
     }
