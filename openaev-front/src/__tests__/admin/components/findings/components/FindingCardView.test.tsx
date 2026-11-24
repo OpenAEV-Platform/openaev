@@ -26,10 +26,10 @@ describe('FindingCardView', () => {
 
   it('should render placeholders instead of the cards, and no empty message, while loading', () => {
     // Arrange + Act
-    const { container } = renderInApp(<FindingCardView loading findings={[]} />);
+    renderInApp(<FindingCardView loading findings={[]} />);
 
     // Assert
-    expect(container.querySelectorAll('.MuiSkeleton-root').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Loading').length).toBeGreaterThan(0);
     expect(screen.queryAllByTestId('finding-card')).toHaveLength(0);
     expect(screen.queryByText('No finding found.')).toBeNull();
   });

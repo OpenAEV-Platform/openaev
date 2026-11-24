@@ -1,6 +1,6 @@
 import { useTheme } from '@mui/material/styles';
 
-import CardGrid from '../../../../components/common/card/CardGrid';
+import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { type AggregatedFindingOutput } from '../../../../utils/api-types';
@@ -16,12 +16,14 @@ const FindingCardView = ({ loading, findings }: Props) => {
   const theme = useTheme();
 
   return (
-    <>
-      <CardGrid loading={loading} style={{ marginTop: theme.spacing(1) }}>
-        {findings.map(finding => <FindingCard key={finding.finding_id} finding={finding} />)}
-      </CardGrid>
-      {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
-    </>
+    <div style={{ marginTop: theme.spacing(1) }}>
+      <MarketplaceSections
+        items={findings}
+        loading={loading}
+        emptyState={<Empty message={t('No finding found.')} />}
+        renderItem={finding => <FindingCard key={finding.finding_id} finding={finding} />}
+      />
+    </div>
   );
 };
 
