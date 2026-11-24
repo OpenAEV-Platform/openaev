@@ -1,17 +1,20 @@
 import { Avatar, Button, Dialog, DialogBody, DialogContent, DialogFooter, DialogTitle, Text, Textarea } from '@filigran/design-system';
 import { CheckCircleOutlined, DoNotDisturbOnOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
+import { fetchMe } from '../../../../actions/Application';
 import { approveThreatArsenalAction, rejectThreatArsenalAction } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput, type ThreatArsenalApprovalDecisionOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/error/errorHandlerUtil';
+import { type Error as ApiError } from '../../../../utils/error/errorHandlerUtil';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { APPROVAL_COMMENT_MAX_LENGTH } from './approvalStatusUtils';
 import PayloadVersionComparison from './PayloadVersionComparison';
+import useApprovalDecisionError from './useApprovalDecisionError';
 import useVersionDetails from './useVersionDetails';
 
 interface Props {
@@ -37,6 +40,14 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   const [sending, setSending] = useState(false);
   const actionId = version.payload_action_id;
+  const dispatch = useAppDispatch();
+  const onDecisionError = useApprovalDecisionError();
+
+  // Capabilities are loaded at login: reload them before offering a decision, so a user whose
+  // "Approve content" was removed meanwhile no longer sees Approve and Reject (the server refuses anyway).
+  useEffect(() => {
+    dispatch(fetchMe());
+  }, [actionId]);
   const details = useVersionDetails(actionId);
   const submittedBy = (() => {
     if (details.authorName) return t('Submitted by {name}', { name: details.authorName });
@@ -55,7 +66,7 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
   };
   const onError = (close: () => void) => (error: ApiError) => {
     close();
-    notifyErrorHandler(error);
+    onDecisionError(error);
   };
 
   // A version never changes once created, so the decision covers exactly the content shown.

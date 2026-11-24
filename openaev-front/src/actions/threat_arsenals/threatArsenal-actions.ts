@@ -61,10 +61,6 @@ export const reopenThreatArsenalAction = (actionId: string, data: ThreatArsenalR
   return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reopen`, data, undefined, notifyError);
 };
 
-export const fetchThreatArsenalActionUsage = (actionId: string) => {
-  return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usage`);
-};
-
 // Approval history of the action's payload (who created, edited, approved or rejected it), newest first.
 export const fetchThreatArsenalActionApprovals = (actionId: string) => {
   return simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/approvals`);

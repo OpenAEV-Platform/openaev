@@ -50,7 +50,7 @@ the filters and search as you need, then keep them as a **custom view** of your 
 A custom view opens in one click with its saved filters. Change them in the view: a banner offers to **Save changes**
 in the view, **Save as new view**, or **Discard** them. Each view's menu renames or deletes it; deleting a view does not
 change any Action. Up to three custom views show as tabs, the others are under *Custom views*, and **Customize** chooses
-and orders them. Only you see your custom views.
+and orders them. Only you see your custom views, and only in the tenant where you made them.
 
 ### Action tags
 

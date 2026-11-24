@@ -24,7 +24,7 @@ interface Props {
  *
  * FDS-WORKAROUND: built from TabsTrigger + Menu because the library has no split tab (TabsMenuTrigger
  * is one button, and TabsList moves it after the tabs) — remove when the library ships a tab with its
- * own menu — see ~/Design_Repositories/ds-proposal-split-tab.md (Tabs RFC amendment).
+ * own menu (a Tabs RFC amendment is proposed to the design system).
  * Known prototype debt: the arrow button sits inside role="tablist", which Tabs RULE-11 forbids
  * (aria-required-children); the library version has to place it outside the tablist.
  */
