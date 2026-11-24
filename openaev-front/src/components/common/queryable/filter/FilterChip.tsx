@@ -7,7 +7,7 @@ import { forwardRef, type FunctionComponent, useEffect, useRef, useState } from 
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { useFormatter } from '../../../i18n';
-import { neutralChipSx, STANDARD_CHIP_EDGE } from '../../chips/standardChip';
+import { neutralChipSx, PENDING_CHIP_EDGE } from '../../chips/standardChip';
 import FilterChipPopover from './FilterChipPopover';
 import FilterChipValues from './FilterChipValues';
 import { type FilterHelpers } from './FilterHelpers';
@@ -61,9 +61,8 @@ const FilterChip: FunctionComponent<Props> = ({
     return R.isEmpty(values) || values?.some(v => R.isEmpty(v));
   };
 
-  // A filter still waiting for its value stays outlined in both modes, as today; a
-  // complete one is outlined in standard colours ("Pastel colours" off) and filled under
-  // the `pastel` root class, as the design-system Chip.
+  // A filter still waiting for its value stays outlined, as today; a complete one takes
+  // the design-system 1.13 chip look (neutral fill and a 30% hairline).
   const isIncomplete = isEmpty(filter.values) && !['empty', 'not_empty'].includes(filter.operator ?? 'eq');
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -103,10 +102,10 @@ const FilterChip: FunctionComponent<Props> = ({
         )}
         onDelete={handleRemoveFilter}
         deleteIcon={<ClearFilterIcon />}
-        sx={theme => ({
+        sx={() => ({
           ...(isIncomplete
-            ? { border: STANDARD_CHIP_EDGE }
-            : neutralChipSx(theme)),
+            ? { border: PENDING_CHIP_EDGE }
+            : neutralChipSx()),
           'borderRadius': 1,
           // 8px on BOTH sides of the clear cross: the label's own padding on its
           // left, the icon's margin on its right.

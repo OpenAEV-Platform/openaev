@@ -7,21 +7,17 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../i18n';
 import convertOperatorToIcon from './ChipUtils';
 import ClickableChipPopover from './ClickableChipPopover';
-import { neutralChipSx, STANDARD_CHIP_EDGE } from './standardChip';
+import { neutralChipSx, STANDARD_CHIP_EDGE, STANDARD_CHIP_FILL } from './standardChip';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   mode: {
-    'display': 'inline-block',
-    'height': '100%',
-    'border': STANDARD_CHIP_EDGE,
-    'borderRadius': 4,
-    'backgroundColor': 'transparent',
-    '.pastel &': {
-      borderColor: 'transparent',
-      backgroundColor: theme.palette.action?.selected,
-    },
-    'margin': '0 4px',
-    'padding': '0 4px',
+    display: 'inline-block',
+    height: '100%',
+    border: STANDARD_CHIP_EDGE,
+    borderRadius: 4,
+    backgroundColor: STANDARD_CHIP_FILL,
+    margin: '0 4px',
+    padding: '0 4px',
   },
   modeTooltip: { margin: '0 4px' },
   container: {
@@ -187,12 +183,11 @@ const ClickableChip: FunctionComponent<Props> = ({
             variant="outlined"
             label={filterValues(false)}
             onDelete={onDelete ? handleRemoveFilter : undefined}
-            // Standard colours ("Pastel colours" off): outlined, as the design-system Chip; the
-            // `pastel` root class (useFdsThemeScope) keeps today's filled chip.
-            sx={theme => ({
+            // The design-system 1.13 chip look: neutral fill and a 30% hairline.
+            sx={{
               borderRadius: 1,
-              ...neutralChipSx(theme),
-            })}
+              ...neutralChipSx(),
+            }}
             ref={chipRef}
           />
         </TooltipTrigger>

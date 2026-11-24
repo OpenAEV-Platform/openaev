@@ -29,8 +29,8 @@ export const markingLabel = (marking: MarkingDefinitionOutput) => {
 
 // The tone a predefined marking (TLP, PAP) is drawn with, the same mapping every XTM Platform
 // module uses (OpenCTI, OpenCRQ, XTM One): red is critical, amber high, green low, clear neutral.
-// Drawn through the design system's severity chip, it follows the user's "Pastel colours"
-// preference. `undefined`: a custom marking, which keeps its administrator's colour.
+// Drawn through the design system's severity chip. `undefined`: a custom marking, which keeps
+// its administrator's colour.
 export const markingTone = (marking: MarkingDefinitionOutput): ChipSeverity | undefined => {
   switch (markingLabel(marking)) {
     case 'TLP:RED':
