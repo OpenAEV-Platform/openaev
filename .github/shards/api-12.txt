@@ -1,0 +1,8 @@
+io/openaev/aop/**/*Test.java
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/api/detection_remediation/**/*Test.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/collector/**/*Test.java
+io/openaev/rest/mitigation/**/*Test.java
+io/openaev/telemetry/**/*Test.java

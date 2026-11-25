@@ -19,7 +19,6 @@
 # site takes its tenant from an explicit scope rather than a line here.
 io.openaev.aop.AccessControlAspect#methodRBACVerification | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
 io.openaev.aop.AccessControlAspect#methodRBACVerification | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
-io.openaev.aop.HibernateFilterTransactionAspect#enableFilters | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
 io.openaev.api.chaining.InjectExecutionStep#getInjectFromDataStep | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
 io.openaev.api.payload.PayloadImportService#importPayload | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
@@ -37,24 +36,16 @@ io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.setCu
 io.openaev.database.audit.BaseEvent#<init> | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
 io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.hasCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
-io.openaev.database.audit.TenantIdBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
 io.openaev.database.model.BaseConnectorEntity#resolveCompositeId | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
 io.openaev.database.model.ConnectorInstancePersisted | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.Cwe | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.Finding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.ImportMapper | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Inject | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.InjectorContract#resolveCompositeId | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
 io.openaev.database.model.InjectorInjectorContract#<init> | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
-io.openaev.database.model.Mitigation | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.Secret | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.SecretReference | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.database.model.User#getOrganization | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.database.model.User#hasTenantBypass | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.database.model.User#scopedTenantId | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
-io.openaev.database.model.attackpath.AttackPathExecution | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.attackpath.AttackPathFinding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
-io.openaev.database.model.attackpath.AttackPathGraphVersion | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes

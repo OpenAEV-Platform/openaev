@@ -22,12 +22,11 @@ import org.springframework.test.context.TestPropertySource;
  * with no {@code TxCtx}, and it is reached from an {@code @Async}
  * {@code @TransactionalEventListener} - a pool thread, after commit, with no ambient transaction.
  *
- * <p>Before the v2 activations it was scoped by the v1 Hibernate filter, which {@code
- * HibernateFilterTransactionAspect} enables on every {@code @Transactional} method from the
- * thread-local {@code NotificationEngineService} sets. Activating a table removes that filter, so
- * the re-check ran against {@code can_access_tenant} with an empty {@code app.current_tenants},
- * counted zero, and every filtered LIVE trigger on that resource silently stopped firing. No
- * exception either: {@code matches} catches and returns false.
+ * <p>Before the v2 activations the v1 Hibernate filter scoped it, enabled by an aspect on every
+ * {@code @Transactional} method from the thread-local {@code NotificationEngineService} sets.
+ * Activating a table removed that filter, so the re-check ran against {@code can_access_tenant}
+ * with an empty {@code app.current_tenants}, counted zero, and every filtered LIVE trigger on that
+ * resource silently stopped firing. No exception either: {@code matches} catches and returns false.
  *
  * <p>The catalog maps ASSET to {@code Endpoint}, ASSET_GROUP to {@code AssetGroup} and FINDING to
  * {@code Finding}, so the same hole opens once per activation. This pins the assets case; the fix

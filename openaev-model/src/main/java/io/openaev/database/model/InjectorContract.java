@@ -117,22 +117,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
 
-  /**
-   * True when running this contract only reads the target (a version read, a protocol negotiation,
-   * a permission listing) and changes nothing on it. Safe-mode scenarios run read-only injects
-   * only; any other inject waits for an approval.
-   */
-  @Column(name = "injector_contract_read_only")
-  @JsonProperty("injector_contract_read_only")
-  @Queryable(filterable = true)
-  private Boolean readOnly = false;
-
-  /** Read-only when the contract or its payload is marked read-only. */
-  @JsonIgnore
-  public boolean isReadOnlyEffective() {
-    return Boolean.TRUE.equals(readOnly) || (payload != null && payload.isReadOnly());
-  }
-
   @JsonProperty("injector_contract_custom")
   public boolean getCustomEffective() {
     return Boolean.TRUE.equals(custom);

@@ -2845,8 +2845,8 @@ class InjectApiTest extends IntegrationTest {
 
       @Test
       @DisplayName(
-          "Should merge assets of duplicate PortsScan findings when two assets expose the same host/port/service")
-      void shouldMergeAssetsOfDuplicatePortScanFindingsWhenTwoAssetsHaveSameHostPortService()
+          "Should create one PortsScan finding per asset when two assets expose the same host/port/service")
+      void shouldCreateOnePortScanFindingPerAssetWhenTwoAssetsHaveSameHostPortService()
           throws Exception {
         // -- PREPARE --
         Endpoint endpointA = EndpointFixture.createEndpoint();
@@ -2908,18 +2908,17 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
-        assertEquals(
-            1,
-            findings.size(),
-            "Two PortsScan entries with same host/port/service must be consolidated into one finding");
-        Finding merged = findings.getFirst();
-        assertEquals(ContractOutputType.PortsScan, merged.getType());
-        assertEquals("192.168.1.10:8080 (http)", merged.getValue());
-        List<String> assetIds = merged.getAssets().stream().map(Asset::getId).toList();
-        assertTrue(
-            assetIds.contains(endpointASaved.getId()), "Merged finding must be linked to asset A");
-        assertTrue(
-            assetIds.contains(endpointBSaved.getId()), "Merged finding must be linked to asset B");
+        assertThat(findings)
+            .hasSize(2)
+            .allSatisfy(
+                finding -> {
+                  assertEquals(ContractOutputType.PortsScan, finding.getType());
+                  assertEquals("192.168.1.10:8080 (http)", finding.getValue());
+                  assertEquals(1, finding.getAssets().size());
+                });
+        assertThat(findings)
+            .extracting(finding -> finding.getAssets().getFirst().getId())
+            .containsExactlyInAnyOrder(endpointASaved.getId(), endpointBSaved.getId());
       }
 
       // CVE

@@ -75,8 +75,10 @@ public class UserApi extends RestBehavior {
   @NoTenantScope
   // Deliberately unscoped: this endpoint (and the password-reset handlers below) is permitAll
   // (AppSecurityConfig) and runs before authentication succeeds, and User is a dual-scope entity
-  // (nullable tenant_id, not v2-activated), so nothing read here needs a tenant scope. A TxCtx
+  // (nullable tenant_id, not v2-activated), so reading the user needs no tenant scope. A TxCtx
   // would resolve to the anonymous, empty scope, which is fail-closed the day User is activated.
+  // The teams, tags and organizations the response carries are read in the scope of the user's own
+  // memberships (UserService#hydrateInMembershipScope).
   public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
@@ -102,7 +104,8 @@ public class UserApi extends RestBehavior {
             });
 
         // The response describes the user in the ambient tenant, as changePasswordReset does.
-        return permissionService.withRolesInAmbientTenant(user);
+        return permissionService.withRolesInAmbientTenant(
+            userService.hydrateInMembershipScope(user));
       }
     }
     userEventService.createLoginFailedEvent(
