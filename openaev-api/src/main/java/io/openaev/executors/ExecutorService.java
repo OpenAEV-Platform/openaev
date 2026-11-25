@@ -12,6 +12,10 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
+import io.openaev.rest.inject.form.InjectExecutionAction;
+import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -21,13 +25,18 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
 
@@ -43,6 +52,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final EndpointService endpointService;
 
+  // Lazy: the callback service reaches the execution engine, which reaches the executors.
+  private final ObjectProvider<InjectExecutionCallbackService> injectExecutionCallbackService;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -53,7 +66,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      EndpointService endpointService) {
+      EndpointService endpointService,
+      ObjectProvider<InjectExecutionCallbackService> injectExecutionCallbackService,
+      TenantScopedJobRunner tenantScopedJobRunner) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -65,6 +80,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
     this.endpointService = endpointService;
+    this.injectExecutionCallbackService = injectExecutionCallbackService;
+    this.tenantScopedJobRunner = tenantScopedJobRunner;
   }
 
   @Override
@@ -283,5 +300,31 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
               .toList());
     }
     return agents;
+  }
+
+  /**
+   * Ends the agent's execution in error with the reason its executor could not send the payload.
+   */
+  public void reportSendFailure(String tenantId, String injectId, String agentId, String reason) {
+    InjectExecutionInput input = new InjectExecutionInput();
+    input.setStatus(ExecutionTraceStatus.ERROR.name());
+    input.setAction(InjectExecutionAction.complete);
+    input.setMessage(reason);
+    try {
+      tenantScopedJobRunner.runInTenant(
+          tenantId,
+          () -> {
+            try {
+              injectExecutionCallbackService
+                  .getObject()
+                  .injectExecutionCallback(agentId, injectId, input);
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          });
+    } catch (RuntimeException e) {
+      log.error(
+          "Could not report the send failure on inject {} for agent {}", injectId, agentId, e);
+    }
   }
 }

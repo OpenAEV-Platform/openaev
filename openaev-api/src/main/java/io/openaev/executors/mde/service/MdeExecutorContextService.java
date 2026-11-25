@@ -96,6 +96,12 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
   }
 
   @Override
+  protected void onSendFailure(MdeAction action, String reason) {
+    executorService.reportSendFailure(
+        action.getTenantId(), action.getInjectId(), action.getAgent().getId(), reason);
+  }
+
+  @Override
   protected Integer batchSize() {
     return mdeExecutorConfig.getApiBatchExecutionActionPagination();
   }
@@ -166,6 +172,8 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
       action.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
       action.setAgent(agent);
+      action.setTenantId(inject.getTenant().getId());
+      action.setInjectId(inject.getId());
       actions.add(action);
     }
     return actions;
@@ -193,6 +201,8 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
       action.setScriptName(mdeExecutorConfig.getUnixScriptName());
       action.setCommandEncoded(getUnixCommand(platform, injector, inject, agent, token));
       action.setAgent(agent);
+      action.setTenantId(inject.getTenant().getId());
+      action.setInjectId(inject.getId());
       actions.add(action);
     }
     return actions;

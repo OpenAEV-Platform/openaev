@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Sends the implant through an EDR API in paced batches. Subclasses only say how to send one
- * action; a busy device ({@link ExecutorBusyException}) is retried, any other failure is logged
+ * action; a busy device ({@link ExecutorBusyException}) is retried, any other failure is reported
  * without stopping the rest of the batch.
  */
 @Slf4j
@@ -28,6 +28,9 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
   protected abstract void send(A action);
 
   protected abstract String agentReference(A action);
+
+  /** Called when the payload could not be sent to the agent of this action, with the reason. */
+  protected void onSendFailure(A action, String reason) {}
 
   /**
    * The configured number of actions per batch. {@code null} or a value under 1 falls back to
@@ -89,8 +92,15 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
         return;
       }
       log.error("Gave up on agent {}: {}", agentReference(action), e.getMessage(), e);
+      onSendFailure(
+          action,
+          "The device stayed busy for "
+              + retryDelay().multipliedBy(MAX_ATTEMPTS - 1).toMinutes()
+              + " minutes, the payload was not sent: "
+              + e.getMessage());
     } catch (RuntimeException e) {
       log.error("Sending to agent {} failed: {}", agentReference(action), e.getMessage(), e);
+      onSendFailure(action, "The payload could not be sent: " + e.getMessage());
     }
   }
 
