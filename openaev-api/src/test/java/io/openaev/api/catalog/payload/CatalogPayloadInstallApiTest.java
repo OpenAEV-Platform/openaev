@@ -47,9 +47,9 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadRevocation;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -107,7 +107,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
@@ -266,21 +266,21 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
   private List<String> autoInstalledVersions() {
     entityManager.flush();
-    return catalogHistoryRepository.findAll().stream()
-        .filter(row -> row.getMode() == CatalogHistory.Mode.AUTO)
-        .map(CatalogHistory::getVersion)
+    return contentChangeRepository.findAll().stream()
+        .filter(row -> row.getMode() == ContentChange.Mode.AUTO)
+        .map(ContentChange::getVersion)
         .toList();
   }
 
-  private List<CatalogHistory> historyRows() {
+  private List<ContentChange> historyRows() {
     entityManager.flush();
-    return catalogHistoryRepository.findAll().stream()
+    return contentChangeRepository.findAll().stream()
         .filter(row -> PAYLOAD_ID.equals(row.getExternalId()))
         .toList();
   }
 
-  private List<CatalogHistory.Action> history() {
-    return historyRows().stream().map(CatalogHistory::getAction).toList();
+  private List<ContentChange.Action> history() {
+    return historyRows().stream().map(ContentChange::getAction).toList();
   }
 
   // -- INSTALL --
@@ -307,7 +307,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(payload.getStatus()).isEqualTo(Payload.PAYLOAD_STATUS.VERIFIED);
       assertThat(payload.getAuthorOrganization().getName()).isEqualTo(CatalogItemMapper.FILIGRAN);
       assertThat(threatArsenalContracts()).containsExactly(contractOf(payload.getId()));
-      assertThat(history()).containsExactly(CatalogHistory.Action.INSTALL);
+      assertThat(history()).containsExactly(ContentChange.Action.INSTALL);
     }
 
     @Test
@@ -343,9 +343,9 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(threatArsenalContracts()).containsExactly(contractOf(first.getFirst()));
       assertThat(history())
           .containsExactly(
-              CatalogHistory.Action.INSTALL,
-              CatalogHistory.Action.UNINSTALL,
-              CatalogHistory.Action.INSTALL);
+              ContentChange.Action.INSTALL,
+              ContentChange.Action.UNINSTALL,
+              ContentChange.Action.INSTALL);
     }
 
     static Stream<Arguments> refusals() {
@@ -765,13 +765,12 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(historyRows())
-          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
-          .extracting(
-              CatalogHistory::getAction, CatalogHistory::getMode, CatalogHistory::getVersion)
+          .filteredOn(row -> row.getAction() != ContentChange.Action.INSTALL)
+          .extracting(ContentChange::getAction, ContentChange::getMode, ContentChange::getVersion)
           .containsExactly(
-              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.MANUAL, "1.0.0"),
-              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.MANUAL, "1.0.0"));
-      assertThat(historyRows()).extracting(CatalogHistory::getUser).doesNotContainNull();
+              tuple(ContentChange.Action.REVOKE, ContentChange.Mode.MANUAL, "1.0.0"),
+              tuple(ContentChange.Action.LIFT_REVOCATION, ContentChange.Mode.MANUAL, "1.0.0"));
+      assertThat(historyRows()).extracting(ContentChange::getUser).doesNotContainNull();
     }
 
     @Test
@@ -788,11 +787,11 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(historyRows())
-          .filteredOn(row -> row.getAction() != CatalogHistory.Action.INSTALL)
-          .extracting(CatalogHistory::getAction, CatalogHistory::getMode)
+          .filteredOn(row -> row.getAction() != ContentChange.Action.INSTALL)
+          .extracting(ContentChange::getAction, ContentChange::getMode)
           .containsExactly(
-              tuple(CatalogHistory.Action.REVOKE, CatalogHistory.Mode.AUTO),
-              tuple(CatalogHistory.Action.LIFT_REVOCATION, CatalogHistory.Mode.AUTO));
+              tuple(ContentChange.Action.REVOKE, ContentChange.Mode.AUTO),
+              tuple(ContentChange.Action.LIFT_REVOCATION, ContentChange.Mode.AUTO));
     }
 
     @ParameterizedTest(name = "revoked by a tenant admin: {0}")
@@ -842,7 +841,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(threatArsenalContracts()).isEmpty();
       assertThat(payloadRepository.findById(payloadId)).isPresent();
       assertThat(history())
-          .containsExactly(CatalogHistory.Action.INSTALL, CatalogHistory.Action.UNINSTALL);
+          .containsExactly(ContentChange.Action.INSTALL, ContentChange.Action.UNINSTALL);
     }
 
     /** The payload a refused uninstall points at, once its case is arranged. */

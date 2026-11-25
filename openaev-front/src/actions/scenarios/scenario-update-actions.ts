@@ -4,6 +4,7 @@ import {
   type ScenarioUpdateInput,
   type ScenarioUpdatePreviewOutput,
   type ScenarioVersionsOutput,
+  type SearchPaginationInput,
 } from '../../utils/api-types';
 import { SCENARIO_URI } from './scenario-actions';
 
@@ -12,7 +13,7 @@ const scenarioUri = (scenarioId: string) => `${SCENARIO_URI}/${scenarioId}`;
 export const fetchScenarioVersions = (scenarioId: string): Promise<ScenarioVersionsOutput> => simpleCall(`${scenarioUri(scenarioId)}/versions`)
   .then(({ data }: { data: ScenarioVersionsOutput }) => data);
 
-export const fetchScenarioHistory = (scenarioId: string) => simpleCall(`${scenarioUri(scenarioId)}/history`);
+export const searchScenarioHistory = (scenarioId: string, input: SearchPaginationInput) => simplePostCall(`${scenarioUri(scenarioId)}/history/search`, input);
 
 export const fetchScenarioRevisions = (scenarioId: string): Promise<ScenarioRevisionOutput[]> => simpleCall(`${scenarioUri(scenarioId)}/revisions`)
   .then(({ data }: { data: ScenarioRevisionOutput[] }) => data);

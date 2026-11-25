@@ -14,24 +14,27 @@ import { NO_TARGETS, type ScenarioTargets } from '../targets/scenarioTargets';
 import { type LaunchTarget } from './launchTarget';
 import RevokedInjectsFix from './RevokedInjectsFix';
 import ScenarioLaunchTargetsDrawer from './ScenarioLaunchTargetsDrawer';
-import useLaunchCheck from './useLaunchCheck';
+import useLaunchCheck, { type LaunchCheckState } from './useLaunchCheck';
 
 interface Props {
   scenario: LaunchTarget;
   // Starts the simulation, with targets for it only.
   onLaunch: (targets: ScenarioTargets) => Promise<unknown>;
   onClose: () => void;
+  // The check the opener already loaded and shows: the drawer reads and refreshes that one.
+  sharedCheck?: LaunchCheckState;
 }
 
 const SHOWN_NAMES = 3;
 
 // One check before every launch: each thing that blocks it or makes injects fail, with its fix.
-const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, onLaunch, onClose }) => {
+const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, onLaunch, onClose, sharedCheck }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const countLabel = useCountLabel();
   const { canManage } = useScenarioPermissions(scenario.scenarioId);
-  const { launchCheck, checking, checkAgain } = useLaunchCheck(scenario.scenarioId);
+  const ownCheck = useLaunchCheck(sharedCheck ? null : scenario.scenarioId);
+  const { launchCheck, checking, checkAgain } = sharedCheck ?? ownCheck;
   const [settingTargets, setSettingTargets] = useState(false);
   const [launching, setLaunching] = useState(false);
 

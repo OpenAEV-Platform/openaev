@@ -504,7 +504,7 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
           "injectors_injector_contracts",
-          "catalog_history",
+          "content_changes",
           "scenario_identities",
           "payload_revocations",
           "exercises",
@@ -2921,7 +2921,7 @@ class TenantActiveTableAccessArchTest {
               // tenant of its TxCtx-carrying threat arsenal version endpoints:
               PayloadVersionService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
-              io.openaev.service.catalog.event.CatalogChangePublisher.class,
+              io.openaev.service.catalog.event.ContentChangePublisher.class,
               // Subquery of the Available tab search, run by CatalogPayloadOfferService:
               io.openaev.database.specification.CatalogItemSpecification.class)
           .should()
@@ -4563,19 +4563,19 @@ class TenantActiveTableAccessArchTest {
   }
 
   @ArchTest
-  static final ArchRule catalog_history_repository_access_is_reviewed =
+  static final ArchRule content_changes_repository_access_is_reviewed =
       noClasses()
           .that()
           .doNotBelongToAnyOf(
               // Written by the catalogue events, inside the scoped transaction that raises them:
-              io.openaev.service.catalog.event.CatalogHistoryListener.class,
+              io.openaev.service.catalog.event.ContentChangeListener.class,
               // Read by tenant, inside the scoped transaction of the history routes:
-              io.openaev.service.catalog.history.CatalogHistoryService.class)
+              io.openaev.service.catalog.history.ContentHistoryService.class)
           .should()
           .dependOnClassesThat()
-          .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
+          .areAssignableTo(io.openaev.database.repository.ContentChangeRepository.class)
           .because(
-              "catalog_history is tenant-active: an accessor without a tenant scope silently"
+              "content_changes is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest

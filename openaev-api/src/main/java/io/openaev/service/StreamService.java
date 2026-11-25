@@ -172,22 +172,6 @@ public class StreamService {
   }
 
   /**
-   * Once per event, after commit; on failure, only the readers who see everything get it. With the
-   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
-   */
-  private StreamVisibility visibilityOf(BaseEvent event) {
-    if (!streamClearanceService.isFiltering()) {
-      return StreamVisibility.UNFILTERED;
-    }
-    try {
-      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
-    } catch (RuntimeException e) {
-      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
-      return StreamVisibility.unresolved();
-    }
-  }
-
-  /**
    * The marking clearance the event is checked against for this consumer. Checked after the READ
    * permission: reading assets does not mean reading every asset.
    */
@@ -385,7 +369,8 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
-    StreamVisibility visibility = visibilityOf(event);
+    StreamVisibility visibility =
+        streamVisibilityService.visibilityOrUnresolved(event, markingTenantOf(event));
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.

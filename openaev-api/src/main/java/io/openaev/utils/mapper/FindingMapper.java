@@ -67,8 +67,14 @@ public class FindingMapper {
         .id(finding.getId())
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
+        .firstSeen(
+            seen != null
+                ? seen.getFirstSeen()
+                : Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate()))
+        .lastSeen(
+            seen != null
+                ? seen.getLastSeen()
+                : Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate()))
         .occurrences(seen != null ? seen.getOccurrences() : 1)
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())

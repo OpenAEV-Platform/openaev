@@ -87,6 +87,7 @@ class StreamVisibilityServiceTest {
 
   private final ObjectMapper mapper = ObjectMapperHelper.openAEVJsonMapper();
   private final TenantScopedTransaction transaction = mock(TenantScopedTransaction.class);
+  private final StreamClearanceService clearanceService = mock(StreamClearanceService.class);
   private final EntityManager entityManager = mock(EntityManager.class);
 
   /** The rows the reads find: the markings of each asset, the asset of each agent. */
@@ -99,7 +100,7 @@ class StreamVisibilityServiceTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void setUp() {
-    service = new StreamVisibilityService(RULES, transaction, mapper);
+    service = new StreamVisibilityService(RULES, transaction, clearanceService, mapper);
     ReflectionTestUtils.setField(service, "entityManager", entityManager);
     when(transaction.execute(any(TxCtx.class), any(Supplier.class)))
         .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
@@ -404,6 +405,62 @@ class StreamVisibilityServiceTest {
     // Assert
     assertThat(ruleless.isUnfiltered()).isTrue();
     verify(transaction, never()).execute(any(TxCtx.class), any(Supplier.class));
+  }
+
+  @Nested
+  @DisplayName("visibilityOrUnresolved")
+  class VisibilityOrUnresolved {
+
+    @Test
+    @DisplayName("given filtering off, should resolve unfiltered without any read")
+    void given_notFiltering_should_beUnfilteredWithoutReading() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(false);
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, endpoint("r", "tlp-red"), mapper), TENANT_ID);
+
+      // Assert
+      assertThat(visibility.isUnfiltered()).isTrue();
+      verify(entityManager, never()).createQuery(anyString(), any(Class.class));
+    }
+
+    @Test
+    @DisplayName("given filtering on, should delegate to visibilityOf")
+    void given_filtering_should_delegateToVisibilityOf() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(true);
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, endpoint("r", "tlp-red"), mapper), TENANT_ID);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isFalse();
+      assertThat(visibility.visibleUnder(RED)).isTrue();
+    }
+
+    @Test
+    @DisplayName("given filtering on and a read failure, should fail closed to unresolved")
+    void given_readFailure_should_failClosedToUnresolved() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(true);
+      when(entityManager.createQuery(anyString(), any(Class.class)))
+          .thenThrow(new RuntimeException("boom"));
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, agentOn("agent-on-r", endpoint("r")), mapper), TENANT_ID);
+
+      // Assert: visible only to a reader cleared for everything, like StreamVisibility.unresolved()
+      assertThat(visibility.isUnfiltered()).isFalse();
+      assertThat(visibility.visibleUnder(RED)).isFalse();
+      assertThat(visibility.visibleUnder(MarkingCtx.all())).isTrue();
+    }
   }
 
   private static List<Class<?>> entities() {
