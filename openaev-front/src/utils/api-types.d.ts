@@ -2803,25 +2803,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogHistoryOutput {
-  catalog_history_action:
-    | "INSTALL"
-    | "UNINSTALL"
-    | "REVOKE"
-    | "LIFT_REVOCATION"
-    | "UPDATE"
-    | "ROLLBACK";
-  /** @format date-time */
-  catalog_history_created_at: string;
-  /** @minLength 1 */
-  catalog_history_id: string;
-  catalog_history_mode: "MANUAL" | "AUTO";
-  /** Who made the change; empty when the platform made it alone */
-  catalog_history_user?: string;
-  /** @minLength 1 */
-  catalog_history_version: string;
-}
-
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -3552,6 +3533,26 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export interface ContractOutputElement {
@@ -9699,6 +9700,25 @@ export interface PageConnectorInstanceLog {
   totalPages?: number;
 }
 
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCredentialOutput {
   content?: CredentialOutput[];
   empty?: boolean;
@@ -10081,6 +10101,25 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10508,6 +10547,30 @@ export interface PayloadCommandBlock {
   command_content?: string;
   command_executor?: string;
   payload_cleanup_command?: string[];
+}
+
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export type PayloadCreateInput = BasePayloadCreateInput &
@@ -10941,6 +11004,17 @@ export interface PayloadUsagesOutput {
   payload_usages: PayloadUsageOutput[];
   /** @format int32 */
   payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
 }
 
 export interface PayloadVersionOutput {

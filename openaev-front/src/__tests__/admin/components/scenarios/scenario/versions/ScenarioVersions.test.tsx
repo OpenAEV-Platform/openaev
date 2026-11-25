@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actions';
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
-import { type CatalogHistoryOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
+import { type ContentChangeOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
 import { setNotifyErrorHandler } from '../../../../../../utils/error/errorHandlerUtil';
 
@@ -43,6 +43,8 @@ vi.mock('../../../../../../components/i18n', async (importOriginal) => {
     useFormatter: () => ({
       t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key),
       nsdt: (date: string) => `time ${date}`,
+      fsd: (date: string) => `day ${date}`,
+      ft: (date: string) => `at ${date}`,
     }),
   };
 });
@@ -175,15 +177,22 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
   }],
 };
 
-const history: CatalogHistoryOutput[] = [{
-  catalog_history_id: 'history-1',
-  catalog_history_action: 'UPDATE',
-  catalog_history_mode: 'MANUAL',
-  catalog_history_version: '1.1.0',
-  catalog_history_user: 'Alice',
-  catalog_history_created_at: '2026-11-04',
+const history: ContentChangeOutput[] = [{
+  content_change_id: 'history-1',
+  content_change_action: 'UPDATE',
+  content_change_mode: 'MANUAL',
+  content_change_version: '1.1.0',
+  content_change_user: 'Alice',
+  content_change_created_at: '2026-11-04',
 }];
 
+const HISTORY_SEARCH = `${SCENARIO}/history/search`;
+const servedHistory = () => Promise.resolve({
+  data: {
+    content: history,
+    totalElements: history.length,
+  },
+});
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
 
 const renderVersions = () => render(<ScenarioVersions />);
@@ -198,12 +207,11 @@ describe('ScenarioVersions', () => {
 
   beforeEach(() => {
     mocks.canManage.mockReturnValue(true);
-    mocks.simplePostCall.mockResolvedValue({ data: {} });
+    mocks.simplePostCall.mockImplementation((uri: string) => (uri === HISTORY_SEARCH ? servedHistory() : Promise.resolve({ data: {} })));
     notifySuccess.mockImplementation(() => undefined);
     serve({
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
-      [`${SCENARIO}/history`]: history,
       [`${SCENARIO}/versions/1.1.0/preview`]: updatePreview,
       [`${SCENARIO}/revisions/revision-3/preview`]: preview([]),
     });
@@ -253,6 +261,7 @@ describe('ScenarioVersions', () => {
   it('given_dataStillLoading_should_showPlaceholders', async () => {
     // Arrange
     mocks.simpleCall.mockImplementation(() => new Promise(() => {}));
+    mocks.simplePostCall.mockImplementation(() => new Promise(() => {}));
 
     // Act
     renderVersions();
@@ -341,7 +350,7 @@ describe('ScenarioVersions', () => {
     expect(notifySuccess).toHaveBeenCalledWith('Scenario updated to v1.1.0');
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/versions`)).toHaveLength(2);
-    expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/history`)).toHaveLength(2);
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri === HISTORY_SEARCH)).toHaveLength(2);
   });
 
   it('given_anUpdateRefused_should_showWhyAndKeepTheDialogOpen', async () => {
@@ -353,7 +362,7 @@ describe('ScenarioVersions', () => {
       message: 'The scenario changed since the preview',
     };
     mocks.post.mockRejectedValueOnce(refusal);
-    mocks.simplePostCall.mockImplementationOnce(mocks.realSimplePostCall);
+    mocks.simplePostCall.mockImplementation((uri: string, ...rest: unknown[]) => (uri === HISTORY_SEARCH ? servedHistory() : mocks.realSimplePostCall(uri, ...rest)));
     renderVersions();
     const dialog = await open('Update');
     await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
@@ -485,6 +494,6 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(mocks.simplePostCall).not.toHaveBeenCalled();
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri !== HISTORY_SEARCH)).toHaveLength(0);
   });
 });
