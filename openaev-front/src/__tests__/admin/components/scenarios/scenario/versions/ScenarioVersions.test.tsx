@@ -261,6 +261,7 @@ describe('ScenarioVersions', () => {
   it('given_dataStillLoading_should_showPlaceholders', async () => {
     // Arrange
     mocks.simpleCall.mockImplementation(() => new Promise(() => {}));
+    mocks.simplePostCall.mockImplementation(() => new Promise(() => {}));
 
     // Act
     renderVersions();
@@ -493,6 +494,6 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(mocks.simplePostCall).not.toHaveBeenCalled();
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri !== HISTORY_SEARCH)).toHaveLength(0);
   });
 });
