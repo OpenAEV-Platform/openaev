@@ -208,6 +208,7 @@ no remote counterpart (username/password, hash) are never checked and keep the `
 | openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 1             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
 | openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
 | openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
+| openaev.credentials.endpoint-allow-internal-targets         | OPENAEV_CREDENTIALS_ENDPOINT-ALLOW-INTERNAL-TARGETS        | `false`       | Turn on to let the sovereign or mocked cloud endpoints of a credential point at internal addresses (private ranges, loopback and link-local included), for on-premise clouds. When off, such an endpoint is not called and the credential status is a format error, both when the credential is saved and when it is re-checked; injects using it are refused until the status is back to active, which happens at the next check after the setting is turned on. A host that does not resolve is not refused. Applies to the AWS, Azure and GCP probes. |
 
 {% endif %}
 
