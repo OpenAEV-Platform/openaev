@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -105,9 +106,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         connection.commit();
       }
 
-      try (Statement statement = connection.createStatement()) {
-        statement.execute("DROP INDEX IF EXISTS " + UNCONVERTED_INDEX);
-      }
+      executeOutsideTransaction(
+          connection, "DROP INDEX CONCURRENTLY IF EXISTS " + UNCONVERTED_INDEX);
       requestReindex(connection);
       connection.commit();
     } catch (Exception e) {
@@ -121,97 +121,139 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   /**
    * How a catalog step waits for its locks. During a rolling update, pods of the older version read
-   * and write findings and injects: a lock request that waits makes every later query on the table
-   * wait behind it. So an attempt waits {@code lockTimeout} at most, then releases what it holds
-   * and runs again after a pause that doubles up to {@link #MAX_BACKOFF}; the step fails after
-   * {@code attempts} attempts. The default gives up after about four and a half minutes.
+   * and write findings and injects, and a lock request that waits in the queue of a table makes
+   * every later query on it wait behind it. So a step takes its table locks with {@code NOWAIT}: an
+   * attempt gets them at once or fails, rolls back, and runs again after a pause (see {@link
+   * #pauseAfter}). {@code lockTimeout} bounds any other lock a statement waits for. The step fails
+   * after {@code attempts} attempts; the default gives up after two to four and a half minutes.
    */
-  record LockPolicy(Duration lockTimeout, int attempts, Duration firstBackoff) {
+  record LockPolicy(Duration lockTimeout, int attempts, Duration firstPause) {
     static final LockPolicy DEFAULT =
-        new LockPolicy(Duration.ofSeconds(5), 12, Duration.ofSeconds(1));
+        new LockPolicy(Duration.ofSeconds(1), 12, Duration.ofSeconds(3));
   }
 
-  private static final Duration MAX_BACKOFF = Duration.ofSeconds(30);
+  /** A table lock a step takes before its statements, granted at once or not at all. */
+  record TableLock(String table, String mode) {
+    String sql() {
+      return "LOCK TABLE " + table + " IN " + mode + " MODE NOWAIT";
+    }
+  }
 
-  /** {@code lock_not_available} (the lock timeout) and {@code deadlock_detected}. */
+  private static final Duration MAX_PAUSE = Duration.ofSeconds(30);
+
+  /**
+   * {@code lock_not_available} (a {@code NOWAIT} lock or the lock timeout) and {@code
+   * deadlock_detected} (a cycle through a lock outside the step's table locks).
+   */
   private static final Set<String> LOCK_CONFLICTS = Set.of("55P03", "40P01");
 
-  void changeCatalog(Connection connection, LockPolicy locks) throws SQLException {
+  void changeCatalog(Connection connection, LockPolicy policy) throws SQLException {
     // Catalog-only changes, each committed at once, so each ACCESS EXCLUSIVE lock lasts
     // milliseconds
     commitUnderLocks(
         connection,
-        locks,
+        policy,
+        List.of(new TableLock("finding_locations", "ACCESS EXCLUSIVE")),
         "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
             + " DROP EXPRESSION IF EXISTS");
-    commitUnderLocks(
-        connection, locks, "ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
-    commitUnderLocks(
-        connection,
-        locks,
-        "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
-    // Dropping the foreign key locks findings, then injects. The older version's asset indexing
-    // reads injects, then findings, in one transaction: the step takes both locks first, in that
-    // order, so it waits for injects holding nothing on findings. NOT VALID checks no existing row,
-    // so the swap is instant; the validation then scans the table under a lock that lets reads and
-    // writes through, on findings and on injects.
+    // Dropping a foreign key takes ACCESS EXCLUSIVE on the referenced table too, injects here.
+    // NOT VALID checks no existing row, so the swap is instant; the validation then scans the
+    // table under locks that let reads and writes through, on findings and on injects.
     commitUnderLocks(
         connection,
-        locks,
-        "LOCK TABLE injects, findings IN ACCESS EXCLUSIVE MODE",
+        policy,
+        List.of(
+            new TableLock("injects", "ACCESS EXCLUSIVE"),
+            new TableLock("findings", "ACCESS EXCLUSIVE")),
         "ALTER TABLE findings DROP CONSTRAINT IF EXISTS finding_inject_id_fk",
         "ALTER TABLE findings ADD CONSTRAINT finding_inject_id_fk"
             + " FOREIGN KEY (finding_inject_id) REFERENCES injects (inject_id)"
             + " ON DELETE SET NULL NOT VALID");
     commitUnderLocks(
-        connection, locks, "ALTER TABLE findings VALIDATE CONSTRAINT finding_inject_id_fk");
+        connection,
+        policy,
+        List.of(
+            new TableLock("injects", "ROW SHARE"),
+            new TableLock("findings", "SHARE UPDATE EXCLUSIVE")),
+        "ALTER TABLE findings VALIDATE CONSTRAINT finding_inject_id_fk");
   }
 
   /**
-   * Runs the statements in one transaction and commits it. A lock wait over the policy's timeout,
-   * or a deadlock, rolls the transaction back and runs it again after a pause.
+   * Takes the locks, runs the statements in one transaction and commits it. A lock conflict rolls
+   * the transaction back and runs it again after a pause.
    *
+   * @throws SQLException the error of a statement that is not a lock conflict, or the lock error
+   *     itself when the rollback fails (the rollback failure is suppressed in it)
    * @throws IllegalStateException after the last attempt, with the last lock error as its cause
    */
-  private static void commitUnderLocks(
-      Connection connection, LockPolicy locks, String... statements) throws SQLException {
-    Duration pause = locks.firstBackoff();
+  void commitUnderLocks(
+      Connection connection, LockPolicy policy, List<TableLock> locks, String... statements)
+      throws SQLException {
+    List<String> steps = new ArrayList<>();
+    locks.forEach(lock -> steps.add(lock.sql()));
+    steps.addAll(List.of(statements));
     for (int attempt = 1; ; attempt++) {
+      String running = null;
       try (Statement statement = connection.createStatement()) {
-        statement.execute("SET LOCAL lock_timeout = '" + locks.lockTimeout().toMillis() + "ms'");
-        for (String sql : statements) {
+        statement.execute("SET LOCAL lock_timeout = '" + policy.lockTimeout().toMillis() + "ms'");
+        for (String sql : steps) {
+          running = sql;
           statement.execute(sql);
         }
         connection.commit();
         return;
       } catch (SQLException e) {
-        connection.rollback();
+        rollback(connection, e);
         if (!LOCK_CONFLICTS.contains(e.getSQLState())) {
           throw e;
         }
-        if (attempt >= locks.attempts()) {
-          throw new IllegalStateException(
-              ("Findings migration: gave up after %d attempts on \"%s\": another session holds a"
-                      + " lock on findings or injects, for example a pod of the older version."
-                      + " Stop it, remove the failed row of this migration from"
-                      + " flyway_schema_history, then start again: every step is safe to run"
-                      + " again.")
-                  .formatted(attempt, statements[statements.length - 1]),
-              e);
+        if (attempt >= policy.attempts()) {
+          throw new IllegalStateException(giveUpMessage(attempt, running, locks), e);
         }
+        Duration pause =
+            pauseAfter(attempt, policy.firstPause(), ThreadLocalRandom.current().nextDouble());
         log.info(
-            "Findings migration: \"{}\" waits on a lock another session holds ({}), attempt {}/{},"
+            "Findings migration: \"{}\" met a lock another session holds ({}), attempt {}/{},"
                 + " retrying in {} ms",
-            statements[statements.length - 1],
+            running,
             e.getSQLState(),
             attempt,
-            locks.attempts(),
+            policy.attempts(),
             pause.toMillis());
         pauseBeforeRetry(pause);
-        Duration doubled = pause.multipliedBy(2);
-        pause = doubled.compareTo(MAX_BACKOFF) < 0 ? doubled : MAX_BACKOFF;
       }
     }
+  }
+
+  private static void rollback(Connection connection, SQLException failure) throws SQLException {
+    try {
+      connection.rollback();
+    } catch (SQLException rollbackFailure) {
+      failure.addSuppressed(rollbackFailure);
+      throw failure;
+    }
+  }
+
+  private String giveUpMessage(int attempts, String failed, List<TableLock> locks) {
+    String tables = String.join(", ", locks.stream().map(TableLock::table).toList());
+    return ("Findings migration: gave up after %d attempts on \"%s\": another session holds a lock"
+            + " on %s, for example a pod of the older version. Stop the pods of the older version,"
+            + " remove the failed row of this migration with `flyway repair` on the schema history"
+            + " table `migrations`, or with `DELETE FROM migrations WHERE version = '%s' AND NOT"
+            + " success`, then start again: every step is safe to run again.")
+        .formatted(attempts, failed, tables, getVersion().getVersion());
+  }
+
+  /**
+   * The pause after the failed attempt {@code failedAttempt} (from 1). Its ceiling doubles from
+   * {@code firstPause} up to {@link #MAX_PAUSE}; {@code random}, from 0 to 1, draws it in the upper
+   * half of the ceiling, so pods that retry together spread out. Never under {@code firstPause}.
+   */
+  static Duration pauseAfter(int failedAttempt, Duration firstPause, double random) {
+    long ceiling =
+        Math.min(firstPause.toMillis() << Math.min(failedAttempt - 1, 30), MAX_PAUSE.toMillis());
+    long drawn = ceiling / 2 + Math.round(random * (ceiling - ceiling / 2));
+    return Duration.ofMillis(Math.max(firstPause.toMillis(), drawn));
   }
 
   private static void pauseBeforeRetry(Duration pause) {
@@ -680,7 +722,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // A phishing result follows the row to its first finding, and to its occurrence there
   private static void moveAndDelete(Connection connection, Map<String, String> firstTargetByRow)
       throws SQLException {
     Array oldIds = varchars(connection, firstTargetByRow.keySet());
