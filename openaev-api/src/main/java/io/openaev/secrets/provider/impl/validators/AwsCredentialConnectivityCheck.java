@@ -6,6 +6,7 @@ import io.openaev.secrets.provider.SecretConnectionResult;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -59,6 +60,14 @@ public class AwsCredentialConnectivityCheck {
   private final AwsCredentialConnectivityCheckFactory awsCredentialsFactory;
 
   /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
+  /**
    * Validates an AWS access key credential by calling STS {@code GetCallerIdentity}.
    *
    * @param region the configured AWS region
@@ -74,6 +83,9 @@ public class AwsCredentialConnectivityCheck {
       String secretAccessKey,
       String sessionToken,
       String endpointUrl) {
+    if (EndpointUrls.isRefused(endpointUrl, allowInternalEndpoints)) {
+      return SecretConnectionResult.formatError();
+    }
     AwsCredentials credentials =
         awsCredentialsFactory.forAccessKey(accessKeyId, secretAccessKey, sessionToken);
 
@@ -107,6 +119,9 @@ public class AwsCredentialConnectivityCheck {
       String sourceProfileAccessKeyId,
       String sourceProfileSecretAccessKey,
       String endpointUrl) {
+    if (EndpointUrls.isRefused(endpointUrl, allowInternalEndpoints)) {
+      return SecretConnectionResult.formatError();
+    }
     AwsCredentialsProvider sourceProvider =
         awsCredentialsFactory.getSourceCredentialsProvider(
             sourceIdentityType, sourceProfileAccessKeyId, sourceProfileSecretAccessKey);

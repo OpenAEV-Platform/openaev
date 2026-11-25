@@ -1,6 +1,10 @@
 package io.openaev.secrets.provider.impl.validators;
 
+import io.openaev.security.ssrf.PublicAddressPolicy;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 
@@ -10,6 +14,10 @@ import java.util.Set;
  * <p>{@link URI#create(String)} accepts a relative reference ({@code /token}) or a scheme the
  * probes never speak ({@code file:///tmp/token}). The SDKs then fail later, during the token
  * exchange, and the failure reads as a network error instead of the configuration problem it is.
+ *
+ * <p>An override is also a destination the platform calls on its own, with a credential attached,
+ * so by default it must not point inside the platform's network: see {@link
+ * #targetsInternalAddress(String)}.
  */
 final class EndpointUrls {
 
@@ -59,5 +67,56 @@ final class EndpointUrls {
     } catch (IllegalArgumentException e) {
       return true;
     }
+  }
+
+  /**
+   * Whether an override points at a private, loopback, link-local or otherwise internal address.
+   *
+   * <p>The probes call these endpoints from the platform with the credential's token attached, and
+   * report the outcome in the credential status. Left unchecked, an override naming an internal
+   * host would turn that status into a way to map the platform's own network. The host is resolved
+   * the way the HTTP stack resolves it, and one internal answer is enough to refuse it. A host that
+   * does not resolve is not refused here: the call fails by itself and the status says so.
+   *
+   * <p>Meant to run after {@link #isMalformedOverride(String)}; a value that cannot be parsed is
+   * reported as not internal, since the malformed check already rejects it.
+   *
+   * <p>Limits: the address is checked when the probe starts, and the HTTP stack resolves the host
+   * again when it connects, so a host that changes its answer between the two is not caught; a
+   * redirect from a public host, or an egress proxy that resolves the host itself, is not seen
+   * either.
+   *
+   * @param value a stored override, null or blank when there is none
+   * @return {@code true} when the host resolves to at least one internal address
+   */
+  static boolean targetsInternalAddress(String value) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    String host;
+    try {
+      host = URI.create(value).getHost();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+    if (host == null || host.isBlank()) {
+      return false;
+    }
+    try {
+      return Arrays.stream(InetAddress.getAllByName(host))
+          .anyMatch(PublicAddressPolicy::isInternal);
+    } catch (UnknownHostException e) {
+      return false;
+    }
+  }
+
+  /**
+   * @param endpoint a stored override, null or blank when there is none
+   * @param allowInternal the on-premise opt-out
+   * @return {@code true} when the override must not be called: it targets an internal address and
+   *     the opt-out is off
+   */
+  static boolean isRefused(String endpoint, boolean allowInternal) {
+    return !allowInternal && targetsInternalAddress(endpoint);
   }
 }

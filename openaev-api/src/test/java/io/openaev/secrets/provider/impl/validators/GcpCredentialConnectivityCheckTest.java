@@ -538,6 +538,8 @@ class GcpCredentialConnectivityCheckTest {
           new GcpCredentialConnectivityCheck(
               new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
       ReflectionTestUtils.setField(cloudCheck, "timeoutSeconds", ROUND_TRIP_TIMEOUT_SECONDS);
+      // The mocked cloud listens on loopback: the on-premise opt-out is what lets the probe in.
+      ReflectionTestUtils.setField(cloudCheck, "allowInternalEndpoints", true);
     }
 
     @AfterEach
@@ -687,6 +689,179 @@ class GcpCredentialConnectivityCheckTest {
       // Arrange & Act & Assert
       assertThat(GcpCredentialConnectivityCheck.projectsEndpoint(customProjectsUri))
           .isEqualTo(GcpCredentialConnectivityCheck.PROJECT_ENDPOINT);
+    }
+  }
+
+  @Nested
+  @DisplayName("Internal endpoint overrides")
+  class InternalEndpointOverrides {
+
+    @ParameterizedTest(name = "projects override=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4566/",
+          "http://localhost:4566/",
+          "http://10.0.0.5/",
+          "http://169.254.169.254/",
+          "http://[::1]:8080/"
+        })
+    @DisplayName("A projects override inside the platform's network is refused, whatever the auth")
+    void given_internalProjectsOverride_should_returnFormatError(String projectsUri)
+        throws IOException {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(
+              keyBytes(), GCP_SCOPE, GCP_PROJECT_ID, null, projectsUri);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              GCP_PROJECT_ID,
+              null,
+              projectsUri);
+
+      // Assert — refused before any credential is built, so no token is minted either.
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
+      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
+      verify(googleCredentialsFactory, never()).forOAuth2(any(), any(), any(), any(), any());
+    }
+
+    @ParameterizedTest(name = "token override=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4566/",
+          "http://localhost:4566/",
+          "http://10.0.0.5/",
+          "http://169.254.169.254/",
+          "http://[::1]:8080/"
+        })
+    @DisplayName("A token endpoint inside the platform's network is refused, whatever the auth")
+    void given_internalTokenOverride_should_returnFormatError(String tokenUri) throws IOException {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null, tokenUri, null);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              null,
+              tokenUri,
+              null);
+
+      // Assert
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
+      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
+      verify(googleCredentialsFactory, never()).forOAuth2(any(), any(), any(), any(), any());
+    }
+
+    @ParameterizedTest(name = "token_uri=\"{0}\"")
+    @ValueSource(strings = {"http://127.0.0.1:4566/token", "http://169.254.169.254/token"})
+    @DisplayName("A token_uri inside the platform's network, declared by the key file, is refused")
+    void given_internalTokenUriInKeyFile_should_returnFormatError(String tokenUri)
+        throws IOException {
+      // Act — no override: the SDK would call the token server the key file names.
+      SecretConnectionResult result =
+          validator.validateServiceAccount(
+              createServiceAccountKeyJson(tokenUri), GCP_SCOPE, null, null, null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A token_uri in the key file is not read when an override replaces it")
+    void given_overrideReplacesKeyFileTokenUri_should_ignoreTheKeyFile() throws IOException {
+      // Arrange — the override is public (an IP literal, no DNS); the key file's own is internal
+      // but the SDK never calls it.
+      when(googleCredentialsFactory.forServiceAccount(any(), any(), any()))
+          .thenReturn(googleCredentials);
+      when(googleCredentials.refreshAccessToken())
+          .thenReturn(
+              new AccessToken(ACCESS_TOKEN, new Date(System.currentTimeMillis() + 3_600_000)));
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServiceAccount(
+              createServiceAccountKeyJson("http://127.0.0.1:4566/token"),
+              GCP_SCOPE,
+              null,
+              "https://8.8.8.8/token",
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+    }
+
+    @Test
+    @DisplayName("Nothing reaches an internal endpoint, so its status cannot be read back")
+    void given_internalEndpoints_should_sendNoRequest() throws IOException {
+      // Arrange — the real SDK, a live local server, and the default (no opt-out) configuration.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud
+            .respond("/token", 200, "application/json", "{\"access_token\": \"t\"}")
+            .respond("/v1/projects/", 200, "application/json", "{}");
+
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateOAuth2(
+                GCP_OAUTH_CLIENT_ID,
+                GCP_OAUTH_CLIENT_SECRET,
+                GCP_OAUTH_REFRESH_TOKEN,
+                GCP_SCOPE,
+                GCP_PROJECT_ID,
+                cloud.url("/token"),
+                cloud.url("/v1/projects/"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
+    @Test
+    @DisplayName("The on-premise opt-out lets the probe reach an internal endpoint")
+    void given_optOut_should_probeTheInternalEndpoint() throws IOException {
+      // Arrange
+      GcpCredentialConnectivityCheck optedOut =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(optedOut, "timeoutSeconds", 5);
+      ReflectionTestUtils.setField(optedOut, "allowInternalEndpoints", true);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud
+            .respond(
+                "/token",
+                200,
+                "application/json",
+                "{\"access_token\": \"t\", \"expires_in\": 3600, \"token_type\": \"Bearer\"}")
+            .respond("/v1/projects/", 200, "application/json", "{}");
+
+        // Act
+        SecretConnectionResult result =
+            optedOut.validateOAuth2(
+                GCP_OAUTH_CLIENT_ID,
+                GCP_OAUTH_CLIENT_SECRET,
+                GCP_OAUTH_REFRESH_TOKEN,
+                GCP_SCOPE,
+                GCP_PROJECT_ID,
+                cloud.url("/token"),
+                cloud.url("/v1/projects/"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(ACTIVE);
+        assertThat(cloud.requests()).hasSize(2);
+      }
     }
   }
 }

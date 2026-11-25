@@ -58,6 +58,14 @@ public class AzureCredentialConnectivityCheck {
   private int timeoutSeconds;
 
   /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
+  /**
    * Checks a service principal (application + client secret).
    *
    * @param environmentName the stored Azure cloud name
@@ -93,7 +101,10 @@ public class AzureCredentialConnectivityCheck {
         || isBlank(clientId)
         || isBlank(clientSecret)
         || EndpointUrls.isMalformedOverride(authorityHostUri)
-        || EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
+        || EndpointUrls.isMalformedOverride(resourceManagerEndpoint)
+        || (hasOverride(authorityHostUri, scope)
+            && (EndpointUrls.isRefused(authorityHostUri, allowInternalEndpoints)
+                || EndpointUrls.isRefused(resourceManagerEndpoint, allowInternalEndpoints)))) {
       return SecretConnectionResult.formatError();
     }
 
@@ -142,12 +153,20 @@ public class AzureCredentialConnectivityCheck {
     }
 
     String resourceManagerEndpoint = resourceManagerEndpoint(environment, authorityHostUri, scope);
-    if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
+    // The authority host does not serve to log in here: only the resource manager is called.
+    if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)
+        || (hasOverride(authorityHostUri, scope)
+            && EndpointUrls.isRefused(resourceManagerEndpoint, allowInternalEndpoints))) {
       return SecretConnectionResult.formatError();
     }
 
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
     return probe(credential, resourceManagerEndpoint, subscriptionId);
+  }
+
+  /** The official endpoints of the stored cloud are never looked up: only what was typed is. */
+  private static boolean hasOverride(String authorityHostUri, String scope) {
+    return !isBlank(authorityHostUri) || !isBlank(scope);
   }
 
   /**
