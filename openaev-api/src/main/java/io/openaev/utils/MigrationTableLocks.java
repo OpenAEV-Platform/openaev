@@ -49,10 +49,17 @@ public final class MigrationTableLocks {
           + " a.query_start"
           + " FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid"
           + " WHERE l.granted AND l.pid <> pg_backend_pid()"
+          + " AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())"
           + " AND l.relation IN (SELECT to_regclass(t) FROM unnest(string_to_array(?, ',')) t)"
           + " ORDER BY a.query_start LIMIT 10";
 
   private MigrationTableLocks() {}
+
+  // A driver error can carry no SQLState: it is not a lock conflict, so it fails the step.
+  private static boolean isLockConflict(SQLException e) {
+    String sqlState = e.getSQLState();
+    return sqlState != null && LOCK_CONFLICTS.contains(sqlState);
+  }
 
   @AllowRawJdbc(reason = "the statements of a migration step, run by runLocked")
   @FunctionalInterface
@@ -118,7 +125,7 @@ public final class MigrationTableLocks {
         connection.releaseSavepoint(savepoint);
         return;
       } catch (SQLException e) {
-        if (!rolledBack(connection, savepoint, e) || !LOCK_CONFLICTS.contains(e.getSQLState())) {
+        if (!rolledBack(connection, savepoint, e) || !isLockConflict(e)) {
           throw e;
         }
         if (attempt >= retry.maxAttempts()) {

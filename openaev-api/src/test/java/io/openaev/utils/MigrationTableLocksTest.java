@@ -199,6 +199,20 @@ class MigrationTableLocksTest {
     }
 
     @Test
+    @DisplayName("Given an SQL error with no SQLState, should roll back and rethrow it, no retry")
+    void given_sqlErrorWithoutSqlState_should_rollBackAndRethrowWithNoRetry() throws Exception {
+      // Arrange
+      SQLException noState = new SQLException("connection reset");
+      when(statement.execute("ALTER TABLE payloads")).thenThrow(noState);
+
+      // Act and Assert
+      assertThatThrownBy(MigrationTableLocksTest.this::run).isSameAs(noState);
+      assertThat(pauses).isEmpty();
+      verify(connection).rollback(savepoint);
+      verify(connection, never()).releaseSavepoint(any());
+    }
+
+    @Test
     @DisplayName("Given a runtime exception from the work, should roll back to the savepoint")
     void given_runtimeExceptionFromTheWork_should_rollBackAndRethrow() throws Exception {
       // Arrange
