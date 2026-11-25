@@ -925,6 +925,8 @@
   "Comment (optional)": "Kommentar (optional)",
   "Comments": "Kommentare",
   "Commit hash": "Commit-Hash",
+  "Image digest": "Image-Digest",
+  "Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.": "Digest des Images, das der Container ausführt, zuletzt vom Integration Manager gemeldet. Er bestimmt den Build hinter einem beweglichen Tag wie rolling oder latest.",
   "Communication check": "Überprüfung der Kommunikation",
   "Community": "Community",
   "COMMUNITY": "Gemeinschaft",

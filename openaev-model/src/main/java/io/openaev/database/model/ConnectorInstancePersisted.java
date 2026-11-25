@@ -65,6 +65,12 @@ public class ConnectorInstancePersisted extends ConnectorInstance
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;
 
+  /** Digest of the image the workload runs (algo:hex), last reported by XTM Composer. */
+  @Column(name = "connector_instance_image_digest")
+  @JsonProperty("connector_instance_image_digest")
+  @AuditStateIgnore
+  private String imageDigest;
+
   @OneToMany(
       mappedBy = "connectorInstance",
       fetch = FetchType.LAZY,
