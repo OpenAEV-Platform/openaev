@@ -17,6 +17,7 @@ import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private FindingOccurrenceService findingOccurrenceService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private EntityManager entityManager;
 
   @Autowired private javax.sql.DataSource dataSource;
@@ -134,11 +136,16 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setInject(inject);
               finding.setTenant(new Tenant(tenantId));
               entityManager.persist(finding);
-              findingOccurrenceService.recordOccurrences(
-                  inject,
-                  FindingOccurrenceService.occurrenceDate(inject),
-                  List.of(finding),
-                  Map.of(finding.getId(), finding.getField()));
+              // The occurrence write reads the injects table: it runs in its tenant's scope, as it
+              // does in the execution that produces a finding.
+              rowTenantScope.write(
+                  tenantId,
+                  () ->
+                      findingOccurrenceService.recordOccurrences(
+                          inject,
+                          FindingOccurrenceService.occurrenceDate(inject),
+                          List.of(finding),
+                          Map.of(finding.getId(), finding.getField())));
               findingId = finding.getId();
               entityManager.flush();
 
