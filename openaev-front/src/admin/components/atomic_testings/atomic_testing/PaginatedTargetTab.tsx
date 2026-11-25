@@ -87,7 +87,7 @@ const PaginatedTargetTab: React.FC<Props> = (props) => {
             '& > .MuiList-root > *:not(:first-of-type)': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
           }}
         >
-          <List disablePadding>
+          <List disablePadding data-testid="target-list-section">
             {targets.map(target => (
               <NewTargetListItem
                 onClick={props.handleSelectTarget}

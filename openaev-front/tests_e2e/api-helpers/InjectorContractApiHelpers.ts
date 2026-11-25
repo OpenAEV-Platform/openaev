@@ -43,10 +43,12 @@ class InjectorContractApiHelpers {
   /**
    * Creates a custom contract on the manual injector. When `credentialField` is provided, the
    * contract declares a `credential-reference` field, as the cloud injectors (e.g. Stratus) do.
+   * When `assetField` is set, it declares an `asset` field, as the implant injectors do, so the
+   * inject form lists the targeted assets.
    */
-  async createContract(label: string, credentialField?: CredentialReferenceFieldOptions): Promise<CreatedInjectorContract> {
+  async createContract(label: string, credentialField?: CredentialReferenceFieldOptions, assetField = false): Promise<CreatedInjectorContract> {
     const injectorId = await this.getManualInjectorId();
-    const fields = credentialField
+    const credentialFields = credentialField
       ? [{
           key: 'credential_reference',
           label: CREDENTIAL_REFERENCE_FIELD_LABEL,
@@ -61,6 +63,21 @@ class InjectorContractApiHelpers {
           ...(credentialField.credentialReferenceType && { credential_reference_type: credentialField.credentialReferenceType }),
         }]
       : [];
+    // Same shape as the backend ContractAsset: the inject form only lists the targeted assets when the contract declares it.
+    const assetFields = assetField
+      ? [{
+          key: 'assets',
+          label: 'Source assets',
+          type: 'asset',
+          mandatory: false,
+          mandatoryGroups: null,
+          linkedFields: [],
+          linkedValues: [],
+          cardinality: 'n',
+          defaultValue: [],
+        }]
+      : [];
+    const fields = [...credentialFields, ...assetFields];
     const contractId = randomUUID();
     const input: InjectorContractAddInput = {
       contract_id: contractId,

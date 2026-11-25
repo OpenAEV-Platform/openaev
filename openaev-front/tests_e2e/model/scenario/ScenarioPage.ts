@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 import MuiListHelpers from '../../utils/MuiListHelpers';
+import { tenantUrl } from '../../utils/url';
 import UpdateTeamDialog from '../common/UpdateTeamDialog';
 
 class ScenarioPage {
@@ -17,6 +18,8 @@ class ScenarioPage {
   readonly injectAddBtn: Locator;
   readonly injectListSection: Locator;
   readonly searchInject: Locator;
+  // Update inject drawer
+  readonly injectForm: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -37,6 +40,12 @@ class ScenarioPage {
     this.injectAddBtn = page.getByTestId('button-create');
 
     this.searchInject = page.getByPlaceholder('Search these results...');
+    this.injectForm = page.locator('form#injectForm');
+  }
+
+  async gotoInjects(scenarioId: string) {
+    await this.page.goto(tenantUrl(`/admin/scenarios/${scenarioId}/injects`));
+    await expect(this.injectListSection).toBeVisible();
   }
 
   // -- Get Locator methods
@@ -50,6 +59,11 @@ class ScenarioPage {
 
   getTeam(teamName: string) {
     return MuiListHelpers.filterItemsInList(this.teamListSection, teamName);
+  }
+
+  /** An asset targeted by to inject opened in the update drawer. */
+  getInjectTargetAsset(assetName: string) {
+    return MuiListHelpers.filterItemsInList(this.injectForm, assetName);
   }
 
   // -- Action methods
@@ -88,6 +102,12 @@ class ScenarioPage {
     await this.injectAddBtn.click();
     await MuiListHelpers.searchAndSelectItemInList(this.page, 'Send individual mails');
     await this.page.getByTestId('inject-form-submit-button').click();
+  }
+
+  /** Opens the update drawer of an inject by clicking its row (the row click selects the inject). */
+  async openInject(injectTitle: string) {
+    await this.injectListSection.getByText(injectTitle, { exact: true }).click();
+    await expect(this.injectForm).toBeVisible();
   }
 
   async goToInjectsTab() {

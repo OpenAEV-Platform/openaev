@@ -66,7 +66,7 @@ export const waitForRegisteredAgent = async (page: Page, hostname: string): Prom
     await page.goto(tenantUrl('/admin/assets'));
     const endpointList = new EndpointListPage(page);
     await endpointList.waitForLoad();
-    await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
+    await expect(endpointList.getEndpointByName(hostname)).toBeVisible();
   }).toPass({
     intervals: [5_000],
     timeout: 150_000,
