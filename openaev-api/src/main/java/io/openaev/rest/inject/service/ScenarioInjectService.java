@@ -126,23 +126,9 @@ public class ScenarioInjectService {
       @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String injectId) {
-    deleteInject(ctx, scenarioId, injectId, false);
-  }
-
-  /**
-   * Deletes an inject that belongs to the given scenario.
-   *
-   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
-   *     deletes them with the inject
-   */
-  public void deleteInject(
-      @NotNull final TxCtx ctx,
-      @NotBlank final String scenarioId,
-      @NotBlank final String injectId,
-      final boolean keepFindings) {
     checkInjectForScenario(scenarioId, injectId);
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
-    this.injectService.delete(injectId, keepFindings);
+    this.injectService.delete(injectId);
     this.scenarioService.updateScenario(scenario);
   }
 

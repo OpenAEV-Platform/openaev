@@ -14,7 +14,7 @@ public class TaniumDeviceFixture {
     NodeEndpoint nodeEndpoint = new NodeEndpoint();
     TaniumEndpoint taniumEndpoint = new TaniumEndpoint();
     taniumEndpoint.setId("externalRefTanium");
-    taniumEndpoint.setName("TANIUM DEVICE");
+    taniumEndpoint.setName("tanium-device");
     Os os = new Os();
     os.setPlatform("Windows");
     taniumEndpoint.setOs(os);

@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.validators;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -11,6 +12,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -95,6 +98,14 @@ public class GcpCredentialConnectivityCheck {
   private int timeoutSeconds;
 
   /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
+  /**
    * Checks a service account key file.
    *
    * @param privateKeyJson the decrypted key file content
@@ -117,6 +128,12 @@ public class GcpCredentialConnectivityCheck {
         || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customResourceManagerUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
 
     GoogleCredentials credentials;
     try {
@@ -127,6 +144,21 @@ public class GcpCredentialConnectivityCheck {
       // Malformed or unparsable stored key, or malformed override: the configuration is broken, so
       // the credential cannot be checked at all — never "rejected".
       return SecretConnectionResult.formatError();
+    }
+    if (isBlank(customResourceManagerUri)) {
+      // The SDK calls the token server the key file declares, as it parsed it: that one is checked,
+      // not a second reading of the file.
+      String declaredTokenUri = declaredTokenUri(credentials);
+      if (!allowInternalEndpoints
+          && declaredTokenUri != null
+          && !EndpointUrls.hasHost(declaredTokenUri)) {
+        // The SDK would call it, and no host can be read from it to check.
+        return SecretConnectionResult.formatError();
+      }
+      refused = EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, declaredTokenUri);
+      if (refused.isPresent()) {
+        return refused.get();
+      }
     }
     return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
@@ -159,6 +191,12 @@ public class GcpCredentialConnectivityCheck {
         || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
     }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customTokenUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
 
     GoogleCredentials credentials;
     try {
@@ -169,6 +207,29 @@ public class GcpCredentialConnectivityCheck {
       return SecretConnectionResult.formatError();
     }
     return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
+  }
+
+  /**
+   * The token server a service account declares, which the SDK calls when no override replaces it.
+   * Google's own token servers (the current {@code oauth2.googleapis.com} and the {@code
+   * accounts.google.com} of older key files) are not returned: they are never looked up, so a
+   * network that resolves nothing but through a proxy keeps working.
+   */
+  static String declaredTokenUri(GoogleCredentials credentials) {
+    if (credentials instanceof ServiceAccountCredentials account
+        && account.getTokenServerUri() != null
+        && !isGoogleTokenServer(account.getTokenServerUri())) {
+      return account.getTokenServerUri().toString();
+    }
+    return null;
+  }
+
+  private static boolean isGoogleTokenServer(URI tokenUri) {
+    String host = tokenUri.getHost() == null ? "" : tokenUri.getHost().toLowerCase(Locale.ROOT);
+    return "https".equalsIgnoreCase(tokenUri.getScheme())
+        && ("accounts.google.com".equals(host)
+            || "googleapis.com".equals(host)
+            || host.endsWith(".googleapis.com"));
   }
 
   /** An absent project id is fine, it only skips the project read. */

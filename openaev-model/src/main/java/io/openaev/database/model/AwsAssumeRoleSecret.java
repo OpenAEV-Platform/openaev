@@ -4,11 +4,9 @@ import static io.openaev.database.model.Secret.SECRET_TYPE.AWS_ASSUME_ROLE_VALUE
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +19,6 @@ import lombok.ToString;
 @Setter
 @Entity
 @DiscriminatorValue(AWS_ASSUME_ROLE_VALUE)
-@EntityListeners(ModelBaseListener.class)
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true, onlyExplicitlyIncluded = true)
 public class AwsAssumeRoleSecret extends Secret {

@@ -3,18 +3,22 @@ package io.openaev.rest.finding;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.Finding;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.FindingRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,15 +42,16 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
 
   private static final Instant SENT_DATE = Instant.parse("2026-10-01T08:30:00Z");
 
-  @Autowired private FindingWriter findingWriter;
   @Autowired private FindingService findingService;
+  @Autowired private FindingRepository findingRepository;
   @Autowired private DataSource dataSource;
-  @Autowired private TenantScopedTransaction tenantTx;
 
   private JdbcTemplate jdbc;
   private String tenantId;
   private String injectId;
   private String assetId;
+  @Autowired private InjectService injectService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @BeforeEach
   void seedAnInjectSentOnAKnownDate() {
@@ -109,6 +114,20 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Should file the finding under the tenant of its inject, with no ambient tenant")
+    void given_anAgentFinding_should_beAttributedToTheInjectTenant() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String findingId = saveAgentFinding("agent-" + UUID.randomUUID());
+
+      // Assert
+      assertThat(tenantOf(findingId)).isEqualTo(tenantId);
+    }
+
+    @Test
     @DisplayName("Should keep a single occurrence when the same finding is reported again")
     void given_aRepeatedReport_should_keepOneOccurrence() {
       // Arrange
@@ -128,6 +147,41 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
   class WhenAnInjectorWritesFindings {
 
     @Test
+    @DisplayName("Should file each written finding under the tenant of its inject")
+    void given_twoFindings_should_beAttributedToTheInjectTenant() {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      Finding first = finding("injector-" + UUID.randomUUID());
+      Finding second = finding("injector-" + UUID.randomUUID());
+
+      // Act
+      List<Finding> saved =
+          findingService.recordFindingsByInject(
+              TxCtx.forTenant(tenantId),
+              injectOfItsTenant(),
+              List.of(
+                  new DetectedFinding(
+                      first.getType(),
+                      first.getValue(),
+                      first.getField(),
+                      first.getName(),
+                      LocationIdentity.of(null, null),
+                      first.getTags().stream().map(Tag::getId).collect(Collectors.toSet())),
+                  new DetectedFinding(
+                      second.getType(),
+                      second.getValue(),
+                      second.getField(),
+                      second.getName(),
+                      LocationIdentity.of(null, null),
+                      second.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))));
+
+      // Assert
+      assertThat(saved)
+          .allSatisfy(finding -> assertThat(finding.getTenant().getId()).isEqualTo(tenantId));
+    }
+
+    @Test
     @DisplayName("Should record one occurrence per written finding")
     void given_twoFindings_should_recordTwoOccurrences() {
       // Arrange
@@ -135,36 +189,62 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
       Finding second = finding("injector-" + UUID.randomUUID());
 
       // Act: in the inject's tenant, as the callback that writes them
-      tenantTx.execute(
-          TxCtx.forTenant(tenantId),
-          () -> findingService.createFindings(List.of(first, second), injectId));
+      List<Finding> saved =
+          findingService.recordFindingsByInject(
+              TxCtx.forTenant(tenantId),
+              injectOfItsTenant(),
+              List.of(
+                  new DetectedFinding(
+                      first.getType(),
+                      first.getValue(),
+                      first.getField(),
+                      first.getName(),
+                      LocationIdentity.of(null, null),
+                      first.getTags().stream().map(Tag::getId).collect(Collectors.toSet())),
+                  new DetectedFinding(
+                      second.getType(),
+                      second.getValue(),
+                      second.getField(),
+                      second.getName(),
+                      LocationIdentity.of(null, null),
+                      second.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))));
 
       // Assert
-      assertThat(singleOccurrenceOf(first.getId()).get("finding_occurrence_inject_id"))
-          .isEqualTo(injectId);
-      assertThat(singleOccurrenceOf(second.getId()).get("finding_occurrence_field"))
-          .isEqualTo("hostname");
+      assertThat(saved)
+          .allSatisfy(
+              finding ->
+                  assertThat(finding.getOccurrences())
+                      .singleElement()
+                      .satisfies(fo -> assertThat(fo.getInject().getId()).isEqualTo(injectId))
+                      .satisfies(fo -> assertThat(fo.getField()).isEqualTo("hostname")));
     }
   }
 
   // -- PRIVATE --
 
   private String saveAgentFinding(String value) {
-    findingWriter.saveCompleteFinding(
+    findingService.recordFindingsByInject(
         TxCtx.forTenant(tenantId),
-        "hostname",
-        ContractOutputType.Text.name(),
-        value,
-        new String[0],
         sentInject(),
-        "occurrence probe",
-        assetId,
-        new String[0]);
+        List.of(
+            new DetectedFinding(
+                ContractOutputType.Text,
+                value,
+                "hostname",
+                "occurrence probe",
+                LocationIdentity.of(assetId, null),
+                Set.of())));
     return jdbc.queryForObject(
         "SELECT finding_id FROM findings WHERE tenant_id = ? AND finding_value = ?",
         String.class,
         tenantId,
         value);
+  }
+
+  // The inject as the injector and phishing callers hold it: loaded in its own tenant's scope, with
+  // its status, since the finding is written in that tenant by a caller that has no request scope
+  private Inject injectOfItsTenant() {
+    return tenantTx.execute(TxCtx.forTenant(tenantId), () -> injectService.inject(injectId));
   }
 
   // The inject as the agent path holds it: loaded by the caller, with its status
@@ -184,6 +264,11 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
     finding.setValue(value);
     finding.setName("occurrence probe");
     return finding;
+  }
+
+  private String tenantOf(String findingId) {
+    return jdbc.queryForObject(
+        "SELECT tenant_id FROM findings WHERE finding_id = ?", String.class, findingId);
   }
 
   private Map<String, Object> singleOccurrenceOf(String findingId) {

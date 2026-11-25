@@ -28,13 +28,14 @@ Escalate to **Opus 4.6** only if the PR is very large (>30 files) or involves ma
 
 ## Severity Rubric
 
-| Severity | Criteria | Comment prefix |
+Rule: [code-review › Documentation](../instructions/code-review.instructions.md#documentation). Severity of a gap:
+
+| Severity | Change with no doc update | Comment prefix |
 |---|---|---|
-| 🔴 **CRITICAL** | New user-facing feature (new API endpoint, new UI page, new injector/collector/executor) with zero doc update | `issue (blocking):` — PR must not merge without doc |
-| 🟠 **HIGH** | Behavioral change to existing feature (changed defaults, renamed fields, modified workflow) with no doc update | `issue (blocking):` — doc will mislead users |
-| 🟡 **MEDIUM** | New configuration parameter, new CLI flag, or changed environment variable with no doc update | `suggestion (non-blocking):` — should document |
-| 🟢 **LOW** | Internal refactor that changes class/method names referenced in developer docs (`docs/development/`) | `nitpick (non-blocking):` — nice to update |
-| --- | **Not flagged** | Pure refactors with no user-visible impact, test-only changes, CI changes, dependency bumps |
+| 🔴 **CRITICAL** | New user-facing feature (API endpoint, UI page, injector/collector/executor) | `issue (blocking):` — PR must not merge without doc |
+| 🟠 **HIGH** | Behavioral change to an existing feature (defaults, renamed fields, workflow) | `issue (blocking):` — doc will mislead users |
+| 🟡 **MEDIUM** | New configuration parameter or CLI flag, new or changed environment variable | `suggestion (non-blocking):` — should document |
+| 🟢 **LOW** | Internal refactor renaming classes or methods cited in `docs/development/` | `nitpick (non-blocking):` — nice to update |
 
 ## Code-to-Doc Mapping
 

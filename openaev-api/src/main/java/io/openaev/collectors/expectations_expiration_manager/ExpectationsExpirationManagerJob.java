@@ -52,9 +52,8 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
     log.debug("ExpectationsExpirationManagerJob starting (interval={}s)", config.getInterval());
     tenantTx.forEachTenant(
         tenantId -> {
-          // Bridge: set TenantContext so that the v1 Hibernate @Filter (enabled by
-          // HibernateFilterTransactionAspect) keeps working for tables not yet on v2.
-          // Once all tables touched by this job are activated on v2, remove this line.
+          // Set TenantContext: TenantBaseListener stamps the tenant of every persisted row from
+          // it. Remove this line once the job persists no tenant-stamped row.
           TenantContext.setCurrentTenant(tenantId);
           try {
             log.debug("Processing expectations expiration for tenant {}", tenantId);

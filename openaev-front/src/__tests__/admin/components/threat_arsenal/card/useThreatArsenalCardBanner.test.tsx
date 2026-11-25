@@ -11,12 +11,12 @@ vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: () => true }));
 
 interface Props {
   action: ThreatArsenalAction;
-  olderVersionsInUse: boolean;
+  olderUsages: number;
   onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
-const Banner: FunctionComponent<Props> = ({ action, olderVersionsInUse, onShowVersions }) => (
-  <div data-testid="banner">{useThreatArsenalCardBanner(action, olderVersionsInUse, onShowVersions)}</div>
+const Banner: FunctionComponent<Props> = ({ action, olderUsages, onShowVersions }) => (
+  <div data-testid="banner">{useThreatArsenalCardBanner(action, olderUsages, onShowVersions)}</div>
 );
 
 describe('useThreatArsenalCardBanner', () => {
@@ -25,17 +25,17 @@ describe('useThreatArsenalCardBanner', () => {
     vi.clearAllMocks();
   });
 
-  it('given injects on an older version should open the Versions tab ready to move them', () => {
+  it('given injects on an older version should count them and open the Versions tab ready to move them', () => {
     // Arrange
     const action = anAction();
     const onShowVersions = vi.fn();
-    renderInApp(<Banner action={action} olderVersionsInUse onShowVersions={onShowVersions} />);
+    renderInApp(<Banner action={action} olderUsages={3} onShowVersions={onShowVersions} />);
 
     // Act
     fireEvent.click(screen.getByText('Move'));
 
     // Assert
-    expect(screen.getByText('Injects use an older version')).toBeTruthy();
+    expect(screen.getByText('3 injects use an older version')).toBeTruthy();
     expect(onShowVersions).toHaveBeenCalledWith(action, 'move');
   });
 
@@ -43,20 +43,20 @@ describe('useThreatArsenalCardBanner', () => {
     // Arrange
     const action = anAction({ action_payload_revoked: true });
     const onShowVersions = vi.fn();
-    renderInApp(<Banner action={action} olderVersionsInUse onShowVersions={onShowVersions} />);
+    renderInApp(<Banner action={action} olderUsages={3} onShowVersions={onShowVersions} />);
 
     // Act
     fireEvent.click(screen.getByText('Versions'));
 
     // Assert
     expect(screen.getByText('Revoked: injects using it fail')).toBeTruthy();
-    expect(screen.queryByText('Injects use an older version')).toBeNull();
+    expect(screen.queryByText('3 injects use an older version')).toBeNull();
     expect(onShowVersions).toHaveBeenCalledWith(action, 'versions');
   });
 
   it('given nothing to act on should show no banner', () => {
     // Act
-    renderInApp(<Banner action={anAction()} olderVersionsInUse={false} onShowVersions={vi.fn()} />);
+    renderInApp(<Banner action={anAction()} olderUsages={0} onShowVersions={vi.fn()} />);
 
     // Assert
     expect(screen.getByTestId('banner').childElementCount).toBe(0);

@@ -21,6 +21,8 @@ export const addThreatArsenalAction = (data: ThreatArsenalActionCreateInput) => 
   return simplePostCall(THREAT_ARSENAL_URI, data, {}, true, true);
 };
 
+export const fetchThreatArsenalVersionChanges = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/changes`);
+
 export const fetchThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simpleCall(uri);
@@ -38,7 +40,7 @@ export const fetchThreatArsenalVersions = (actionId: string, notifyError = true)
 export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
 
 export const moveThreatArsenalUsages = (actionId: string, input: PayloadUsageMoveInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/usages/move`, input);
-export const fetchThreatArsenalHistory = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/history`);
+export const searchThreatArsenalHistory = (actionId: string, input: SearchPaginationInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/history/search`, input);
 
 export const customizeThreatArsenalAction = (actionId: string) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customize`);
 

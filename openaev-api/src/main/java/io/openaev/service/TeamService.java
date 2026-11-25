@@ -93,11 +93,16 @@ public class TeamService {
   }
 
   /**
-   * Initializes the tags, simulations, scenarios, injects and communications of a team that an
-   * endpoint answers as a raw entity. The entity is serialized open-in-view after the commit, when
-   * a lazy load on a v2-active table reads nothing; initializing the collections in the transaction
-   * gives the response the team's tags, which the team edit form saves back, and the simulations
-   * and scenarios the team page counts.
+   * Initializes the tags, players, simulations, scenarios, injects and communications of a team
+   * that an endpoint answers as a raw entity. The entity is serialized open-in-view after the
+   * commit, when a lazy load on a v2-active table reads nothing; initializing the collections in
+   * the transaction gives the response the team's tags, which the team edit form saves back, and
+   * the simulations and scenarios the team page counts.
+   *
+   * <p>Loading the players also loads the eager {@code groups} of each one, a table the scope
+   * reaches: read after the commit, those reads run with no scope and find nothing. The response
+   * carries only the players' ids and count; the groups load as one subselect, whose rows grow with
+   * the membership of those groups, not with the team.
    *
    * <p>The team's injects are the ones of its simulations and scenarios that target it: each
    * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit
@@ -109,6 +114,7 @@ public class TeamService {
    */
   public Team withResponseCollections(@NotNull final Team team) {
     Hibernate.initialize(team.getTags());
+    Hibernate.initialize(team.getUsers());
     Hibernate.initialize(team.getExercises());
     Hibernate.initialize(team.getScenarios());
     team.getExercisesInjects();

@@ -24,6 +24,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInitializer;
 import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -311,11 +312,13 @@ public class InjectorContractApi extends RestBehavior {
   }
 
   /**
-   * See {@link AttackPatternInitializer}: the contract's attack patterns are serialized after the
-   * scoped transaction closed, so they are hydrated here while the scope is still set.
+   * See {@link AttackPatternInitializer} and {@link ContractOutputElementInitializer}: the
+   * contract's attack patterns and the tags of its payload's output elements are serialized after
+   * the scoped transaction closed, so they are hydrated here while the scope is set.
    */
   private InjectorContract hydrated(InjectorContract injectorContract) {
     AttackPatternInitializer.initializeFromContract(injectorContract);
+    ContractOutputElementInitializer.initializeFromContract(injectorContract);
     return injectorContract;
   }
 }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -17,11 +16,11 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "cwes")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 // cwes is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter (#6398). Reads are
 // scoped by the inspector; writes are attributed explicitly by TenantWriteScopeResolver in
-// VulnerabilityService (a new cwe belongs to exactly one tenant). The listener stays as a fallback
-// that only fills a still-null tenant; the resolver-set value wins.
+// VulnerabilityService (a new cwe belongs to exactly one tenant). A row saved without a tenant
+// fails on the NOT NULL column.
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

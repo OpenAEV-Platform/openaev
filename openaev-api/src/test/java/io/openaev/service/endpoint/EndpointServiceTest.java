@@ -506,8 +506,39 @@ class EndpointServiceTest {
 
     @Test
     void shouldReturnCustomDir_whenProvided() {
-      String result = endpointService.generateInstallationDir("Windows", "service", "/custom/dir");
-      assertEquals("/custom/dir", result);
+      String result =
+          endpointService.generateInstallationDir("Linux", "service", "/custom/openaev-dir");
+      assertEquals("/custom/openaev-dir", result);
+    }
+
+    @Test
+    void shouldRejectUnsafeDir_whenProvided() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              endpointService.generateInstallationDir(
+                  "Linux", "service", "/opt/openaev\"; echo unsafe; #"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> endpointService.generateInstallationDir("Windows", "service", "C:\\OAEV\\"));
+    }
+
+    @Test
+    void shouldFallBackToDefault_whenDirIsNullOrEmpty() {
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_UNIX_SERVICE,
+          endpointService.generateInstallationDir("Linux", "service", null));
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_UNIX_SERVICE,
+          endpointService.generateInstallationDir("Linux", "service", ""));
+    }
+
+    @Test
+    void shouldNotValidateServerDefaults() {
+      // the Windows session-user default is expanded by PowerShell on purpose, so it contains a $
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_WINDOWS_SESSION_USER,
+          endpointService.generateInstallationDir("Windows", "session-user", null));
     }
   }
 
@@ -547,8 +578,20 @@ class EndpointServiceTest {
     @Test
     void shouldReturnCustomName_whenProvided() {
       String result =
-          endpointService.generateServiceNameOrPrefix("Windows", "service", "my-service");
-      assertEquals("my-service", result);
+          endpointService.generateServiceNameOrPrefix("Windows", "service", "openaev-my-service");
+      assertEquals("openaev-my-service", result);
+    }
+
+    @Test
+    void shouldRejectUnsafeName_whenProvided() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              endpointService.generateServiceNameOrPrefix(
+                  "Linux", "service", "openaev\"; echo unsafe; #"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> endpointService.generateServiceNameOrPrefix("Linux", "service", "sshd"));
     }
   }
 
