@@ -158,7 +158,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         <DialogContent size="sm">
           <DialogTitle>{target.title}</DialogTitle>
           <DialogBody>
-            <Alert severity="warning" title={title} description={description} />
+            {/* The dialog is a layer-2 surface: its Alerts paint layer 1, as the DS surface rule says. */}
+            <Alert severity="warning" title={title} description={description} elevation={1} />
           </DialogBody>
           <DialogFooter>
             <Button priority="secondary" onClick={onClose}>{t('Close')}</Button>
@@ -251,6 +252,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
               severity={target.revokedSeverity}
               title={t('Runs a revoked payload version: its injects will fail')}
               description={payloadNames(preview.scenario_update_revoked_payloads)}
+              elevation={1}
             />
           )}
           {preview.scenario_update_payloads_to_install.length > 0 && (
@@ -258,6 +260,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
               severity="info"
               title={t('Payload versions installed with it')}
               description={payloadNames(preview.scenario_update_payloads_to_install)}
+              elevation={1}
             />
           )}
           {notes.map(note => (
@@ -325,6 +328,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
                     severity="warning"
                     title={t('Some injects lose a dependency: check them after applying.')}
                     description={lostDependencies.join(', ')}
+                    elevation={1}
                   />
                 )}
               </Section>
