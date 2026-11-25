@@ -1208,9 +1208,7 @@ public class InjectService {
     }
     inject.setUpdateAttributes(input);
     checkAssetGroupReferences(
-        inject.getInjectorContract().orElse(null),
-        inject.getContent(),
-        inject.getTenant().getId());
+        inject.getInjectorContract().orElse(null), inject.getContent(), inject.getTenant().getId());
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
