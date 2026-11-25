@@ -11,7 +11,6 @@ interface Props {
 }
 
 // Bottom left of a marketplace card: the item's status, then its first platforms and how many more.
-// A long status truncates (minWidth 0) so the platforms keep their place instead of sliding under the actions.
 const MarketplaceCardMeta = ({ status, platforms }: Props) => (
   <div style={{
     display: 'flex',
