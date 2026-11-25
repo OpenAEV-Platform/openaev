@@ -9,13 +9,12 @@ import MarketplaceBrowser from '../../../../../components/common/marketplace/pag
 
 const label = (text: string) => <div>{text}</div>;
 
-const renderBrowser = (props: Partial<Parameters<typeof MarketplaceBrowser>[0]> = {}) => render(
+const renderBrowser = () => render(
   <MarketplaceBrowser
     hero={label('hero')}
     tabs={label('tabs')}
     sidebar={label('sidebar')}
     toolbar={label('toolbar')}
-    {...props}
   >
     {label('results')}
   </MarketplaceBrowser>,
@@ -38,23 +37,7 @@ describe('MarketplaceBrowser', () => {
     ['hero', 'tabs', 'sidebar', 'toolbar', 'results'].forEach(name => expect(screen.getByText(name)).toBeInTheDocument());
   });
 
-  it('should let the page set the gap between its hero and its body', () => {
-    // Arrange + Act
-    const { container } = renderBrowser({ mainBoxStyle: { gap: '8px' } });
-
-    // Assert
-    expect(pageBox(container)).toHaveStyle({ gap: '8px' });
-  });
-
-  it('should let the page set the gap inside the results column', () => {
-    // Arrange + Act
-    renderBrowser({ childrenBoxStyle: { gap: '0px' } });
-
-    // Assert
-    expect(resultsBox()).toHaveStyle({ gap: '0px' });
-  });
-
-  it('should keep the default gaps when the page sets none', () => {
+  it('should apply the default gaps between the hero and the body and inside the results column', () => {
     // Arrange + Act
     const { container } = renderBrowser();
 

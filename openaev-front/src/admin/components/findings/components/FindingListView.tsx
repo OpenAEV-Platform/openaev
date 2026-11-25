@@ -4,6 +4,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties } from 'react';
 import { Link } from 'react-router';
 
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import type { QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
@@ -16,9 +17,8 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import ContractOutputElementType from '../ContractOutputElementType';
-import markingsColumn from "../../../../components/common/list/markingsColumn";
-import {isFeatureEnabled} from "../../../../utils/utils";
 
 interface Props {
   loading: boolean;
@@ -125,9 +125,9 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
         />
       ),
     },
-      ...(markingEnabled
-          ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
-          : []),
+    ...(markingEnabled
+      ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+      : []),
     {
       field: 'finding_created_at',
       label: 'First seen',
