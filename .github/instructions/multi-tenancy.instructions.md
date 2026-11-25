@@ -100,6 +100,8 @@ itself:
 tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // both scopes, previous value restored
 ```
 
+Without the v2 scope, a read on an active table returns no rows (`can_access_tenant` is false when no tenant is set).
+
 Setting only the v2 primitive is **not** enough, and it fails silently: `TenantBaseListener` stamps
 every insert from `TenantContext.getCurrentTenant()`, which falls back to `Tenant.DEFAULT_TENANT_UUID`
 when nothing is set, so the row is attributed to the default tenant. Single-tenant deployments never

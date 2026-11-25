@@ -193,7 +193,7 @@ First check whether the job opens its transaction with `@Transactional` (v1-styl
   - If the block is **read-only** and every table it touches is v2-active (cross-check against `openaev.tenant.active-tables`, Step 2b) and it calls no legacy/v1 code path → `TenantContext.setCurrentTenant()` is redundant: the `TxCtx` passed to `TenantScopedTransaction.execute(...)` already carries the scope the reads need. Flag it as 🟡 MEDIUM — suggestion to remove the dead v1 call, progressing the job fully onto v2, but call this out explicitly as a suggestion, not a blocker, and require the reviewer to confirm both bullets above before recommending removal (a false positive here reintroduces the DEFAULT_TENANT_UUID attribution bug).
 
 For a job NOT yet converted to `TenantScopedTransaction` (still async/`@Scheduled` raw):
-- Does every write run through `TenantScopedJobRunner` (see [multi-tenancy › Background Threads Carry Both Scopes](../../../.github/instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes))?
+- Does every read and write run through `TenantScopedJobRunner` (see [multi-tenancy › Background Threads Carry Both Scopes](../../../.github/instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes))?
 - Is the tenant ID passed explicitly to the async method?
 
 ## Step 5b — Test code hygiene for v2
