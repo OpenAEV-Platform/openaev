@@ -6,7 +6,7 @@ export const compare = (a: unknown, b: unknown): number => {
   return 0;
 };
 
-// Same ordering as Ramda's ascend and descend: values are compared with `<` and `>` (not `localeCompare`),
+// Values are compared with `<` and `>` (not `localeCompare`, so capital letters sort first),
 // and a missing value compares equal to every other value.
 export const ascendBy = <T>(key: keyof T): Comparator<T> => (a, b) => compare(a?.[key], b?.[key]);
 

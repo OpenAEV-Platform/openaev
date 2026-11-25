@@ -64,7 +64,7 @@ const useSearchAndFilter = (
         .reduce((a, b) => a || b);
       return isEmptyKeyword || isKnownColumn;
     };
-    // A missing value sorts as '' (it was R.propOr('', sortBy)), unlike ascendBy where it compares equal to all
+    // A missing value sorts as '', unlike ascendBy where it compares equal to every value
     const sortValue = e => e[order.sortBy] ?? '';
     const compareElements = (a, b) => (order.orderAsc
       ? compare(sortValue(a), sortValue(b))
