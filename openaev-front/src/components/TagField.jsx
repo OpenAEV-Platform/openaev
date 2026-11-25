@@ -47,7 +47,7 @@ class TagFieldComponent extends Component {
     this.props.addTag(data).then((result) => {
       if (result.result) {
         const newTag = result.entities.tags[result.result];
-        // Ramda's append treated a missing field value as an empty list
+        // A missing field value counts as an empty list
         const tags = [
           ...(values[name] || []),
           {

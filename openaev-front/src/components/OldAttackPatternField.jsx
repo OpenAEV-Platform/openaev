@@ -52,7 +52,7 @@ class OldAttackPatternFieldComponent extends Component {
         const newAttackPattern = result.entities.attackpatterns[result.result];
         const killChainPhase = newAttackPattern.attack_pattern_kill_chain_phases[0];
         const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
-        // Ramda's append treated a missing field value as an empty list
+        // A missing field value counts as an empty list
         const attackPatterns = [
           ...(values[name] || []),
           {
