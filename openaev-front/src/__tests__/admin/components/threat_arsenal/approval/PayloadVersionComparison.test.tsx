@@ -5,19 +5,35 @@ import PayloadVersionComparison from '../../../../../admin/components/threat_ars
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
 
-const runs = {
-  content: 'whoami\nhostname',
-  executor: 'bash',
-  platforms: ['Linux'],
-};
-
 describe('PayloadVersionComparison', () => {
   afterEach(cleanup);
 
   describe('a new action, with no approved version to compare with', () => {
-    it('given no earlier version should show every field it runs as added lines', () => {
+    it('given no earlier version should show every field it has as added lines', () => {
       // Arrange / Act
-      render(<PayloadVersionComparison pending={runs} pendingNumber="1.0.0" />);
+      render(
+        <PayloadVersionComparison
+          isNew
+          changes={[
+            {
+              field: 'command_content',
+              before: null,
+              after: 'whoami\nhostname',
+            },
+            {
+              field: 'command_executor',
+              before: null,
+              after: 'bash',
+            },
+            {
+              field: 'payload_platforms',
+              before: null,
+              after: ['Linux'],
+            },
+          ]}
+          pendingNumber="1.0.0"
+        />,
+      );
 
       // Assert
       expect(screen.getByText('What this version runs')).toBeTruthy();
@@ -34,24 +50,104 @@ describe('PayloadVersionComparison', () => {
   });
 
   describe('a new version of an approved action', () => {
-    it('given an earlier version should only show the changed fields, with the Before / After key', () => {
+    it('given a name change only should show the Name diff', () => {
       // Arrange / Act
       render(
         <PayloadVersionComparison
-          active={{
-            ...runs,
-            content: 'whoami',
-          }}
-          pending={runs}
+          changes={[{
+            field: 'payload_name',
+            before: 'Whoami',
+            after: 'Whoami as root',
+          }]}
+          activeNumber="1.0.0"
+          pendingNumber="1.0.1"
+        />,
+      );
+
+      // Assert
+      expect(screen.getByText('What changed')).toBeTruthy();
+      expect(screen.getAllByText('Name').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Before ·/).length).toBeGreaterThan(0);
+    });
+
+    it('given a description change only should show the Description diff', () => {
+      // Arrange / Act
+      render(
+        <PayloadVersionComparison
+          changes={[{
+            field: 'payload_description',
+            before: 'Prints the user',
+            after: 'Prints who runs the agent',
+          }]}
+          activeNumber="1.0.0"
+          pendingNumber="1.0.1"
+        />,
+      );
+
+      // Assert
+      expect(screen.getAllByText('Description').length).toBeGreaterThan(0);
+    });
+
+    it('given attack patterns and expectations changed should show both, one item per line', () => {
+      // Arrange / Act
+      render(
+        <PayloadVersionComparison
+          changes={[
+            {
+              field: 'payload_attack_patterns',
+              before: ['T1033 System Owner/User Discovery'],
+              after: ['T1033 System Owner/User Discovery', 'T1059 Command and Scripting Interpreter'],
+            },
+            {
+              field: 'payload_expectations',
+              before: ['PREVENTION'],
+              after: ['DETECTION', 'PREVENTION'],
+            },
+          ]}
           activeNumber="1.0.0"
           pendingNumber="1.1.0"
         />,
       );
 
       // Assert
+      expect(screen.getAllByText('Attack patterns').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Expectations').length).toBeGreaterThan(0);
+      expect(screen.getByText('T1059 Command and Scripting Interpreter')).toBeTruthy();
+      expect(screen.getByText('DETECTION')).toBeTruthy();
+    });
+
+    it('given nothing changed should show no message, only the heading', () => {
+      // Arrange / Act
+      render(<PayloadVersionComparison changes={[]} activeNumber="1.0.0" pendingNumber="1.0.0" />);
+
+      // Assert
       expect(screen.getByText('What changed')).toBeTruthy();
-      expect(screen.getAllByRole('group').length).toBe(1);
-      expect(screen.getAllByText(/Before ·/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('No change in what the action runs.')).toBeNull();
+      expect(screen.queryAllByRole('group')).toHaveLength(0);
+    });
+  });
+
+  describe('a draft', () => {
+    it('given a draft that renames the action should show the Name diff against its source version', () => {
+      // Arrange / Act
+      render(
+        <PayloadVersionComparison
+          draft
+          title="What this draft changes"
+          changes={[{
+            field: 'payload_name',
+            before: 'Whoami',
+            after: 'Whoami draft',
+          }]}
+          activeNumber="1.0.0"
+          pendingNumber="1.0.0"
+        />,
+      );
+
+      // Assert
+      expect(screen.getByText('What this draft changes')).toBeTruthy();
+      expect(screen.getAllByText('Name').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('After · draft').length).toBeGreaterThan(0);
     });
   });
 });

@@ -136,10 +136,14 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
   }
 
   private ThreatArsenalActionUpdateInput update(String actionId, String content) throws Exception {
+    return edit(JsonPath.read(detail(actionId), "$.action_labels.en"), null, content);
+  }
+
+  private ThreatArsenalActionUpdateInput edit(String name, String description, String content) {
     return new ThreatArsenalActionUpdateInput(
-        JsonPath.read(detail(actionId), "$.action_labels.en"),
+        name,
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
-        null,
+        description,
         "bash",
         content,
         Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
@@ -565,6 +569,142 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
                         .content(asJsonString(input)))
                 .andExpect(status().isOk())),
         "$.content[*].injector_contract_id");
+  }
+
+  @Nested
+  @DisplayName("Showing what a version changes")
+  class Changes {
+
+    private List<String> changedFields(String json) {
+      return JsonPath.read(json, "$[*].field");
+    }
+
+    private String changes(Authentication as, String actionId, String comparedTo) throws Exception {
+      return body(
+          mvc.perform(
+                  get(url("/" + actionId + "/changes"))
+                      .param("compared_to", comparedTo)
+                      .with(authentication(as)))
+              .andExpect(status().isOk()));
+    }
+
+    @Test
+    @DisplayName("given a version that only renames the action, should show the name change")
+    void given_nameOnlyVersion_should_listName() throws Exception {
+      // Arrange
+      String v1 = createAction(approver);
+      String v2 = updateAs(approver, v1, update(v1, "echo baseline"));
+      String renamed = "Renamed " + UUID.randomUUID();
+      String v3 = updateAs(approver, v2, edit(renamed, null, "echo baseline"));
+
+      // Act
+      String json = changes(reader, v3, v2);
+
+      // Assert
+      assertThat(changedFields(json)).containsExactly("payload_name");
+      assertThat((String) JsonPath.read(json, "$[0].after")).isEqualTo(renamed);
+    }
+
+    @Test
+    @DisplayName("given a version that only changes the description, should show it")
+    void given_descriptionOnlyVersion_should_listDescription() throws Exception {
+      // Arrange
+      String v1 = createAction(approver);
+      String v2 = updateAs(approver, v1, update(v1, "echo baseline"));
+      String name = JsonPath.read(detail(v2), "$.action_labels.en");
+      String v3 = updateAs(approver, v2, edit(name, "Prints the current user", "echo baseline"));
+
+      // Act
+      String json = changes(reader, v3, v2);
+
+      // Assert
+      assertThat(changedFields(json)).containsExactly("payload_description");
+    }
+
+    @Test
+    @DisplayName("given a first version, should show everything it has as added")
+    void given_firstVersion_should_listEverythingAdded() throws Exception {
+      // Arrange
+      String v1 = createAction(approver);
+
+      // Act
+      String json =
+          body(
+              mvc.perform(get(url("/" + v1 + "/changes")).with(authentication(reader)))
+                  .andExpect(status().isOk()));
+
+      // Assert
+      assertThat(changedFields(json)).contains("payload_name", "command_content");
+      assertThat((List<Object>) JsonPath.read(json, "$[?(@.field == 'payload_name')].before"))
+          .containsExactly((Object) null);
+    }
+
+    @Test
+    @DisplayName("given a version of another payload, should refuse the comparison")
+    void given_otherPayload_should_beBadRequest() throws Exception {
+      // Arrange
+      String one = createAction(approver);
+      String other = createAction(approver);
+
+      // Act / Assert
+      mvc.perform(
+              get(url("/" + one + "/changes"))
+                  .param("compared_to", other)
+                  .with(authentication(reader)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "given a draft's content, should show what it changes in its version, without saving")
+    void given_draftContent_should_listChangesWithoutSaving() throws Exception {
+      // Arrange
+      String v1 = createAction(approver);
+      String v2 = updateAs(approver, v1, update(v1, "echo baseline"));
+      int versionsBefore = versions(v2).size();
+
+      // Act
+      String json =
+          body(
+              mvc.perform(
+                      post(url("/" + v2 + "/changes"))
+                          .with(authentication(author))
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(
+                              asJsonString(
+                                  edit("Draft name " + UUID.randomUUID(), null, "echo baseline"))))
+                  .andExpect(status().isOk()));
+
+      // Assert
+      assertThat(changedFields(json)).containsExactly("payload_name");
+      assertThat(versions(v2)).hasSize(versionsBefore);
+      assertThat((String) JsonPath.read(detail(v2), "$.action_labels.en"))
+          .isNotEqualTo(JsonPath.read(json, "$[0].after"));
+    }
+
+    @Test
+    @DisplayName("given a version that only renames the action, its history should list the name")
+    void given_nameOnlyVersion_should_listNameInHistory() throws Exception {
+      // Arrange
+      String v1 = createAction(approver);
+      String v2 = updateAs(approver, v1, update(v1, "echo baseline"));
+      String v3 =
+          updateAs(approver, v2, edit("Renamed " + UUID.randomUUID(), null, "echo baseline"));
+      String v3Number = JsonPath.read(detail(v3), "$.action_payload_version");
+
+      // Act
+      String history = history(v3);
+
+      // Assert
+      List<String> fields =
+          JsonPath.read(
+              history,
+              "$[?(@.content_history_action == 'UPDATE' && @.content_history_version == '"
+                  + v3Number
+                  + "')].content_history_details.changes[*].field");
+      assertThat(fields).containsExactly("payload_name");
+    }
   }
 
   @Nested

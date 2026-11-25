@@ -6,6 +6,8 @@ import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.openaev.api.threat_arsenal.PayloadFieldChangeOutput;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Filters;
@@ -34,6 +36,7 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.payload.PayloadDraftService;
+import io.openaev.service.payload.PayloadFieldChangeService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
@@ -43,9 +46,11 @@ import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Join;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -91,6 +96,7 @@ public class ThreatArsenalService {
   private final PayloadUsageService payloadUsageService;
   private final PayloadVersionService payloadVersionService;
   private final PayloadDraftService payloadDraftService;
+  private final PayloadFieldChangeService payloadFieldChangeService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -393,6 +399,59 @@ public class ThreatArsenalService {
       action.setPreviousVersionUsages(result.previousUsages());
     }
     return action;
+  }
+
+  /**
+   * What the action's version changes compared with another version of the same payload, field by
+   * field; with no other version (a first version), everything it has is added.
+   */
+  public List<PayloadFieldChangeOutput> versionChanges(
+      String actionId, @Nullable String comparedToActionId) {
+    InjectorContract contract = injectorContractService.injectorContract(actionId);
+    Payload version = contract.getPayload();
+    if (version == null) {
+      throw new BadRequestException("Action " + actionId + " has no payload version.");
+    }
+    if (comparedToActionId == null) {
+      return fieldChanges(
+          payloadFieldChangeService.between(null, null, version, contract.getAttackPatterns()));
+    }
+    InjectorContract other = injectorContractService.injectorContract(comparedToActionId);
+    Payload otherVersion = other.getPayload();
+    if (otherVersion == null
+        || !otherVersion.getIdentity().getId().equals(version.getIdentity().getId())) {
+      throw new BadRequestException(
+          "Action " + comparedToActionId + " is not a version of the same payload.");
+    }
+    return fieldChanges(
+        payloadFieldChangeService.between(
+            otherVersion, other.getAttackPatterns(), version, contract.getAttackPatterns()));
+  }
+
+  /**
+   * Payload drafts: what the editor's content changes in the action's version, field by field,
+   * without saving anything.
+   */
+  public List<PayloadFieldChangeOutput> contentChanges(
+      String actionId, ThreatArsenalActionUpdateInput actionInput) {
+    InjectorContract contract = injectorContractService.injectorContract(actionId);
+    if (contract.getPayload() == null) {
+      throw new BadRequestException("Action " + actionId + " has no payload version.");
+    }
+    return fieldChanges(
+        payloadUpdateService.contentChanges(
+            contract.getPayload().getId(),
+            getPayloadUpdateInputFromCommonActionInput(actionInput)));
+  }
+
+  private static List<PayloadFieldChangeOutput> fieldChanges(ArrayNode changes) {
+    List<PayloadFieldChangeOutput> outputs = new ArrayList<>();
+    changes.forEach(
+        change ->
+            outputs.add(
+                new PayloadFieldChangeOutput(
+                    change.get("field").asText(), change.get("before"), change.get("after"))));
+    return outputs;
   }
 
   /** The action (its contract) that runs this payload version. */

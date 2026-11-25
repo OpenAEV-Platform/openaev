@@ -4904,7 +4904,6 @@
   "Multi-turn": "マルチターン",
   "Network traffic": "ネットワークトラフィック",
   "New version pending approval": "新しいバージョンが承認待ち",
-  "No change in what the action runs.": "アクションが実行する内容に変更はありません。",
   "Optional comment kept in the approval history": "承認履歴に保存される任意のコメント",
   "Payload pending approval": "ペイロード承認待ち",
   "Payload rejected": "ペイロード却下",
@@ -5217,5 +5216,9 @@
   "Table settings": "テーブル設定",
   "Reset table": "テーブルをリセット",
   "Rows per page": "1 ページの行数",
-  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, other {# 件のインジェクトを移動}}"
+  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, other {# 件のインジェクトを移動}}",
+  "Source IP": "送信元IP",
+  "Destination IP": "宛先IP",
+  "Source port": "送信元ポート",
+  "Destination port": "宛先ポート"
 }

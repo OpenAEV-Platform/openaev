@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -22,9 +23,11 @@ import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.GrantService;
 import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.payload.PayloadFieldChangeService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -77,6 +80,7 @@ public class PayloadUpdateService {
 
   private final UserService userService;
   private final PayloadApprovalService payloadApprovalService;
+  private final PayloadFieldChangeService payloadFieldChangeService;
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadSaveResult updatePayload(String payloadId, PayloadUpdateInput input) {
@@ -115,6 +119,39 @@ public class PayloadUpdateService {
   }
 
   /**
+   * Payload drafts: what saving this content would change in the version, field by field, without
+   * saving anything. The caller runs it in a read-only transaction: the candidate is never stored.
+   */
+  public ArrayNode contentChanges(String payloadId, PayloadUpdateInput input) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      input.setDetectionRemediations(null);
+    }
+    Payload current =
+        (Payload)
+            Hibernate.unproxy(
+                this.payloadRepository
+                    .findById(payloadId)
+                    .orElseThrow(ElementNotFoundException::new));
+    Payload candidate = payloadService.copyForNewVersion(current);
+    payloadUtils.copyProperties(input, candidate);
+    if (candidate instanceof Executable executable) {
+      executable.setExecutableFile(documentOrNull(input.getExecutableFile()));
+    } else if (candidate instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentOrNull(input.getFileDropFile()));
+    }
+    List<AttackPattern> attackPatterns =
+        fromIterable(
+            attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+    return payloadFieldChangeService.between(
+        current, payloadFieldChangeService.attackPatternsOf(current), candidate, attackPatterns);
+  }
+
+  private Document documentOrNull(String documentId) {
+    return documentId == null ? null : documentService.document(documentId);
+  }
+
+  /**
    * Payload drafts: rewrites a rejected version with the content fixed in its draft, keeping its
    * number, and sends it for approval again. Only a rejected version can be rewritten: it never
    * ran, and nothing can run it until it is approved.
@@ -148,6 +185,12 @@ public class PayloadUpdateService {
     // What the version was, for the history of what changed.
     Payload before = payloadService.copyForNewVersion(current);
     before.setVersion(current.getVersion());
+    // Its action is changed in place below: keep the attack patterns it had for the history.
+    List<AttackPattern> beforePatterns =
+        injectorContractRepository
+            .findInjectorContractByPayload(current)
+            .<List<AttackPattern>>map(contract -> new ArrayList<>(contract.getAttackPatterns()))
+            .orElseGet(List::of);
     payloadUtils.copyProperties(input, current);
     current.setLastModifiedBy(userService.currentUserOrNull());
     if (current instanceof Executable executable) {
@@ -162,7 +205,7 @@ public class PayloadUpdateService {
     InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved, attackPatterns, domains, tags);
-    contentHistoryService.payloadReworked(before, saved);
+    contentHistoryService.payloadReworked(before, beforePatterns, saved);
     return new PayloadSaveResult(saved, contract, null, 0);
   }
 

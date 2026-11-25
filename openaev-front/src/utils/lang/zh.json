@@ -4904,7 +4904,6 @@
   "Multi-turn": "多轮",
   "Network traffic": "网络流量",
   "New version pending approval": "新版本待审批",
-  "No change in what the action runs.": "操作所执行的内容没有变化。",
   "Optional comment kept in the approval history": "保存在批准历史中的可选评论",
   "Payload pending approval": "载荷待批准",
   "Payload rejected": "载荷已拒绝",
@@ -5217,5 +5216,9 @@
   "Table settings": "表格设置",
   "Reset table": "重置表格",
   "Rows per page": "每页行数",
-  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, other {已移动 # 个注入}}"
+  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, other {已移动 # 个注入}}",
+  "Source IP": "源 IP",
+  "Destination IP": "目标 IP",
+  "Source port": "源端口",
+  "Destination port": "目标端口"
 }

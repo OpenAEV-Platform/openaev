@@ -22,7 +22,6 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.content.ContentHistoryService;
-import io.openaev.service.content.PayloadFieldChanges;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.scenario.revision.ScenarioRevisionService;
 import io.openaev.utils.SemanticVersion;
@@ -57,6 +56,7 @@ public class PayloadVersionChangeService {
   private final PayloadApprovalService payloadApprovalService;
   private final ScenarioRevisionService scenarioRevisionService;
   private final ObjectMapper mapper;
+  private final PayloadFieldChangeService payloadFieldChangeService;
 
   // -- LIST --
 
@@ -262,7 +262,7 @@ public class PayloadVersionChangeService {
                         previous -> {
                           details.put("compared_to", previous.getVersion());
                           details.set(
-                              "changes", PayloadFieldChanges.between(mapper, previous, installed));
+                              "changes", payloadFieldChangeService.between(previous, installed));
                         }));
     return ContentHistoryOutput.of(history, details);
   }

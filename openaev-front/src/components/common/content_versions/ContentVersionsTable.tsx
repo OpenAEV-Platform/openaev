@@ -11,6 +11,7 @@ import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
 import FdsPagination from '../pagination/FdsPagination';
 import BeforeAfter from '../update/BeforeAfter';
 import DiffLegend from '../update/DiffLegend';
+import { PAYLOAD_CODE_FIELDS, payloadFieldLabel, payloadFieldText } from './payloadFieldChanges';
 
 // Shape of content_history_details, a free JSON object on the API side.
 export interface HistoryChange {
@@ -146,25 +147,6 @@ const HISTORY_ACTION_LABELS: Record<string, string> = {
   REWORK: 'Fixed and sent again',
 };
 
-const FIELD_LABELS: Record<string, string> = {
-  payload_name: 'Name',
-  payload_description: 'Description',
-  payload_platforms: 'Platforms',
-  payload_execution_arch: 'Architecture',
-  command_executor: 'Executor',
-  command_content: 'Command',
-  dns_resolution_hostname: 'Hostname',
-  executable_file: 'Executable file',
-  file_drop_file: 'File to drop',
-  payload_arguments: 'Arguments',
-  payload_prerequisites: 'Prerequisites',
-  payload_cleanup_executor: 'Cleanup executor',
-  payload_cleanup_command: 'Cleanup command',
-};
-
-// What the payload runs, compared line by line like code (same block as the Versions tab).
-const CODE_FIELDS = new Set(['command_content', 'payload_cleanup_command', 'payload_arguments', 'payload_prerequisites']);
-
 const CHOICE_LABELS: Record<string, string> = {
   KEEP_MINE: 'kept mine',
   TAKE_CATALOG: 'took Filigran\'s',
@@ -174,14 +156,6 @@ const CHOICE_LABELS: Record<string, string> = {
 const BLOCK_LABELS: Record<string, string> = {
   EXECUTION: 'Execution',
   PLATFORMS: 'Platforms',
-};
-
-// Empty stays empty, so the Before / After block shows "(empty)".
-const valueText = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return '';
-  }
-  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
 // What changed, field by field, in the same Before / After block as the Versions tab: labelled rows,
@@ -208,12 +182,12 @@ export const ChangesTable: FunctionComponent<{
       {changes.map(change => (
         <BeforeAfter
           key={change.field}
-          label={t(FIELD_LABELS[change.field] ?? change.field)}
-          before={valueText(change.before)}
-          after={valueText(change.after)}
+          label={payloadFieldLabel(t, change.field)}
+          before={payloadFieldText(t, change.field, change.before)}
+          after={payloadFieldText(t, change.field, change.after)}
           beforeLabel={before}
           afterLabel={after}
-          code={CODE_FIELDS.has(change.field)}
+          code={PAYLOAD_CODE_FIELDS.has(change.field)}
           legend={false}
         />
       ))}
@@ -276,7 +250,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
       parts.push(details.changelog);
     }
     if (details?.changes && details.changes.length > 0) {
-      const fields = details.changes.map(change => t(FIELD_LABELS[change.field] ?? change.field)).join(', ');
+      const fields = details.changes.map(change => payloadFieldLabel(t, change.field)).join(', ');
       parts.push(details.compared_to
         ? t('Changed since v{version}: {fields}', {
             version: details.compared_to,
