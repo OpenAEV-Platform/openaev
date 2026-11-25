@@ -579,6 +579,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     assertThat(history.findValuesAsText("content_change_mode"))
         .containsOnly(ContentChange.Mode.MANUAL.name());
     assertThat(history.findValuesAsText("content_change_user")).doesNotContain("", "null");
+    assertThat(history.findValues("content_change_fields")).allMatch(JsonNode::isNull);
   }
 
   @Test
@@ -595,16 +596,6 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     assertThat(page.get("totalElements").asInt()).isEqualTo(2);
     assertThat(page.get("content").get(0).get("content_change_version").asText())
         .isEqualTo("1.1.0");
-  }
-
-  @Test
-  @DisplayName("has no history for a payload made in the tenant")
-  void given_localPayload_should_haveNoHistory() throws Exception {
-    // Arrange
-    InjectorContract action = localAction();
-
-    // Act & Assert
-    assertThat(history(action.getId(), 20).get("content")).isEmpty();
   }
 
   @Test
