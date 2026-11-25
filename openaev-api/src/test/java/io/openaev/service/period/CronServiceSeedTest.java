@@ -13,7 +13,7 @@ class CronServiceSeedTest {
   void futureStartIsTheEarliestCronInstant() {
     String cron = "56 43 10 * * *";
     Instant current = Instant.parse("2022-04-24T14:34:01Z");
-    Instant start = Instant.parse("2022-04-30T00:00:00Z");
+    Instant start = Instant.parse("2022-04-30T10:43:56Z");
 
     Optional<Instant> next = cronService.getNextOccurrence(start, current, cron);
 

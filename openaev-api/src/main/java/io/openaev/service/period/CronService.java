@@ -46,8 +46,7 @@ public class CronService implements PeriodExpressionHandler {
   }
 
   @Override
-  public Optional<Instant> getNextOccurrence(
-      Instant seed, Instant currentTime, String expression) {
+  public Optional<Instant> getNextOccurrence(Instant seed, Instant currentTime, String expression) {
     if (StringUtils.isBlank(expression)) {
       return Optional.empty();
     }
