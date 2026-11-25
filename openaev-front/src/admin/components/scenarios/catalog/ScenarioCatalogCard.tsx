@@ -17,9 +17,11 @@ interface Props {
   // Installs the scenario, then launches it; left out when the user may not launch.
   onLaunch?: () => void;
   onOpen: () => void;
+  // Updates the installed scenario to this version, when it has one that can be applied.
+  onUpdate?: () => void;
 }
 
-const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, onLaunch, onOpen }) => {
+const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, onLaunch, onOpen, onUpdate }) => {
   const { t, nsd } = useFormatter();
   const missing = scenario.catalog_scenario_missing_requirements.length > 0;
   const installed = !!scenario.catalog_scenario_installed_scenario_id;
@@ -52,7 +54,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
       footerStart={(
         <MarketplaceCardMeta
           status={installed
-            ? <Chip label={t('Installed')} severity="low" />
+            ? <Chip label={t(onUpdate ? 'Update available' : 'Installed')} severity={onUpdate ? 'info' : 'low'} />
             : missing && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -64,7 +66,7 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ scenario, canInstall, o
           platforms={scenario.catalog_scenario_platforms}
         />
       )}
-      action={<CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={onInstall} onLaunch={onLaunch} size="sm" />}
+      action={<CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={onInstall} onLaunch={onLaunch} onUpdate={onUpdate} size="sm" />}
     />
   );
 };

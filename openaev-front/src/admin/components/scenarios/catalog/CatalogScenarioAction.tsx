@@ -14,18 +14,41 @@ interface Props {
   // Installs the scenario, then launches it.
   onLaunch?: () => void;
   size?: 'sm';
+  // Updates the installed scenario to this version; only when it has one that can be applied.
+  onUpdate?: () => void;
 }
 
 // Opens the scenario installed from the item, else installs it, and launches it when allowed.
-const CatalogScenarioAction: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, onLaunch, size }) => {
+const CatalogScenarioAction: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, onLaunch, size, onUpdate }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const installedUrl = installedScenarioUrl(scenario);
   if (installedUrl) {
-    return (
+    const open = (
       <Button asChild size={size} priority="secondary">
         <Link to={installedUrl} onClick={event => event.stopPropagation()}>{t('Open')}</Link>
       </Button>
+    );
+    if (!onUpdate) {
+      return open;
+    }
+    return (
+      <div style={{
+        display: 'flex',
+        gap: theme.spacing(1),
+      }}
+      >
+        {open}
+        <Button
+          size={size}
+          onClick={(event) => {
+            event.stopPropagation();
+            onUpdate();
+          }}
+        >
+          {t('Update')}
+        </Button>
+      </div>
     );
   }
   if (!canInstall) {

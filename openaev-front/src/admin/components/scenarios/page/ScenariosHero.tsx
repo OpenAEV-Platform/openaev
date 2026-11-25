@@ -9,15 +9,20 @@ import useAuth from '../../../../utils/hooks/useAuth';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import ImportFromHubButton from '../../common/ImportFromHubButton';
-import { NOT_INSTALLED, searchCatalogScenariosIn, UPDATE_AVAILABLE } from '../catalog/catalogScenarioInstallation';
+import { availableUrlIn, NOT_INSTALLED, searchCatalogScenariosIn, UPDATE_AVAILABLE } from '../catalog/catalogScenarioInstallation';
 import ScenarioCreation from '../ScenarioCreation';
 
 const AVAILABLE_URL = '/admin/scenarios/available';
 const searchNotInstalled = searchCatalogScenariosIn(NOT_INSTALLED);
-const searchUpdateAvailable = searchCatalogScenariosIn(UPDATE_AVAILABLE);
 
-const ScenariosHero: FunctionComponent = () => {
+interface Props {
+  // The installed scenarios with an update that can be applied: the same ones their cards offer.
+  updatesAvailable: number;
+}
+
+const ScenariosHero: FunctionComponent<Props> = ({ updatesAvailable }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
@@ -29,12 +34,16 @@ const ScenariosHero: FunctionComponent = () => {
     icon: 'download',
     to: AVAILABLE_URL,
   });
-  const updates = useCatalogStat(searchUpdateAvailable, {
-    id: 'updates',
-    label: t('Updates available'),
-    icon: 'refresh-cw',
-    to: AVAILABLE_URL,
-  });
+  // It opens the Available tab on them, where each card says so and offers the update.
+  const updates = isFeatureEnabled('CATALOG')
+    ? [{
+        id: 'updates',
+        label: t('Updates available'),
+        icon: 'refresh-cw' as const,
+        to: availableUrlIn(UPDATE_AVAILABLE),
+        value: updatesAvailable,
+      }]
+    : [];
 
   return (
     <MarketplaceHero

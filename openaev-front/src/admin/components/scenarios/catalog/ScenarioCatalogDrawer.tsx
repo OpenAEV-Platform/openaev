@@ -17,6 +17,8 @@ interface Props {
   canInstall: boolean;
   onClose: () => void;
   onInstall: (scenario: CatalogScenarioOutput) => void;
+  // Updates the installed scenario to this version, when it has one that can be applied.
+  onUpdate?: (scenario: CatalogScenarioOutput) => void;
 }
 
 const factsOf = (scenario: CatalogScenarioOutput): ScenarioFormInput => ({
@@ -29,7 +31,7 @@ const factsOf = (scenario: CatalogScenarioOutput): ScenarioFormInput => ({
 });
 
 // A scenario of the Available tab: what it runs and needs, before installing it.
-const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall, onClose, onInstall }) => {
+const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall, onClose, onInstall, onUpdate }) => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
   const missing = scenario?.catalog_scenario_missing_requirements ?? [];
@@ -105,7 +107,7 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
           }}
           >
             <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-            <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} />
+            <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} onUpdate={onUpdate && (() => onUpdate(scenario))} />
           </div>
         </div>
       )}

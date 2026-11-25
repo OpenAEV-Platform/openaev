@@ -110,7 +110,7 @@ const Scenarios = () => {
 
   return (
     <MarketplaceBrowser
-      hero={<ScenariosHero />}
+      hero={<ScenariosHero updatesAvailable={updates.size} />}
       tabs={<MarketplaceCatalogTabs active="active" baseUrl={SCENARIO_BASE_URL} />}
       sidebar={<ScenariosSidebar searchPaginationInput={searchPaginationInput} filterHelpers={queryableHelpers.filterHelpers} />}
       toolbar={(

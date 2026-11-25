@@ -11,9 +11,9 @@ const PAGE_SIZE = 500;
 
 /**
  * The newer Filigran version of each installed scenario that has one, by scenario id: one call for the page.
- * A chained scenario cannot be updated yet, so it is left out.
+ * A chained scenario cannot be updated yet, so it is left out. A new `reloadKey` reads them again.
  */
-const useScenarioUpdatesAvailable = () => {
+const useScenarioUpdatesAvailable = (reloadKey = 0) => {
   const catalog = isFeatureEnabled('CATALOG');
   const [updates, setUpdates] = useState<Map<string, string>>(new Map());
 
@@ -28,7 +28,7 @@ const useScenarioUpdatesAvailable = () => {
         .map(item => [item.catalog_scenario_installed_scenario_id as string, item.catalog_scenario_version]))))
       .catch(() => undefined);
   };
-  useEffect(load, [catalog]);
+  useEffect(load, [catalog, reloadKey]);
 
   return updates;
 };
