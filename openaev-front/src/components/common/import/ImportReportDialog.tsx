@@ -2,23 +2,17 @@ import { Button, Chip } from '@filigran/design-system';
 // fds:keep-mui Dialog and Alert have no library equivalent yet
 import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, useTheme } from '@mui/material';
 import { type FunctionComponent } from 'react';
+import { CSVLink } from 'react-csv';
 
 import { type ImportReport, type ImportReportRow } from '../../../utils/api-types';
-import { download } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 import Transition from '../Transition';
-import { skippedRowsOf, skippedRowsToCsv } from './import-report-helpers';
-
-type ReasonSeverity = 'medium' | 'critical';
+import { skippedRowsOf, skippedRowsToCells } from './import-report-helpers';
+import { type ImportRowReason, type ReasonSeverity } from './import-report-types';
 
 // `as const` keeps the keyword values ('column', 'auto'...) as literals, so the objects are valid
-// `style` values whatever the editor's type service infers.
-const contentStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 16,
-} as const;
-
+// `style` values whatever the editor's type service infers. The spacings come from the theme, so
+// they are built in the component.
 const scrollStyle = { overflowX: 'auto' } as const;
 
 const tableStyle = {
@@ -36,10 +30,10 @@ interface Props {
   // Translated label of each field of a row, by field name. A field without label shows its name.
   columnLabels?: Record<string, string>;
   // Translated label of each reason code. A code without label shows the code.
-  reasonLabels?: Record<string, string>;
+  reasonLabels?: Partial<Record<ImportRowReason, string>>;
   // Tone of the reason chip, by reason code. Defaults to critical (a malformed value); use medium
   // for a conflict with data that already exists.
-  reasonSeverities?: Record<string, ReasonSeverity>;
+  reasonSeverities?: Partial<Record<ImportRowReason, ReasonSeverity>>;
   // The translated sentence that explains why a row was skipped, written from its reason code and
   // `import_row_params`. Without it, only the reason chip shows.
   rowMessage?: (row: ImportReportRow) => string | null;
@@ -63,8 +57,19 @@ const ImportReportDialog: FunctionComponent<Props> = ({
 
   const skippedRows = report ? skippedRowsOf(report) : [];
 
+  const contentStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(2),
+  } as const;
+
+  const countsStyle = {
+    display: 'flex',
+    gap: theme.spacing(1),
+  } as const;
+
   const cellStyle = {
-    padding: '8px 12px',
+    padding: theme.spacing(1, 1.5),
     textAlign: 'left',
     verticalAlign: 'top',
     borderBottom: `1px solid ${theme.palette.divider}`,
@@ -89,11 +94,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
           )}
           {report && (
             <>
-              <div style={{
-                display: 'flex',
-                gap: 8,
-              }}
-              >
+              <div style={countsStyle}>
                 <Chip label={`${report.import_created} ${t('imported')}`} severity={report.import_created > 0 ? 'low' : 'neutral'} />
                 <Chip label={`${report.import_skipped} ${t('skipped')}`} severity={report.import_skipped > 0 ? 'critical' : 'neutral'} />
                 {report.import_ignored > 0 && (
@@ -132,7 +133,7 @@ const ImportReportDialog: FunctionComponent<Props> = ({
                                 severity={reasonSeverities[row.import_row_reason] ?? 'critical'}
                               />
                             )}
-                            <div style={{ marginTop: 4 }}>{rowMessage?.(row)}</div>
+                            <div style={{ marginTop: theme.spacing(0.5) }}>{rowMessage?.(row)}</div>
                           </td>
                         </tr>
                       ))}
@@ -146,13 +147,15 @@ const ImportReportDialog: FunctionComponent<Props> = ({
       </DialogContent>
       <DialogActions>
         {report && skippedRows.length > 0 && (
-          <Button
-            type="button"
-            priority="secondary"
-            onClick={() => download(skippedRowsToCsv(report), downloadFileName, 'text/csv')}
+          <CSVLink
+            data={skippedRowsToCells(skippedRows, report.import_columns)}
+            headers={report.import_columns}
+            filename={downloadFileName}
           >
-            {t('Download skipped rows')}
-          </Button>
+            <Button type="button" priority="secondary">
+              {t('Download skipped rows')}
+            </Button>
+          </CSVLink>
         )}
         <Button type="button" onClick={onClose}>
           {t('Close')}

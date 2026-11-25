@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { skippedRowsOf, skippedRowsToCsv } from '../../../../components/common/import/import-report-helpers';
+import { skippedRowsOf, skippedRowsToCells } from '../../../../components/common/import/import-report-helpers';
 import { type ImportReport } from '../../../../utils/api-types';
 
-// A report that has nothing to do with markings: other fields, other reason codes.
+// A report that has nothing to do with markings: other fields.
 const report: ImportReport = {
   import_created: 1,
   import_skipped: 2,
@@ -22,7 +22,7 @@ const report: ImportReport = {
     {
       import_row_position: 2,
       import_row_status: 'SKIPPED',
-      import_row_reason: 'BAD_URL',
+      import_row_reason: 'INVALID_VALUE',
       import_row_params: {},
       import_row_values: {
         name: 'broken',
@@ -41,7 +41,7 @@ const report: ImportReport = {
     {
       import_row_position: 4,
       import_row_status: 'SKIPPED',
-      import_row_reason: 'MISSING',
+      import_row_reason: 'MISSING_FIELD',
       import_row_params: {},
       import_row_values: {
         name: '=SUM(A1)',
@@ -71,17 +71,17 @@ describe('skippedRowsOf', () => {
   });
 });
 
-describe('skippedRowsToCsv', () => {
-  it('writes the report fields as the header, then one line per skipped row only', () => {
+describe('skippedRowsToCells', () => {
+  const cellsOf = (target: ImportReport) => skippedRowsToCells(skippedRowsOf(target), target.import_columns);
+
+  it('gives one line per skipped row only, with one cell per report field', () => {
     // Act
-    const lines = skippedRowsToCsv(report).split('\r\n');
+    const cells = cellsOf(report);
 
     // Assert
-    expect(lines).toEqual([
-      'name,url',
-      'broken,nope',
-      '\'=SUM(A1),',
-      '',
+    expect(cells).toEqual([
+      ['broken', 'nope'],
+      ['\'=SUM(A1)', ''],
     ]);
   });
 
@@ -93,62 +93,61 @@ describe('skippedRowsToCsv', () => {
     };
 
     // Act
-    const [header, first] = skippedRowsToCsv(reordered).split('\r\n');
+    const [first] = cellsOf(reordered);
 
     // Assert
-    expect(header).toBe('url,name');
-    expect(first).toBe('nope,broken');
+    expect(first).toEqual(['nope', 'broken']);
   });
 
   it('leaves a missing value as an empty cell', () => {
     // Act
-    const [, line] = skippedRowsToCsv(withRow({ name: 'only-name' })).split('\r\n');
+    const [line] = cellsOf(withRow({ name: 'only-name' }));
 
     // Assert
-    expect(line).toBe('only-name,');
+    expect(line).toEqual(['only-name', '']);
   });
 
-  it('quotes a value holding the separator, a quote or a line break', () => {
+  it('doubles a quote, which react-csv does not escape inside the quotes it puts round a cell', () => {
     // Act
-    const csv = skippedRowsToCsv(withRow({
-      name: 'a,b',
-      url: 'say "hi"\nnow',
+    const [line] = cellsOf(withRow({
+      name: 'say "hi"',
+      url: 'a,b',
     }));
 
     // Assert
-    expect(csv).toContain('"a,b","say ""hi""\nnow"');
+    expect(line).toEqual(['say ""hi""', 'a,b']);
   });
 
   it.each(['=', '+', '-', '@', '\t', '\r'])('neutralises a value starting with %j against spreadsheet formulas', (start) => {
     // Act
-    const csv = skippedRowsToCsv(withRow({
+    const [line] = cellsOf(withRow({
       name: `${start}x`,
       url: 'safe',
     }));
 
     // Assert
-    expect(csv).toContain(`'${start}x`);
+    expect(line).toEqual([`'${start}x`, 'safe']);
   });
 
   it('puts one more quote in front of a value that already starts with quotes before a formula start', () => {
     // Act
-    const csv = skippedRowsToCsv(withRow({
+    const [line] = cellsOf(withRow({
       name: '\'=x',
       url: '\'TLP',
     }));
 
     // Assert
-    expect(csv).toContain('\'\'=x,\'TLP');
+    expect(line).toEqual(['\'\'=x', '\'TLP']);
   });
 
   it('does not touch a value that cannot be read as a formula', () => {
     // Act
-    const csv = skippedRowsToCsv(withRow({
+    const [line] = cellsOf(withRow({
       name: 'TLP:AMBER',
       url: '#ffc107',
     }));
 
     // Assert
-    expect(csv).toContain('TLP:AMBER,#ffc107');
+    expect(line).toEqual(['TLP:AMBER', '#ffc107']);
   });
 });

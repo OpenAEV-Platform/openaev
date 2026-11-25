@@ -3,6 +3,7 @@ package io.openaev.api.marking_definition;
 import io.openaev.api.marking_definition.dto.MarkingDefinitionCsvRow;
 import io.openaev.api.marking_definition.form.MarkingDefinitionOutput;
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.CsvInjectionUtils;
 
 public final class MarkingDefinitionMapper {
@@ -19,6 +20,20 @@ public final class MarkingDefinitionMapper {
         entity.getProtectedDefinition(),
         entity.getCreatedAt(),
         entity.getStixId());
+  }
+
+  /** A definition the tenant can edit: only the default markings of a tenant are protected. */
+  public static MarkingDefinition toEntity(
+      String tenantId, String type, String definition, String color, int order, String stixId) {
+    MarkingDefinition entity = new MarkingDefinition();
+    entity.setType(type);
+    entity.setDefinition(definition);
+    entity.setColor(color);
+    entity.setOrder(order);
+    entity.setStixId(stixId);
+    entity.setProtectedDefinition(false);
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
   }
 
   public static MarkingDefinitionCsvRow toCsvRow(MarkingDefinition entity) {

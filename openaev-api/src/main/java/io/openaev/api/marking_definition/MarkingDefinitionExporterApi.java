@@ -3,20 +3,20 @@ package io.openaev.api.marking_definition;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.marking_definition.dto.MarkingDefinitionCsvRow;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.MapperService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.marking_definition.MarkingDefinitionStixService;
-import io.openaev.utils.CsvType;
+import io.openaev.utils.CsvExportUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MarkingDefinitionExporterApi extends RestBehavior {
 
   private final MarkingDefinitionService service;
-  private final MapperService mapperService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final MarkingDefinitionStixService stixService;
 
   // -- STIX (OpenCTI format) --
@@ -68,10 +68,13 @@ public class MarkingDefinitionExporterApi extends RestBehavior {
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       HttpServletResponse response) {
     service.assertFeatureEnabled();
-    // The shared writer sets only the content type: without this the response stays ISO-8859-1,
-    // which garbles accents and turns other scripts into '?' in a file the importer reads as UTF-8.
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    mapperService.exportMappersCsv(
-        ctx, CsvType.MARKING_DEFINITIONS, searchPaginationInput, response);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    CsvExportUtils.write(
+        response,
+        "MarkingDefinitions",
+        service.exportAll(tenantId, searchPaginationInput).stream()
+            .map(MarkingDefinitionMapper::toCsvRow)
+            .toList(),
+        MarkingDefinitionCsvRow.class);
   }
 }

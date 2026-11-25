@@ -1,29 +1,37 @@
 package io.openaev.service.marking_definition;
 
-import static io.openaev.config.AppConfig.HEX_COLOR_REGEXP;
-import static io.openaev.service.marking_definition.MarkingDefinitionFactory.buildEntity;
-import static io.openaev.service.marking_definition.MarkingDefinitionFactory.normalize;
+import static io.openaev.api.marking_definition.MarkingDefinitionMapper.toEntity;
+import static io.openaev.service.marking_definition.MarkingDefinitionNormalizer.normalize;
 
+import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.MarkingDefinitionStixIds;
-import io.openaev.service.import_report.ImportResult;
 import io.openaev.service.import_report.ImportResultRow;
+import io.openaev.service.import_report.ImportRowReason;
 import io.openaev.service.import_report.ImportRowStatus;
-import io.openaev.service.marking.MarkingEscalationValidator;
+import io.openaev.service.import_report.RowImportResult;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Checks the rows of one imported file against what the tenant already holds and against the
  * caller's clearance, and builds the markings to create. It reads and writes nothing: the service
- * loads what it needs and saves what {@link #created()} gives back.
+ * loads what it needs and saves the markings of the {@link Outcome}.
  *
  * <p>A bad row never throws: it is skipped and listed in the result. Nothing is ever overwritten.
  */
@@ -35,14 +43,13 @@ final class MarkingImportBatch {
           MarkingCsvParser.COLUMN_DEFINITION,
           MarkingCsvParser.COLUMN_COLOR,
           MarkingCsvParser.COLUMN_ORDER);
-  private static final Pattern HEX_COLOR = Pattern.compile(HEX_COLOR_REGEXP);
   private static final Pattern DIGITS = Pattern.compile("[0-9]+");
-  // The width of the type and definition columns.
-  private static final int MAX_TEXT_LENGTH = 255;
 
   // The names of the values a skipped row hands to the client, which writes the sentence of its
   // reason in its own language.
   static final String PARAM_MAX_LENGTH = "max_length";
+  // The column an invalid value is in.
+  static final String PARAM_COLUMN = "column";
   // The position of the earlier row of the file a conflict is with, absent for an existing marking.
   static final String PARAM_EARLIER_ROW = "earlier_row";
   static final String PARAM_COLOR = "color";
@@ -53,6 +60,7 @@ final class MarkingImportBatch {
   static final String PARAM_HIGHEST_ORDER = "highest_order";
 
   private final String tenantId;
+  private final Validator validator;
   private final Map<MarkingKey, KnownMarking> inTenant = new HashMap<>();
   private final Map<MarkingKey, KnownMarking> inFile = new HashMap<>();
   // The types the tenant has, or the file created so far: the first definition of a type is not
@@ -60,18 +68,19 @@ final class MarkingImportBatch {
   private final Set<String> types = new HashSet<>();
   // The STIX ids the tenant carries, or the file gave so far.
   private final Set<String> stixIds = new HashSet<>();
-  // Null when the caller holds every level.
-  private final List<MarkingDefinition> held;
+  private final Clearance clearance;
   private final List<MarkingDefinition> created = new ArrayList<>();
 
   /**
    * @param existing the markings of the tenant
-   * @param held the markings the caller's clearance covers, {@code null} when they hold every level
+   * @param clearance what the caller may place
+   * @param validator checks a row against the rules of {@link MarkingDefinitionInput}
    */
   MarkingImportBatch(
-      String tenantId, List<MarkingDefinition> existing, List<MarkingDefinition> held) {
+      String tenantId, List<MarkingDefinition> existing, Clearance clearance, Validator validator) {
     this.tenantId = tenantId;
-    this.held = held;
+    this.clearance = clearance;
+    this.validator = validator;
     for (MarkingDefinition marking : existing) {
       String type = normalize(marking.getType());
       types.add(type);
@@ -84,45 +93,41 @@ final class MarkingImportBatch {
     }
   }
 
-  ImportResult importRows(List<MarkingRow> rows) {
-    return ImportResult.of(COLUMNS, rows.stream().map(this::importRow).toList());
+  /**
+   * What an import gives back.
+   *
+   * @param result the report of each row
+   * @param created the markings to save, in the order of the rows
+   */
+  record Outcome(RowImportResult result, List<MarkingDefinition> created) {}
+
+  Outcome importRows(List<MarkingRow> rows) {
+    RowImportResult result =
+        RowImportResult.of(COLUMNS, rows.stream().map(this::importRow).toList());
+    return new Outcome(result, List.copyOf(created));
   }
 
-  List<MarkingDefinition> created() {
-    return created;
-  }
-
-  // The checks run in this order and the first failure wins.
+  // The rules of the form decide whether the values are valid. The first failure of the priority of
+  // Refusal wins, then come the conflicts and the clearance.
   private ImportResultRow importRow(MarkingRow row) {
     String type = normalize(row.type());
     String definition = normalize(row.definition());
-    if (type.isEmpty() || definition.isEmpty() || row.color().isEmpty() || row.order().isEmpty()) {
-      return skipped(row, MarkingDefinitionImportRowReason.MISSING_FIELD, Map.of());
-    }
-    if (type.length() > MAX_TEXT_LENGTH || definition.length() > MAX_TEXT_LENGTH) {
-      return skipped(
-          row,
-          MarkingDefinitionImportRowReason.VALUE_TOO_LONG,
-          Map.of(PARAM_MAX_LENGTH, String.valueOf(MAX_TEXT_LENGTH)));
-    }
-    if (!HEX_COLOR.matcher(row.color()).matches()) {
-      return skipped(row, MarkingDefinitionImportRowReason.INVALID_COLOR, Map.of());
-    }
     Integer order = parseOrder(row.order());
-    if (order == null) {
-      return skipped(row, MarkingDefinitionImportRowReason.INVALID_ORDER, Map.of());
+    Optional<Refusal> invalid =
+        invalidValue(row, new MarkingDefinitionInput(type, definition, row.color(), order));
+    if (invalid.isPresent()) {
+      return skipped(row, invalid.get().reason(), invalid.get().params());
     }
     MarkingKey key = new MarkingKey(type, definition);
     KnownMarking known = inTenant.getOrDefault(key, inFile.get(key));
     if (known != null) {
       return sameKey(row, known, order);
     }
-    if (types.contains(type) && !isWithinClearance(type, order)) {
-      return skipped(
-          row, MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, notClearedParams(type, order));
+    if (types.contains(type) && !clearance.allows(type, order)) {
+      return skipped(row, ImportRowReason.INSUFFICIENT_ACCESS, notClearedParams(type, order));
     }
     created.add(
-        buildEntity(tenantId, type, definition, row.color(), order, freeStixId(type, definition)));
+        toEntity(tenantId, type, definition, row.color(), order, freeStixId(type, definition)));
     types.add(type);
     inFile.put(key, new KnownMarking(row.color(), order, row.position()));
     return new ImportResultRow(
@@ -156,15 +161,59 @@ final class MarkingImportBatch {
       return new ImportResultRow(
           row.position(), ImportRowStatus.IGNORED, null, Map.of(), valuesOf(row));
     }
-    return skipped(row, MarkingDefinitionImportRowReason.CONFLICT, params);
+    return skipped(row, ImportRowReason.CONFLICT, params);
   }
 
-  private boolean isWithinClearance(String type, int order) {
-    return held == null || MarkingEscalationValidator.isWithinClearance(held, type, order);
+  // `order` is null when the cell is empty or not a number: the form cannot tell them apart, the
+  // file can.
+  private Optional<Refusal> invalidValue(MarkingRow row, MarkingDefinitionInput input) {
+    List<Refusal> refusals =
+        validator.validate(input).stream()
+            .map(MarkingImportBatch::refusalOf)
+            .collect(Collectors.toCollection(ArrayList::new));
+    if (input.order() == null && !row.order().isEmpty()) {
+      refusals.removeIf(refusal -> MarkingCsvParser.COLUMN_ORDER.equals(refusal.column()));
+      refusals.add(
+          new Refusal(
+              ImportRowReason.INVALID_VALUE,
+              MarkingCsvParser.COLUMN_ORDER,
+              Map.of(PARAM_COLUMN, MarkingCsvParser.COLUMN_ORDER)));
+    }
+    return refusals.stream().min(Comparator.naturalOrder());
+  }
+
+  // The properties of MarkingDefinitionInput are named like the columns of the file. A constraint
+  // this does not know is an invalid value of its column.
+  private static Refusal refusalOf(ConstraintViolation<MarkingDefinitionInput> violation) {
+    String column = violation.getPropertyPath().toString();
+    Class<?> constraint = violation.getConstraintDescriptor().getAnnotation().annotationType();
+    if (constraint == NotBlank.class || constraint == NotNull.class) {
+      return new Refusal(ImportRowReason.MISSING_FIELD, column, Map.of());
+    }
+    if (constraint == Size.class) {
+      Object max = violation.getConstraintDescriptor().getAttributes().get("max");
+      return new Refusal(
+          ImportRowReason.VALUE_TOO_LONG, column, Map.of(PARAM_MAX_LENGTH, String.valueOf(max)));
+    }
+    return new Refusal(ImportRowReason.INVALID_VALUE, column, Map.of(PARAM_COLUMN, column));
+  }
+
+  /**
+   * Why a row is refused. When a row has several problems the one reported is the first by reason
+   * (missing, too long, invalid), then by the order of the columns.
+   */
+  private record Refusal(ImportRowReason reason, String column, Map<String, String> params)
+      implements Comparable<Refusal> {
+
+    @Override
+    public int compareTo(Refusal other) {
+      int byReason = reason.compareTo(other.reason);
+      return byReason != 0 ? byReason : COLUMNS.indexOf(column) - COLUMNS.indexOf(other.column);
+    }
   }
 
   private Map<String, String> notClearedParams(String type, int order) {
-    OptionalInt highest = MarkingEscalationValidator.highestHeldOrder(held, type);
+    OptionalInt highest = clearance.highestHeldOrder(type);
     return highest.isPresent()
         ? Map.of(
             PARAM_ORDER,
@@ -175,9 +224,9 @@ final class MarkingImportBatch {
   }
 
   private static ImportResultRow skipped(
-      MarkingRow row, MarkingDefinitionImportRowReason reason, Map<String, String> params) {
+      MarkingRow row, ImportRowReason reason, Map<String, String> params) {
     return new ImportResultRow(
-        row.position(), ImportRowStatus.SKIPPED, reason.name(), params, valuesOf(row));
+        row.position(), ImportRowStatus.SKIPPED, reason, params, valuesOf(row));
   }
 
   private static Map<String, String> valuesOf(MarkingRow row) {

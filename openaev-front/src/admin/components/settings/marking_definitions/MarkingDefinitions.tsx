@@ -5,11 +5,13 @@ import { makeStyles } from 'tss-react/mui';
 
 import {
   createMarkingDefinition,
+  exportMarkingDefinitions,
   searchMarkingDefinitions,
 } from '../../../../actions/marking_definitions/marking-definition-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
+import ExportButton from '../../../../components/common/ExportButton';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -28,7 +30,6 @@ import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
-import MarkingDefinitionExportButton from './MarkingDefinitionExportButton';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
 import MarkingDefinitionImport from './MarkingDefinitionImport';
 import MarkingDefinitionPopover from './MarkingDefinitionPopover';
@@ -190,7 +191,16 @@ const MarkingDefinitions = () => {
           topBarButtons={(
             <>
               <Can I={ACTIONS.ACCESS} a={SUBJECTS.MARKING_DEFINITION}>
-                <MarkingDefinitionExportButton searchPaginationInput={searchPaginationInput} disabled={markingDefinitions.length === 0} />
+                <ExportButton
+                  totalElements={markingDefinitions.length}
+                  exportProps={{
+                    exportType: 'MARKING_DEFINITIONS',
+                    exportKeys: [],
+                    exportData: markingDefinitions,
+                    searchPaginationInput,
+                  }}
+                  exportCsvMapperFunction={exportMarkingDefinitions}
+                />
               </Can>
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.MARKING_DEFINITION}>
                 <>

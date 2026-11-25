@@ -6,7 +6,5 @@ public enum CsvType {
 
   ENDPOINTS,
 
-  AGENT,
-
-  MARKING_DEFINITIONS
+  AGENT
 }

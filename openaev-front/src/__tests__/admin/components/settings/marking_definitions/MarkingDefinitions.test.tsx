@@ -31,6 +31,9 @@ vi.mock('../../../../../components/i18n', () => ({
 
 vi.mock('../../../../../utils/utils', () => ({ download: mockDownload }));
 
+// ExportButton reads the tags of the store to translate the exports it builds itself.
+vi.mock('../../../../../store', () => ({ useHelper: () => ({ tagsMap: {} }) }));
+
 vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
 
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({

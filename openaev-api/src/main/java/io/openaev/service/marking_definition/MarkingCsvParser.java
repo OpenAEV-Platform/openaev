@@ -30,10 +30,10 @@ public final class MarkingCsvParser {
 
   static final int MAX_ROWS = 1000;
 
-  static final String COLUMN_TYPE = "type";
-  static final String COLUMN_DEFINITION = "definition";
-  static final String COLUMN_COLOR = "color";
-  static final String COLUMN_ORDER = "order";
+  public static final String COLUMN_TYPE = "type";
+  public static final String COLUMN_DEFINITION = "definition";
+  public static final String COLUMN_COLOR = "color";
+  public static final String COLUMN_ORDER = "order";
 
   private static final char BOM = '﻿';
 
@@ -84,10 +84,10 @@ public final class MarkingCsvParser {
       rows.add(
           new MarkingRow(
               rows.size() + 1,
-              cell(line, columns.get(COLUMN_TYPE), true),
-              cell(line, columns.get(COLUMN_DEFINITION), true),
-              cell(line, columns.get(COLUMN_COLOR), false),
-              cell(line, columns.get(COLUMN_ORDER), false)));
+              textCell(line, columns.get(COLUMN_TYPE)),
+              textCell(line, columns.get(COLUMN_DEFINITION)),
+              cell(line, columns.get(COLUMN_COLOR)),
+              cell(line, columns.get(COLUMN_ORDER))));
     }
     if (rows.isEmpty()) {
       throw new BadRequestException("The file has a header but no row to import");
@@ -125,10 +125,17 @@ public final class MarkingCsvParser {
     return columns;
   }
 
-  // A cell the row is too short to hold reads as empty. Only the free-text columns are exported
-  // neutralised, the colour and the order are digits and hex.
-  private static String cell(String[] line, int index, boolean neutralised) {
-    String value = index < line.length ? line[index] : "";
-    return (neutralised ? CsvInjectionUtils.undoNeutralisation(value) : value).trim();
+  // A cell the row is too short to hold reads as empty.
+  private static String cell(String[] line, int index) {
+    return rawCell(line, index).trim();
+  }
+
+  // The free-text columns are exported neutralised, the color and the order are digits and hex.
+  private static String textCell(String[] line, int index) {
+    return CsvInjectionUtils.undoNeutralisation(rawCell(line, index)).trim();
+  }
+
+  private static String rawCell(String[] line, int index) {
+    return index < line.length ? line[index] : "";
   }
 }

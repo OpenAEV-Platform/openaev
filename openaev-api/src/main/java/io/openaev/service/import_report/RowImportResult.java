@@ -8,11 +8,11 @@ import java.util.List;
  *
  * @param columns the field names of a row, in display order
  */
-public record ImportResult(
+public record RowImportResult(
     int created, int skipped, int ignored, List<String> columns, List<ImportResultRow> rows) {
 
-  public static ImportResult of(List<String> columns, List<ImportResultRow> rows) {
-    return new ImportResult(
+  public static RowImportResult of(List<String> columns, List<ImportResultRow> rows) {
+    return new RowImportResult(
         count(rows, ImportRowStatus.CREATED),
         count(rows, ImportRowStatus.SKIPPED),
         count(rows, ImportRowStatus.IGNORED),

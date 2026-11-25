@@ -10,11 +10,9 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.MapperService;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.marking_definition.MarkingDefinitionStixService;
-import io.openaev.utils.CsvType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
@@ -38,7 +36,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class MarkingDefinitionImporterApi extends RestBehavior {
 
   private final MarkingDefinitionService service;
-  private final MapperService mapperService;
   private final MarkingDefinitionStixService stixService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final UserService userService;
@@ -73,10 +70,11 @@ public class MarkingDefinitionImporterApi extends RestBehavior {
           "Creates the valid rows of a CSV file (1 MB max) and reports every row; existing"
               + " markings are never overwritten.")
   public ImportReport importMarkingDefinitionsCsv(
-      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) {
     service.assertFeatureEnabled();
     service.validateUploadedFile(file);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return ImportReportMapper.toReport(
-        mapperService.importMappersCsv(ctx, file, CsvType.MARKING_DEFINITIONS));
+        service.importCsv(tenantId, userService.currentUser().getId(), file));
   }
 }

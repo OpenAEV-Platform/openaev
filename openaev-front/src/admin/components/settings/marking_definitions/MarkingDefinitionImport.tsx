@@ -1,13 +1,12 @@
 import { type FunctionComponent, useState } from 'react';
 
 import { importMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
-import { type MarkingDefinitionImportRowReason } from '../../../../actions/marking_definitions/marking-definition-import-types';
-import { ImportFileError } from '../../../../components/common/import/import-report-types';
+import { ImportFileError, type ImportRowReason } from '../../../../components/common/import/import-report-types';
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
 import ImportUploader from '../../../../components/common/ImportUploader';
 import { useFormatter } from '../../../../components/i18n';
 import { type ImportReport } from '../../../../utils/api-types';
-import markingDefinitionImportMessage from './marking-definition-import-message';
+import markingDefinitionImportReasons, { type MarkingDefinitionImportReason } from './marking-definition-import-reasons';
 
 interface Props { onImported: () => void }
 
@@ -18,14 +17,10 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
   const [report, setReport] = useState<ImportReport | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const reasonLabels: Record<MarkingDefinitionImportRowReason, string> = {
-    MISSING_FIELD: t('Missing value'),
-    VALUE_TOO_LONG: t('Value too long'),
-    INVALID_COLOR: t('Invalid colour'),
-    INVALID_ORDER: t('Invalid order'),
-    CONFLICT: t('Conflict'),
-    INSUFFICIENT_ACCESS: t('Insufficient access'),
-  };
+  const reasons = markingDefinitionImportReasons(t);
+  const reasonEntries = Object.entries(reasons) as [ImportRowReason, MarkingDefinitionImportReason][];
+  const reasonLabels = Object.fromEntries(reasonEntries.map(([reason, { label }]) => [reason, label]));
+  const reasonSeverities = Object.fromEntries(reasonEntries.flatMap(([reason, { severity }]) => severity ? [[reason, severity]] : []));
 
   const handleUpload = (_formData: FormData, file: File) => {
     setLoading(true);
@@ -71,11 +66,8 @@ const MarkingDefinitionImport: FunctionComponent<Props> = ({ onImported }) => {
           order: t('Order'),
         }}
         reasonLabels={reasonLabels}
-        reasonSeverities={{
-          CONFLICT: 'medium',
-          INSUFFICIENT_ACCESS: 'medium',
-        }}
-        rowMessage={row => markingDefinitionImportMessage(t, row)}
+        reasonSeverities={reasonSeverities}
+        rowMessage={row => (row.import_row_reason ? reasons[row.import_row_reason]?.message(row.import_row_params) ?? null : null)}
         downloadFileName="MarkingDefinitionsSkipped.csv"
       />
     </>

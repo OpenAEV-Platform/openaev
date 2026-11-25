@@ -55,7 +55,7 @@ export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatc
 // -- EXPORT / IMPORT --
 
 // Exports what the list currently shows: the search input of the list, without its paging.
-export const exportMarkingDefinitions = (searchPaginationInput: SearchPaginationInput): Promise<{
+export const exportMarkingDefinitions = (searchPaginationInput: SearchPaginationInput | undefined): Promise<{
   data: string;
   filename: string;
 }> => {

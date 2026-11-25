@@ -118,11 +118,6 @@ public class ActionMetricCollector {
     log.info("Decrement Average Created Counter");
   }
 
-  public void addMarkingDefinitionCreatedCount() {
-    markingDefinitionCreatedCount.incrementAndGet();
-    log.info("Increment Marking Definition Created Counter");
-  }
-
   public void addMarkingDefinitionCreatedCount(int count) {
     markingDefinitionCreatedCount.addAndGet(count);
     log.info("Increment Marking Definition Created Counter by {}", count);

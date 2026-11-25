@@ -2,13 +2,13 @@ package io.openaev.api.import_report;
 
 import io.openaev.api.import_report.dto.ImportReport;
 import io.openaev.api.import_report.dto.ImportReportRow;
-import io.openaev.service.import_report.ImportResult;
+import io.openaev.service.import_report.RowImportResult;
 
 public final class ImportReportMapper {
 
   private ImportReportMapper() {}
 
-  public static ImportReport toReport(ImportResult result) {
+  public static ImportReport toReport(RowImportResult result) {
     return new ImportReport(
         result.created(),
         result.skipped(),

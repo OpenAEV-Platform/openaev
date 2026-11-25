@@ -1,11 +1,10 @@
 package io.openaev.service.marking_definition;
 
+import static io.openaev.api.marking_definition.MarkingDefinitionMapper.toEntity;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.tenantAndClearanceSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.tenantSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.typeSpecification;
-import static io.openaev.service.marking.MarkingEscalationValidator.assertCanDefineMarking;
-import static io.openaev.service.marking_definition.MarkingDefinitionFactory.buildEntity;
-import static io.openaev.service.marking_definition.MarkingDefinitionFactory.normalize;
+import static io.openaev.service.marking_definition.MarkingDefinitionNormalizer.normalize;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -23,22 +22,25 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TenantGroupService;
-import io.openaev.service.import_report.ImportResult;
+import io.openaev.service.import_report.RowImportResult;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.UploadedFileUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -48,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +64,7 @@ import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 public class MarkingDefinitionService {
 
   private static final long MAX_IMPORT_FILE_SIZE = 1024 * 1024;
-  private static final String IMPORT_FILE_EXTENSION = "csv";
+  private static final List<String> IMPORT_FILE_EXTENSIONS = List.of("csv");
 
   private final MarkingDefinitionRepository repository;
   private final ActionMetricCollector actionMetricCollector;
@@ -73,6 +74,7 @@ public class MarkingDefinitionService {
   private final JdbcTemplate jdbcTemplate;
   private final TenantGroupService tenantGroupService;
   private final PreviewFeatureService previewFeatureService;
+  private final Validator validator;
 
   // -- SEARCH --
 
@@ -194,22 +196,21 @@ public class MarkingDefinitionService {
   }
 
   private void assertWithinOwnClearance(String tenantId, String type, int order, String userId) {
-    // The first admin holds every level, including those above a type's current top - which a
-    // resolved set of today's definitions cannot express.
+    clearanceOf(tenantId, userId).assertAllows(type, order);
+  }
+
+  // Create, update and import share it. The first admin is the only caller who holds every level.
+  // Any other caller, even one cleared for every definition, is bounded by the current top of each
+  // type.
+  private Clearance clearanceOf(String tenantId, String userId) {
     if (User.ADMIN_UUID.equals(userId)) {
-      return;
+      return Clearance.everyLevel();
     }
     MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
-    Optional<Specification<MarkingDefinition>> heldOpt =
-        tenantAndClearanceSpecification(Set.of(tenantId), clearance);
-    assertCanDefineMarking(
-        heldOpt
-            .map(
-                markingDefinitionSpecification ->
-                    repository.findAll(markingDefinitionSpecification.and(typeSpecification(type))))
-            .orElseGet(List::of),
-        type,
-        order);
+    return Clearance.of(
+        tenantAndClearanceSpecification(Set.of(tenantId), clearance)
+            .map(held -> repository.findAll(held))
+            .orElseGet(List::of));
   }
 
   // -- CREATE --
@@ -266,13 +267,9 @@ public class MarkingDefinitionService {
             stixId != null ? stixId : MarkingDefinitionStixIds.generate(type, definition),
             tenantId,
             null);
-    MarkingDefinition saved =
-        repository.save(
-            buildEntity(tenantId, type, definition, input.color(), input.order(), freeStixId));
-    tenantGroupService.grantToAutoNewMarkingGroups(List.of(saved));
-    markingClearanceCacheManager.evictAll();
-    runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
-    return saved;
+    return saveCreated(
+            List.of(toEntity(tenantId, type, definition, input.color(), input.order(), freeStixId)))
+        .getFirst();
   }
 
   // -- EXPORT --
@@ -300,13 +297,15 @@ public class MarkingDefinitionService {
   }
 
   public void validateUploadedFile(@NotNull MultipartFile file) {
-    if (!IMPORT_FILE_EXTENSION.equalsIgnoreCase(
-        FilenameUtils.getExtension(file.getOriginalFilename()))) {
-      throw new UnsupportedMediaTypeException(
-          "Only the following file type is accepted : " + IMPORT_FILE_EXTENSION);
-    }
-    if (file.getSize() > MAX_IMPORT_FILE_SIZE) {
-      throw new FileTooBigException("File size cannot be greater than 1 Mb");
+    UploadedFileUtils.validate(file, IMPORT_FILE_EXTENSIONS, MAX_IMPORT_FILE_SIZE, "1 Mb");
+  }
+
+  public RowImportResult importCsv(
+      @NotBlank String tenantId, @NotBlank String userId, @NotNull MultipartFile file) {
+    try (InputStream content = file.getInputStream()) {
+      return importAll(tenantId, userId, MarkingCsvParser.parse(content));
+    } catch (IOException e) {
+      throw new BadRequestException("The file could not be read");
     }
   }
 
@@ -323,40 +322,28 @@ public class MarkingDefinitionService {
    *
    * @param userId the caller, whose clearance bounds the order of the rows
    */
-  public ImportResult importAll(
+  public RowImportResult importAll(
       @NotBlank String tenantId, @NotBlank String userId, @NotNull List<MarkingRow> rows) {
     List<MarkingDefinition> existing = repository.findAllByTenantId(tenantId);
-    MarkingImportBatch batch =
-        new MarkingImportBatch(tenantId, existing, heldBy(tenantId, userId, existing));
-    ImportResult result = batch.importRows(rows);
-    saveCreated(batch.created());
-    return result;
+    MarkingImportBatch.Outcome outcome =
+        new MarkingImportBatch(tenantId, existing, clearanceOf(tenantId, userId), validator)
+            .importRows(rows);
+    saveCreated(outcome.created());
+    return outcome.result();
   }
 
-  // Null when the caller holds every level.
-  private List<MarkingDefinition> heldBy(
-      String tenantId, String userId, List<MarkingDefinition> existing) {
-    if (User.ADMIN_UUID.equals(userId)) {
-      return null;
-    }
-    return switch (markingClearanceCacheManager.findClearance(userId, tenantId)) {
-      case MarkingCtx.None ignored -> List.of();
-      case MarkingCtx.Restricted restricted -> {
-        Set<String> ids = Set.copyOf(restricted.markingIds());
-        yield existing.stream().filter(marking -> ids.contains(marking.getId())).toList();
-      }
-      case MarkingCtx.All ignored -> null;
-    };
-  }
-
-  private void saveCreated(List<MarkingDefinition> created) {
+  // The one way a marking is created, by hand or by an import: saved, granted to the groups that
+  // take every new marking, every cached clearance evicted, and counted once the transaction ends.
+  private List<MarkingDefinition> saveCreated(List<MarkingDefinition> created) {
     if (created.isEmpty()) {
-      return;
+      return List.of();
     }
-    repository.saveAll(created);
-    tenantGroupService.grantToAutoNewMarkingGroups(created);
+    List<MarkingDefinition> saved = new ArrayList<>();
+    repository.saveAll(created).forEach(saved::add);
+    tenantGroupService.grantToAutoNewMarkingGroups(saved);
     markingClearanceCacheManager.evictAll();
-    runAfterCommit(() -> actionMetricCollector.addMarkingDefinitionCreatedCount(created.size()));
+    runAfterCommit(() -> actionMetricCollector.addMarkingDefinitionCreatedCount(saved.size()));
+    return saved;
   }
 
   // -- UPDATE --

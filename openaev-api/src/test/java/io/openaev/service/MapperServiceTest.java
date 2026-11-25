@@ -33,7 +33,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.utils.CsvType;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.mockMapper.MockMapperUtils;
@@ -75,7 +74,6 @@ public class MapperServiceTest extends IntegrationTest {
   @Mock private EndpointService endpointService;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private UserService userService;
-  @Mock private MarkingDefinitionService markingDefinitionService;
   @Mock private TagService tagService;
 
   private MapperService mapperService;
@@ -91,7 +89,6 @@ public class MapperServiceTest extends IntegrationTest {
             endpointService,
             writeScopeResolver,
             userService,
-            markingDefinitionService,
             tagService,
             objectMapper);
   }
@@ -383,10 +380,7 @@ public class MapperServiceTest extends IntegrationTest {
         BadRequestException.class,
         () ->
             mapperService.exportMappersCsv(
-                TxCtx.forTenant("tenant-test"),
-                CsvType.AGENT,
-                new io.openaev.utils.pagination.SearchPaginationInput(),
-                response));
+                CsvType.AGENT, new io.openaev.utils.pagination.SearchPaginationInput(), response));
     verifyNoInteractions(endpointRepository, injectorContractRepository);
   }
 
@@ -552,11 +546,11 @@ public class MapperServiceTest extends IntegrationTest {
         .thenReturn(List.of(injectorContract));
 
     // Act
-    mapperService.exportMappersCsv(
-        TxCtx.forTenant("tenant-test"), CsvType.INJECTOR_CONTRACTS, input, response);
+    mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
 
     // Assert
-    assertEquals("text/csv", response.getContentType());
+    assertTrue(response.getContentType().startsWith("text/csv"));
+    assertEquals("UTF-8", response.getCharacterEncoding());
     assertTrue(
         response
             .getHeader("Content-Disposition")
@@ -604,8 +598,7 @@ public class MapperServiceTest extends IntegrationTest {
         .thenReturn(List.of(injectorContract));
 
     // Act
-    mapperService.exportMappersCsv(
-        TxCtx.forTenant("tenant-test"), CsvType.INJECTOR_CONTRACTS, input, response);
+    mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
 
     // Assert
     List<String[]> csvRows =
@@ -637,8 +630,7 @@ public class MapperServiceTest extends IntegrationTest {
     when(endpointRepository.findAll(any(Specification.class))).thenReturn(List.of());
 
     // Act
-    mapperService.exportMappersCsv(
-        TxCtx.forTenant("tenant-test"), CsvType.ENDPOINTS, input, response);
+    mapperService.exportMappersCsv(CsvType.ENDPOINTS, input, response);
 
     // Assert
     assertTrue(
@@ -661,9 +653,7 @@ public class MapperServiceTest extends IntegrationTest {
     RuntimeException thrown =
         assertThrows(
             RuntimeException.class,
-            () ->
-                mapperService.exportMappersCsv(
-                    TxCtx.forTenant("tenant-test"), CsvType.INJECTOR_CONTRACTS, input, response));
+            () -> mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response));
 
     // Assert
     assertEquals("Error during export CSV", thrown.getMessage());

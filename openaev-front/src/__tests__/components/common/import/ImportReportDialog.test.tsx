@@ -1,18 +1,24 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { cleanup, render, screen } from '@testing-library/react';
+import { type ReactElement, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ImportReportDialog from '../../../../components/common/import/ImportReportDialog';
 import { type ImportReport, type ImportReportRow } from '../../../../utils/api-types';
 
-const { mockDownload } = vi.hoisted(() => ({ mockDownload: vi.fn() }));
+const { mockCsvLink } = vi.hoisted(() => ({ mockCsvLink: vi.fn() }));
 
 vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
 
-vi.mock('../../../../utils/utils', () => ({ download: mockDownload }));
+// The file itself is react-csv's job: keep what the dialog hands it.
+vi.mock('react-csv', () => ({
+  CSVLink: (props: { children: ReactNode }) => {
+    mockCsvLink(props);
+    return <a>{props.children}</a>;
+  },
+}));
 
-// A report that has nothing to do with markings: other columns, other reason codes.
+// A report that has nothing to do with markings: other columns.
 const report: ImportReport = {
   import_created: 1,
   import_skipped: 1,
@@ -31,8 +37,8 @@ const report: ImportReport = {
     {
       import_row_position: 2,
       import_row_status: 'SKIPPED',
-      import_row_reason: 'BAD_URL',
-      import_row_params: { scheme: 'https' },
+      import_row_reason: 'INVALID_VALUE',
+      import_row_params: { column: 'url' },
       import_row_values: {
         name: 'broken-name',
         url: '<b>nope</b>',
@@ -66,7 +72,7 @@ const dialog = (props: Partial<Parameters<typeof ImportReportDialog>[0]> = {}) =
 describe('ImportReportDialog', () => {
   afterEach(() => {
     cleanup();
-    mockDownload.mockClear();
+    mockCsvLink.mockClear();
   });
 
   it('shows the counts, with the ignored one only when there is one', () => {
@@ -103,25 +109,25 @@ describe('ImportReportDialog', () => {
 
   it('labels the reason, and falls back to the raw code', () => {
     // Act
-    const { rerender } = renderDialog(dialog({ reasonLabels: { BAD_URL: 'Invalid URL' } }));
+    const { rerender } = renderDialog(dialog({ reasonLabels: { INVALID_VALUE: 'Invalid URL' } }));
 
     // Assert
     expect(screen.getByText('Invalid URL')).toBeTruthy();
     rerender(<ThemeProvider theme={createTheme()}>{dialog()}</ThemeProvider>);
-    expect(screen.getByText('BAD_URL')).toBeTruthy();
+    expect(screen.getByText('INVALID_VALUE')).toBeTruthy();
   });
 
   it('writes the sentence of a skipped row with the function of the caller, from the row', () => {
     // Arrange
-    const rowMessage = vi.fn((row: ImportReportRow) => `Expected ${row.import_row_params.scheme} for row ${row.import_row_position}.`);
+    const rowMessage = vi.fn((row: ImportReportRow) => `Fix the ${row.import_row_params.column} of row ${row.import_row_position}.`);
 
     // Act
     const { rerender } = renderDialog(dialog({ rowMessage }));
 
     // Assert
-    expect(screen.getByText('Expected https for row 2.')).toBeTruthy();
+    expect(screen.getByText('Fix the url of row 2.')).toBeTruthy();
     rerender(<ThemeProvider theme={createTheme()}>{dialog()}</ThemeProvider>);
-    expect(screen.queryByText(/Expected/)).toBeNull();
+    expect(screen.queryByText(/of row 2\./)).toBeNull();
   });
 
   it('offers the download of the skipped rows only when there are some', () => {
@@ -151,14 +157,15 @@ describe('ImportReportDialog', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('downloads only the skipped rows as a CSV file named by the caller', () => {
-    // Arrange
+  it('hands only the skipped rows, the report fields and the file name to the CSV link', () => {
+    // Act
     renderDialog(dialog());
 
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: 'Download skipped rows' }));
-
     // Assert
-    expect(mockDownload).toHaveBeenCalledWith('name,url\r\nbroken-name,<b>nope</b>\r\n', 'skipped.csv', 'text/csv');
+    expect(mockCsvLink).toHaveBeenCalledWith(expect.objectContaining({
+      data: [['broken-name', '<b>nope</b>']],
+      headers: ['name', 'url'],
+      filename: 'skipped.csv',
+    }));
   });
 });

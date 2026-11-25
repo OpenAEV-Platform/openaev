@@ -7177,7 +7177,7 @@ export interface ImportReportRow {
   import_row_params: Record<string, string>;
   /** @format int32 */
   import_row_position: number;
-  import_row_reason?: string;
+  import_row_reason?: "MISSING_FIELD" | "VALUE_TOO_LONG" | "INVALID_VALUE" | "CONFLICT" | "INSUFFICIENT_ACCESS";
   import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
   import_row_values: Record<string, string>;
 }

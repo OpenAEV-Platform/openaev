@@ -140,7 +140,7 @@ public class MapperApi extends RestBehavior {
       @RequestParam CsvType csvType,
       @RequestBody @Valid final SearchPaginationInput input,
       HttpServletResponse response) {
-    mapperService.exportMappersCsv(ctx, csvType, input, response);
+    mapperService.exportMappersCsv(csvType, input, response);
   }
 
   @PostMapping("/import")

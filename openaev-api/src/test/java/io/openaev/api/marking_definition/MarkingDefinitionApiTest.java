@@ -1458,7 +1458,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       String csv =
           HEADER
               + "ZZNEW,ZZNEW:A,#111111,1\n"
-              + "ZZNEW,ZZNEW:B,not-a-colour,2\n"
+              + "ZZNEW,ZZNEW:B,not-a-color,2\n"
               + "ZZMIX,ZZMIX:X,#999999,62\n"
               + "ZZMIX,ZZMIX:X,#123456,62\n"
               + "ZZMIX,ZZMIX:NEW,#123456,63\n";
@@ -1474,8 +1474,9 @@ class MarkingDefinitionApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.import_rows[0].import_row_status").value("CREATED"))
           .andExpect(jsonPath("$.import_rows[0].import_row_params").isEmpty())
           .andExpect(jsonPath("$.import_rows[1].import_row_position").value(2))
-          .andExpect(jsonPath("$.import_rows[1].import_row_reason").value("INVALID_COLOR"))
-          .andExpect(jsonPath("$.import_rows[1].import_row_values.color").value("not-a-colour"))
+          .andExpect(jsonPath("$.import_rows[1].import_row_reason").value("INVALID_VALUE"))
+          .andExpect(jsonPath("$.import_rows[1].import_row_params.column").value("color"))
+          .andExpect(jsonPath("$.import_rows[1].import_row_values.color").value("not-a-color"))
           .andExpect(jsonPath("$.import_rows[2].import_row_reason").value("CONFLICT"))
           .andExpect(jsonPath("$.import_rows[2].import_row_params.color").value("#999999"))
           .andExpect(jsonPath("$.import_rows[2].import_row_params.known_color").value("#123456"))

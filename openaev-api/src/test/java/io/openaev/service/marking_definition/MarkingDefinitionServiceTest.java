@@ -1,24 +1,20 @@
 package io.openaev.service.marking_definition;
 
-import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_COLOR;
-import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_EARLIER_ROW;
 import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_HIGHEST_ORDER;
-import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_KNOWN_COLOR;
-import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_KNOWN_ORDER;
-import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_MAX_LENGTH;
 import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_ORDER;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.toInput;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,35 +29,34 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TenantGroupService;
-import io.openaev.service.import_report.ImportResult;
 import io.openaev.service.import_report.ImportResultRow;
+import io.openaev.service.import_report.ImportRowReason;
 import io.openaev.service.import_report.ImportRowStatus;
+import io.openaev.service.import_report.RowImportResult;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
@@ -71,10 +66,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 /**
  * Pins the cache-eviction and delete-time scrub contracts of {@link MarkingDefinitionService} —
@@ -98,6 +91,9 @@ class MarkingDefinitionServiceTest {
   @Mock private TenantGroupService tenantGroupService;
   @Mock private PreviewFeatureService previewFeatureService;
 
+  private static final Validator VALIDATOR =
+      Validation.buildDefaultValidatorFactory().getValidator();
+
   private MarkingDefinitionService service() {
     return new MarkingDefinitionService(
         repository,
@@ -107,7 +103,20 @@ class MarkingDefinitionServiceTest {
         markingScopeSupplier,
         jdbcTemplate,
         tenantGroupService,
-        previewFeatureService);
+        previewFeatureService,
+        VALIDATOR);
+  }
+
+  @BeforeEach
+  void savedMarkingsAreTheOnesGiven() {
+    lenient()
+        .when(repository.saveAll(ArgumentMatchers.<Iterable<MarkingDefinition>>any()))
+        .thenAnswer(
+            invocation -> {
+              List<MarkingDefinition> saved = new java.util.ArrayList<>();
+              invocation.<Iterable<MarkingDefinition>>getArgument(0).forEach(saved::add);
+              return saved;
+            });
   }
 
   @AfterEach
@@ -147,8 +156,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
@@ -166,14 +173,12 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
 
       // Assert
-      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(1);
     }
 
     @Test
@@ -186,17 +191,15 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
-      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount(anyInt());
       TransactionSynchronizationManager.getSynchronizations()
           .forEach(TransactionSynchronization::afterCommit);
 
       // Assert
-      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(1);
     }
 
     @Test
@@ -208,15 +211,13 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act - simulate rollback: the transaction ends without afterCommit ever firing.
       service().create(input, TENANT_ID, User.ADMIN_UUID);
       TransactionSynchronizationManager.clearSynchronization();
 
       // Assert
-      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount(anyInt());
     }
 
     @Test
@@ -238,7 +239,7 @@ class MarkingDefinitionServiceTest {
       // Refused before the uniqueness lookup: the caller must not learn whether the name exists.
       verify(repository, never())
           .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
-      verify(repository, never()).save(any(MarkingDefinition.class));
+      verify(repository, never()).saveAll(any());
       verify(markingClearanceCacheManager, never()).evictAll();
     }
 
@@ -257,7 +258,7 @@ class MarkingDefinitionServiceTest {
       verify(repository, never()).findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any());
       verify(repository, never())
           .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
-      verify(repository, never()).save(any(MarkingDefinition.class));
+      verify(repository, never()).saveAll(any());
     }
 
     @Test
@@ -269,8 +270,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       MarkingDefinition created = service().create(input, TENANT_ID, USER_ID);
@@ -562,8 +561,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -662,6 +659,9 @@ class MarkingDefinitionServiceTest {
 
   // -- EXPORT AND IMPORT --
 
+  // The rules of a row are tested on MarkingImportBatch. Here: the clearance the service hands the
+  // batch, and what it does with the result.
+
   @Captor private ArgumentCaptor<Iterable<MarkingDefinition>> savedCaptor;
 
   private MarkingDefinition marking(
@@ -678,13 +678,25 @@ class MarkingDefinitionServiceTest {
   private final MarkingDefinition tlpAmber = marking("amber", "TLP", "TLP:AMBER", 3, "#ffc107");
   private final MarkingDefinition tlpRed = marking("red", "TLP", "TLP:RED", 4, "#ff0000");
 
+  private List<MarkingDefinition> tenantDefinitions = List.of();
+
   private void tenantHas(MarkingDefinition... existing) {
-    when(repository.findAllByTenantId(TENANT_ID)).thenReturn(List.of(existing));
+    tenantDefinitions = List.of(existing);
+    when(repository.findAllByTenantId(TENANT_ID)).thenReturn(tenantDefinitions);
   }
 
+  // The repository answers the clearance specification with the definitions the caller holds.
   private void callerHolds(String... ids) {
     when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
         .thenReturn(ids.length == 0 ? MarkingCtx.none() : MarkingCtx.forMarkings(List.of(ids)));
+    Set<String> held = Set.of(ids);
+    lenient()
+        .when(repository.findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+        .thenAnswer(
+            invocation ->
+                tenantDefinitions.stream()
+                    .filter(definition -> held.contains(definition.getId()))
+                    .toList());
   }
 
   private static MarkingRow row(
@@ -692,18 +704,18 @@ class MarkingDefinitionServiceTest {
     return new MarkingRow(position, type, definition, color, order);
   }
 
-  private ImportResult importAs(String userId, MarkingRow... rows) {
+  private RowImportResult importAs(String userId, MarkingRow... rows) {
     return service().importAll(TENANT_ID, userId, List.of(rows));
   }
 
-  private static ImportResultRow at(ImportResult result, int position) {
+  private static ImportResultRow at(RowImportResult result, int position) {
     return result.rows().get(position - 1);
   }
 
   private static void assertSkipped(
-      ImportResultRow row, MarkingDefinitionImportRowReason reason, Map<String, String> params) {
+      ImportResultRow row, ImportRowReason reason, Map<String, String> params) {
     assertEquals(ImportRowStatus.SKIPPED, row.status());
-    assertEquals(reason.name(), row.reason());
+    assertEquals(reason, row.reason());
     assertEquals(params, row.params());
   }
 
@@ -733,104 +745,26 @@ class MarkingDefinitionServiceTest {
   class Import {
 
     @Test
-    @DisplayName("given_validRows_should_createThemNormalizedAndUnprotectedInOneBatch")
-    void given_validRows_should_createThemNormalizedAndUnprotectedInOneBatch() {
+    @DisplayName("given_validRows_should_saveOneBatchThenGrantEvictAndCountOnce")
+    void given_validRows_should_saveOneBatchThenGrantEvictAndCountOnce() {
       // Arrange
       tenantHas(tlpClear);
-      MarkingRow first = row(1, " pap ", "pap:amber", "#ffc107", "3");
-      MarkingRow second = row(2, "PAP", "PAP:RED", "#FF0000", "4");
 
       // Act
-      ImportResult result = importAs(User.ADMIN_UUID, first, second);
+      RowImportResult result =
+          importAs(
+              User.ADMIN_UUID,
+              row(1, "PAP", "PAP:CLEAR", "#ffffff", "1"),
+              row(2, "PAP", "PAP:GREEN", "#4caf50", "2"));
 
       // Assert
       assertEquals(2, result.created());
-      assertEquals(0, result.skipped());
-      assertEquals(List.of("type", "definition", "color", "order"), result.columns());
       verify(repository, times(1)).saveAll(savedCaptor.capture());
       List<MarkingDefinition> saved = new java.util.ArrayList<>();
       savedCaptor.getValue().forEach(saved::add);
       assertEquals(
-          List.of("PAP:AMBER", "PAP:RED"),
+          List.of("PAP:CLEAR", "PAP:GREEN"),
           saved.stream().map(MarkingDefinition::getDefinition).toList());
-      assertTrue(saved.stream().allMatch(marking -> "PAP".equals(marking.getType())));
-      assertTrue(saved.stream().noneMatch(MarkingDefinition::getProtectedDefinition));
-      assertTrue(saved.stream().allMatch(marking -> TENANT_ID.equals(marking.getTenant().getId())));
-    }
-
-    private List<MarkingDefinition> savedMarkings() {
-      verify(repository).saveAll(savedCaptor.capture());
-      List<MarkingDefinition> saved = new java.util.ArrayList<>();
-      savedCaptor.getValue().forEach(saved::add);
-      return saved;
-    }
-
-    @Test
-    @DisplayName("given_validRows_should_carryTheStixIdOpenCtiGivesThem")
-    void given_validRows_should_carryTheStixIdOpenCtiGivesThem() {
-      // Arrange
-      tenantHas(tlpClear);
-
-      // Act
-      importAs(
-          User.ADMIN_UUID,
-          row(1, "pap", "pap:amber", "#ffc107", "3"),
-          row(2, "TLP", "TLP:GREEN", "#4caf50", "2"));
-
-      // Assert
-      assertEquals(
-          List.of(
-              MarkingDefinitionStixIds.generate("PAP", "PAP:AMBER"),
-              "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"),
-          savedMarkings().stream().map(MarkingDefinition::getStixId).toList());
-    }
-
-    @Test
-    @DisplayName("given_aStixIdCarriedByTheTenant_should_createWithoutOne")
-    void given_aStixIdCarriedByTheTenant_should_createWithoutOne() {
-      // Arrange - TLP:WHITE next to TLP:CLEAR: OpenCTI names both with one id.
-      tlpClear.setStixId("marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9");
-      tenantHas(tlpClear);
-
-      // Act
-      importAs(User.ADMIN_UUID, row(1, "TLP", "TLP:WHITE", "#ffffff", "5"));
-
-      // Assert
-      assertEquals(null, savedMarkings().get(0).getStixId());
-    }
-
-    @Test
-    @DisplayName("given_aStixIdGivenByAnEarlierRow_should_createWithoutOne")
-    void given_aStixIdGivenByAnEarlierRow_should_createWithoutOne() {
-      // Arrange
-      tenantHas(tlpGreen);
-
-      // Act
-      importAs(
-          User.ADMIN_UUID,
-          row(1, "TLP", "TLP:CLEAR", "#ffffff", "1"),
-          row(2, "TLP", "TLP:WHITE", "#ffffff", "5"));
-
-      // Assert
-      List<MarkingDefinition> saved = savedMarkings();
-      assertEquals(
-          "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9", saved.get(0).getStixId());
-      assertEquals(null, saved.get(1).getStixId());
-    }
-
-    @Test
-    @DisplayName("given_createdRows_should_grantEvictAndCountOncePerBatch")
-    void given_createdRows_should_grantEvictAndCountOncePerBatch() {
-      // Arrange
-      tenantHas(tlpClear);
-
-      // Act
-      importAs(
-          User.ADMIN_UUID,
-          row(1, "PAP", "PAP:CLEAR", "#ffffff", "1"),
-          row(2, "PAP", "PAP:GREEN", "#4caf50", "2"));
-
-      // Assert
       verify(tenantGroupService, times(1)).grantToAutoNewMarkingGroups(anyCollection());
       verify(markingClearanceCacheManager, times(1)).evictAll();
       verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(2);
@@ -845,7 +779,7 @@ class MarkingDefinitionServiceTest {
       callerHolds("amber");
 
       // Act
-      ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:AMBER", "#ffc107", "3"));
+      RowImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:AMBER", "#ffc107", "3"));
 
       // Assert
       assertEquals(1, result.ignored());
@@ -855,406 +789,66 @@ class MarkingDefinitionServiceTest {
     }
 
     @Test
-    @DisplayName("given_aMixedFile_should_createTheValidRowsSkipTheOthersAndKeepPositions")
-    void given_aMixedFile_should_createTheValidRowsSkipTheOthersAndKeepPositions() {
+    @DisplayName("given_aCallerHoldingAmber_should_readItsClearanceOnceAndStopAtAmber")
+    void given_aCallerHoldingAmber_should_readItsClearanceOnceAndStopAtAmber() {
       // Arrange
-      tenantHas(tlpAmber);
+      tenantHas(tlpClear, tlpGreen, tlpAmber, tlpRed);
+      callerHolds("clear", "green", "amber");
 
       // Act
-      ImportResult result =
+      RowImportResult result =
           importAs(
-              User.ADMIN_UUID,
-              row(1, "PAP", "PAP:CLEAR", "#ffffff", "1"),
-              row(2, "", "PAP:GREEN", "#4caf50", "2"),
-              row(3, "TLP", "TLP:AMBER", "#ffc107", "3"),
-              row(4, "PAP", "PAP:RED", "#ff0000", "4"));
+              USER_ID,
+              row(1, "TLP", "TLP:CUSTOM3", "#ffffff", "3"),
+              row(2, "TLP", "TLP:CUSTOM4", "#ffffff", "4"));
 
       // Assert
-      assertEquals(2, result.created());
-      assertEquals(1, result.skipped());
-      assertEquals(1, result.ignored());
-      assertEquals(
-          List.of(
-              ImportRowStatus.CREATED,
-              ImportRowStatus.SKIPPED,
-              ImportRowStatus.IGNORED,
-              ImportRowStatus.CREATED),
-          result.rows().stream().map(ImportResultRow::status).toList());
-      assertEquals(
-          List.of(1, 2, 3, 4), result.rows().stream().map(ImportResultRow::position).toList());
+      assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
+      assertSkipped(
+          at(result, 2),
+          ImportRowReason.INSUFFICIENT_ACCESS,
+          Map.of(PARAM_ORDER, "4", PARAM_HIGHEST_ORDER, "3"));
+      verify(markingClearanceCacheManager, times(1)).findClearance(USER_ID, TENANT_ID);
     }
 
     @Test
-    @DisplayName("given_aRow_should_echoItsValuesAsReadByFieldName")
-    void given_aRow_should_echoItsValuesAsReadByFieldName() {
+    @DisplayName("given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance")
+    void given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance() {
       // Arrange
-      tenantHas(tlpClear);
-      callerHolds("clear");
+      tenantHas(tlpClear, tlpRed);
 
       // Act
-      ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:X", "not-a-colour", "3"));
+      RowImportResult result =
+          importAs(User.ADMIN_UUID, row(1, "TLP", "TLP:ABOVE", "#ffffff", "99"));
 
       // Assert
-      assertEquals(
-          Map.of("type", "TLP", "definition", "TLP:X", "color", "not-a-colour", "order", "3"),
-          at(result, 1).values());
-      assertEquals(
-          List.of("type", "definition", "color", "order"),
-          List.copyOf(at(result, 1).values().keySet()));
+      assertEquals(1, result.created());
+      verify(markingClearanceCacheManager, never()).findClearance(any(), any());
     }
 
-    @Nested
-    @DisplayName("row validation, first failure wins")
-    class Validation {
+    @Test
+    @DisplayName("given_aCallerClearedForEveryDefinition_should_stopAtTheCurrentTopLikeCreate")
+    void given_aCallerClearedForEveryDefinition_should_stopAtTheCurrentTopLikeCreate() {
+      // Arrange - not the first admin: no level above the current top of the type (TLP: 4)
+      tenantHas(tlpClear, tlpGreen, tlpAmber, tlpRed);
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.all());
+      when(repository.findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+          .thenReturn(tenantDefinitions);
 
-      @ParameterizedTest(name = "[{index}] type={0} definition={1} color={2} order={3}")
-      @CsvSource(
-          value = {
-            "'',TLP:X,#ffffff,1",
-            "TLP,'',#ffffff,1",
-            "TLP,TLP:X,'',1",
-            "TLP,TLP:X,#ffffff,''"
-          })
-      @DisplayName("given_anEmptyValue_should_skipAsMissingField")
-      void given_anEmptyValue_should_skipAsMissingField(
-          String type, String definition, String color, String order) {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds("clear");
+      // Act
+      RowImportResult result =
+          importAs(
+              USER_ID,
+              row(1, "TLP", "TLP:CUSTOM4", "#ffffff", "4"),
+              row(2, "TLP", "TLP:CUSTOM5", "#ffffff", "5"));
 
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, type, definition, color, order));
-
-        // Assert
-        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.MISSING_FIELD, Map.of());
-      }
-
-      @Test
-      @DisplayName("given_aTypeOrDefinitionLongerThanTheColumn_should_skipAsValueTooLongNotThrow")
-      void given_aTypeOrDefinitionLongerThanTheColumn_should_skipAsValueTooLongNotThrow() {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds("clear");
-        String tooLong = "X".repeat(256);
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", tooLong, "#ffffff", "1"),
-                row(2, tooLong, "TLP:OK", "#ffffff", "1"));
-
-        // Assert
-        Map<String, String> params = Map.of(PARAM_MAX_LENGTH, "255");
-        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, params);
-        assertSkipped(at(result, 2), MarkingDefinitionImportRowReason.VALUE_TOO_LONG, params);
-        verify(repository, never()).saveAll(any());
-      }
-
-      @ParameterizedTest(name = "{0}")
-      @ValueSource(strings = {"red", "#fff", "#ggg000", "ffffff", "#ffffff0"})
-      @DisplayName("given_aColourThatIsNotAHexValue_should_skipAsInvalidColor")
-      void given_aColourThatIsNotAHexValue_should_skipAsInvalidColor(String color) {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds("clear");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:X", color, "1"));
-
-        // Assert
-        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.INVALID_COLOR, Map.of());
-      }
-
-      @ParameterizedTest(name = "{0}")
-      @ValueSource(strings = {"3.5", "abc", "-1", "1e3", "99999999999", " 3"})
-      @DisplayName("given_anOrderThatIsNotAWholeNumber_should_skipAsInvalidOrder")
-      void given_anOrderThatIsNotAWholeNumber_should_skipAsInvalidOrder(String order) {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds("clear");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:X", "#ffffff", order));
-
-        // Assert
-        assertSkipped(at(result, 1), MarkingDefinitionImportRowReason.INVALID_ORDER, Map.of());
-      }
-    }
-
-    @Nested
-    @DisplayName("same type and definition as another marking, never overwritten")
-    class SameKey {
-
-      @Test
-      @DisplayName("given_anExistingMarkingWithAnotherColor_should_conflictWithTheColors")
-      void given_anExistingMarkingWithAnotherColor_should_conflictWithTheColors() {
-        // Arrange
-        tenantHas(tlpAmber);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "tlp", "tlp:amber", "#ff0000", "3"));
-
-        // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.CONFLICT,
-            Map.of(PARAM_COLOR, "#ff0000", PARAM_KNOWN_COLOR, "#ffc107"));
-      }
-
-      @Test
-      @DisplayName("given_anExistingMarkingWithAnotherOrder_should_conflictWithTheOrders")
-      void given_anExistingMarkingWithAnotherOrder_should_conflictWithTheOrders() {
-        // Arrange
-        tenantHas(tlpAmber);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:AMBER", "#ffc107", "9"));
-
-        // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.CONFLICT,
-            Map.of(PARAM_ORDER, "9", PARAM_KNOWN_ORDER, "3"));
-      }
-
-      @Test
-      @DisplayName("given_aProtectedMarkingWithBothDifferent_should_conflictWithBoth")
-      void given_aProtectedMarkingWithBothDifferent_should_conflictWithBoth() {
-        // Arrange
-        MarkingDefinition protectedAmber = marking("p", "TLP", "TLP:AMBER", 3, "#ffc107");
-        protectedAmber.setProtectedDefinition(true);
-        tenantHas(protectedAmber);
-        callerHolds("p");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:AMBER", "#00ff00", "2"));
-
-        // Assert
-        assertSkipped(
-            at(result, 1),
-            MarkingDefinitionImportRowReason.CONFLICT,
-            Map.of(
-                PARAM_COLOR, "#00ff00",
-                PARAM_KNOWN_COLOR, "#ffc107",
-                PARAM_ORDER, "2",
-                PARAM_KNOWN_ORDER, "3"));
-        verify(repository, never()).save(any(MarkingDefinition.class));
-        verify(repository, never()).saveAll(any());
-      }
-
-      @Test
-      @DisplayName("given_anEarlierRowOfTheFile_should_conflictWithThatRow")
-      void given_anEarlierRowOfTheFile_should_conflictWithThatRow() {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds("clear");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "PAP", "PAP:AMBER", "#ffc107", "2"),
-                row(2, "PAP", "PAP:AMBER", "#ffc107", "5"),
-                row(3, "PAP", "PAP:AMBER", "#00ff00", "2"));
-
-        // Assert
-        assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
-        assertSkipped(
-            at(result, 2),
-            MarkingDefinitionImportRowReason.CONFLICT,
-            Map.of(PARAM_EARLIER_ROW, "1", PARAM_ORDER, "5", PARAM_KNOWN_ORDER, "2"));
-        assertSkipped(
-            at(result, 3),
-            MarkingDefinitionImportRowReason.CONFLICT,
-            Map.of(PARAM_EARLIER_ROW, "1", PARAM_COLOR, "#00ff00", PARAM_KNOWN_COLOR, "#ffc107"));
-      }
-
-      @Test
-      @DisplayName("given_aRowIdenticalToAnExistingOrEarlierRow_should_ignoreItWithNoReason")
-      void given_aRowIdenticalToAnExistingOrEarlierRow_should_ignoreItWithNoReason() {
-        // Arrange
-        tenantHas(tlpAmber);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:AMBER", "#FFC107", "3"),
-                row(2, "PAP", "PAP:AMBER", "#ffc107", "3"),
-                row(3, "PAP", "PAP:AMBER", "#ffc107", "3"));
-
-        // Assert
-        assertEquals(1, result.created());
-        assertEquals(0, result.skipped());
-        assertEquals(2, result.ignored());
-        assertEquals(ImportRowStatus.IGNORED, at(result, 1).status());
-        assertNull(at(result, 1).reason());
-        assertTrue(at(result, 1).params().isEmpty());
-        assertEquals(ImportRowStatus.IGNORED, at(result, 3).status());
-      }
-
-      @Test
-      @DisplayName("given_aKeyOfTheTenantAndAnEarlierRow_should_compareWithTheExistingMarking")
-      void given_aKeyOfTheTenantAndAnEarlierRow_should_compareWithTheExistingMarking() {
-        // Arrange
-        tenantHas(tlpAmber);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:AMBER", "#ff0000", "3"),
-                row(2, "TLP", "TLP:AMBER", "#ffc107", "3"));
-
-        // Assert
-        assertEquals(MarkingDefinitionImportRowReason.CONFLICT.name(), at(result, 1).reason());
-        assertEquals(ImportRowStatus.IGNORED, at(result, 2).status());
-      }
-    }
-
-    @Nested
-    @DisplayName("clearance of the caller, as the manual create applies it")
-    class Clearance {
-
-      @Test
-      @DisplayName("given_aCallerHoldingAmber_should_createUpToAmberAndSkipAboveWithBothOrders")
-      void given_aCallerHoldingAmber_should_createUpToAmberAndSkipAboveWithBothOrders() {
-        // Arrange
-        tenantHas(tlpClear, tlpGreen, tlpAmber, tlpRed);
-        callerHolds("clear", "green", "amber");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:CUSTOM3", "#ffffff", "3"),
-                row(2, "TLP", "TLP:CUSTOM0", "#ffffff", "0"),
-                row(3, "TLP", "TLP:CUSTOM4", "#ffffff", "4"));
-
-        // Assert
-        assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
-        assertEquals(ImportRowStatus.CREATED, at(result, 2).status());
-        assertSkipped(
-            at(result, 3),
-            MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS,
-            Map.of(PARAM_ORDER, "4", PARAM_HIGHEST_ORDER, "3"));
-      }
-
-      @Test
-      @DisplayName("given_anExistingTypeTheCallerHoldsNothingOn_should_skipWithNoMarkingOfItsType")
-      void given_anExistingTypeTheCallerHoldsNothingOn_should_skipWithNoMarkingOfItsType() {
-        // Arrange
-        MarkingDefinition papClear = marking("pap-clear", "PAP", "PAP:CLEAR", 1, "#ffffff");
-        tenantHas(tlpAmber, papClear);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result = importAs(USER_ID, row(1, "PAP", "PAP:NEW", "#ffffff", "0"));
-
-        // Assert
-        assertSkipped(
-            at(result, 1), MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, Map.of());
-      }
-
-      @Test
-      @DisplayName("given_aCallerWithNoGrantAtAll_should_skipEveryRowOfAnExistingType")
-      void given_aCallerWithNoGrantAtAll_should_skipEveryRowOfAnExistingType() {
-        // Arrange
-        tenantHas(tlpClear);
-        callerHolds();
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:A", "#ffffff", "0"),
-                row(2, "TLP", "TLP:B", "#ffffff", "1"));
-
-        // Assert
-        assertEquals(2, result.skipped());
-        assertEquals(0, result.created());
-      }
-
-      @Test
-      @DisplayName("given_aNewType_should_createItsFirstRowAndSkipTheNextOneOfThatType")
-      void given_aNewType_should_createItsFirstRowAndSkipTheNextOneOfThatType() {
-        // Arrange - the clearance is read once: the type created by the file widens nothing.
-        tenantHas(tlpAmber);
-        callerHolds("amber");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "PAP", "PAP:RED", "#ff0000", "4"),
-                row(2, "PAP", "PAP:CLEAR", "#ffffff", "1"));
-
-        // Assert
-        assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
-        assertSkipped(
-            at(result, 2), MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS, Map.of());
-        verify(markingClearanceCacheManager, times(1)).findClearance(USER_ID, TENANT_ID);
-      }
-
-      @Test
-      @DisplayName("given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance")
-      void given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance() {
-        // Arrange
-        tenantHas(tlpClear, tlpRed);
-
-        // Act
-        ImportResult result =
-            importAs(User.ADMIN_UUID, row(1, "TLP", "TLP:ABOVE", "#ffffff", "99"));
-
-        // Assert
-        assertEquals(1, result.created());
-        verify(markingClearanceCacheManager, never()).findClearance(any(), any());
-      }
-
-      @Test
-      @DisplayName("given_aRowIdenticalToOrConflictingWithAnExistingMarking_should_keepThatOutcome")
-      void given_aRowIdenticalToOrConflictingWithAnExistingMarking_should_keepThatOutcome() {
-        // Arrange - re-importing an exported file must not flood a limited caller with access
-        // errors
-        tenantHas(tlpClear, tlpRed);
-        callerHolds("clear");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:RED", "#ff0000", "4"),
-                row(2, "TLP", "TLP:RED", "#00ff00", "4"));
-
-        // Assert
-        assertEquals(ImportRowStatus.IGNORED, at(result, 1).status());
-        assertEquals(MarkingDefinitionImportRowReason.CONFLICT.name(), at(result, 2).reason());
-      }
-
-      @Test
-      @DisplayName("given_aSkippedRow_should_notRegisterItsKeyForALaterRow")
-      void given_aSkippedRow_should_notRegisterItsKeyForALaterRow() {
-        // Arrange
-        tenantHas(tlpClear, tlpGreen);
-        callerHolds("clear", "green");
-
-        // Act
-        ImportResult result =
-            importAs(
-                USER_ID,
-                row(1, "TLP", "TLP:CUSTOM", "#ffffff", "9"),
-                row(2, "TLP", "TLP:CUSTOM", "#ffffff", "2"));
-
-        // Assert
-        assertEquals(
-            MarkingDefinitionImportRowReason.INSUFFICIENT_ACCESS.name(), at(result, 1).reason());
-        assertEquals(ImportRowStatus.CREATED, at(result, 2).status());
-      }
+      // Assert
+      assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
+      assertSkipped(
+          at(result, 2),
+          ImportRowReason.INSUFFICIENT_ACCESS,
+          Map.of(PARAM_ORDER, "5", PARAM_HIGHEST_ORDER, "4"));
     }
   }
 
@@ -1280,40 +874,6 @@ class MarkingDefinitionServiceTest {
 
       // Act & Assert
       service().assertFeatureEnabled();
-    }
-
-    @Test
-    @DisplayName("given_aCsvFileUnderTheLimit_should_accept")
-    void given_aCsvFileUnderTheLimit_should_accept() {
-      // Act & Assert
-      service()
-          .validateUploadedFile(
-              new MockMultipartFile("file", "Markings.CSV", "text/csv", new byte[1024 * 1024]));
-    }
-
-    @Test
-    @DisplayName("given_anotherExtension_should_refuseAsUnsupportedMediaType")
-    void given_anotherExtension_should_refuseAsUnsupportedMediaType() {
-      // Act & Assert
-      assertThrows(
-          UnsupportedMediaTypeException.class,
-          () ->
-              service()
-                  .validateUploadedFile(
-                      new MockMultipartFile("file", "markings.txt", "text/plain", new byte[1])));
-    }
-
-    @Test
-    @DisplayName("given_aFileOverOneMegabyte_should_refuseAsTooBig")
-    void given_aFileOverOneMegabyte_should_refuseAsTooBig() {
-      // Act & Assert
-      assertThrows(
-          FileTooBigException.class,
-          () ->
-              service()
-                  .validateUploadedFile(
-                      new MockMultipartFile(
-                          "file", "markings.csv", "text/csv", new byte[1024 * 1024 + 1])));
     }
   }
 }
