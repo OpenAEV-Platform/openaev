@@ -109,6 +109,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
    */
   private ConnectorInstancePersisted createInstanceForCatalog(CatalogConnector catalogConnector) {
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
+    instance.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     instance.setCatalogConnector(catalogConnector);
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
