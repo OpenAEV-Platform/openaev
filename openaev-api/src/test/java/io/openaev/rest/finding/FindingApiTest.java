@@ -15,9 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -30,6 +30,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -49,8 +50,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,16 +59,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Findings search tests")
-class FindingApiTest extends IntegrationTest {
+class FindingApiTest extends ProductionTablesIntegrationTest {
 
   // The test profile declares no active tables, so the suite registers the production list: with
   // no list, the search isolation below would assert what nothing enforces.
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
-
   private static final String FINDING_URI = "/api/findings";
 
   @Resource protected ObjectMapper mapper;
@@ -91,6 +84,10 @@ class FindingApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   /**
    * Scopes the test's own transaction, for the tests that query the repository directly instead of
@@ -101,6 +98,23 @@ class FindingApiTest extends IntegrationTest {
    */
   private void scopeToAmbientTenant() {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  private MarkingDefinition persistClearedMarking() {
+    MarkingDefinition marking =
+        markingDefinitionComposer
+            .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+            .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .persist()
+            .get();
+    // The caller sees a marked asset only through a group holding its marking.
+    Group group = TenantGroupFixture.getGroup("finding-markings-" + UUID.randomUUID());
+    group.setMarkings(new HashSet<>(Set.of(marking)));
+    group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+    tenantGroupComposer.forGroup(group).persist();
+    entityManager.flush();
+    markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+    return marking;
   }
 
   @BeforeEach
@@ -120,6 +134,8 @@ class FindingApiTest extends IntegrationTest {
     endpointComposer.reset();
     assetGroupComposer.reset();
     injectorContractComposer.reset();
+    markingDefinitionComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Nested
@@ -368,7 +384,7 @@ class FindingApiTest extends IntegrationTest {
         List<String> expectedFindingIds =
             scenarioWrapper.get().getExercises().stream()
                 .flatMap(exercise -> exercise.getInjects().stream())
-                .flatMap(inject -> inject.getFindings().stream())
+                .flatMap(inject -> findingsOf(inject).stream())
                 .map(Finding::getId)
                 .toList();
 
@@ -441,7 +457,7 @@ class FindingApiTest extends IntegrationTest {
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
-                            .flatMap(inject -> inject.getFindings().stream().map(Finding::getId))
+                            .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
@@ -503,7 +519,7 @@ class FindingApiTest extends IntegrationTest {
         List<RelatedFindingOutput> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
-                        inject.getFindings().stream().map(Finding::getId).toList()))
+                        findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
                 .limit(input.getSize())
@@ -545,7 +561,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -634,7 +650,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -712,7 +728,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -956,6 +972,8 @@ class FindingApiTest extends IntegrationTest {
     @DisplayName("Search global findings")
     @Test
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
+      MarkingDefinition marking = persistClearedMarking();
+      savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
               .forFinding(FindingFixture.createDefaultTextFinding())
@@ -982,6 +1000,9 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_assets.[0].asset_markings.[0]")
+                  .value(marking.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_inject.inject_id")
                   .value(savedFinding.getInject().getId()))
@@ -1676,5 +1697,10 @@ class FindingApiTest extends IntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  // The findings of an inject are those with an occurrence on it
+  private List<Finding> findingsOf(Inject inject) {
+    return findingRepository.findAllByInjectId(inject.getId());
   }
 }

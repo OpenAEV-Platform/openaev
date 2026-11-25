@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import { liftPayloadRevocation, revokePayload } from '../../../../actions/payloads/payload-revocation-actions';
-import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../utils/Environment';
 import { moveTargets, moveUsages } from '../versions/usages/usageMove';
-import useVersionUsages from '../versions/usages/useVersionUsages';
+import useNotifyMoves from '../versions/usages/useNotifyMoves';
+import useUsagesByVersion from '../versions/usages/useUsagesByVersion';
 
 interface Options {
   open: boolean;
@@ -18,7 +17,7 @@ interface Options {
 
 /** The revoke or lift form: the version chosen, what it stops, where its injects go, and the submit. */
 const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: Options) => {
-  const { t } = useFormatter();
+  const notifyMoves = useNotifyMoves();
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -33,7 +32,7 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
   }, [open, versions, currentPayloadId]);
 
   const version = versions.find(v => v.payload_id === selected);
-  const usages = useVersionUsages(open ? version?.payload_action_id : undefined);
+  const usages = useUsagesByVersion(open && version ? [version] : null)?.[selected] ?? null;
 
   const { targets: replacements, defaultTarget } = moveTargets(versions, selected);
   useEffect(() => setReplacement(defaultTarget), [defaultTarget]);
@@ -44,11 +43,7 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
   // The injects move first, so none of them fails between the revocation and the move.
   const moveFirst = async (source: PayloadVersionOutput) => {
     if (!canReplace || !replace || !target) return;
-    const moves = await moveUsages(source.payload_action_id, target.payload_id, shown);
-    MESSAGING$.notifySuccess(t('{count} usages moved to v{version}', {
-      count: String(moves.moved_ids.length),
-      version: target.payload_version,
-    }));
+    notifyMoves([await moveUsages(source.payload_action_id, target.payload_id, shown)], target.payload_version);
   };
 
   const submit = async () => {

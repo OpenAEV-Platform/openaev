@@ -3,6 +3,7 @@ import * as R from 'ramda';
 import { useState } from 'react';
 
 import { useFormatter } from '../components/i18n';
+import { compare } from './Sorting';
 
 const useSearchAndFilter = (
   schema,
@@ -63,11 +64,12 @@ const useSearchAndFilter = (
         .reduce((a, b) => a || b);
       return isEmptyKeyword || isKnownColumn;
     };
-    const sort = R.sortWith(
-      order.orderAsc
-        ? [R.ascend(R.propOr('', order.sortBy))]
-        : [R.descend(R.propOr('', order.sortBy))],
-    );
+    // A missing value sorts as '', unlike ascendBy where it compares equal to every value
+    const sortValue = e => e[order.sortBy] ?? '';
+    const compareElements = (a, b) => (order.orderAsc
+      ? compare(sortValue(a), sortValue(b))
+      : compare(sortValue(b), sortValue(a)));
+    const sort = items => items.toSorted(compareElements);
     return defaultSortKey
       ? R.pipe(
           R.filter(

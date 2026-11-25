@@ -1,4 +1,4 @@
-import { SettingsOutlined } from '@mui/icons-material';
+import { Icon } from '@filigran/design-system';
 
 import { type NavMenuItem } from '../../../../components/common/menu/navbar/nav-menu-model';
 import { type AppAbility } from '../../../../utils/permissions/ability';
@@ -119,7 +119,7 @@ const settingsEntries = (ability: AppAbility): NavMenuItem[] => {
 
   return [{
     path: '/admin/settings',
-    icon: () => (<SettingsOutlined />),
+    icon: () => (<Icon name="settings" size={16} />),
     label: SETTINGS_LABEL,
     href: 'settings',
     userRight: subItems.some(item => item.userRight),

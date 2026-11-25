@@ -368,6 +368,19 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
 
+    // XTM Composer: what it reported, only once one is registered
+    if (StringUtils.hasText(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_ID.key()))) {
+      platformSettings.setXtmComposerVersion(
+          ofNullable(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_VERSION.key()))
+              .filter(StringUtils::hasText)
+              .orElse(XTM_COMPOSER_VERSION.defaultValue()));
+      platformSettings.setXtmComposerImage(
+          ofNullable(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_IMAGE.key()))
+              .orElse(XTM_COMPOSER_IMAGE.defaultValue()));
+      platformSettings.setXtmComposerLastConnectivityCheck(
+          getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()));
+    }
+
     // SESSION MANAGEMENT
     platformSettings.setPlatformSessionTimeout(sessionTimeout.toMillis());
     platformSettings.setPlatformSessionIdleTimeout(
@@ -680,20 +693,6 @@ public class PlatformSettingsService {
         });
 
     return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
-  }
-
-  /**
-   * Saves a setting by key. Updates the value if the key exists, creates a new setting otherwise.
-   *
-   * @param key the setting key
-   * @param value the setting value
-   * @return the saved setting
-   */
-  public Setting saveSetting(String key, String value) {
-    Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElse(new Setting(key, value));
-    setting.setValue(value);
-    return settingRepository.save(setting);
   }
 
   public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {

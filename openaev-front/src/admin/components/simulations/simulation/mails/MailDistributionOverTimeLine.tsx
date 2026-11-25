@@ -11,6 +11,7 @@ import { type Communication, type Exercise, type Team } from '../../../../../uti
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { ascendBy } from '../../../../../utils/Sorting';
 import { getTeamsColors } from '../../../teams/utils';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsOverTimeByTeam } from './mailsSampleData';
@@ -34,17 +35,19 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
   const teamsCommunications = R.pipe(
     R.map((n: Team) => {
       cumulation = 0;
-      return R.assoc(
-        'team_communications',
-        R.pipe(
-          R.sortWith([R.ascend(R.prop('communication_received_at'))]),
+      return {
+        ...n,
+        team_communications: R.pipe(
+          (items: Communication[]) => items.toSorted(ascendBy('communication_received_at')),
           R.map((i: Communication) => {
             cumulation += 1;
-            return R.assoc('communication_cumulated_number', cumulation, i);
+            return {
+              ...i,
+              communication_cumulated_number: cumulation,
+            };
           }),
         )(n.team_communications || []),
-        n,
-      );
+      };
     }),
     R.map((a: Team & { team_communications: Array<Communication & { communication_cumulated_number: number }> }) => ({
       name: a.team_name,

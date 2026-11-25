@@ -100,6 +100,7 @@ public class ThreatArsenalMapper {
         .payloadVersion(payload != null ? payload.getVersion() : null)
         .payloadManaged(payload != null ? payload.isManaged() : null)
         .payloadRevoked(payload != null ? payload.isRevoked() : null)
+        .payloadCustomized(payload != null ? payload.isCustomized() : null)
         .authorId(authorId)
         .authorName(authorName)
         .authorType(authorType)
@@ -260,7 +261,7 @@ public class ThreatArsenalMapper {
         payload.getExecutionArch(),
         payload.getCollectorTypeValue(),
         payload.getDetectionRemediations(),
-        payload.getOutputParsers(),
+        payloadMapper.toOutputParsersSimple(payload.getOutputParsers()),
         tagIds,
         domainIds,
         attackPatternIds,

@@ -16,10 +16,12 @@ import lombok.Data;
 @Data
 public class AiTargetTarget extends InjectTarget {
 
-  public AiTargetTarget(String id, String name, Set<String> tags, String subType) {
+  public AiTargetTarget(
+      String id, String name, Set<String> tags, Set<String> markings, String subType) {
     this.setId(id);
     this.setName(name);
     this.setTags(tags);
+    this.setMarkings(markings);
     this.setTargetType("AI_TARGETS");
     this.subType = subType;
   }

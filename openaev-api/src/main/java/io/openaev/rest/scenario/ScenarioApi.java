@@ -54,9 +54,9 @@ import io.openaev.service.scenario.ScenarioLaunchService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -96,6 +96,7 @@ public class ScenarioApi extends RestBehavior {
   private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final ChannelService channelService;
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
@@ -366,7 +367,10 @@ public class ScenarioApi extends RestBehavior {
     if (input.getReplyTos() == null) {
       scenario.setReplyTos(currentReplyTos);
     }
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
@@ -383,21 +387,13 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(
-      TxCtx ctx,
-      @PathVariable @NotBlank final String scenarioId,
-      @Parameter(
-              description =
-                  "True keeps the findings produced by the scenario's injects, detached from them."
-                      + " False (the default) deletes them with the scenario.")
-          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
-          final boolean keepFindings) {
+  public void deleteScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     // Tear down the autonomous run's coordination first (409 if it is still active), then delete
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
     this.autonomousRunService.deleteForScenario(ctx, scenarioId);
-    this.scenarioService.deleteScenario(ctx, scenarioId, keepFindings);
+    this.scenarioService.deleteScenario(ctx, scenarioId);
   }
 
   @Operation(
@@ -436,7 +432,10 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final ScenarioUpdateTagsInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
@@ -655,6 +654,30 @@ public class ScenarioApi extends RestBehavior {
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
   }
 
+  // -- REACHABILITY ASSERTION --
+
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/reachability-assertion",
+    TENANT_SCENARIO_URI + "/{scenarioId}/reachability-assertion"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.SCENARIO)
+  @Operation(summary = "Declare or clear a reachability assertion")
+  public ScenarioOutput updateScenarioReachabilityAssertion(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ScenarioReachabilityAssertionInput input) {
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
+    scenario.setReachabilityAssertion(input.isReachabilityAssertion());
+    this.scenarioService.updateScenario(scenario);
+    // A DTO read inside the transaction: the entity would serialise its lazy associations after
+    // the commit (LazyAssociationAfterCommitArchTest).
+    return this.scenarioService.getScenarioById(ctx, scenarioId);
+  }
+
   // -- OPTION --
 
   @GetMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
@@ -715,10 +738,8 @@ public class ScenarioApi extends RestBehavior {
     return hydrateForResponse(scenarioRepository.save(scenario));
   }
 
-  @PostMapping({
-    SCENARIO_URI + "/{scenarioId}/exercise/running",
-    TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
-  })
+  // Legacy route for existing clients; the tenant route is ScenarioLaunchApi#launch.
+  @PostMapping(SCENARIO_URI + "/{scenarioId}/exercise/running")
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
@@ -763,10 +784,14 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
+  // Deprecated: the UI stopped calling it when the inject form moved to the asset-groups/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
   @Operation(
       summary =
           "Get asset groups. Can only be called if the user has access to the given scenario.",
-      description = "Get all asset groups used by injects for a given scenario")
+      description = "Get all asset groups used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
@@ -818,12 +843,18 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
-      description = "Get all endpoints used by injects for a given scenario")
+      description = "Get all endpoints used by injects for a given scenario",
+      deprecated = true)
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
-    return this.endpointService.endpointsForScenario(scenarioId);
+  // Deprecated: the UI stopped calling it when the inject form moved to the endpoints/find
+  // route, which loads only the selected ids. Kept for API clients until its removal.
+  @Deprecated(since = "3.261118.0", forRemoval = true)
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
+    return this.endpointService.endpointsForScenario(scenarioId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({

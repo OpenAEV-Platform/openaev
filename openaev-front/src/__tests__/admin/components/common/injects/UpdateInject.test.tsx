@@ -16,7 +16,15 @@ vi.mock('../../../../../actions/Inject', () => ({ fetchInject: vi.fn(() => ({ ty
 
 vi.mock('../../../../../actions/injects/inject-action', () => ({ fetchDocumentsPayloadByInject: vi.fn(() => Promise.resolve([])) }));
 
-vi.mock('../../../../../store', () => ({ useHelper: vi.fn((selector: (helper: { getInject: () => unknown }) => unknown) => selector({ getInject: () => currentInject })) }));
+vi.mock('../../../../../store', () => ({
+  useHelper: vi.fn((selector: (helper: {
+    getInject: () => unknown;
+    getPlatformSettings: () => unknown;
+  }) => unknown) => selector({
+    getInject: () => currentInject,
+    getPlatformSettings: () => ({}),
+  })),
+}));
 
 vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
 

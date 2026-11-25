@@ -1,6 +1,7 @@
 package io.openaev.api.asset.dto;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+import static io.openaev.utils.MarkingUtils.markingIds;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -60,6 +61,10 @@ public class AssetOutput {
   @JsonProperty("asset_tags")
   private Set<String> tags;
 
+  @Schema(description = "Marking definition ids carried by the asset")
+  @JsonProperty("asset_markings")
+  private Set<String> markings;
+
   @Schema(description = "Hostname (network-reachable assets)")
   @JsonProperty("asset_hostname")
   private String hostname;
@@ -88,6 +93,7 @@ public class AssetOutput {
         .subcategory(asset.getSubcategory())
         .criticality(asset.getCriticality())
         .tags(asset.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
+        .markings(markingIds(asset))
         .hostname(asset.getHostname())
         .platform(unproxied instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
         .aiTargetProvider(asset.getAiTargetProvider())

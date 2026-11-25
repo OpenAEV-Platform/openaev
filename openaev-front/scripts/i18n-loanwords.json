@@ -155,6 +155,7 @@
     "Port",
     "Ports",
     "Proxy",
+    "Radial",
     "Regex",
     "Region",
     "Router",
@@ -188,7 +189,12 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}",
+    "Revision #{number}",
+    "Revision",
+    "Variable {key}",
+    "Argument {key}"
   ],
   "es": [
     "{count} roles",
@@ -225,11 +231,13 @@
     "Phishing",
     "PowerPoint (editable)",
     "Proxy",
+    "Radial",
     "Tenants",
     "total",
     "Variables",
     "Vulnerable",
-    "Local"
+    "Local",
+    "Variable {key}"
   ],
   "fr": [
     "1 inject",
@@ -336,6 +344,7 @@
     "Questionnaire",
     "Questions",
     "Quota",
+    "Relations",
     "Scope",
     "Score",
     "score",
@@ -368,7 +377,9 @@
     "Version",
     "Vision",
     "~{count} injects",
-    "Local"
+    "Local",
+    "Variable {key}",
+    "Argument {key}"
   ],
   "it": [
     "1 inject",
@@ -413,7 +424,8 @@
     "Test",
     "Thin Client",
     "Video",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}"
   ],
   "ja": [],
   "ko": [],

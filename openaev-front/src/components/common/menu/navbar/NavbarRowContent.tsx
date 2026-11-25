@@ -17,6 +17,16 @@ import { type FunctionComponent, type ReactElement, type ReactNode } from 'react
 
 const iconSpanStyle = { display: 'inline-flex' } as const;
 
+// The icon tones of the library's `NavbarItem` icon span: secondary at rest,
+// primary on hover, focus and the current row, disabled last so it wins.
+const EXPANDED_ICON_TONES = [
+  'text-default-secondary',
+  'group-hover:text-default-primary',
+  'group-focus-visible:text-default-primary',
+  'group-[[aria-current=page]]:text-default-primary',
+  'group-data-[disabled]:text-default-disabled',
+].join(' ');
+
 interface RowProps {
   icon?: ReactElement;
   label: ReactNode;
@@ -29,7 +39,7 @@ export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, co
   <>
     {icon && (
       <span
-        className={`inline-flex shrink-0 ${collapsed ? 'text-default-primary mr-0.5' : 'text-default-secondary'}`}
+        className={`inline-flex shrink-0 ${collapsed ? 'text-default-primary mr-0.5' : EXPANDED_ICON_TONES}`}
         style={iconSpanStyle}
         aria-hidden="true"
       >

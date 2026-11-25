@@ -10,7 +10,7 @@ import { type FilterGroup, type NotificationTriggerInput, type NotificationTrigg
 import { isFeatureEnabled } from '../../../../utils/utils';
 import NotifierField from './NotifierField';
 import TriggerFilterField from './TriggerFilterField';
-import { buildTriggerTime, DIGEST_PERIODS, eventTypeLabel, eventTypesOf, parseTriggerTime, resourceTypeEntityPrefix, TRIGGER_RESOURCE_TYPES, WEEK_DAYS } from './triggerUtils';
+import { buildTriggerTime, DIGEST_PERIODS, eventTypeLabel, eventTypesOf, parseTriggerTime, resourceTypeEntityPrefix, triggerResourceTypes, WEEK_DAYS } from './triggerUtils';
 
 interface Props {
   triggerType: 'LIVE' | 'DIGEST';
@@ -138,7 +138,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                 setResourceType(next as NotificationTriggerInput['notification_trigger_resource_type']);
                 setFilters(undefined);
                 // Keep the checked events the new resource sends, else check its first one
-                const offered: string[] = eventTypesOf(next);
+                const offered: string[] = eventTypesOf(next, catalogEnabled);
                 setEventTypes((existing) => {
                   const kept = existing.filter(eventType => offered.includes(eventType));
                   return kept.length > 0 ? kept : offered.slice(0, 1);
@@ -151,7 +151,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                 <SelectValue placeholder={t('Resource type')} />
               </SelectTrigger>
               <SelectContent>
-                {TRIGGER_RESOURCE_TYPES.filter(option => option.value !== 'CATALOG_SYNC' || catalogEnabled).map(option => (
+                {triggerResourceTypes(catalogEnabled).map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {t(option.label)}
                   </SelectItem>
@@ -166,7 +166,7 @@ const TriggerForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            {eventTypesOf(resourceType).map(eventType => (
+            {eventTypesOf(resourceType, catalogEnabled).map(eventType => (
               <Checkbox
                 key={eventType}
                 checked={eventTypes.includes(eventType)}

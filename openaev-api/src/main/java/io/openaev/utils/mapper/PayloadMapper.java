@@ -121,6 +121,7 @@ public class PayloadMapper {
             contractElement ->
                 ContractOutputElementSimple.builder()
                     .id(contractElement.getId())
+                    .isFinding(contractElement.isFinding())
                     .rule(contractElement.getRule())
                     .name(contractElement.getName())
                     .key(contractElement.getKey())
@@ -131,7 +132,7 @@ public class PayloadMapper {
         .collect(Collectors.toSet());
   }
 
-  private Set<OutputParserSimple> toOutputParsersSimple(Set<OutputParser> outputParsers) {
+  public Set<OutputParserSimple> toOutputParsersSimple(Set<OutputParser> outputParsers) {
     return outputParsers.stream()
         .map(
             parser ->

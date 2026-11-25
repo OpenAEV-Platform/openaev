@@ -70,6 +70,7 @@ public class InjectMapper {
         primaryExpectations.isEmpty()
             ? new ArrayList<>(inject.getExpectations())
             : primaryExpectations;
+    List<HealthCheck> contentChecks = healthCheckUtils.runContentChecks(inject);
 
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
@@ -89,7 +90,8 @@ public class InjectMapper {
                 inject.getContent(),
                 expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
-        .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
+        .isReady(contentChecks.isEmpty())
+        .missingMandatoryFields(HealthCheckUtils.missingMandatoryFields(contentChecks))
         .updatedAt(inject.getUpdatedAt())
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())

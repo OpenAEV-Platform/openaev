@@ -400,11 +400,12 @@ class ScenarioServiceUnitTest {
 
       Scenario scenario = new Scenario();
       scenario.setId(scenarioId);
+      scenario.setTenant(new Tenant("tenant-1"));
       scenario.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
       when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
           .thenReturn(Optional.of(scenario));
-      when(teamRepository.findAllById(any()))
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
           .thenAnswer(
               invocation -> {
                 Iterable<String> ids = invocation.getArgument(0);
@@ -458,11 +459,13 @@ class ScenarioServiceUnitTest {
 
       Scenario scenario = new Scenario();
       scenario.setId(scenarioId);
+      scenario.setTenant(new Tenant("tenant-1"));
       scenario.setTeams(new ArrayList<>(List.of(existingTeam)));
 
       when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
           .thenReturn(Optional.of(scenario));
-      when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
+          .thenReturn(List.of(existingTeam));
       when(teamService.find(any())).thenReturn(List.of());
 
       scenarioService.replaceTeams(TxCtx.forTenant("tenant-1"), scenarioId, List.of("team-1"));

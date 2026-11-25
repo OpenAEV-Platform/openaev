@@ -29,6 +29,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.finding.FindingRetestSettlement;
 import io.openaev.utils.ExecutionTraceUtils;
 import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
@@ -65,6 +66,7 @@ public class InjectStatusService {
   private final ObjectMapper mapper;
 
   private final EntityManager entityManager;
+  private final FindingRetestSettlement findingRetestSettlement;
 
   private static final String NO_STATUS = "NONE";
   static final String LATE_REPORT_SUFFIX = "It reported later, see the next traces.";
@@ -198,6 +200,16 @@ public class InjectStatusService {
     injectStatus.getInject().setUpdatedAt(Instant.now());
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
     logInjectStatusTransition(injectStatus.getInject(), previousStatus, finalStatus, agent);
+    settleFindingRetests(injectStatus.getInject(), finalStatus);
+  }
+
+  /** Settles the findings this inject was re-testing, in the transaction that finalized it. */
+  private void settleFindingRetests(Inject inject, ExecutionStatus finalStatus) {
+    if (inject == null || inject.getId() == null || inject.getTenant() == null) {
+      return;
+    }
+    findingRetestSettlement.settleRetestsOf(
+        inject.getId(), inject.getTenant().getId(), finalStatus);
   }
 
   /**
@@ -425,6 +437,26 @@ public class InjectStatusService {
     injectStatus.setTrackingEndDate(Instant.now());
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
     return injectStatusRepository.save(injectStatus);
+  }
+
+  /**
+   * Stops an in-progress inject on a user's request: records the INTERRUPTED trace naming who
+   * stopped it, then finalizes the status as ERROR (tracking end date set, inject authorisation
+   * revoked) and streams the transition, like the simulation cancel does for its injects.
+   *
+   * @param inject the inject to stop, with a status in progress
+   * @param stoppedBy the name (or email) of the user who stopped it
+   * @return the finalized status
+   */
+  public InjectStatus interruptInjectStatus(@NotNull Inject inject, @NotNull String stoppedBy) {
+    InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
+    ExecutionStatus previousStatus = injectStatus.getName();
+    ExecutionTraceUtils.addAtomicTestingStoppedTrace(injectStatus, stoppedBy);
+    InjectStatus saved = finalizeAsError(injectStatus);
+    inject.setStatus(saved);
+    publishInjectStatusUpdate(inject);
+    logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
+    return saved;
   }
 
   public InjectStatus failInjectStatus(@NotNull Inject inject, @Nullable String message) {

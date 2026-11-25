@@ -42,7 +42,8 @@ class CatalogRevocationListenerTest {
         .execute(eq(ctx), any(Runnable.class));
 
     // Act
-    listener.onReleaseApplied(new CatalogReleaseApplied(TENANT_ID, "1.261110.0", List.of()));
+    listener.onReleaseApplied(
+        new CatalogReleaseApplied(TENANT_ID, "1.261110.0", false, List.of(), List.of()));
 
     // Assert
     InOrder order = inOrder(tenantScopedTransaction, payloadRevocationService);

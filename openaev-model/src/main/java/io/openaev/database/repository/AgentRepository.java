@@ -42,14 +42,12 @@ public interface AgentRepository
    * asset groups. Dynamic group membership is not covered here. Only ids are read: neither the
    * agent nor the inject is loaded.
    *
-   * <p>Native on purpose: a JPQL root on {@code Agent} or {@code Inject} would carry the v1 {@code
-   * tenantFilter}, which reads the {@code TenantContext} thread-local. That thread-local is only
-   * set on the tenant-prefixed routes, so on the non-prefixed implant routes it falls back to the
-   * default tenant and rejects a valid agent of any other tenant. The tenant scope here is the
-   * transaction's own ({@code TxCtx}): the v2-active {@code assets} and {@code asset_groups} are
-   * rewritten by the statement inspector, and the agent is bound to its asset's tenant explicitly
-   * since {@code agents} is still v1. {@code injects_assets} and {@code injects_asset_groups} are
-   * reached through the scoped assets and groups only.
+   * <p>Native on purpose: the tenant scope here is the transaction's own ({@code TxCtx}), not the
+   * {@code TenantContext} thread-local, which is only set on the tenant-prefixed routes and falls
+   * back to the default tenant on the non-prefixed implant routes. The v2-active {@code assets} and
+   * {@code asset_groups} are rewritten by the statement inspector, and the agent is bound to its
+   * asset's tenant explicitly. {@code injects_assets} and {@code injects_asset_groups} are reached
+   * through the scoped assets and groups only.
    */
   @Query(
       value =

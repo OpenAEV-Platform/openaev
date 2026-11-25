@@ -81,4 +81,9 @@ describe('useFdsThemeScope', () => {
     expect(document.documentElement.classList.contains('light')).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
+
+  it('sets no pastel class: the design system draws one chip style (1.13)', () => {
+    render(<Harness mode="dark" custom={{}} />);
+    expect(document.documentElement.classList.contains('pastel')).toBe(false);
+  });
 });

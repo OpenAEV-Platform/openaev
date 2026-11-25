@@ -12,10 +12,13 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
+import XtmCounterpartsEmblem from '../../../components/xtm/XtmCounterpartsEmblem';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
+import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingImpactSections from './FindingImpactSections';
 import { IMPACTED_ASSETS_ANCHOR } from './FindingImpactUtils';
@@ -30,6 +33,9 @@ const FindingOverview = () => {
   const theme = useTheme();
   const ability = useAbility();
   const { findingId } = useParams() as { findingId: string };
+  // The hero actions and the OpenCTI / OpenCRQ cards belong to the exploration graph preview
+  // feature (off by default); off, the page is the one shipped before it.
+  const graphEnabled = useExplorationGraph();
 
   const [finding, setFinding] = useState<FindingOutput | null>(null);
   // Group-wide aggregates are computed server-side: a Finding row is ONE
@@ -85,6 +91,13 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
+        action={(isCVE || graphEnabled) ? (
+          <>
+            {/* The single XTM One emblem first (its own XTM_COUNTERPARTS flag), then the graph. */}
+            {isCVE && <XtmCounterpartsEmblem kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {graphEnabled && <ExploreInGraphButton type="FINDING" entityId={findingId} />}
+          </>
+        ) : undefined}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}

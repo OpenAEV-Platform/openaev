@@ -29,12 +29,15 @@ public class SchemaApi extends RestBehavior {
    *   <li>{@code InjectExpectation} keeps backward compatibility after class rename.
    *   <li>{@code Credential} is an alias mapped to {@code
    *       io.openaev.database.model.CredentialSecretReference}.
+   *   <li>{@code CatalogPayload} and {@code CatalogScenario} live in the {@code catalog} package.
    * </ul>
    */
   private static final Map<String, String> ENTITY_CLASS_ALIASES =
       Map.of(
           "InjectExpectation", "io.openaev.database.model.BaseInjectExpectation",
-          "Credential", "io.openaev.database.model.CredentialSecretReference");
+          "Credential", "io.openaev.database.model.CredentialSecretReference",
+          "CatalogPayload", "io.openaev.database.model.catalog.CatalogPayload",
+          "CatalogScenario", "io.openaev.database.model.catalog.CatalogScenario");
 
   private final EngineContext engineContext;
 

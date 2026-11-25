@@ -1,5 +1,5 @@
 import { Button } from '@filigran/design-system';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent } from 'react';
 
 import type { DomainHelper } from '../../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
@@ -10,7 +10,7 @@ import { type Domain } from '../../../../utils/api-types';
 import { domainsOf } from '../../../../utils/domains/domainUtils';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import ScenarioLaunchDrawer from '../launch/ScenarioLaunchDrawer';
+import useScenarioLaunch from '../launch/useScenarioLaunch';
 import ScenarioPopover from '../scenario/ScenarioPopover';
 import ScenarioStatus from '../scenario/ScenarioStatus';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
@@ -28,7 +28,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
   const lastRunAt = scenario.scenario_last_run_at;
   const catalog = isFeatureEnabled('CATALOG');
   const { canLaunch } = useScenarioPermissions(scenario.scenario_id);
-  const [launching, setLaunching] = useState(false);
+  const { launch, launchDrawer } = useScenarioLaunch();
 
   return (
     <>
@@ -63,7 +63,18 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
             gap: 4,
           }}
           >
-            {catalog && canLaunch && <Button size="sm" onClick={() => setLaunching(true)}>{t('Launch')}</Button>}
+            {catalog && canLaunch && (
+              <Button
+                size="sm"
+                onClick={() => launch({
+                  scenarioId: scenario.scenario_id,
+                  name: scenario.scenario_name,
+                  type: scenarioTypeOf(scenario),
+                })}
+              >
+                {t('Launch')}
+              </Button>
+            )}
             <ScenarioPopover
               scenario={scenario}
               actions={['Duplicate', 'Export', 'Delete']}
@@ -74,7 +85,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
         )}
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
       />
-      {launching && <ScenarioLaunchDrawer scenario={scenario} onClose={() => setLaunching(false)} />}
+      {launchDrawer}
     </>
   );
 };

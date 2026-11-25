@@ -101,6 +101,15 @@ public class InjectResultOverviewOutput {
   // -- COMPUTED ATTRIBUTES --
 
   @Builder.Default
+  @Schema(
+      description =
+          "Keys of the injector contract's mandatory fields this inject leaves empty: the reasons"
+              + " it is not ready (empty when it is ready)")
+  @JsonProperty("inject_missing_mandatory_fields")
+  @NotNull
+  private List<String> missingMandatoryFields = new ArrayList<>();
+
+  @Builder.Default
   @Schema(description = "Result of expectations")
   @JsonProperty("inject_expectation_results")
   @NotNull

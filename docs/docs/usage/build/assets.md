@@ -115,6 +115,31 @@ tagged `Workplace`.
 
 ![Example of a Group configuration](assets/assetsgroup_creation.png)
 
+{% if feature_visible("EXPLORATION_GRAPH") %}
+## Asset links
+
+A link records how two Assets relate, so the [exploration graph](../run-and-evaluate/exploration-graph.md) can
+follow it as a **Linked to** edge. Example: a web server depends on a domain controller.
+
+The **Linked assets** section of an Asset's overview lists its links in both directions. Click **Manage links** to add
+or remove one: pick the link type, then the linked Asset, searched by name in the whole inventory.
+
+| Link type | Meaning, read from the Asset to the linked Asset |
+|:----------|:--------------------------------------------------|
+| **Connects to** | Reaches the linked Asset over the network |
+| **Depends on** | Needs the linked Asset to work |
+| **Hosts** | Runs the linked Asset on its own hardware or hypervisor |
+| **Logged on** | Has a user session open on the linked Asset |
+| **Runs on** | Is installed and executed on the linked Asset |
+| **Uses** | Calls a service the linked Asset provides |
+
+An Asset can only be linked to another Asset of the same Tenant. Seeing the links needs the right to read the Asset,
+changing them the right to manage it. Deleting an Asset deletes its links.
+
+The Asset page also has a **Graph** tab that shows the Asset and its neighbours, and an **Explore in graph** button
+that opens the full graph focused on it.
+
+{% endif %}
 ## Security platforms
 
 Some integrations in OpenAEV are connected to your security platforms, such as Microsoft Sentinel, Microsoft Defender,
@@ -133,4 +158,7 @@ security platform integration is not yet available, you can create it manually h
 - [People](people.md) -- Manage Players and Teams
 {%- if feature_visible("CREDENTIAL_ASSET") %}
 - [Credentials](credentials.md) -- Store the secrets your Injects authenticate with
+{%- endif %}
+{%- if feature_visible("EXPLORATION_GRAPH") %}
+- [Exploration graph](../run-and-evaluate/exploration-graph.md) -- Follow how your Assets connect
 {%- endif %}

@@ -12,8 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -27,8 +26,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,15 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @DisplayName("XTM Composer connector-instance endpoints need a platform capability")
-class XtmComposerConnectorInstancesAuthorizationTest extends IntegrationTest {
+class XtmComposerConnectorInstancesAuthorizationTest extends ProductionTablesIntegrationTest {
 
   private static final String REGISTERED_ID = "registered-composer";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private PlatformSettingsService platformSettingsService;

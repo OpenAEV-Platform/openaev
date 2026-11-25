@@ -1,4 +1,3 @@
-import { Checkbox } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -69,14 +68,12 @@ const ScenarioPopover: FunctionComponent<Props> = ({
 
   // Deletion
   const [deletion, setDeletion] = useState(false);
-  const [keepFindings, setKeepFindings] = useState(false);
   const handleOpenDelete = () => {
-    setKeepFindings(false);
     setDeletion(true);
   };
   const handleCloseDelete = () => setDeletion(false);
   const submitDelete = () => {
-    dispatch(deleteScenario(scenario.scenario_id, keepFindings)).then(() => {
+    dispatch(deleteScenario(scenario.scenario_id)).then(() => {
       handleCloseDelete();
       if (onDelete) onDelete(scenario.scenario_id);
     });
@@ -171,15 +168,6 @@ const ScenarioPopover: FunctionComponent<Props> = ({
             handleClose={handleCloseDelete}
             handleSubmit={submitDelete}
             text={`${t('Do you want to delete this scenario:')} ${scenario.scenario_name} ?`}
-            extraContent={(
-              <div className="mt-4">
-                <Checkbox
-                  checked={keepFindings}
-                  label={t('Keep the findings it produced, detached from it')}
-                  onCheckedChange={checked => setKeepFindings(checked === true)}
-                />
-              </div>
-            )}
           />
         )}
     </>

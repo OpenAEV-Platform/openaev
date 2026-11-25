@@ -113,7 +113,20 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
   }
 
   private Inject persistInject() {
-    return injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+    InjectComposer.Composer composer = injectComposer.forInject(InjectFixture.getDefaultInject());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, composer::persist);
+    return composer.get();
+  }
+
+  /** Deletes the inject in the scope of the tenant that owns it, as the API does. */
+  private void deleteInject(String injectId) {
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          if (injectRepository.existsById(injectId)) {
+            injectRepository.deleteById(injectId);
+          }
+        });
   }
 
   /**
@@ -126,8 +139,8 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
     if (user != null && userRepository.existsById(user.getId())) {
       userRepository.deleteById(user.getId());
     }
-    if (inject != null && injectRepository.existsById(inject.getId())) {
-      injectRepository.deleteById(inject.getId());
+    if (inject != null) {
+      deleteInject(inject.getId());
     }
     if (step != null) {
       String workflowId = step.getWorkflow().getId();
@@ -388,7 +401,7 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       inDefaultScopeDo(
           () -> assertThat(phishingResultRepository.findById(created.getId())).isPresent());
 
-      injectRepository.deleteById(inject.getId());
+      deleteInject(inject.getId());
 
       inDefaultScopeDo(
           () -> assertThat(phishingResultRepository.findById(created.getId())).isEmpty());
