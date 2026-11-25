@@ -1,6 +1,6 @@
 type Comparator<T> = (a: T, b: T) => number;
 
-const compare = (a: unknown, b: unknown): number => {
+export const compare = (a: unknown, b: unknown): number => {
   if ((a as number) < (b as number)) return -1;
   if ((a as number) > (b as number)) return 1;
   return 0;
