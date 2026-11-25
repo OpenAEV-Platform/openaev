@@ -10,6 +10,7 @@ import io.openaev.utils.SensitiveValueMaskingUtils;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -18,16 +19,18 @@ import org.springframework.util.StringUtils;
 public class FindingHandler implements Handler<EsFinding> {
 
   private FindingRepository findingRepository;
-  private AssetGroupMembershipResolver assetGroupMembershipResolver;
+  private ObjectProvider<AssetGroupMembershipResolver> assetGroupMembershipResolver;
 
   @Autowired
   public void setFindingRepository(FindingRepository findingRepository) {
     this.findingRepository = findingRepository;
   }
 
+  // Resolved at first use: the resolver's beans depend on the search engine, built with this
+  // handler.
   @Autowired
   public void setAssetGroupMembershipResolver(
-      AssetGroupMembershipResolver assetGroupMembershipResolver) {
+      ObjectProvider<AssetGroupMembershipResolver> assetGroupMembershipResolver) {
     this.assetGroupMembershipResolver = assetGroupMembershipResolver;
   }
 
@@ -65,7 +68,7 @@ public class FindingHandler implements Handler<EsFinding> {
     if (assetIds.isEmpty()) {
       return Map.of();
     }
-    return assetGroupMembershipResolver.assetGroupIdsByAssetId(assetIds);
+    return assetGroupMembershipResolver.getObject().assetGroupIdsByAssetId(assetIds);
   }
 
   /**
