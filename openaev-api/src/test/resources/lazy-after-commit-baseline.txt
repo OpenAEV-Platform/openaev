@@ -1247,13 +1247,13 @@ SimulationInjectApi.updateInjectTrigger -> Communication.users | NOT ESTABLISHED
 SimulationInjectApi.updateInjectTrigger -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.updateInjectTrigger -> Inject.tags | ATTENUATED | fixed by the response hydration of tags and documents
-TeamApi.createTeam -> Team.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.createTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
-TeamApi.createTeam -> Team.getScenariosInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.createTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.createTeam -> Team.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.createTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.createTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.createTeam -> Team.exercises | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.getExercisesInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.getScenariosInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.getUsersNumber() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.scenarios | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.tags | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.createTeam -> Team.users | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
 TeamApi.getTeam -> Team.exercises | ATTENUATED | fixed for #8800: loaded inside the scoped transaction
 TeamApi.getTeam -> Team.getExercisesInjects() | ATTENUATED | fixed for #8816: loaded inside the scoped transaction
 TeamApi.getTeam -> Team.getScenariosInjects() | ATTENUATED | fixed for #8816: loaded inside the scoped transaction
@@ -1266,27 +1266,27 @@ TeamApi.getTeamPlayers -> User.tags | ATTENUATED | fixed in #8401: loaded inside
 TeamApi.getTeamPlayers -> User.teams | ATTENUATED | fixed in #8401: loaded inside the scoped transaction
 TeamApi.getTeams -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 TeamApi.getTeams -> Communication.users | NOT ESTABLISHED | not written by any measured test response
-TeamApi.updateTeam -> Team.exercises | ATTENUATED | measured with exercises and scenarios isolated: the update event serializes the team inside the transaction
-TeamApi.updateTeam -> Team.getExercisesInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
-TeamApi.updateTeam -> Team.getScenariosInjects() | NOT ESTABLISHED | written while lazy, no gated read recorded
-TeamApi.updateTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.updateTeam -> Team.scenarios | ATTENUATED | measured with exercises and scenarios isolated: the update event serializes the team inside the transaction
-TeamApi.updateTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.updateTeam -> Team.users | NOT ESTABLISHED | written while lazy, no gated read recorded
-TeamApi.updateTeamUsers -> Team.exercises | ATTENUATED | measured with exercises and scenarios isolated: the update event serializes the team inside the transaction
-TeamApi.updateTeamUsers -> Team.getExercisesInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
-TeamApi.updateTeamUsers -> Team.getScenariosInjects() | NOT ESTABLISHED | read after the commit, but no test row to lose
-TeamApi.updateTeamUsers -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.updateTeamUsers -> Team.scenarios | ATTENUATED | measured with exercises and scenarios isolated: the update event serializes the team inside the transaction
-TeamApi.updateTeamUsers -> Team.tags | ATTENUATED | measured: the update event serializes the team inside the transaction
-TeamApi.updateTeamUsers -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.exercises | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.getExercisesInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.getScenariosInjects() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.getUsersNumber() | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.scenarios | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-TeamApi.upsertTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
+TeamApi.updateTeam -> Team.exercises | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.getExercisesInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.getScenariosInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.getUsersNumber() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.scenarios | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.tags | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeam -> Team.users | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.exercises | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.getExercisesInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.getScenariosInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.getUsersNumber() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.scenarios | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.tags | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.updateTeamUsers -> Team.users | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.exercises | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.getExercisesInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.getScenariosInjects() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.getUsersNumber() | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.scenarios | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.tags | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
+TeamApi.upsertTeam -> Team.users | ATTENUATED | fixed in #9825: loaded inside the scoped transaction
 TenantSettingsApi.homeDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
 UserApi.changePasswordReset -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
 UserApi.changePasswordReset -> User.tags | ATTENUATED | fixed by the response hydration of teams and tags
