@@ -19,17 +19,23 @@ const useContentHistory = <T extends ContentChangeOutput>(
 ): ContentHistory<T> => {
   const pagination = useLocalPaginationState();
   const { page, elementsPerPage: size, handleChangeTotalElements } = pagination;
-  const [entries, setEntries] = useState<T[] | null>(null);
+  // The last page read, kept on screen while the next one loads; another content starts empty.
+  const [loaded, setLoaded] = useState<{
+    id: string;
+    entries: T[];
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setEntries(null);
     searchHistory(id, {
       page,
       size,
     }).then(({ data }) => {
       if (!cancelled) {
-        setEntries(data.content);
+        setLoaded({
+          id,
+          entries: data.content,
+        });
         handleChangeTotalElements(data.totalElements);
       }
     });
@@ -39,7 +45,7 @@ const useContentHistory = <T extends ContentChangeOutput>(
   }, [id, reload, page, size]);
 
   return {
-    entries,
+    entries: loaded?.id === id ? loaded.entries : null,
     pagination,
   };
 };
