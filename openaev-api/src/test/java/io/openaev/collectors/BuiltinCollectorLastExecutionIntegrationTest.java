@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -25,7 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -35,14 +37,20 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>The class is deliberately NOT {@code @Transactional}: the expiration job opens one top-level
  * transaction per tenant and refuses to run inside an active one, as in production. The rows are
- * committed in their own tenant and removed with it.
+ * committed in their own tenant and removed with it. The class arms the production activation list,
+ * whose terminal {@code *} covers the collectors table.
  */
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=collectors")
 @DisplayName("Built-in collectors report the last execution of their runs")
 class BuiltinCollectorLastExecutionIntegrationTest extends IntegrationTest {
 
   private static final String TENANT_COLLECTORS_URI = "/api/tenants/{tenantId}/collectors";
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
