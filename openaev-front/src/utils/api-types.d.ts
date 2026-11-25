@@ -7197,7 +7197,12 @@ export interface ImportReportRow {
   import_row_params: Record<string, string>;
   /** @format int32 */
   import_row_position: number;
-  import_row_reason?: "MISSING_FIELD" | "VALUE_TOO_LONG" | "INVALID_VALUE" | "CONFLICT" | "INSUFFICIENT_ACCESS";
+  import_row_reason?:
+    | "MISSING_FIELD"
+    | "VALUE_TOO_LONG"
+    | "INVALID_VALUE"
+    | "CONFLICT"
+    | "INSUFFICIENT_ACCESS";
   import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
   import_row_values: Record<string, string>;
 }
@@ -8934,14 +8939,20 @@ export interface MarkingDefinitionInput {
    * @pattern ^#[0-9a-fA-F]{6}$
    */
   marking_definition_color: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_definition: string;
   /**
    * @format int32
    * @min 0
    */
   marking_definition_order: number;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_type: string;
 }
 
