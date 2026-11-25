@@ -6,7 +6,9 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.database.model.Filters;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -92,7 +94,11 @@ public class PropertySchema {
   /** Multiple possible JPA paths for this property. */
   private final String[] paths;
 
-  /** Whether this is an Elasticsearch keyword field. */
+  /**
+   * Whether {@code @EsQueryable(keyword = true)} was declared. Read it through {@link
+   * #isKeyword()}, which only answers true for a string-valued property.
+   */
+  @Getter(NONE)
   private final boolean keyword;
 
   /** Nested property schemas for complex types. */
@@ -106,6 +112,45 @@ public class PropertySchema {
    */
   public String getJsonName() {
     return Optional.ofNullable(this.jsonName).orElse(this.name);
+  }
+
+  /**
+   * Whether the engine field has a {@code .keyword} subfield to target for exact matches, sorts and
+   * term aggregations.
+   *
+   * <p>The engine drivers only give a {@code keyword} subfield to string properties ({@code String}
+   * or a collection of {@code String}, mapped as {@code text}); a boolean, number or date property
+   * is mapped as its own type with no subfield. A {@code keyword = true} declared on such a property
+   * would make every filter, sort and histogram target a missing field and silently match nothing,
+   * so it is ignored here.
+   *
+   * @return {@code true} when the property is declared keyword and is string-valued
+   */
+  public boolean isKeyword() {
+    return this.keyword && isStringValued();
+  }
+
+  /**
+   * Whether the property holds strings: {@code String}, or a collection or array of {@code String}.
+   *
+   * @return {@code true} for a string-valued property
+   */
+  public boolean isStringValued() {
+    if (this.type == null) {
+      return false;
+    }
+    if (String.class.equals(this.type)) {
+      return true;
+    }
+    if (this.type.isArray()) {
+      return String.class.equals(this.type.getComponentType());
+    }
+    if (Collection.class.isAssignableFrom(this.type)
+        && this.subtype instanceof ParameterizedType parameterized) {
+      Type[] arguments = parameterized.getActualTypeArguments();
+      return arguments.length == 1 && String.class.equals(arguments[0]);
+    }
+    return false;
   }
 
   /** Represents join table configuration for many-to-many relationships. */
