@@ -217,8 +217,10 @@ Full rules: [copilot-instructions.md → PR description format](.github/copilot-
 
 ## Agent Maintenance Rule
 
-> **When you modify a `.github/instructions/*.md` file, you must update the corresponding
-> `.github/agents/*.agent.md` file in the same PR.**
+> **Rules live only in `.github/instructions/*.md`**: the automatic Copilot review reads them, it does not run the
+> agents. An `.agent.md` file or a skill holds the procedure and links to the instruction section, never a copy
+> of a rule. When you modify an instruction file, check the corresponding agent below in the same PR and remove
+> any copy that now differs.
 
 The mapping is:
 | Instruction file | Agent to update |

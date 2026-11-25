@@ -51,9 +51,6 @@ Then:
 | **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
 | **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
 | **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only, no `/api/...` alias |
-| **Search before writing** | New method, helper, constant, enum or composer that already exists in the codebase? |
-| **One hook** | Same rule (refuse, clean up) called in each service that saves or deletes an entity instead of one JPA listener or DB trigger? |
-| **Repository** | New repository extends `Repository<T, ID>` with only the methods it uses (no inherited `findAll()`/`deleteAll()`)? |
 | **No unused code** | Every class, method, field and constant added has a caller in the PR? No default or option nobody decided? |
 | **One role per service** | Service split by job and transaction rule? Long methods read as named steps, no generic machinery? |
 | **Mapping** | Input → entity and entity → output copied in a mapper, DTOs in `api/{feature}/dto`? |
@@ -74,8 +71,6 @@ Then:
 | **Dead code** | Unused imports, commented-out blocks, unreachable branches |
 | **Complexity** | Methods >30 lines, >3 levels of nesting, >4 parameters |
 | **Duplication** | Copy-pasted logic that should be extracted |
-| **Fail fast** | Logs an error and goes on where it should throw? |
-| **History in comments** | Ticket, story or change log in a comment → 🟡 `suggestion:` remove it |
 | **Javadoc** | Paraphrases the signature (`/** Updates a tenant. */`) → 🟡 `suggestion:` remove it. Keep only side effects, thrown exceptions, non-obvious behaviour |
 | **Null safety** | Proper use of `Optional`, null checks on external inputs |
 | **Immutability** | Prefer `final` fields, records for DTOs, unmodifiable collections |
