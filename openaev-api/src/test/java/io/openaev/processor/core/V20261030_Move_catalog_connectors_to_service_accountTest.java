@@ -53,13 +53,13 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
     configurationComposer.reset();
   }
 
-  /** Persists a connector instance in the current tenant, holding {@code token}. */
-  private ConnectorInstanceConfiguration givenInstanceHoldingToken(String token)
+  /** Persists a connector instance of {@code tenantId}, holding {@code token}. */
+  private ConnectorInstanceConfiguration givenInstanceHoldingToken(String tenantId, String token)
       throws JsonProcessingException {
     ConnectorInstanceConfiguration tokenConfiguration =
         createConnectorInstanceConfiguration(OPENAEV_KEY_TOKEN, token);
     connectorInstanceComposer
-        .forConnectorInstance(createDefaultConnectorInstance())
+        .forConnectorInstance(createDefaultConnectorInstance(tenantId))
         .withCatalogConnector(
             catalogConnectorComposer.forCatalogConnector(
                 createDefaultCatalogConnectorManagedByXtmComposer(
@@ -87,7 +87,8 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
   void given_instanceHoldingDeployerToken_should_moveItToServiceAccountToken()
       throws JsonProcessingException {
     // Arrange
-    ConnectorInstanceConfiguration tokenConfiguration = givenInstanceHoldingToken(DEPLOYER_TOKEN);
+    ConnectorInstanceConfiguration tokenConfiguration =
+        givenInstanceHoldingToken(Tenant.DEFAULT_TENANT_UUID, DEPLOYER_TOKEN);
     entityManager.flush();
     entityManager.clear();
 
@@ -122,11 +123,11 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
   @DisplayName("Leaves the connector instances of another tenant untouched")
   void given_instanceInAnotherTenant_should_keepItsToken() throws Exception {
     // Arrange
-    givenInstanceHoldingToken(DEPLOYER_TOKEN);
+    givenInstanceHoldingToken(Tenant.DEFAULT_TENANT_UUID, DEPLOYER_TOKEN);
     Tenant otherTenant = tenantIsolationHelper.createTenant("Other tenant");
     tenantIsolationHelper.switchToTenant(otherTenant.getId(), entityManager);
     ConnectorInstanceConfiguration otherTenantConfiguration =
-        givenInstanceHoldingToken("other-tenant-token");
+        givenInstanceHoldingToken(otherTenant.getId(), "other-tenant-token");
     tenantIsolationHelper.switchToTenant(Tenant.DEFAULT_TENANT_UUID, entityManager);
 
     // Act

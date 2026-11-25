@@ -708,6 +708,49 @@ public class ExecutorApiTest extends IntegrationTest {
                   .accept(MediaType.TEXT_PLAIN_VALUE))
           .andExpect(status().is2xxSuccessful());
     }
+
+    @Test
+    @DisplayName("Given an installation directory able to alter the script, should return 400")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUnsafeInstallationDir_shouldReturnBadRequest() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("installationDir", "/opt/openaev\"; echo unsafe; #")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Given a service name outside the agent family, should return 400")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUnsafeServiceName_shouldReturnBadRequest() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("serviceName", "sshd")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Given a plain installation directory and service name, should use them")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenPlainInstallationDirAndServiceName_shouldReturnInstallerCommand() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("installationDir", "/opt/openaev-custom")
+                  .param("serviceName", "openaev-custom")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
   }
 
   @Nested

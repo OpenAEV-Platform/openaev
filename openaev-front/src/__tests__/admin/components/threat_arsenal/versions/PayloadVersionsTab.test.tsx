@@ -4,16 +4,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import PayloadVersionsTab from '../../../../../admin/components/threat_arsenal/versions/PayloadVersionsTab';
 import { aUsage, aVersion, renderInApp, someUsages } from '../threatArsenalTestUtils';
 
-const { keep, showAgain, can } = vi.hoisted(() => ({
+const { keep, showAgain, can, changes } = vi.hoisted(() => ({
   keep: vi.fn(),
   showAgain: vi.fn(),
   can: vi.fn(() => false),
+  // What v2 changed: its command.
+  changes: vi.fn(() => Promise.resolve({
+    data: [{
+      change_field: 'command_content',
+      change_before: 'mimikatz v1',
+      change_after: 'mimikatz v2',
+    }],
+  })),
 }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   keepThreatArsenalOlderVersions: keep,
   showThreatArsenalOlderVersions: showAgain,
   moveThreatArsenalUsages: vi.fn(),
+  fetchThreatArsenalVersionChanges: changes,
 }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can }) }));
 
@@ -102,7 +111,7 @@ describe('PayloadVersionsTab', () => {
 
   describe('injects on older versions', () => {
     const KEPT = 'Kept on their version. The card\'s banner returns with the next version.';
-    const OLDER = '1 inject still uses an older version. Move them below, or keep them where they are.';
+    const OLDER = '1 inject still uses v1. Move it below, or keep it where it is.';
 
     it('given injects on an older version should count them and keep them on their version', async () => {
       // Arrange
@@ -112,7 +121,7 @@ describe('PayloadVersionsTab', () => {
       expect(await screen.findByText(OLDER)).toBeTruthy();
 
       // Act
-      fireEvent.click(screen.getByText('Keep them on their version'));
+      fireEvent.click(screen.getByText('Keep it on v1'));
 
       // Assert
       expect(await screen.findByText(KEPT)).toBeTruthy();
@@ -149,7 +158,7 @@ describe('PayloadVersionsTab', () => {
 
       // Assert
       expect(await screen.findByText(OLDER)).toBeTruthy();
-      expect(screen.queryByText('Keep them on their version')).toBeNull();
+      expect(screen.queryByText('Keep it on v1')).toBeNull();
     });
 
     it('given no inject on an older version should say nothing', async () => {
@@ -192,6 +201,35 @@ describe('PayloadVersionsTab', () => {
       expect(await screen.findByText('Old inject')).toBeTruthy();
       expect(await screen.findByText('1 selected')).toBeTruthy();
       expect(screen.queryByText('Dump credentials')).toBeNull();
+    });
+
+    it('given opened right after a save should say what was saved and tick nothing', async () => {
+      // Arrange
+      can.mockReturnValue(true);
+      Element.prototype.scrollIntoView = vi.fn();
+
+      // Act
+      renderInApp(
+        <PayloadVersionsTab
+          versions={[{
+            ...latest,
+            payload_revoked: false,
+          }, older]}
+          usages={usages}
+          onMoved={vi.fn()}
+          focusMove
+          saved
+        />,
+      );
+
+      // Assert
+      expect(await screen.findByText(`Saved as v2. ${OLDER}`)).toBeTruthy();
+      expect(await screen.findByText('Old inject')).toBeTruthy();
+      expect(screen.queryByText('1 selected')).toBeNull();
+      expect(screen.getByRole('button', { name: /What changed in v2/ })).toBeTruthy();
+      expect(await screen.findByText('Before · v1')).toBeTruthy();
+      expect(screen.getByText('After · v2')).toBeTruthy();
+      expect(screen.getByRole('group', { name: /Command/ })).toBeTruthy();
     });
   });
 });

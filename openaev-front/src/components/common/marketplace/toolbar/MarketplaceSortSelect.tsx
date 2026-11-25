@@ -31,27 +31,22 @@ const MarketplaceSortSelect: FunctionComponent<Props> = ({ sortHelpers, options,
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       gap: 4,
       marginLeft: 8,
       flexShrink: 0,
     }}
     >
+      {/* The label beside its field, the DS Select's labelPosition (RULE-13). */}
       <Select
         value={value}
         onValueChange={next => handleFieldChange(next)}
+        labelPosition="left"
       >
-        {/* Select renders no wrapper: the label sits above its trigger in a column. */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        >
-          <SelectLabel>{t('Sort by')}</SelectLabel>
-          <SelectTrigger>
-            <SelectValue placeholder={t('Sort by')} />
-          </SelectTrigger>
-        </div>
+        <SelectLabel>{t('Sort by')}</SelectLabel>
+        <SelectTrigger>
+          <SelectValue placeholder={t('Sort by')} />
+        </SelectTrigger>
         <SelectContent>
           {options.map(option => (
             <SelectItem key={option.field} value={option.field}>

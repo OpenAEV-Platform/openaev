@@ -129,9 +129,16 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
+    return getConnectorInstance(Tenant.DEFAULT_TENANT_UUID, catalogConnector, configurationsValues);
+  }
+
+  private ConnectorInstancePersisted getConnectorInstance(
+      String tenantId,
+      CatalogConnector catalogConnector,
+      Set<ConnectorInstanceConfiguration> configurationsValues) {
     ConnectorInstanceComposer.Composer builder =
         connectorInstanceComposer
-            .forConnectorInstance(createDefaultConnectorInstance())
+            .forConnectorInstance(createDefaultConnectorInstance(tenantId))
             .withCatalogConnector(catalogConnectorComposer.forCatalogConnector(catalogConnector));
     for (ConnectorInstanceConfiguration configValue : configurationsValues) {
       builder =
@@ -1335,7 +1342,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();
@@ -1364,7 +1371,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();
@@ -1404,7 +1411,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();

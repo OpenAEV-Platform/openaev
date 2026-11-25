@@ -52,9 +52,9 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.scenario.ScenarioRevision;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioRevisionRepository;
@@ -134,7 +134,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private VariableService variableService;
-  @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioRevisionRepository scenarioRevisionRepository;
@@ -582,9 +582,9 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           .containsExactly(tuple("target", TARGET));
       assertThat(installedVersion(scenario)).isEqualTo(NEWER);
       assertThat(revisionId(scenario, ScenarioRevision.Reason.UPDATE)).isNotBlank();
-      assertThat(catalogHistoryRepository.findAll())
-          .extracting(CatalogHistory::getAction)
-          .contains(CatalogHistory.Action.UPDATE);
+      assertThat(contentChangeRepository.findAll())
+          .extracting(ContentChange::getAction)
+          .contains(ContentChange.Action.UPDATE);
     }
 
     @Test

@@ -20,13 +20,13 @@ description: >-
 
 ## Procedure
 
-### Step 1 — Find the next version number
+### Step 1 — Name the migration
 
 ```bash
 ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5
 ```
 
-Pattern: `V4_{XX}__Description.java` — increment `XX`.
+Follow [migration.instructions.md › Naming Convention](../../../.github/instructions/migration.instructions.md#naming-convention).
 
 ### Step 2 — Create the migration class
 

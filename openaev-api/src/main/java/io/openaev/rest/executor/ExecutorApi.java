@@ -446,7 +446,9 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(
             responseCode = "200",
             description = "Successfully generated the install command."),
-        @ApiResponse(responseCode = "400", description = "Invalid platform specified."),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid platform, installation directory or service name specified."),
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
   @GetMapping(
@@ -475,6 +477,14 @@ public class ExecutorApi extends RestBehavior {
     String resolvedPlatform =
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
+
+    // Answered here with a plain status rather than through the generic IllegalArgumentException
+    // handler: this endpoint produces text/plain, which that JSON handler cannot write.
+    if (!AgentUtils.areSafeAgentScriptInputs(resolvedPlatform, installationDir, serviceName)) {
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.BAD_REQUEST,
+          "Invalid installation directory or service name");
+    }
 
     // FIND TOKEN BY TENANT
     String token =

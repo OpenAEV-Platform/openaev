@@ -185,7 +185,8 @@ public class PayloadUtils {
         "source",
         "collectorType",
         "version",
-        "base");
+        "base",
+        "revoked");
     duplicate.setAuthor(origin.getAuthor() == null ? null : origin.getAuthor().copy());
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));

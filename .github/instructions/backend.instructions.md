@@ -16,7 +16,9 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 ## Scope of a Pull Request
 
 - **No unused code**: every class, method, field and constant a PR adds has a caller in that PR. What a
-  later step needs comes with that step.
+  later step needs comes with that step. No commented-out block, no unreachable branch.
+- **Search before writing**: reuse the existing method, helper, constant, enum or composer before adding one;
+  when two places need the same code, extract one shared version.
 - **No undecided concept**: no default value, option or notion nobody asked for (a "stable" channel, an
   `isOffered()` that also accepts `null`). Add it when the need is real.
 
@@ -64,6 +66,7 @@ For each entity exposed via REST, create these files in `io.openaev.api.{feature
 - **`{Entity}Mapper.java`** — Utility class with `private` constructor, static methods `toOutput(Entity)` and optionally `fromInput(String id, Input)`. A `@Component` only when it needs another bean (e.g. `ObjectMapper`)
 
 Copying an input into an entity, or an entity into an output, belongs in the mapper, never in a service.
+The mapper fills every output field: no silent `null`.
 
 ```java
 // DTOs — immutable Java record
@@ -126,7 +129,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
 - Organize methods with section comments in this order: `// -- LIST --`, `// -- SEARCH --`, `// -- CREATE --`, `// -- UPDATE --`, `// -- DELETE --`, `// -- OPTIONS --`
-- Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules
+- Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules; throw instead of logging and going on
 - **Resolving associations from IDs**: use `ReferenceResolver.resolve(ids, Entity.class, repo::countByIdIn)` — never loop `findById()` (see `performance.instructions.md`)
 - **One role per service**: split a service whose methods have different jobs or transaction rules
   (check files outside a transaction, write in one, list read-only)
@@ -135,6 +138,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
   existing aggregate service
 - **A long method reads like a recipe**: named private steps (`latestRelease`, `refuseIfOlder`, `saveItems`),
   plain loops; no generic `Supplier`/`Consumer` machinery to save a few lines
+- **One hook, not one call per service**: a rule every save or delete of an entity needs (refuse, clean up)
+  goes in one JPA listener or DB trigger, not in each service that writes it
 - **A rule that depends on a type lives on its enum** (e.g. the resource an event type is limited to), not
   in a chain of `if` in a service
 - **Notifications go through the notification engine**: add the resource to `NotificationResourceCatalog`
@@ -142,7 +147,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 
 ## Repositories
 
-- Use `JpaRepository` instead of `CrudRepository`
+- New repositories extend `Repository<T, ID>` and declare only the methods they use (no inherited `findAll()`/`deleteAll()`); existing ones are not migrated
 - Extend `JpaSpecificationExecutor` for entities that need search/filtering
 
 ## Lombok
@@ -151,16 +156,24 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Entities: `@Getter @Setter` (not `@Data`)
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
+- Logging: `@Slf4j`, never `System.out.println`, no sensitive data in logs
 
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
+
+## Code Quality
+
+- Names: PascalCase classes, camelCase methods and fields
+- `Optional` for a value that may be absent; null-check external inputs
+- Prefer `final` fields and unmodifiable collections, except entity collections (see Hibernate)
 
 ## Code Comments
 
 - **Don't comment the obvious**: never add a comment that merely restates what the code already
   makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
   created with `new Connector()`). Comments should explain *why*, not *what*.
+- **No history in comments**: no ticket, story or change log; one short line, only where the code cannot explain itself.
 - **Javadoc only for what the signature does not say**: side effects, thrown exceptions, non-obvious behaviour.
   Never a sentence that paraphrases the method name (`/** Updates a tenant. */`). Same rule for private methods: most need none.
 - **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)

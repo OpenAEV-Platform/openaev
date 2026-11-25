@@ -25,9 +25,7 @@ ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -10
 ```
 
 Verify for each new migration:
-- ☐ Name follows `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`
-- ☐ `yyyyMMddHHmmssSSS` timestamp block is present (17 digits)
-- ☐ `{description}` uses snake_case (letters, digits, underscores)
+- ☐ Name follows [migration.instructions.md › Naming Convention](../../../.github/instructions/migration.instructions.md#naming-convention)
 - ☐ Migration filename is unique
 - ☐ No existing migration file was modified (Flyway checksums will break), unless it is the ADR-023 in-place-fix exception (step 6 covers it)
 
