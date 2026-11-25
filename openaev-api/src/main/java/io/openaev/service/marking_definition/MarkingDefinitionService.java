@@ -302,11 +302,13 @@ public class MarkingDefinitionService {
 
   public RowImportResult importCsv(
       @NotBlank String tenantId, @NotBlank String userId, @NotNull MultipartFile file) {
+    List<MarkingRow> rows;
     try (InputStream content = file.getInputStream()) {
-      return importAll(tenantId, userId, MarkingCsvParser.parse(content));
+      rows = MarkingCsvParser.parse(content);
     } catch (IOException e) {
       throw new BadRequestException("The file could not be read");
     }
+    return importAll(tenantId, userId, rows);
   }
 
   /**
