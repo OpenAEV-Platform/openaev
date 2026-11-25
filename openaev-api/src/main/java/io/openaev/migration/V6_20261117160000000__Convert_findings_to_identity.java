@@ -15,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -88,24 +89,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     boolean autoCommit = connection.getAutoCommit();
     connection.setAutoCommit(false);
     try {
-      // Catalog-only changes, each committed at once: their ACCESS EXCLUSIVE lock lasts
-      // milliseconds instead of the whole schema step
-      executeAndCommit(
-          connection,
-          "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
-              + " DROP EXPRESSION IF EXISTS");
-      executeAndCommit(connection, "ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
-      executeAndCommit(
-          connection, "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
-      // NOT VALID checks no existing row, so the swap is instant; the validation then scans the
-      // table under a lock that lets reads and writes through, on findings and on injects
-      executeAndCommit(
-          connection,
-          "ALTER TABLE findings DROP CONSTRAINT IF EXISTS finding_inject_id_fk",
-          "ALTER TABLE findings ADD CONSTRAINT finding_inject_id_fk"
-              + " FOREIGN KEY (finding_inject_id) REFERENCES injects (inject_id)"
-              + " ON DELETE SET NULL NOT VALID");
-      executeAndCommit(connection, "ALTER TABLE findings VALIDATE CONSTRAINT finding_inject_id_fk");
+      changeCatalog(connection, LockPolicy.DEFAULT);
       // Each batch reads the first rows left without a hash: without this index it would scan the
       // rows already converted again. Built without blocking writes; a leftover of an interrupted
       // run can be invalid, so it is rebuilt.
@@ -133,6 +117,111 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       connection.setAutoCommit(autoCommit);
     }
     EsIndexingUtils.requestReindexAtStartup(FINDING_MODEL);
+  }
+
+  /**
+   * How a catalog step waits for its locks. During a rolling update, pods of the older version read
+   * and write findings and injects: a lock request that waits makes every later query on the table
+   * wait behind it. So an attempt waits {@code lockTimeout} at most, then releases what it holds
+   * and runs again after a pause that doubles up to {@link #MAX_BACKOFF}; the step fails after
+   * {@code attempts} attempts. The default gives up after about four and a half minutes.
+   */
+  record LockPolicy(Duration lockTimeout, int attempts, Duration firstBackoff) {
+    static final LockPolicy DEFAULT =
+        new LockPolicy(Duration.ofSeconds(5), 12, Duration.ofSeconds(1));
+  }
+
+  private static final Duration MAX_BACKOFF = Duration.ofSeconds(30);
+
+  /** {@code lock_not_available} (the lock timeout) and {@code deadlock_detected}. */
+  private static final Set<String> LOCK_CONFLICTS = Set.of("55P03", "40P01");
+
+  void changeCatalog(Connection connection, LockPolicy locks) throws SQLException {
+    // Catalog-only changes, each committed at once, so each ACCESS EXCLUSIVE lock lasts
+    // milliseconds
+    commitUnderLocks(
+        connection,
+        locks,
+        "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
+            + " DROP EXPRESSION IF EXISTS");
+    commitUnderLocks(
+        connection, locks, "ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
+    commitUnderLocks(
+        connection,
+        locks,
+        "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
+    // Dropping the foreign key locks findings, then injects. The older version's asset indexing
+    // reads injects, then findings, in one transaction: the step takes both locks first, in that
+    // order, so it waits for injects holding nothing on findings. NOT VALID checks no existing row,
+    // so the swap is instant; the validation then scans the table under a lock that lets reads and
+    // writes through, on findings and on injects.
+    commitUnderLocks(
+        connection,
+        locks,
+        "LOCK TABLE injects, findings IN ACCESS EXCLUSIVE MODE",
+        "ALTER TABLE findings DROP CONSTRAINT IF EXISTS finding_inject_id_fk",
+        "ALTER TABLE findings ADD CONSTRAINT finding_inject_id_fk"
+            + " FOREIGN KEY (finding_inject_id) REFERENCES injects (inject_id)"
+            + " ON DELETE SET NULL NOT VALID");
+    commitUnderLocks(
+        connection, locks, "ALTER TABLE findings VALIDATE CONSTRAINT finding_inject_id_fk");
+  }
+
+  /**
+   * Runs the statements in one transaction and commits it. A lock wait over the policy's timeout,
+   * or a deadlock, rolls the transaction back and runs it again after a pause.
+   *
+   * @throws IllegalStateException after the last attempt, with the last lock error as its cause
+   */
+  private static void commitUnderLocks(
+      Connection connection, LockPolicy locks, String... statements) throws SQLException {
+    Duration pause = locks.firstBackoff();
+    for (int attempt = 1; ; attempt++) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("SET LOCAL lock_timeout = '" + locks.lockTimeout().toMillis() + "ms'");
+        for (String sql : statements) {
+          statement.execute(sql);
+        }
+        connection.commit();
+        return;
+      } catch (SQLException e) {
+        connection.rollback();
+        if (!LOCK_CONFLICTS.contains(e.getSQLState())) {
+          throw e;
+        }
+        if (attempt >= locks.attempts()) {
+          throw new IllegalStateException(
+              ("Findings migration: gave up after %d attempts on \"%s\": another session holds a"
+                      + " lock on findings or injects, for example a pod of the older version."
+                      + " Stop it, remove the failed row of this migration from"
+                      + " flyway_schema_history, then start again: every step is safe to run"
+                      + " again.")
+                  .formatted(attempt, statements[statements.length - 1]),
+              e);
+        }
+        log.info(
+            "Findings migration: \"{}\" waits on a lock another session holds ({}), attempt {}/{},"
+                + " retrying in {} ms",
+            statements[statements.length - 1],
+            e.getSQLState(),
+            attempt,
+            locks.attempts(),
+            pause.toMillis());
+        pauseBeforeRetry(pause);
+        Duration doubled = pause.multipliedBy(2);
+        pause = doubled.compareTo(MAX_BACKOFF) < 0 ? doubled : MAX_BACKOFF;
+      }
+    }
+  }
+
+  private static void pauseBeforeRetry(Duration pause) {
+    try {
+      Thread.sleep(pause.toMillis());
+    } catch (InterruptedException e) {
+      // Stop here: every step is safe to run again on the next start
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Findings migration interrupted", e);
+    }
   }
 
   /**
@@ -571,17 +660,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // A phishing result follows the row to its first finding, and to its occurrence there
-  private static void executeAndCommit(Connection connection, String... statements)
-      throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      for (String sql : statements) {
-        statement.execute(sql);
-      }
-    }
-    connection.commit();
-  }
-
   // CONCURRENTLY refuses to run inside a transaction block
   private static void executeOutsideTransaction(Connection connection, String sql)
       throws SQLException {
@@ -602,6 +680,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
+  // A phishing result follows the row to its first finding, and to its occurrence there
   private static void moveAndDelete(Connection connection, Map<String, String> firstTargetByRow)
       throws SQLException {
     Array oldIds = varchars(connection, firstTargetByRow.keySet());
