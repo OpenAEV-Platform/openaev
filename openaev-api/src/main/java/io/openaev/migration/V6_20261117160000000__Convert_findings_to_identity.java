@@ -43,10 +43,11 @@ import org.springframework.stereotype.Component;
  *   <li>catalog-only schema changes, each committed at once;
  *   <li>walk the table in physical order, one committed transaction per batch, so the pages of the
  *       old rows, and of their occurrences and links written with them, are rewritten together;
- *   <li>write each new finding once, with its final dates, computed from the occurrences it
- *       receives, under a time-ordered id, as its occurrences: their rows land on the last pages of
- *       the indexes keyed by these ids;
- *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind;
+ *   <li>write each new finding once, with its final dates, computed in Java from the occurrences it
+ *       receives; the new findings and their occurrences take time-ordered ids, so their entries
+ *       land on the last pages of the indexes keyed by these ids;
+ *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind, for
+ *       30 minutes at most in one pause;
  *   <li>convert the old rows the walk misses (written meanwhile by an older pod), through a partial
  *       index.
  * </ol>
@@ -64,9 +65,10 @@ import org.springframework.stereotype.Component;
 public class V6_20261117160000000__Convert_findings_to_identity extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
-  static final long UNKNOWN_DENSITY_PAGES_PER_RANGE = 100;
-  static final int PAUSE_MILLIS = 50;
-  static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
+  private static final long UNKNOWN_DENSITY_PAGES_PER_RANGE = 100;
+  private static final int PAUSE_MILLIS = 50;
+  private static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
+  private static final Duration WAIT_CEILING = Duration.ofMinutes(30);
   private static final long MEGABYTE = 1_024L * 1_024;
   private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
 
@@ -74,7 +76,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
    * The writes of a batch grow with the locations of its rows (one finding, its occurrences, tags
    * and links per location), not with the rows read: a batch stops before this many locations.
    */
-  static final int MAX_LOCATIONS_PER_BATCH = 1000;
+  private static final int MAX_LOCATIONS_PER_BATCH = 1000;
 
   private static final String FINDING_MODEL = "finding";
   private static final String UNCONVERTED_INDEX = "idx_findings_unconverted";
@@ -83,7 +85,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       "SELECT finding_id, tenant_id, finding_type, finding_value, finding_value_display,"
           + " finding_name, finding_created_at, finding_updated_at FROM findings";
 
-  static final String READ_RANGE =
+  private static final String READ_RANGE =
       READ_COLUMNS
           + " WHERE ctid >= ?::tid AND ctid < ?::tid AND finding_value_hash IS NULL"
           + " ORDER BY ctid LIMIT "
@@ -97,12 +99,18 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           + " FOR UPDATE";
 
   /**
-   * The WAL not yet archived or replayed, in bytes. Inactive slots, and the archiver when {@code
-   * archive_mode} is off, are left out: they never catch up. The archiver's lag comes from WAL file
-   * names, counted from the run's first file (the parameter) while no WAL segment is archived.
+   * The WAL not yet archived or replayed, in bytes, then the number of replicas whose replay
+   * position the role cannot read (0 when it reads at least one). Inactive slots, and the archiver
+   * when {@code archive_mode} is off, are left out: they never catch up. The archiver's lag comes
+   * from WAL file names, counted from the run's first file (the parameter) while no WAL segment is
+   * archived. {@code pg_stat_replication} shows the replay position of another role's replica only
+   * to a role with {@code pg_read_all_stats} or {@code pg_monitor}.
    */
   private static final String WAL_LAG_QUERY =
-      "SELECT MAX(lag) FROM ("
+      "SELECT MAX(lag),"
+          + " (SELECT CASE WHEN count(replay_lsn) = 0 THEN count(*) ELSE 0 END"
+          + " FROM pg_stat_replication)"
+          + " FROM ("
           + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) AS lag"
           + " FROM pg_stat_replication"
           + " UNION ALL"
@@ -124,6 +132,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   private final int pauseMillis;
   private final long walLagBoundBytes;
   private final BatchRetry batchRetry;
+  private final Duration waitCeiling;
   private final TimeOrderedIds ids = new TimeOrderedIds();
 
   public V6_20261117160000000__Convert_findings_to_identity() {
@@ -137,10 +146,20 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   V6_20261117160000000__Convert_findings_to_identity(
       Long pagesPerRangeOverride, int pauseMillis, long walLagBoundBytes, BatchRetry batchRetry) {
+    this(pagesPerRangeOverride, pauseMillis, walLagBoundBytes, batchRetry, WAIT_CEILING);
+  }
+
+  V6_20261117160000000__Convert_findings_to_identity(
+      Long pagesPerRangeOverride,
+      int pauseMillis,
+      long walLagBoundBytes,
+      BatchRetry batchRetry,
+      Duration waitCeiling) {
     this.pagesPerRangeOverride = pagesPerRangeOverride;
     this.pauseMillis = pauseMillis;
     this.walLagBoundBytes = walLagBoundBytes;
     this.batchRetry = batchRetry;
+    this.waitCeiling = waitCeiling;
   }
 
   /** {@link #UNKNOWN_DENSITY_PAGES_PER_RANGE} when the table has no statistics yet. */
@@ -703,7 +722,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     private Timestamp firstSeen;
     private Timestamp lastSeen;
     private Timestamp createdAt;
-    private Timestamp updatedAt;
     // The occurrences the finding holds: their injects, their first and last dates
     private final Set<String> heldInjects = new HashSet<>();
     private Timestamp firstOccurrence;
@@ -724,7 +742,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       firstSeen = min(firstSeen, row.firstDate());
       lastSeen = max(lastSeen, row.lastDate());
       createdAt = min(createdAt, row.createdAt());
-      updatedAt = max(updatedAt, row.updatedAt());
     }
 
     private void hold(String injectId, Timestamp date) {
@@ -746,11 +763,11 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
 
     // From the occurrences the finding holds; without any, from the dates of its rows
-    private Timestamp firstSeen() {
+    private Timestamp firstSeenToWrite() {
       return firstOccurrence != null ? firstOccurrence : firstSeen;
     }
 
-    private Timestamp lastSeen() {
+    private Timestamp lastSeenToWrite() {
       return lastOccurrence != null ? lastOccurrence : lastSeen;
     }
   }
@@ -904,8 +921,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           update.setString(1, target.value);
           update.setString(2, target.valueDisplay);
           update.setString(3, target.name);
-          update.setTimestamp(4, target.firstSeen());
-          update.setTimestamp(5, target.lastSeen());
+          update.setTimestamp(4, target.firstSeenToWrite());
+          update.setTimestamp(5, target.lastSeenToWrite());
           update.setString(6, target.id);
           update.addBatch();
         } else {
@@ -918,8 +935,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           insert.setString(7, identity.hash());
           insert.setString(8, identity.locationId());
           insert.setTimestamp(9, target.createdAt);
-          insert.setTimestamp(10, target.firstSeen());
-          insert.setTimestamp(11, target.lastSeen());
+          insert.setTimestamp(10, target.firstSeenToWrite());
+          insert.setTimestamp(11, target.lastSeenToWrite());
           insert.addBatch();
         }
       }
@@ -1134,9 +1151,17 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   }
 
   /**
-   * Pauses, then waits while the WAL lag is above the bound. A lag that cannot be read stops the
-   * wait for the rest of the run. Called between batches, so the transaction it opens holds no
-   * write.
+   * Pauses, then waits while the WAL lag is above the bound. Called between batches, so the
+   * transaction of a lag read holds no write; it ends after each read, because PostgreSQL serves
+   * {@code pg_stat_archiver} from a snapshot held until the end of the transaction.
+   *
+   * <p>The guard stops for the rest of the run, which then paces on the fixed pause alone:
+   *
+   * <ul>
+   *   <li>when a lag cannot be read;
+   *   <li>after a wait of 30 minutes in one pause, with a warning: an archiver or a replica that
+   *       lags that long needs the operator, and a wait at each batch stalls the run.
+   * </ul>
    */
   private void pace(Connection connection, WalGuard walGuard) {
     sleep(pauseMillis);
@@ -1144,9 +1169,21 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       return;
     }
     try {
-      long lag = walLagBytes(connection, walGuard.startWalFile);
-      long nextLogAt = System.nanoTime();
+      long waitStartedAt = System.nanoTime();
+      long nextLogAt = waitStartedAt;
+      long lag = readLag(connection, walGuard);
       while (lag > walLagBoundBytes) {
+        Duration waited = Duration.ofNanos(System.nanoTime() - waitStartedAt);
+        if (waited.compareTo(waitCeiling) >= 0) {
+          walGuard.available = false;
+          log.warn(
+              "findings: waited {} s for WAL archiving or replicas, {} MB behind (bound {} MB),"
+                  + " pacing on the fixed pause alone for the rest of the run",
+              waited.toSeconds(),
+              lag / MEGABYTE,
+              walLagBoundBytes / MEGABYTE);
+          return;
+        }
         if (System.nanoTime() - nextLogAt >= 0) {
           log.info(
               "findings: waiting for WAL archiving or replicas, {} MB behind (bound {} MB)",
@@ -1155,7 +1192,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
         }
         sleep(Math.max(pauseMillis, 1_000));
-        lag = walLagBytes(connection, walGuard.startWalFile);
+        lag = readLag(connection, walGuard);
       }
     } catch (SQLException e) {
       walGuard.available = false;
@@ -1167,13 +1204,34 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  long walLagBytes(Connection connection, String startWalFile) throws SQLException {
+  // Ends the read's transaction, so the next read takes a new statistics snapshot
+  private long readLag(Connection connection, WalGuard walGuard) throws SQLException {
+    WalLag lag = walLag(connection, walGuard.startWalFile);
+    connection.rollback();
+    if (lag.replicasWithoutPosition() > 0 && !walGuard.replicasWithoutPositionLogged) {
+      walGuard.replicasWithoutPositionLogged = true;
+      log.warn(
+          "findings: cannot read the replay position of {} replica(s) in pg_stat_replication:"
+              + " the role needs pg_read_all_stats or pg_monitor. The guard sees the replicas"
+              + " with an active replication slot alone",
+          lag.replicasWithoutPosition());
+    }
+    return lag.bytes();
+  }
+
+  /** The WAL lag in bytes, and the replicas whose replay position the role cannot read. */
+  record WalLag(long bytes, long replicasWithoutPosition) {}
+
+  WalLag walLag(Connection connection, String startWalFile) throws SQLException {
     try (PreparedStatement statement = connection.prepareStatement(WAL_LAG_QUERY)) {
       statement.setString(1, startWalFile);
       try (ResultSet result = statement.executeQuery()) {
         result.next();
         long lag = result.getLong(1);
-        return result.wasNull() ? 0 : lag;
+        if (result.wasNull()) {
+          lag = 0;
+        }
+        return new WalLag(lag, result.getLong(2));
       }
     }
   }
@@ -1182,6 +1240,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   static final class WalGuard {
     private final String startWalFile;
     private boolean available = true;
+    private boolean replicasWithoutPositionLogged;
 
     WalGuard(String startWalFile) {
       this.startWalFile = startWalFile;

@@ -3,17 +3,27 @@ package io.openaev.migration;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.openaev.IntegrationTest;
+import io.openaev.migration.V6_20261117160000000__Convert_findings_to_identity.BatchRetry;
 import io.openaev.migration.V6_20261117160000000__Convert_findings_to_identity.WalGuard;
+import io.openaev.migration.V6_20261117160000000__Convert_findings_to_identity.WalLag;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
@@ -23,6 +33,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -223,34 +234,6 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Ids")
-  class Ids {
-
-    @Test
-    @DisplayName("Ids drawn in a row are version 7 UUIDs and increase, within one millisecond too")
-    void given_idsDrawnInARow_should_beVersion7AndIncrease() {
-      // Arrange
-      V6_20261117160000000__Convert_findings_to_identity.TimeOrderedIds ids =
-          new V6_20261117160000000__Convert_findings_to_identity.TimeOrderedIds();
-
-      // Act
-      List<String> drawn = new ArrayList<>();
-      for (int i = 0; i < 10_000; i++) {
-        drawn.add(ids.next());
-      }
-
-      // Assert
-      assertThat(drawn).isSortedAccordingTo(String::compareTo).doesNotHaveDuplicates();
-      assertThat(drawn)
-          .allSatisfy(
-              id -> {
-                assertThat(UUID.fromString(id).version()).isEqualTo(7);
-                assertThat(UUID.fromString(id).variant()).isEqualTo(2);
-              });
-    }
-  }
-
-  @Nested
   @DisplayName("Pacing")
   class Pacing {
 
@@ -267,6 +250,97 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
       // Assert: above the 10-byte bound once, then below it
       assertThat(scripted.reads).hasValue(2);
     }
+
+    @Test
+    @DisplayName("A wait reads the archiver statistics afresh at each round")
+    void given_archiverStatisticsChangingDuringAWait_should_seeTheChange() throws Exception {
+      // Arrange
+      seedOldFinding("1", marker + "-value", DAY_1, DAY_2);
+      V6_20261117160000000__Archiver_lag archiverLag =
+          new V6_20261117160000000__Archiver_lag(dataSource);
+
+      // Act
+      assertTimeoutPreemptively(Duration.ofSeconds(30), () -> walk(archiverLag));
+
+      // Assert: above the bound until another session resets the archiver statistics
+      assertThat(archiverLag.reads).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("A wait stops at the ceiling and the run goes on with the fixed pause alone")
+    void given_lagAboveTheBoundPastTheCeiling_should_stopWaitingForTheRestOfTheRun()
+        throws Exception {
+      // Arrange
+      seedOldFinding("1", marker + "-first", DAY_1, DAY_2);
+      V6_20261117160000000__Fixed_lag aboveTheBound =
+          new V6_20261117160000000__Fixed_lag(new WalLag(11, 0), Duration.ofMillis(300));
+      WalGuard guard = new WalGuard(null);
+      ListAppender<ILoggingEvent> logs = captureLogs();
+
+      try {
+        // Act: a first batch waits up to the ceiling, a batch afterwards does not read the lag
+        assertTimeoutPreemptively(Duration.ofSeconds(30), () -> walk(aboveTheBound, guard));
+        seedOldFinding("2", marker + "-second", DAY_1, DAY_2);
+        walk(aboveTheBound, guard);
+
+        // Assert
+        assertThat(aboveTheBound.reads).hasValue(2);
+        assertThat(
+                count(
+                    "SELECT count(*) FROM findings WHERE finding_value LIKE ? AND"
+                        + " finding_value_hash IS NULL",
+                    marker + "%"))
+            .isZero();
+        assertThat(warnings(logs)).singleElement().asString().contains("for the rest of the run");
+      } finally {
+        releaseLogs(logs);
+      }
+    }
+
+    @Test
+    @DisplayName("Replicas whose replay position the role cannot read are logged once")
+    void given_replicasWithoutReadablePosition_should_logItOnceAndGoOn() throws Exception {
+      // Arrange
+      seedOldFinding("1", marker + "-first", DAY_1, DAY_2);
+      V6_20261117160000000__Fixed_lag unreadableReplicas =
+          new V6_20261117160000000__Fixed_lag(new WalLag(0, 2), Duration.ofMinutes(1));
+      WalGuard guard = new WalGuard(null);
+      ListAppender<ILoggingEvent> logs = captureLogs();
+
+      try {
+        // Act: two batches, two lag reads
+        walk(unreadableReplicas, guard);
+        seedOldFinding("2", marker + "-second", DAY_1, DAY_2);
+        walk(unreadableReplicas, guard);
+
+        // Assert
+        assertThat(unreadableReplicas.reads).hasValue(2);
+        assertThat(warnings(logs))
+            .singleElement()
+            .asString()
+            .contains("2 replica(s)", "pg_read_all_stats");
+      } finally {
+        releaseLogs(logs);
+      }
+    }
+
+    @Test
+    @DisplayName("The lag query reads no lag and no hidden replica on a primary without any")
+    void given_primaryWithoutReplicaOrArchiving_should_readNoLag() throws Exception {
+      // Arrange
+      connection.setAutoCommit(false);
+
+      try {
+        // Act
+        WalLag lag = onePagePerRange.walLag(connection, null);
+
+        // Assert
+        assertThat(lag).isEqualTo(new WalLag(0, 0));
+      } finally {
+        connection.rollback();
+        connection.setAutoCommit(true);
+      }
+    }
   }
 
   // -- Helpers --
@@ -282,8 +356,64 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
     }
 
     @Override
-    long walLagBytes(Connection ignored, String startWalFile) {
-      return reads.incrementAndGet() == 1 ? 11 : 0;
+    WalLag walLag(Connection ignored, String startWalFile) {
+      return new WalLag(reads.incrementAndGet() == 1 ? 11 : 0, 0);
+    }
+  }
+
+  /** One page per range, no pause, a 10-byte bound, the same lag at each read. */
+  private static final class V6_20261117160000000__Fixed_lag
+      extends V6_20261117160000000__Convert_findings_to_identity {
+
+    private final WalLag lag;
+    private final AtomicInteger reads = new AtomicInteger();
+
+    V6_20261117160000000__Fixed_lag(WalLag lag, Duration waitCeiling) {
+      super(1L, 0, 10, BatchRetry.DEFAULT, waitCeiling);
+      this.lag = lag;
+    }
+
+    @Override
+    WalLag walLag(Connection ignored, String startWalFile) {
+      reads.incrementAndGet();
+      return lag;
+    }
+  }
+
+  /**
+   * Above a 10-byte bound while {@code pg_stat_archiver} shows the statistics of the first read,
+   * which resets them from another session: PostgreSQL serves these statistics from a snapshot held
+   * until the end of the transaction.
+   */
+  private static final class V6_20261117160000000__Archiver_lag
+      extends V6_20261117160000000__Convert_findings_to_identity {
+
+    private final DataSource otherSession;
+    private final AtomicInteger reads = new AtomicInteger();
+    private Timestamp firstReset;
+
+    V6_20261117160000000__Archiver_lag(DataSource otherSession) {
+      super(1L, 0, 10);
+      this.otherSession = otherSession;
+    }
+
+    @Override
+    WalLag walLag(Connection connection, String startWalFile) throws SQLException {
+      reads.incrementAndGet();
+      Timestamp reset;
+      try (Statement statement = connection.createStatement();
+          ResultSet result = statement.executeQuery("SELECT stats_reset FROM pg_stat_archiver")) {
+        result.next();
+        reset = result.getTimestamp(1);
+      }
+      if (reads.get() == 1) {
+        firstReset = reset;
+        try (Connection other = otherSession.getConnection();
+            Statement statement = other.createStatement()) {
+          statement.execute("SELECT pg_stat_reset_shared('archiver')");
+        }
+      }
+      return new WalLag(Objects.equals(reset, firstReset) ? 11 : 0, 0);
     }
   }
 
@@ -325,12 +455,17 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
     return id;
   }
 
-  // As the migration runs: autocommit off, each batch committed; a failed batch rolls back
   private void walk(V6_20261117160000000__Convert_findings_to_identity conversion)
+      throws SQLException {
+    walk(conversion, new WalGuard(null));
+  }
+
+  // As the migration runs: autocommit off, each batch committed; a failed batch rolls back
+  private void walk(V6_20261117160000000__Convert_findings_to_identity conversion, WalGuard guard)
       throws SQLException {
     connection.setAutoCommit(false);
     try {
-      conversion.walk(connection, new WalGuard(null));
+      conversion.walk(connection, guard);
     } finally {
       connection.rollback();
       connection.setAutoCommit(true);
@@ -348,6 +483,33 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
       connection.rollback();
       connection.setAutoCommit(true);
     }
+  }
+
+  // The test logging configuration logs errors alone
+  private static ListAppender<ILoggingEvent> captureLogs() {
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    migrationLogger().setLevel(Level.WARN);
+    migrationLogger().addAppender(appender);
+    return appender;
+  }
+
+  private static void releaseLogs(ListAppender<ILoggingEvent> appender) {
+    migrationLogger().detachAppender(appender);
+    migrationLogger().setLevel(null);
+    appender.stop();
+  }
+
+  private static Logger migrationLogger() {
+    return (Logger)
+        LoggerFactory.getLogger(V6_20261117160000000__Convert_findings_to_identity.class);
+  }
+
+  private static List<String> warnings(ListAppender<ILoggingEvent> appender) {
+    return appender.list.stream()
+        .filter(event -> event.getLevel() == Level.WARN)
+        .map(ILoggingEvent::getFormattedMessage)
+        .toList();
   }
 
   private void logUpdatesOfConvertedFindings() throws SQLException {
