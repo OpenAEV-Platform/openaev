@@ -44,26 +44,6 @@ io.openaev.database.model.User#getOrganization | TenantContext.getCurrentTenant 
 io.openaev.database.model.User#hasTenantBypass | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.database.model.User#scopedTenantId | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
-io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.mde.service.MdeExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.mde.service.MdeExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.sentinelone.service.SentinelOneExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.sentinelone.service.SentinelOneExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.tanium.service.TaniumExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.tanium.service.TaniumExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.tanium.service.TaniumGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
-io.openaev.executors.tanium.service.TaniumGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.export.WorkflowExportInitializer#enrichWorkflowScopeRuleTeamMembers | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
 io.openaev.importer.V1_DataImporter#buildStepTtpFromInjectorContract | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
 io.openaev.importer.V1_DataImporter#createWorkflowScopePlayer | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
