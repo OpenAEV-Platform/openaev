@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
  * the rows it points to read by id at system clearance.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class StreamVisibilityService {
 
@@ -38,7 +40,26 @@ public class StreamVisibilityService {
 
   private final StreamMarkingRules rules;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final StreamClearanceService streamClearanceService;
   private final ObjectMapper mapper;
+
+  /**
+   * Gated, fail-closed version of {@link #visibilityOf(BaseEvent, String)}, for every caller that
+   * does not already know whether the event needs filtering: with the MARKING preview feature off,
+   * or assets not activated for marking, every event is unfiltered; on a read failure, only the
+   * readers who see everything get it.
+   */
+  public StreamVisibility visibilityOrUnresolved(BaseEvent event, String tenantId) {
+    if (!streamClearanceService.isFiltering()) {
+      return StreamVisibility.UNFILTERED;
+    }
+    try {
+      return visibilityOf(event, tenantId);
+    } catch (RuntimeException e) {
+      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
+      return StreamVisibility.unresolved();
+    }
+  }
 
   /**
    * @param tenantId the tenant of the event's entity: the rows it points to are read there, at
