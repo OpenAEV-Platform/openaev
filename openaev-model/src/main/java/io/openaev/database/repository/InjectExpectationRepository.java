@@ -300,11 +300,6 @@ public interface InjectExpectationRepository
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_score IS NULL "
               + "AND e.inject_expectation_created_at + (e.inject_expiration_time * interval '1 second') < now() "
-              // Already closed as "Not executed" (BaseInjectExpectation.NOT_EXECUTED_RESULT): its
-              // null score is an unknown outcome, not a pending one
-              + "AND NOT EXISTS (SELECT 1 FROM inject_expectation_results r "
-              + "  WHERE r.inject_expectation_result_inject_expectation_id = e.inject_expectation_id "
-              + "  AND r.inject_expectation_result_result = 'Not executed') "
               + "AND NOT (e.asset_group_id IS NOT NULL "
               + "  AND e.asset_id IS NULL AND e.agent_id IS NULL) "
               + "AND NOT (e.asset_id IS NOT NULL AND e.agent_id IS NULL "
@@ -343,10 +338,7 @@ public interface InjectExpectationRepository
    */
   @Query(
       "SELECT COUNT(i) FROM InjectExpectation i WHERE i.exercise.id = :exerciseId "
-          + "AND i.score IS NULL "
-          // A "Not executed" expectation (BaseInjectExpectation.NOT_EXECUTED_RESULT) is closed
-          + "AND NOT EXISTS (SELECT r FROM InjectExpectationResult r "
-          + "  WHERE r.injectExpectation = i AND r.result = 'Not executed')")
+          + "AND i.score IS NULL")
   long countOpenByExerciseId(@Param("exerciseId") String exerciseId);
 
   @Query(value = "select i from InjectExpectation i where i.inject.id = :injectId")
