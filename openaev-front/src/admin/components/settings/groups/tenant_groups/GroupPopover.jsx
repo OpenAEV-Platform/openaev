@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
@@ -299,17 +298,13 @@ const select = () => {
   return {};
 };
 
-const GroupPopover = R.compose(
-  connect(select, {
-    fetchGroup,
-    updateGroupInformation,
-    updateGroupUsers,
-    updateGroupRoles,
-    updateGroupMarkings,
-    deleteGroup,
-  }),
-  inject18n,
-  withAbility,
-)(GroupPopoverComponent);
+const GroupPopover = connect(select, {
+  fetchGroup,
+  updateGroupInformation,
+  updateGroupUsers,
+  updateGroupRoles,
+  updateGroupMarkings,
+  deleteGroup,
+})(inject18n(withAbility(GroupPopoverComponent)));
 
 export default GroupPopover;

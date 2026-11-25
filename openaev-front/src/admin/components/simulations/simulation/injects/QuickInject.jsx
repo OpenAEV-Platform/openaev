@@ -11,7 +11,6 @@ import {
 import { InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
 import { FieldArray } from 'react-final-form-arrays';
@@ -1396,14 +1395,10 @@ const select = (state, ownProps) => {
   };
 };
 
-const QuickInject = R.compose(
-  connect(select, {
-    fetchDocuments,
-    fetchVariablesForExercise,
-    addInject: addInjectForExercise,
-  }),
-  inject18n,
-  Component => withStyles(Component, styles),
-)(QuickInjectComponent);
+const QuickInject = connect(select, {
+  fetchDocuments,
+  fetchVariablesForExercise,
+  addInject: addInjectForExercise,
+})(inject18n(withStyles(QuickInjectComponent, styles)));
 
 export default QuickInject;

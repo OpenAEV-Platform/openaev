@@ -37,15 +37,13 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
       cumulation = 0;
       return {
         ...n,
-        team_communications: R.pipe(
-          (items: Communication[]) => items.toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
-            cumulation += 1;
-            return {
-              ...i,
-              communication_cumulated_number: cumulation,
-            };
-          }),
-        )(n.team_communications || []),
+        team_communications: (n.team_communications || []).toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
+          cumulation += 1;
+          return {
+            ...i,
+            communication_cumulated_number: cumulation,
+          };
+        }),
       };
     }),
     (teamsList: Array<Team & { team_communications: Array<Communication & { communication_cumulated_number: number }> }>) => teamsList.map(a => ({

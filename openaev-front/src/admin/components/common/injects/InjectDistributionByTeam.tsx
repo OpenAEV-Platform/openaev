@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseTeams } from '../../../../actions/Exercise';
@@ -31,9 +30,7 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
   });
 
   const teamsColors = getTeamsColors(teams);
-  const sortedTeamsByExpectedScore = R.pipe(
-    (items: Team[]) => items.toSorted(descendBy('team_injects_expectations_total_expected_score')).slice(0, 10),
-  )(teams || []);
+  const sortedTeamsByExpectedScore = (teams || []).toSorted(descendBy('team_injects_expectations_total_expected_score')).slice(0, 10);
   const expectedScoreByTeamData = [
     {
       name: t('Total expected score'),

@@ -1,7 +1,6 @@
 import { Chip, Spinner, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
 import EEChip from '../admin/components/common/entreprise_edition/EEChip';
@@ -95,9 +94,6 @@ ItemBooleanComponent.propTypes = {
   tooltip: PropTypes.string,
 };
 
-const ItemBoolean = R.compose(
-  inject18n,
-  Component => withStyles(Component, styles),
-)(ItemBooleanComponent);
+const ItemBoolean = inject18n(withStyles(ItemBooleanComponent, styles));
 
 export default ItemBoolean;

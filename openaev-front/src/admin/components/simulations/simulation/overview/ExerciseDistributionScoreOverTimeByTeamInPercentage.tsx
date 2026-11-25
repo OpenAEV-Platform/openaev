@@ -39,21 +39,19 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
       cumulation = 0;
       return [
         n[0],
-        R.pipe(
-          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
-            cumulation += i.inject_expectation_score ?? 0;
-            return {
-              ...i,
-              inject_expectation_percent_score: Math.round(
-                (cumulation * 100)
-                / (teamsMap[n[0]] && teamsMap[n[0]].team_injects_expectations_total_expected_score_by_exercise
-                  ? teamsMap[n[0]]
-                    .team_injects_expectations_total_expected_score_by_exercise[exerciseId]
-                  : 1),
-              ),
-            };
-          }),
-        )(n[1]),
+        n[1].toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
+          cumulation += i.inject_expectation_score ?? 0;
+          return {
+            ...i,
+            inject_expectation_percent_score: Math.round(
+              (cumulation * 100)
+              / (teamsMap[n[0]] && teamsMap[n[0]].team_injects_expectations_total_expected_score_by_exercise
+                ? teamsMap[n[0]]
+                  .team_injects_expectations_total_expected_score_by_exercise[exerciseId]
+                : 1),
+            ),
+          };
+        }),
       ];
     }),
     (pairs: [string, Array<InjectExpectationOutput & { inject_expectation_percent_score: number }>][]) => pairs.map(n => ({

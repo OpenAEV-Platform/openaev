@@ -1,6 +1,5 @@
 import { LabelOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
@@ -133,10 +132,6 @@ const select = (state) => {
   return { tags: helper.getTags().toJS() };
 };
 
-const TagField = R.compose(
-  connect(select, { addTag }),
-  inject18n,
-  Component => withStyles(Component, styles),
-)(TagFieldComponent);
+const TagField = connect(select, { addTag })(inject18n(withStyles(TagFieldComponent, styles)));
 
 export default TagField;

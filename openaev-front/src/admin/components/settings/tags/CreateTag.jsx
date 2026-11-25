@@ -1,5 +1,4 @@
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
@@ -61,9 +60,6 @@ CreateTagComponent.propTypes = {
   onCreate: PropTypes.func,
 };
 
-const CreateTag = R.compose(
-  connect(null, { addTag }),
-  inject18n,
-)(CreateTagComponent);
+const CreateTag = connect(null, { addTag })(inject18n(CreateTagComponent));
 
 export default CreateTag;
