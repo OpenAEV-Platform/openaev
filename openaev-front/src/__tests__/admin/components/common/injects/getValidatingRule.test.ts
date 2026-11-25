@@ -49,7 +49,7 @@ describe('getValidatingRule', () => {
     expect(rule.safeParse('A').success).toBe(false);
   });
 
-  it.each(['select', 'choice', 'dependency-select'] as const)('refuses an untouched cardinality n %s with the translated Required', (type) => {
+  it.each(['select', 'choice', 'dependency-select', 'asset-group-reference', 'tags'] as const)('refuses an untouched cardinality n %s with the translated Required', (type) => {
     const result = getValidatingRule(field(type, 'n'), t).safeParse(undefined);
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].message).toBe('Required');
