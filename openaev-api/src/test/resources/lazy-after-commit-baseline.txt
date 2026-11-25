@@ -61,7 +61,7 @@ AssetGroupApi.updateAssetsOnAssetGroup -> AssetGroup.tags | NOT ESTABLISHED | no
 AssetGroupApi.updateAssetsOnAssetGroup -> SecurityPlatform.collectors | NOT ESTABLISHED | not written by any measured test response
 AssetGroupApi.updateAssetsOnAssetGroup -> SecurityPlatform.injectors | NOT ESTABLISHED | not written by any measured test response
 AttackPatternApi.createAttackPattern -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
-AttackPatternApi.injectorContracts -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+AttackPatternApi.injectorContracts -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
 AttackPatternApi.updateAttackPattern -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
 AttackPatternApi.upsertAttackPatterns -> AttackPattern.killChainPhases | ATTENUATED | measured: initialised inside the transaction whenever written
 ChallengeApi.challenges -> Challenge.documents | ATTENUATED | measured: initialised inside the transaction whenever written
@@ -475,10 +475,10 @@ InjectApi.updateInject -> Team.getUsersNumber() | NOT ESTABLISHED | not written 
 InjectApi.updateInject -> Team.scenarios | NOT ESTABLISHED | not written by any measured test response
 InjectApi.updateInject -> Team.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.updateInject -> Team.users | NOT ESTABLISHED | not written by any measured test response
-InjectorContractApi.createInjectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-InjectorContractApi.injectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-InjectorContractApi.updateInjectorContract -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-InjectorContractApi.updateInjectorContractMapping -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+InjectorContractApi.createInjectorContract -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+InjectorContractApi.injectorContract -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+InjectorContractApi.updateInjectorContract -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+InjectorContractApi.updateInjectorContractMapping -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
 MapperApi.testImportXLSFile -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 MapperApi.testImportXLSFile -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
 MapperApi.testImportXLSFile -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
@@ -565,12 +565,12 @@ OrganizationApi.updateOrganization -> ContractOutputElement.tags | NOT ESTABLISH
 OrganizationApi.updateOrganization -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
 OrganizationApi.updateOrganization -> Organization.tags | ATTENUATED | measured: initialised inside the transaction whenever written
-PayloadApi.createPayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-PayloadApi.duplicatePayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-PayloadApi.payload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-PayloadApi.payloads -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-PayloadApi.updatePayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
-PayloadApi.upsertPayload -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
+PayloadApi.createPayload -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+PayloadApi.duplicatePayload -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+PayloadApi.payload -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+PayloadApi.payloads -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+PayloadApi.updatePayload -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
+PayloadApi.upsertPayload -> ContractOutputElement.tags | ATTENUATED | fixed in #9830: loaded inside the scoped transaction
 PlayerApi.createPlayer -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
 PlayerApi.createPlayer -> User.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 PlayerApi.createPlayer -> User.teams | ATTENUATED | measured: initialised inside the transaction whenever written
