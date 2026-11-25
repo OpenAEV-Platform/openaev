@@ -51,4 +51,8 @@ public class InjectStatusFixture {
   public static InjectStatus createSuccessStatus() {
     return createInjectStatus(ExecutionStatus.EXECUTED);
   }
+
+  public static InjectStatus createPartialInjectStatus() {
+    return createInjectStatus(ExecutionStatus.PARTIAL);
+  }
 }
