@@ -32,11 +32,38 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
+/**
+ * Converts the old-shape findings (one row per detection, no value hash) into one finding per
+ * identity: tenant, type, value hash and location, with its occurrences, tags, teams and links.
+ *
+ * <p>Built for a large table in use. It runs outside a wrapping transaction, so that the WAL it
+ * writes grows with the rows it converts:
+ *
+ * <ol>
+ *   <li>catalog-only schema changes, each committed at once;
+ *   <li>walk the table in physical order, one committed transaction per batch, so the pages of the
+ *       old rows, and of their occurrences and links written with them, are rewritten together;
+ *   <li>write each new finding once, with its final dates, computed from the occurrences it
+ *       receives, under a time-ordered id, as its occurrences: their rows land on the last pages of
+ *       the indexes keyed by these ids;
+ *   <li>after each batch, pause, and wait while WAL archiving or a replica is too far behind;
+ *   <li>convert the old rows the walk misses (written meanwhile by an older pod), through a partial
+ *       index.
+ * </ol>
+ *
+ * <p>Every row taken is deleted, converted or not, so an interrupted run resumes from the rows
+ * left, and a converted table is only read. No {@code VACUUM}: autovacuum reclaims the old rows.
+ */
 @Slf4j
 @Component
 public class V6_20261117160000000__Convert_findings_to_identity extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
+  static final long UNKNOWN_DENSITY_PAGES_PER_RANGE = 100;
+  static final int PAUSE_MILLIS = 50;
+  static final long WAL_LAG_BOUND_BYTES = 1_024L * 1_024 * 1_024;
+  private static final long MEGABYTE = 1_024L * 1_024;
+  private static final Duration LOG_INTERVAL = Duration.ofMinutes(1);
 
   /**
    * The writes of a batch grow with the locations of its rows (one finding, its occurrences, tags
@@ -46,6 +73,68 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   private static final String FINDING_MODEL = "finding";
   private static final String UNCONVERTED_INDEX = "idx_findings_unconverted";
+
+  private static final String READ_COLUMNS =
+      "SELECT finding_id, tenant_id, finding_type, finding_value, finding_value_display,"
+          + " finding_name, finding_created_at, finding_updated_at FROM findings";
+
+  static final String READ_RANGE =
+      READ_COLUMNS
+          + " WHERE ctid >= ?::tid AND ctid < ?::tid AND finding_value_hash IS NULL"
+          + " ORDER BY ctid LIMIT "
+          + BATCH_SIZE;
+
+  private static final String READ_ANY =
+      READ_COLUMNS + " WHERE finding_value_hash IS NULL ORDER BY finding_id LIMIT " + BATCH_SIZE;
+
+  /**
+   * The WAL not yet archived or replayed, in bytes. Inactive slots, and the archiver when {@code
+   * archive_mode} is off, are left out: they never catch up. The archiver's lag comes from WAL file
+   * names, counted from the run's first file (the parameter) while no WAL segment is archived.
+   */
+  private static final String WAL_LAG_QUERY =
+      "SELECT MAX(lag) FROM ("
+          + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) AS lag"
+          + " FROM pg_stat_replication"
+          + " UNION ALL"
+          + " SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS lag"
+          + " FROM pg_replication_slots WHERE active AND restart_lsn IS NOT NULL"
+          + " UNION ALL"
+          + " SELECT ((('x' || substr(cur, 9, 8))::bit(32)::bigint"
+          + " - ('x' || substr(done, 9, 8))::bit(32)::bigint) * (4294967296 / seg)"
+          + " + ('x' || substr(cur, 17, 8))::bit(32)::bigint"
+          + " - ('x' || substr(done, 17, 8))::bit(32)::bigint) * seg AS lag"
+          + " FROM (SELECT pg_walfile_name(pg_current_wal_lsn()) AS cur,"
+          + " COALESCE(CASE WHEN last_archived_wal ~ '^[0-9A-F]{24}$'"
+          + " THEN last_archived_wal END, ?) AS done,"
+          + " pg_size_bytes(current_setting('wal_segment_size')) AS seg"
+          + " FROM pg_stat_archiver WHERE current_setting('archive_mode') <> 'off') archiver"
+          + " WHERE done ~ '^[0-9A-F]{24}$') lags";
+
+  private final Long pagesPerRangeOverride;
+  private final int pauseMillis;
+  private final long walLagBoundBytes;
+  private final TimeOrderedIds ids = new TimeOrderedIds();
+
+  public V6_20261117160000000__Convert_findings_to_identity() {
+    this(null, PAUSE_MILLIS, WAL_LAG_BOUND_BYTES);
+  }
+
+  V6_20261117160000000__Convert_findings_to_identity(
+      Long pagesPerRangeOverride, int pauseMillis, long walLagBoundBytes) {
+    this.pagesPerRangeOverride = pagesPerRangeOverride;
+    this.pauseMillis = pauseMillis;
+    this.walLagBoundBytes = walLagBoundBytes;
+  }
+
+  /** {@link #UNKNOWN_DENSITY_PAGES_PER_RANGE} when the table has no statistics yet. */
+  static long pagesPerRange(long estimatedRows, long estimatedPages) {
+    if (estimatedRows <= 0 || estimatedPages <= 0) {
+      return UNKNOWN_DENSITY_PAGES_PER_RANGE;
+    }
+    double rowsPerPage = (double) estimatedRows / estimatedPages;
+    return Math.max(1, Math.round(BATCH_SIZE / Math.max(rowsPerPage, 1.0)));
+  }
 
   /** An old-shape row and what it is linked to. */
   private record OldFinding(
@@ -102,8 +191,11 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
               + UNCONVERTED_INDEX
               + " ON findings (finding_id) WHERE finding_value_hash IS NULL");
 
+      WalGuard walGuard = new WalGuard(currentWalFile(connection));
+      walk(connection, walGuard);
       while (convertNextBatch(connection)) {
         connection.commit();
+        pace(connection, walGuard);
       }
 
       executeOutsideTransaction(
@@ -267,17 +359,72 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   }
 
   /**
-   * Converts the first batch of old-shape rows left, without committing. Each step runs once for
-   * the whole batch: the identities are computed in Java, the writes are set-based. Every row taken
-   * is deleted, converted or not, so the next call takes the rows left: those over the budget of
-   * this batch, and those written meanwhile by a pod of the previous version.
+   * Walks the pages the table holds at the start, range by range; a range is read again until no
+   * old row is left in it. Commits each batch.
+   */
+  void walk(Connection connection, WalGuard walGuard) throws SQLException {
+    TableSize size = tableSize(connection);
+    long pagesPerRange =
+        pagesPerRangeOverride != null
+            ? pagesPerRangeOverride
+            : pagesPerRange(size.estimatedRows(), size.estimatedPages());
+    log.info(
+        "findings: {} page(s) on disk, about {} row(s), {} page(s) per range",
+        size.pages(),
+        size.estimatedRows(),
+        pagesPerRange);
+    long taken = 0;
+    long startedAt = System.nanoTime();
+    long nextLogAt = startedAt + LOG_INTERVAL.toNanos();
+    try (PreparedStatement range = connection.prepareStatement(READ_RANGE)) {
+      for (long page = 0; page < size.pages(); page += pagesPerRange) {
+        range.setString(1, tid(page));
+        range.setString(2, tid(page + pagesPerRange));
+        int batch;
+        while ((batch = convertBatch(connection, readBatch(connection, range))) > 0) {
+          connection.commit();
+          taken += batch;
+          pace(connection, walGuard);
+        }
+        if (System.nanoTime() - nextLogAt >= 0) {
+          log.info(
+              "findings: page {} of {} walked, {} old row(s) taken",
+              Math.min(page + pagesPerRange, size.pages()),
+              size.pages(),
+              taken);
+          nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
+        }
+      }
+    }
+    connection.commit();
+    log.info(
+        "findings: {} old row(s) taken in physical order, {} s",
+        taken,
+        Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
+  }
+
+  /**
+   * Converts the first batch of old-shape rows left in id order, without committing: the rows the
+   * walk misses, written meanwhile by an older pod.
    *
    * @return false when no row is left
    */
   boolean convertNextBatch(Connection connection) throws SQLException {
-    List<OldFinding> read = readBatch(connection);
+    try (PreparedStatement any = connection.prepareStatement(READ_ANY)) {
+      return convertBatch(connection, readBatch(connection, any)) > 0;
+    }
+  }
+
+  /**
+   * Converts the rows of {@code read} within the budget of a batch. Each step runs once for the
+   * whole batch: the identities and dates are computed in Java, the writes are set-based. Every row
+   * taken is deleted, converted or not, so the next read takes the rows left.
+   *
+   * @return the number of rows taken, 0 when {@code read} is empty
+   */
+  private int convertBatch(Connection connection, List<OldFinding> read) throws SQLException {
     if (read.isEmpty()) {
-      return false;
+      return 0;
     }
     List<OldFinding> batch = withinBudget(read);
     List<Conversion> conversions = conversions(batch);
@@ -291,7 +438,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     if (!unconvertedIds.isEmpty()) {
       deleteFindings(connection, unconvertedIds);
     }
-    return true;
+    return batch.size();
   }
 
   // A row is converted whole: one alone over the budget makes a batch of its own
@@ -308,8 +455,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     return batch;
   }
 
-  private static void convert(Connection connection, List<Conversion> conversions)
-      throws SQLException {
+  private void convert(Connection connection, List<Conversion> conversions) throws SQLException {
     // 1 - the identity of each (row, location)
     Map<String, String> locationIdByKey = locationIds(connection, conversions);
     List<Identity> identities = new ArrayList<>();
@@ -324,6 +470,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
     // 2 - the stable finding of each identity: the one already there, else a new one
     Map<Identity, Target> targets = existingTargets(connection, new LinkedHashSet<>(identities));
+    readHeldOccurrences(connection, targets.values());
+    List<NewOccurrence> occurrences = new ArrayList<>();
     List<String> oldIds = new ArrayList<>();
     List<String> targetIds = new ArrayList<>();
     List<String[]> assetLinks = new ArrayList<>();
@@ -332,9 +480,9 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     for (int i = 0; i < conversions.size(); i++) {
       Conversion conversion = conversions.get(i);
       Target target =
-          targets.computeIfAbsent(
-              identities.get(i), identity -> new Target(UUID.randomUUID().toString(), false));
+          targets.computeIfAbsent(identities.get(i), identity -> new Target(ids.next(), false));
       target.take(conversion.row());
+      target.receive(conversion.row(), occurrences);
       oldIds.add(conversion.row().id());
       targetIds.add(target.id);
       firstTargetByRow.putIfAbsent(conversion.row().id(), target.id);
@@ -344,43 +492,38 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         case UnknownLocation unknown -> {}
       }
     }
-    // 3 - write the findings, pour the old rows into them, then delete the old rows
+    // 3 - write the findings with their final dates, pour the old rows into them, then delete
+    // the old rows
     writeTargets(connection, targets);
+    insertOccurrences(connection, occurrences);
     Array oldIdArray = varchars(connection, oldIds);
     Array targetIdArray = varchars(connection, targetIds);
-    copyOccurrences(connection, oldIdArray, targetIdArray);
     copyLinks(connection, "findings_tags", "tag_id", oldIdArray, targetIdArray);
     copyLinks(connection, "findings_teams", "team_id", oldIdArray, targetIdArray);
     linkLocations(connection, "findings_assets", "asset_id", assetLinks);
     linkLocations(connection, "findings_users", "user_id", userLinks);
     moveAndDelete(connection, firstTargetByRow);
-    recomputeSeen(connection, new LinkedHashSet<>(targetIds));
   }
 
   // -- READ --
 
-  private List<OldFinding> readBatch(Connection connection) throws SQLException {
+  // The statement selects READ_COLUMNS, its parameters set
+  private static List<OldFinding> readBatch(Connection connection, PreparedStatement statement)
+      throws SQLException {
     Map<String, Object[]> rows = new LinkedHashMap<>();
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "SELECT finding_id, tenant_id, finding_type, finding_value, finding_value_display,"
-                + " finding_name, finding_created_at, finding_updated_at FROM findings"
-                + " WHERE finding_value_hash IS NULL ORDER BY finding_id LIMIT "
-                + BATCH_SIZE)) {
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          rows.put(
-              resultSet.getString(1),
-              new Object[] {
-                resultSet.getString(2),
-                resultSet.getString(3),
-                resultSet.getString(4),
-                resultSet.getString(5),
-                resultSet.getString(6),
-                resultSet.getTimestamp(7),
-                resultSet.getTimestamp(8)
-              });
-        }
+    try (ResultSet resultSet = statement.executeQuery()) {
+      while (resultSet.next()) {
+        rows.put(
+            resultSet.getString(1),
+            new Object[] {
+              resultSet.getString(2),
+              resultSet.getString(3),
+              resultSet.getString(4),
+              resultSet.getString(5),
+              resultSet.getString(6),
+              resultSet.getTimestamp(7),
+              resultSet.getTimestamp(8)
+            });
       }
     }
     if (rows.isEmpty()) {
@@ -471,6 +614,10 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     private Timestamp lastSeen;
     private Timestamp createdAt;
     private Timestamp updatedAt;
+    // The occurrences the finding holds: their injects, their first and last dates
+    private final Set<String> heldInjects = new HashSet<>();
+    private Timestamp firstOccurrence;
+    private Timestamp lastOccurrence;
 
     private Target(String id, boolean existing) {
       this.id = id;
@@ -489,7 +636,36 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       createdAt = min(createdAt, row.createdAt());
       updatedAt = max(updatedAt, row.updatedAt());
     }
+
+    private void hold(String injectId, Timestamp date) {
+      if (injectId != null) {
+        heldInjects.add(injectId);
+      }
+      firstOccurrence = min(firstOccurrence, date);
+      lastOccurrence = max(lastOccurrence, date);
+    }
+
+    // An inject the finding holds is skipped: on a merge, the occurrence first written wins
+    private void receive(OldFinding row, List<NewOccurrence> occurrences) {
+      for (Occurrence occurrence : row.occurrences()) {
+        if (occurrence.injectId() == null || !heldInjects.contains(occurrence.injectId())) {
+          hold(occurrence.injectId(), occurrence.date());
+          occurrences.add(new NewOccurrence(id, occurrence));
+        }
+      }
+    }
+
+    // From the occurrences the finding holds; without any, from the dates of its rows
+    private Timestamp firstSeen() {
+      return firstOccurrence != null ? firstOccurrence : firstSeen;
+    }
+
+    private Timestamp lastSeen() {
+      return lastOccurrence != null ? lastOccurrence : lastSeen;
+    }
   }
+
+  private record NewOccurrence(String findingId, Occurrence occurrence) {}
 
   // A row whose type or value cannot be hashed is left out, before anything is written
   private static List<Conversion> conversions(List<OldFinding> batch) {
@@ -596,6 +772,27 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     return targets;
   }
 
+  private static void readHeldOccurrences(Connection connection, Collection<Target> existing)
+      throws SQLException {
+    if (existing.isEmpty()) {
+      return;
+    }
+    Map<String, Target> byId = new HashMap<>();
+    existing.forEach(target -> byId.put(target.id, target));
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT finding_occurrence_finding_id, finding_occurrence_inject_id,"
+                + " finding_occurrence_date FROM finding_occurrences"
+                + " WHERE finding_occurrence_finding_id = ANY (?)")) {
+      statement.setArray(1, varchars(connection, byId.keySet()));
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          byId.get(resultSet.getString(1)).hold(resultSet.getString(2), resultSet.getTimestamp(3));
+        }
+      }
+    }
+  }
+
   private static void writeTargets(Connection connection, Map<Identity, Target> targets)
       throws SQLException {
     try (PreparedStatement insert =
@@ -604,12 +801,12 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
                     + " finding_value_display, finding_name, finding_value_hash,"
                     + " finding_location_id, finding_created_at, finding_updated_at,"
                     + " finding_first_seen, finding_last_seen)"
-                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?, ?)");
         PreparedStatement update =
             connection.prepareStatement(
                 "UPDATE findings SET finding_value = ?, finding_value_display = ?,"
-                    + " finding_name = ?, finding_first_seen = ?, finding_last_seen = ?"
-                    + " WHERE finding_id = ?")) {
+                    + " finding_name = ?, finding_first_seen = ?, finding_last_seen = ?,"
+                    + " finding_updated_at = now() WHERE finding_id = ?")) {
       for (Map.Entry<Identity, Target> entry : targets.entrySet()) {
         Identity identity = entry.getKey();
         Target target = entry.getValue();
@@ -617,8 +814,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           update.setString(1, target.value);
           update.setString(2, target.valueDisplay);
           update.setString(3, target.name);
-          update.setTimestamp(4, target.firstSeen);
-          update.setTimestamp(5, target.lastSeen);
+          update.setTimestamp(4, target.firstSeen());
+          update.setTimestamp(5, target.lastSeen());
           update.setString(6, target.id);
           update.addBatch();
         } else {
@@ -631,9 +828,8 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
           insert.setString(7, identity.hash());
           insert.setString(8, identity.locationId());
           insert.setTimestamp(9, target.createdAt);
-          insert.setTimestamp(10, target.updatedAt);
-          insert.setTimestamp(11, target.firstSeen);
-          insert.setTimestamp(12, target.lastSeen);
+          insert.setTimestamp(10, target.firstSeen());
+          insert.setTimestamp(11, target.lastSeen());
           insert.addBatch();
         }
       }
@@ -642,23 +838,38 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // On a merge, the occurrence already on the target keeps its field; in the batch, the first row
-  private static void copyOccurrences(Connection connection, Array oldIds, Array targetIds)
+  // The dates travel as ISO instants: a timestamp array has no time zone of its own
+  private void insertOccurrences(Connection connection, List<NewOccurrence> occurrences)
       throws SQLException {
+    if (occurrences.isEmpty()) {
+      return;
+    }
+    List<String> occurrenceIds = new ArrayList<>();
+    List<String> findingIds = new ArrayList<>();
+    List<String> injectIds = new ArrayList<>();
+    List<String> dates = new ArrayList<>();
+    List<String> fields = new ArrayList<>();
+    for (NewOccurrence row : occurrences) {
+      occurrenceIds.add(ids.next());
+      findingIds.add(row.findingId());
+      injectIds.add(row.occurrence().injectId());
+      dates.add(row.occurrence().date().toInstant().toString());
+      fields.add(row.occurrence().field());
+    }
     try (PreparedStatement statement =
         connection.prepareStatement(
             "INSERT INTO finding_occurrences (finding_occurrence_id, finding_occurrence_finding_id,"
                 + " finding_occurrence_inject_id, finding_occurrence_date,"
                 + " finding_occurrence_field, finding_occurrence_created_at)"
-                + " SELECT gen_random_uuid()::text, m.target_id, o.finding_occurrence_inject_id,"
-                + " o.finding_occurrence_date, o.finding_occurrence_field, now()"
-                + " FROM unnest(?, ?) WITH ORDINALITY AS m(old_id, target_id, ord)"
-                + " JOIN finding_occurrences o ON o.finding_occurrence_finding_id = m.old_id"
-                + " ORDER BY m.ord"
+                + " SELECT o.id, o.finding_id, o.inject_id, o.date::timestamptz, o.field, now()"
+                + " FROM unnest(?, ?, ?, ?, ?) AS o(id, finding_id, inject_id, date, field)"
                 + " ON CONFLICT (finding_occurrence_finding_id, finding_occurrence_inject_id)"
                 + " DO NOTHING")) {
-      statement.setArray(1, oldIds);
-      statement.setArray(2, targetIds);
+      statement.setArray(1, varchars(connection, occurrenceIds));
+      statement.setArray(2, varchars(connection, findingIds));
+      statement.setArray(3, varchars(connection, injectIds));
+      statement.setArray(4, varchars(connection, dates));
+      statement.setArray(5, varchars(connection, fields));
       statement.executeUpdate();
     }
   }
@@ -768,35 +979,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     return current == null || candidate.after(current) ? candidate : current;
   }
 
-  // From the occurrences; a finding without any keeps the dates of its row
-  private static void recomputeSeen(Connection connection, Set<String> findingIds)
-      throws SQLException {
-    if (findingIds.isEmpty()) {
-      return;
-    }
-    Array ids = connection.createArrayOf("varchar", findingIds.toArray());
-    try (PreparedStatement seen =
-            connection.prepareStatement(
-                "UPDATE findings f SET finding_first_seen = s.first_seen,"
-                    + " finding_last_seen = s.last_seen, finding_updated_at = now()"
-                    + " FROM (SELECT finding_occurrence_finding_id AS finding_id,"
-                    + " min(finding_occurrence_date) AS first_seen,"
-                    + " max(finding_occurrence_date) AS last_seen FROM finding_occurrences"
-                    + " WHERE finding_occurrence_finding_id = ANY (?)"
-                    + " GROUP BY finding_occurrence_finding_id) s"
-                    + " WHERE f.finding_id = s.finding_id");
-        PreparedStatement withoutOccurrence =
-            connection.prepareStatement(
-                "UPDATE findings SET finding_updated_at = now() WHERE finding_id = ANY (?)"
-                    + " AND NOT EXISTS (SELECT 1 FROM finding_occurrences"
-                    + " WHERE finding_occurrence_finding_id = finding_id)")) {
-      seen.setArray(1, ids);
-      seen.executeUpdate();
-      withoutOccurrence.setArray(1, ids);
-      withoutOccurrence.executeUpdate();
-    }
-  }
-
   // -- SEARCH INDEX --
 
   // A reset, not a re-feed: the merged rows' ids disappear, and a re-feed never deletes documents
@@ -811,6 +993,141 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
               + "')"
               + " ON CONFLICT (indexing_status_type)"
               + " DO UPDATE SET indexing_status_indexing_date = EXCLUDED.indexing_status_indexing_date");
+    }
+  }
+
+  /**
+   * RFC 9562 version 7 ids: the time in milliseconds, then a counter, then random bits. Ids drawn
+   * in a row increase, also within one millisecond.
+   */
+  static final class TimeOrderedIds {
+    private static final int MAX_COUNTER = 0xFFF;
+    private long millis;
+    private int counter;
+
+    String next() {
+      long now = System.currentTimeMillis();
+      if (now > millis) {
+        millis = now;
+        counter = 0;
+      } else if (++counter > MAX_COUNTER) {
+        millis++;
+        counter = 0;
+      }
+      long high = millis << 16 | 0x7000 | counter;
+      long low = ThreadLocalRandom.current().nextLong() >>> 2 | 0x8000000000000000L;
+      return new UUID(high, low).toString();
+    }
+  }
+
+  // -- PACING --
+
+  /**
+   * {@code pages} is the size on disk and bounds the walk; the estimates only give the row density.
+   */
+  private record TableSize(long pages, long estimatedRows, long estimatedPages) {}
+
+  private static TableSize tableSize(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet result =
+            statement.executeQuery(
+                "SELECT pg_relation_size(oid) / current_setting('block_size')::bigint,"
+                    + " reltuples::bigint, relpages::bigint FROM pg_class"
+                    + " WHERE oid = 'findings'::regclass")) {
+      result.next();
+      return new TableSize(result.getLong(1), result.getLong(2), result.getLong(3));
+    }
+  }
+
+  private static String tid(long page) {
+    return "(" + page + ",0)";
+  }
+
+  /**
+   * Pauses, then waits while the WAL lag is above the bound. A lag that cannot be read stops the
+   * wait for the rest of the run. Called between batches, so the transaction it opens holds no
+   * write.
+   */
+  private void pace(Connection connection, WalGuard walGuard) {
+    sleep(pauseMillis);
+    if (!walGuard.available) {
+      return;
+    }
+    try {
+      long lag = walLagBytes(connection, walGuard.startWalFile);
+      long nextLogAt = System.nanoTime();
+      while (lag > walLagBoundBytes) {
+        if (System.nanoTime() - nextLogAt >= 0) {
+          log.info(
+              "findings: waiting for WAL archiving or replicas, {} MB behind (bound {} MB)",
+              lag / MEGABYTE,
+              walLagBoundBytes / MEGABYTE);
+          nextLogAt = System.nanoTime() + LOG_INTERVAL.toNanos();
+        }
+        sleep(Math.max(pauseMillis, 1_000));
+        lag = walLagBytes(connection, walGuard.startWalFile);
+      }
+    } catch (SQLException e) {
+      walGuard.available = false;
+      rollbackQuietly(connection);
+      log.warn(
+          "findings: cannot read pg_stat_archiver / pg_stat_replication / pg_replication_slots,"
+              + " pacing on the fixed pause alone: {}",
+          e.getMessage());
+    }
+  }
+
+  long walLagBytes(Connection connection, String startWalFile) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement(WAL_LAG_QUERY)) {
+      statement.setString(1, startWalFile);
+      try (ResultSet result = statement.executeQuery()) {
+        result.next();
+        long lag = result.getLong(1);
+        return result.wasNull() ? 0 : lag;
+      }
+    }
+  }
+
+  /** The pacing state of one run. */
+  static final class WalGuard {
+    private final String startWalFile;
+    private boolean available = true;
+
+    WalGuard(String startWalFile) {
+      this.startWalFile = startWalFile;
+    }
+  }
+
+  private static String currentWalFile(Connection connection) {
+    try (Statement statement = connection.createStatement();
+        ResultSet result = statement.executeQuery("SELECT pg_walfile_name(pg_current_wal_lsn())")) {
+      result.next();
+      return result.getString(1);
+    } catch (SQLException e) {
+      rollbackQuietly(connection);
+      return null;
+    }
+  }
+
+  // Ends a transaction a failed read aborted; it holds no write
+  private static void rollbackQuietly(Connection connection) {
+    try {
+      connection.rollback();
+    } catch (SQLException e) {
+      log.warn("findings: rollback after a failed read: {}", e.getMessage());
+    }
+  }
+
+  private static void sleep(int millis) {
+    if (millis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      // Stop here: the next start resumes from the rows left without a hash
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("findings identity conversion interrupted", e);
     }
   }
 }
