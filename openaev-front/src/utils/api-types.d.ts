@@ -10549,16 +10549,6 @@ export interface PayloadCommandBlock {
   payload_cleanup_command?: string[];
 }
 
-export type PayloadCreateInput = BasePayloadCreateInput &
-  (
-    | BasePayloadCreateInputPayloadTypeMapping<"Command", Command>
-    | BasePayloadCreateInputPayloadTypeMapping<"Executable", Executable>
-    | BasePayloadCreateInputPayloadTypeMapping<"FileDrop", FileDrop>
-    | BasePayloadCreateInputPayloadTypeMapping<"DnsResolution", DnsResolution>
-    | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
-  );
-
-/** One change of a payload; an update or a save also says what its version changed. */
 export interface PayloadContentChangeOutput {
   content_change_action:
     | "INSTALL"
@@ -10582,6 +10572,15 @@ export interface PayloadContentChangeOutput {
   /** @minLength 1 */
   content_change_version: string;
 }
+
+export type PayloadCreateInput = BasePayloadCreateInput &
+  (
+    | BasePayloadCreateInputPayloadTypeMapping<"Command", Command>
+    | BasePayloadCreateInputPayloadTypeMapping<"Executable", Executable>
+    | BasePayloadCreateInputPayloadTypeMapping<"FileDrop", FileDrop>
+    | BasePayloadCreateInputPayloadTypeMapping<"DnsResolution", DnsResolution>
+    | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
+  );
 
 export interface PayloadCustomizationOutput {
   /**
