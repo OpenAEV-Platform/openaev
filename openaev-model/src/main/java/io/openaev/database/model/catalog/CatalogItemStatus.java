@@ -4,7 +4,6 @@ public enum CatalogItemStatus {
   VERIFIED,
   DEPRECATED,
   REVOKED,
-  // No longer in a release, kept while a scenario of the tenant still runs it.
   UNLISTED;
 
   public static CatalogItemStatus fromManifest(String status) {
