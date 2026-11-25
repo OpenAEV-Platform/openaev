@@ -85,6 +85,7 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 - Call `t()` as early as possible — pass translated strings, not raw keys
 - Null-check backend strings before `t()` (crashes on null/undefined)
 - Keys = English text: `t('Tenant name')`
+- Reuse the product's existing terms in every language (the same word as OpenCTI): "marquage", not "balisage"
 
 ## Data Loading & State
 

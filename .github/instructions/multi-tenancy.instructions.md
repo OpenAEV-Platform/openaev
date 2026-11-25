@@ -17,7 +17,7 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 ## Dual-Scope Pattern
 
 - Entity implements `DualScopeBase` — `@Nullable getTenant()` / `setTenant()`
-- Repository keeps generic JPA methods (`findByKey()`, `findAll()`, etc.) and adds explicit platform-scoped methods (`findByKeyAndTenantIsNull()`, `findAllByTenantIsNull()`) and tenant-scoped methods (`findByKeyAndTenantId()`, `findAllByTenantId()`)
+- Repository keeps generic JPA methods (`findByKey()`, `findAll()`, etc.) and adds explicit platform-scoped methods (`findByKeyAndTenantIsNull()`, `findAllByTenantIsNull()`) and tenant-scoped methods (`findByTenantIdAndKey()`, `findAllByTenantId()`): the tenant (`TxCtx` or `tenantId`) comes first, in the parameters and in a derived query name
 - Two services: `PlatformXxxService` (uses `*TenantIsNull` methods, never receives tenantId) / `TenantXxxService` (uses `*TenantId` methods, always receives tenantId)
 - Two APIs: `/api/platform-{entities}` / `TENANT_PREFIX + "/{entities}"`
 
