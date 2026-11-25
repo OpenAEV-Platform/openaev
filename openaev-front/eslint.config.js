@@ -26,8 +26,6 @@ const legacyRamdaFiles = [
   'src/admin/components/common/injects/Injects.tsx',
   'src/admin/components/common/injects/form/articles/InjectAddArticles.tsx',
   'src/admin/components/common/injects/form/challenges/InjectAddChallenges.tsx',
-  'src/admin/components/common/matrix/MitreMatrix.tsx',
-  'src/admin/components/common/matrix/MitreMatrixDummy.tsx',
   'src/admin/components/components/teams/TeamPlayers.tsx',
   'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
   'src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx',
