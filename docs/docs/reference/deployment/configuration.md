@@ -400,20 +400,8 @@ Three batch queues can be tuned with `openaev.queue-config.<queue>.<parameter>` 
 
 For example, `openaev.queue-config.inject-trace.worker-number=16` doubles the inject trace workers.
 
-!!! note "No environment variable for these parameters"
-
-    `inject-trace`, `workflows-ready` and `workflows-update` are map keys, and each one already contains a
-    dash. Spring Boot derives a property path from an environment variable name by splitting it on
-    underscores, so it cannot tell where a multi-word map key ends and the nested parameter name begins:
-    there is no environment variable for `openaev.queue-config.inject-trace.worker-number`.
-
-    Docker users, who only configure the platform through environment variables, can still reach these
-    parameters with `SPRING_APPLICATION_JSON`: it holds a JSON document that Spring Boot parses directly
-    into dotted properties, keys included, instead of splitting a variable name.
-
-    ```bash
-    SPRING_APPLICATION_JSON={"openaev":{"queue-config":{"inject-trace":{"worker-number":16}}}}
-    ```
+Docker users, who only configure the platform through environment variables, can set the same parameter with
+the dashed form, same as the rest of this page: `OPENAEV_QUEUE-CONFIG_INJECT-TRACE_WORKER-NUMBER=16`.
 
 #### S3 bucket
 
