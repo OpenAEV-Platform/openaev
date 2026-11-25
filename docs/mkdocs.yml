@@ -67,6 +67,8 @@ plugins:
       redirect_maps:
         'development/api-usage.md': 'reference/apis/rest-api.md'
         'deployment/authentication.md': 'deployment/platform/authentication.md'
+        'deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md': 'deployment/breaking-changes/3.260729.0-injector-contract-expectation-format.md'
+        'deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md': 'deployment/breaking-changes/3.260818.1-tenant-users-groups-and-roles-capabilities.md'
         'deployment/certificate-validation.md': 'deployment/platform/certificate-validation.md'
         'deployment/configuration.md': 'reference/deployment/configuration.md'
         'deployment/ecosystem/collectors.md': 'integrations/collectors/deploy-collectors.md'
@@ -182,8 +184,8 @@ nav:
         - Scenario generation from OpenCTI security coverage: deployment/breaking-changes/2.2.0-opencti-security-coverage.md
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
-        - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
-        - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
+        - Injector contract expectation format: deployment/breaking-changes/3.260729.0-injector-contract-expectation-format.md
+        - Tenant users, groups and roles capabilities: deployment/breaking-changes/3.260818.1-tenant-users-groups-and-roles-capabilities.md
         - Elasticsearch 9 and engine auto-detection: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
         - Windows agent token encrypted with DPAPI: deployment/breaking-changes/MigrationVersion-windows-agent-token-dpapi.md
         - Windows agents running under a named service account: deployment/breaking-changes/3.261016.0-windows-agent-config-permissions.md

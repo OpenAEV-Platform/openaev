@@ -78,6 +78,9 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Access findings` | Access | Findings from Simulations and Atomic Tests |
 | `Access assessment` | Access, Manage, Delete, Launch | Scenarios, Simulations and Atomic Tests; `Launch assessment` needs only Access |
 | `Access threat arsenal` | Access, Manage, Delete | Threat Arsenal actions |
+{%- if feature_visible("CATALOG") %}
+| `Revoke threat arsenal` | -- | Revoke a Payload version so it no longer runs in the Tenant, or lift the revocation; needs the Manage level of `Access threat arsenal` |
+{%- endif %}
 | `Access teams & persons` | Access, Manage, Delete | Teams and Players |
 | `Access assets` | Access, Manage, Delete | Assets and asset groups |
 | `Access security platforms` | Access, Manage, Delete | Security platform integrations |
