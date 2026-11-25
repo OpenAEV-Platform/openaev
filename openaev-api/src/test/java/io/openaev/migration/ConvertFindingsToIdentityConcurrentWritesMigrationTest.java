@@ -240,9 +240,10 @@ class ConvertFindingsToIdentityConcurrentWritesMigrationTest extends Integration
       batches.get(30, SECONDS);
       drain();
 
-      // Assert: the detection from the second asset is converted, on that asset
+      // Assert: the detection from the second asset is converted, on that asset, with its inject
       assertThat(convertedAt(assets.get(1))).isEqualTo(1);
       assertThat(convertedAt(assets.get(0))).isEqualTo(1);
+      assertThat(occurrencesAt(assets.get(1))).containsExactly(injects.get(0) + "/output");
     }
 
     /** The agent finding upsert of the older version, column for column. */
@@ -381,6 +382,26 @@ class ConvertFindingsToIdentityConcurrentWritesMigrationTest extends Integration
             + " AND l.finding_location_asset_id = ?",
         value,
         asset);
+  }
+
+  private List<String> occurrencesAt(String asset) throws SQLException {
+    List<String> occurrences = new ArrayList<>();
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT o.finding_occurrence_inject_id, o.finding_occurrence_field"
+                + " FROM finding_occurrences o"
+                + " JOIN findings f ON f.finding_id = o.finding_occurrence_finding_id"
+                + " JOIN finding_locations l ON l.finding_location_id = f.finding_location_id"
+                + " WHERE f.finding_value = ? AND l.finding_location_asset_id = ? ORDER BY 1")) {
+      statement.setString(1, value);
+      statement.setString(2, asset);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          occurrences.add(resultSet.getString(1) + "/" + resultSet.getString(2));
+        }
+      }
+    }
+    return occurrences;
   }
 
   // The next batches, once the concurrent writes are over

@@ -683,6 +683,12 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     return links;
   }
 
+  /**
+   * The occurrences of the rows. A row on an inject with none, written by a release that records no
+   * occurrence (3.261109.0 and older) during a rolling update, gets the one the occurrences
+   * migration (V6_20261109100000000) gives the rows it finds: its inject and field, dated at the
+   * send date of the inject, else at the creation date of the row.
+   */
   private static Map<String, List<Occurrence>> readOccurrences(
       Connection connection, Array findingIds) throws SQLException {
     Map<String, List<Occurrence>> occurrences = new HashMap<>();
@@ -690,8 +696,17 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         connection.prepareStatement(
             "SELECT finding_occurrence_finding_id, finding_occurrence_inject_id,"
                 + " finding_occurrence_date, finding_occurrence_field FROM finding_occurrences"
-                + " WHERE finding_occurrence_finding_id = ANY (?)")) {
+                + " WHERE finding_occurrence_finding_id = ANY (?)"
+                + " UNION ALL"
+                + " SELECT f.finding_id, f.finding_inject_id,"
+                + " COALESCE(s.tracking_sent_date, f.finding_created_at, now()), f.finding_field"
+                + " FROM findings f"
+                + " LEFT JOIN injects_statuses s ON s.status_inject = f.finding_inject_id"
+                + " WHERE f.finding_id = ANY (?) AND f.finding_inject_id IS NOT NULL"
+                + " AND NOT EXISTS (SELECT 1 FROM finding_occurrences o"
+                + " WHERE o.finding_occurrence_finding_id = f.finding_id)")) {
       statement.setArray(1, findingIds);
+      statement.setArray(2, findingIds);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           occurrences

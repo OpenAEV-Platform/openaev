@@ -161,6 +161,45 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
       assertThat(((Timestamp) findings.getFirst()[1]).toInstant()).isEqualTo(DAY_3);
       assertThat(((Timestamp) findings.getFirst()[2]).toInstant()).isEqualTo(DAY_2);
     }
+
+    @Test
+    @DisplayName(
+        "A row of a release without occurrences gets the occurrence of its inject, dated at the send"
+            + " date of the inject, else at the creation date of the row, and the first written wins")
+    void given_oldRowsOnAnInjectWithoutOccurrence_should_convertTheirInject() throws Exception {
+      // Arrange: rows written by a release that records no occurrence
+      String value = marker + "-value";
+      seedOldFinding("1", value, DAY_1, DAY_1, occurrence(1, DAY_2));
+      onInject(seedOldFinding("2", value, DAY_1, DAY_1), 0);
+      sentAt(0, DAY_3);
+      onInject(seedOldFinding("3", value, DAY_1, DAY_1), 1);
+      onInject(seedOldFinding("4", value, DAY_4, DAY_4), 2);
+
+      // Act
+      drain(migration);
+
+      // Assert
+      assertThat(occurrencesOf(value))
+          .containsExactly(
+              injects.get(0) + "@" + DAY_3,
+              injects.get(1) + "@" + DAY_2,
+              injects.get(2) + "@" + DAY_4);
+      assertThat(
+              rows(
+                  "SELECT DISTINCT o.finding_occurrence_field FROM finding_occurrences o"
+                      + " JOIN findings f ON f.finding_id = o.finding_occurrence_finding_id"
+                      + " WHERE f.finding_value = ?",
+                  value))
+          .extracting(row -> row[0])
+          .containsExactly("output");
+      List<Object[]> findings =
+          rows(
+              "SELECT finding_first_seen, finding_last_seen FROM findings WHERE finding_value = ?",
+              value);
+      assertThat(findings).hasSize(1);
+      assertThat(((Timestamp) findings.getFirst()[0]).toInstant()).isEqualTo(DAY_2);
+      assertThat(((Timestamp) findings.getFirst()[1]).toInstant()).isEqualTo(DAY_4);
+    }
   }
 
   @Nested
@@ -453,6 +492,22 @@ class ConvertFindingsToIdentityMigrationTest extends IntegrationTest {
           Timestamp.from(seed.date()));
     }
     return id;
+  }
+
+  private void onInject(String findingId, int inject) throws SQLException {
+    execute(
+        "UPDATE findings SET finding_inject_id = ? WHERE finding_id = ?",
+        injects.get(inject),
+        findingId);
+  }
+
+  private void sentAt(int inject, Instant sentAt) throws SQLException {
+    execute(
+        "INSERT INTO injects_statuses (status_id, status_inject, status_name, tracking_sent_date)"
+            + " VALUES (?, ?, 'EXECUTED', ?)",
+        UUID.randomUUID().toString(),
+        injects.get(inject),
+        Timestamp.from(sentAt));
   }
 
   private void walk(V6_20261117160000000__Convert_findings_to_identity conversion)
