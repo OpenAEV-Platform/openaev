@@ -178,8 +178,42 @@ class PayloadApprovalServiceTest {
     }
 
     @Test
-    @DisplayName("Given a collector write, onWrite should leave the version pending")
-    void given_collectorWrite_should_bePending() {
+    @DisplayName(
+        "Given a collector write with an account lacking Approve content, onWrite should leave the version pending")
+    void given_collectorWriteWithoutApproveContent_should_bePending() {
+      // -- ARRANGE --
+      Command collected = version("1.0.0", PAYLOAD_APPROVAL_STATUS.PENDING);
+
+      // -- ACT --
+      service.onWrite(collected, author, ORIGIN.COLLECTOR);
+
+      // -- ASSERT --
+      assertThat(collected.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
+      assertThat(lastEntry().getOrigin()).isEqualTo(ORIGIN.COLLECTOR);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a collector write with an account holding Approve content, onWrite should approve it automatically")
+    void given_collectorWriteWithApproveContent_should_beAutoApproved() {
+      // -- ARRANGE --
+      Command collected = version("1.0.0", PAYLOAD_APPROVAL_STATUS.PENDING);
+
+      // -- ACT --
+      service.onWrite(collected, approver, ORIGIN.COLLECTOR);
+
+      // -- ASSERT --
+      assertThat(collected.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.APPROVED);
+      PayloadApproval entry = lastEntry();
+      assertThat(entry.getOrigin()).isEqualTo(ORIGIN.COLLECTOR);
+      assertThat(entry.isAutomatic()).isTrue();
+      assertThat(entry.getActor()).isEqualTo(approver);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a collector write without an account, onWrite should leave the version pending")
+    void given_collectorWriteWithoutAccount_should_bePending() {
       // -- ARRANGE --
       Command collected = version("1.0.0", PAYLOAD_APPROVAL_STATUS.PENDING);
 
@@ -188,7 +222,6 @@ class PayloadApprovalServiceTest {
 
       // -- ASSERT --
       assertThat(collected.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
-      assertThat(lastEntry().getOrigin()).isEqualTo(ORIGIN.COLLECTOR);
     }
 
     @Test

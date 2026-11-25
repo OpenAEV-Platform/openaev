@@ -11,6 +11,7 @@ import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.SessionManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -174,6 +175,15 @@ class CatalogConnectorPrivilegeServiceTest {
               CATALOG_CONNECTOR.access().roleDescription(),
               CATALOG_CONNECTOR.access().capabilities(),
               TENANT_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "Gives the account Approve content, so what a collector writes is approved automatically")
+    void given_catalogConnectorAccess_should_holdApproveContent() {
+      // Act & Assert: the role is resynced with this set at every call, so the capability stays.
+      assertThat(CATALOG_CONNECTOR.access().capabilities())
+          .contains(Capability.APPROVE_THREAT_ARSENALS);
     }
 
     @Test

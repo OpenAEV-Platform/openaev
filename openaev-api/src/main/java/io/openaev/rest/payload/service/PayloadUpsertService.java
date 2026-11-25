@@ -20,6 +20,7 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.GrantService;
+import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadContentHashService;
@@ -68,6 +69,7 @@ public class PayloadUpsertService {
   private final GrantService grantService;
   private final PayloadContentHashService payloadContentHashService;
   private final PayloadApprovalService payloadApprovalService;
+  private final UserService userService;
 
   /**
    * Legacy collector upsert. A catalogue payload with this external ID wins and is not touched.
@@ -232,7 +234,10 @@ public class PayloadUpsertService {
             payload.identityOrNew(),
             payload,
             PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
-    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.COLLECTOR);
+    // The account the collector calls with (the integrations service account when deployed
+    // from the catalog) decides the status, like a person's save.
+    payloadApprovalService.onWrite(
+        saved, userService.currentUserOrNull(), PayloadApproval.ORIGIN.COLLECTOR);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
@@ -303,7 +308,10 @@ public class PayloadUpsertService {
             identity,
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change.get()));
-    payloadApprovalService.onWrite(saved, null, PayloadApproval.ORIGIN.COLLECTOR);
+    // The account the collector calls with (the integrations service account when deployed
+    // from the catalog) decides the status, like a person's save.
+    payloadApprovalService.onWrite(
+        saved, userService.currentUserOrNull(), PayloadApproval.ORIGIN.COLLECTOR);
     InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved, attackPatterns, domains, tags);

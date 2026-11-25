@@ -55,6 +55,9 @@ public enum ReservedServiceAccount {
               Capability.MANAGE_PAYLOADS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,
+              // "Approve content": what a collector writes is approved on arrival, no person
+              // reviews it. Kept on every role resync, so it cannot be removed by hand.
+              Capability.APPROVE_THREAT_ARSENALS,
               Capability.RESOLVE_INJECT_SECRET),
           "0d7c4060-0c48-4910-a504-c06ca885d680",
           "Catalog connectors",

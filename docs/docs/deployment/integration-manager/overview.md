@@ -103,6 +103,8 @@ The initial connector may be shut down at this point. Remove the container, or c
 
 Collectors, Injectors and Executors deployed from the catalog all authenticate with the token of a dedicated service account of the tenant.
 
+This service account holds *Approve content*: the actions a collector deployed from the catalog adds or updates are approved automatically (see [Threat Arsenal](../../usage/build/threat-arsenals/threat-arsenals.md)). Its role is managed by the platform and reset each time the platform issues the account's token, so its capabilities cannot be changed.
+
 !!! note
 
     Instances deployed before this service account existed used the token of the user who deployed them. At upgrade, OpenAEV moves them to the service account token, and the Integration Manager redeploys each of them once on its next synchronization with the platform. They keep working with the previous token until then.
