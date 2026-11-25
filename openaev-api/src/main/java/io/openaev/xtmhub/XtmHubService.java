@@ -367,18 +367,14 @@ public class XtmHubService {
    *
    * <p>The run ends with the cleanup of the items older than the configured retention (see {@link
    * NewsFeedItemService#cleanOldItems}), whether or not the Hub could be consumed: it only depends
-   * on the items the platform holds.
+   * on the items the platform holds. Running it at the end of this task rather than as a task of
+   * its own is deliberate: the news feed has a single scheduled task.
    *
    * <p>Nothing is thrown: the Hub removes the items it returns, so those of a failed run are not
    * delivered again, and the run must not stop the scheduled task.
    */
   public void syncNewsFeed() {
-    try {
-      if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
-        return;
-      }
-    } catch (Exception e) {
-      log.error("The XTM Hub news feed could not be synchronized: {}", e.getMessage(), e);
+    if (!isNewsFeedEnabled()) {
       return;
     }
     try {
@@ -387,6 +383,15 @@ public class XtmHubService {
       log.error("The XTM Hub news feed items could not be applied: {}", e.getMessage(), e);
     }
     cleanOldNewsFeedItems();
+  }
+
+  private boolean isNewsFeedEnabled() {
+    try {
+      return previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED);
+    } catch (Exception e) {
+      log.error("The XTM Hub news feed could not be synchronized: {}", e.getMessage(), e);
+      return false;
+    }
   }
 
   private void cleanOldNewsFeedItems() {

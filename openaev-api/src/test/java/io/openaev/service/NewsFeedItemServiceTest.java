@@ -342,6 +342,7 @@ class NewsFeedItemServiceTest {
     owner.setId("owner-" + rowId);
     NewsFeedItem row = NewsFeedItemFixture.createNewsFeedItem(owner, hubItemId);
     row.setId(rowId);
+    row.setCreationDate(CREATION_DATE);
     return row;
   }
 
@@ -554,7 +555,7 @@ class NewsFeedItemServiceTest {
 
     private static final Instant CUTOFF = Instant.parse("2026-05-26T00:00:00Z");
 
-    /** The old rows, found by keyset chunks of {@link #USER_CHUNK_SIZE}. */
+    /** The old rows, found by keyset chunks of {@link NewsFeedItemService#USER_CHUNK_SIZE}. */
     private void givenOldRows(int count) {
       List<String> ids = IntStream.range(0, count).mapToObj(i -> "row-%05d".formatted(i)).toList();
       when(newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(

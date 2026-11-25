@@ -44,8 +44,10 @@ public interface NewsFeedItemRepository
   /**
    * The ids of the rows created before the cutoff whose stored type is not the excluded one, after
    * the given id and in id order: a keyset page, as {@link #findIdsByHubItemIdAfter}. The type is
-   * compared as stored, so rows of a type this version no longer knows match. No index serves it:
-   * the table only holds the items the Hub published, and it is read once per sync run.
+   * compared as stored, so rows of a type this version no longer knows match. No index serves it,
+   * so every sync run scans the table: that is fine while it only holds the items the Hub published
+   * for the users. An index on the creation date becomes worth adding when the table grows large
+   * (many users times many items) and the scan shows up in the sync run time.
    */
   @Query(
       "select n.id from NewsFeedItem n"

@@ -200,6 +200,9 @@ public class NewsFeedItemService {
    * stay. It takes two runs of the scheduled collector to overlap that closely on the same item, so
    * a cluster-wide lock is not worth its cost here.
    *
+   * <p>Items older than the retention are not filtered here: they are created, then deleted by the
+   * cleanup (see {@link #cleanOldItems}) that ends the same sync run.
+   *
    * @param provisionedItems the items consumed from XTM Hub
    * @param recipientTenantIds the tenants registered on XTM Hub, whose users receive new items
    */
@@ -385,13 +388,13 @@ public class NewsFeedItemService {
    *
    * @param idsAfter the ids of at most {@link #USER_CHUNK_SIZE} rows after the given id, in id
    *     order
-   * @param rows what the rows are, for the log of a failing chunk
+   * @param rowsDescription what the rows are, for the log of a failing chunk
    * @param action handles the rows of one chunk and returns how many it changed
    * @return how many rows the actions changed
    */
   private int forEachChunk(
       Function<String, List<String>> idsAfter,
-      String rows,
+      String rowsDescription,
       ToIntFunction<List<NewsFeedItem>> action) {
     int handled = 0;
     String afterId = "";
@@ -414,7 +417,12 @@ public class NewsFeedItemService {
                             action.applyAsInt(
                                 newsFeedItemRepository.findAllWithUserByIdIn(chunkIds))));
       } catch (Exception e) {
-        log.error("Could not handle {} rows of {}: {}", chunkIds.size(), rows, e.getMessage(), e);
+        log.error(
+            "Could not handle {} rows of {}: {}",
+            chunkIds.size(),
+            rowsDescription,
+            e.getMessage(),
+            e);
       }
     } while (ids.size() == USER_CHUNK_SIZE);
     return handled;
@@ -428,6 +436,11 @@ public class NewsFeedItemService {
    * the post is still live, and only the Hub removes blog posts (see {@link
    * #applyProvisionedItems}). Every other row is cleaned, whatever its type, including the types
    * this version no longer knows.
+   *
+   * <p>This is the single place the retention is enforced: an item the Hub delivers again with a
+   * creation date older than the cutoff is created by {@link #applyProvisionedItems} and cleaned by
+   * the same sync run. The cleanup assumes the Hub expires its resources within the retention, as
+   * it deletes the resources that stay live past it.
    *
    * <p>The rows are deleted through the session, {@link #USER_CHUNK_SIZE} at a time and each chunk
    * in its own transaction, as the rows of a deleted Hub item: a failing chunk is logged and the

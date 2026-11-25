@@ -13,6 +13,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.openaev.xtmhub.XtmHubService;
 import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,12 +34,31 @@ class XtmHubCollectorTest {
   private XtmHubCollectorConfig config;
   private XtmHubCollector collector;
 
+  private Logger collectorLogger;
+  private Level originalLogLevel;
+  private ListAppender<ILoggingEvent> logs;
+
   @BeforeEach
   void setUp() {
+    collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
+    // Explicit: the ambient level depends on the Spring contexts the other tests started
+    originalLogLevel = collectorLogger.getLevel();
+    collectorLogger.setLevel(Level.WARN);
+    logs = new ListAppender<>();
+    logs.start();
+    collectorLogger.addAppender(logs);
+
     config = new XtmHubCollectorConfig();
     config.setConnectivityCheckInterval(7200);
     config.setNewsFeedInterval(1800);
     collector = new XtmHubCollector(config, taskScheduler, xtmHubService);
+  }
+
+  @AfterEach
+  void tearDown() {
+    collectorLogger.detachAppender(logs);
+    logs.stop();
+    collectorLogger.setLevel(originalLogLevel);
   }
 
   @Test
@@ -103,30 +123,18 @@ class XtmHubCollectorTest {
     config.setEnable(true);
     config.setNewsFeedCleanupIntervalValue("abc");
     config.setNewsFeedCleanupIntervalUnit("fortnights");
-    Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
-    // Explicit: the ambient level depends on the Spring contexts the other tests started
-    Level originalLevel = collectorLogger.getLevel();
-    collectorLogger.setLevel(Level.WARN);
-    ListAppender<ILoggingEvent> logs = new ListAppender<>();
-    logs.start();
-    collectorLogger.addAppender(logs);
-    try {
-      // Act
-      collector.init();
 
-      // Assert
-      assertThat(logs.list)
-          .filteredOn(event -> event.getLevel() == Level.WARN)
-          .extracting(ILoggingEvent::getFormattedMessage)
-          .containsExactly(
-              "Invalid openaev.xtm.hub.collector.news-feed-cleanup-interval-value abc or"
-                  + " news-feed-cleanup-interval-unit fortnights, using 180 days");
-      verify(taskScheduler).scheduleWithFixedDelay(any(Runnable.class), any(Duration.class));
-    } finally {
-      collectorLogger.detachAppender(logs);
-      logs.stop();
-      collectorLogger.setLevel(originalLevel);
-    }
+    // Act
+    collector.init();
+
+    // Assert
+    assertThat(logs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .containsExactly(
+            "Invalid openaev.xtm.hub.collector.news-feed-cleanup-interval-value abc or"
+                + " news-feed-cleanup-interval-unit fortnights, using 180 days");
+    verify(taskScheduler).scheduleWithFixedDelay(any(Runnable.class), any(Duration.class));
   }
 
   @Test
@@ -136,24 +144,12 @@ class XtmHubCollectorTest {
     config.setEnable(true);
     config.setNewsFeedCleanupIntervalValue("6");
     config.setNewsFeedCleanupIntervalUnit("months");
-    Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
-    // Explicit: the ambient level depends on the Spring contexts the other tests started
-    Level originalLevel = collectorLogger.getLevel();
-    collectorLogger.setLevel(Level.WARN);
-    ListAppender<ILoggingEvent> logs = new ListAppender<>();
-    logs.start();
-    collectorLogger.addAppender(logs);
-    try {
-      // Act
-      collector.init();
 
-      // Assert
-      assertThat(logs.list).filteredOn(event -> event.getLevel() == Level.WARN).isEmpty();
-    } finally {
-      collectorLogger.detachAppender(logs);
-      logs.stop();
-      collectorLogger.setLevel(originalLevel);
-    }
+    // Act
+    collector.init();
+
+    // Assert
+    assertThat(logs.list).filteredOn(event -> event.getLevel() == Level.WARN).isEmpty();
   }
 
   @Test

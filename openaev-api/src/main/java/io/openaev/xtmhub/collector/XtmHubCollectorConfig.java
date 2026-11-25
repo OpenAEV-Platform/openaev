@@ -7,6 +7,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,10 @@ public class XtmHubCollectorConfig {
   private Integer newsFeedInterval;
 
   public static final int DEFAULT_NEWS_FEED_CLEANUP_VALUE = 180;
-  public static final String DEFAULT_NEWS_FEED_CLEANUP_UNIT = "days";
+  public static final ChronoUnit DEFAULT_NEWS_FEED_CLEANUP_UNIT = ChronoUnit.DAYS;
+
+  private static final CleanupRetention DEFAULT_NEWS_FEED_CLEANUP_RETENTION =
+      new CleanupRetention(DEFAULT_NEWS_FEED_CLEANUP_VALUE, DEFAULT_NEWS_FEED_CLEANUP_UNIT);
 
   private static final Map<String, ChronoUnit> NEWS_FEED_CLEANUP_UNITS =
       Map.of(
@@ -73,19 +77,15 @@ public class XtmHubCollectorConfig {
    * Otherwise the effective value and unit are both the defaults.
    */
   public boolean isNewsFeedCleanupIntervalValid() {
-    return parsedCleanupValue() != null && parsedCleanupUnit() != null;
+    return configuredRetention().isPresent();
   }
 
   public int getEffectiveNewsFeedCleanupIntervalValue() {
-    return isNewsFeedCleanupIntervalValid()
-        ? parsedCleanupValue()
-        : DEFAULT_NEWS_FEED_CLEANUP_VALUE;
+    return effectiveRetention().value();
   }
 
   public ChronoUnit getEffectiveNewsFeedCleanupIntervalUnit() {
-    return isNewsFeedCleanupIntervalValid()
-        ? parsedCleanupUnit()
-        : NEWS_FEED_CLEANUP_UNITS.get(DEFAULT_NEWS_FEED_CLEANUP_UNIT);
+    return effectiveRetention().unit();
   }
 
   /**
@@ -94,35 +94,37 @@ public class XtmHubCollectorConfig {
    * A retention too long to be represented keeps everything: nothing is older than the epoch.
    */
   public Instant newsFeedCleanupCutoff(Instant now) {
+    CleanupRetention retention = effectiveRetention();
     try {
       Instant cutoff =
-          now.atZone(ZoneOffset.UTC)
-              .minus(
-                  getEffectiveNewsFeedCleanupIntervalValue(),
-                  getEffectiveNewsFeedCleanupIntervalUnit())
-              .toInstant();
+          now.atZone(ZoneOffset.UTC).minus(retention.value(), retention.unit()).toInstant();
       return cutoff.isBefore(Instant.EPOCH) ? Instant.EPOCH : cutoff;
     } catch (DateTimeException | ArithmeticException e) {
       return Instant.EPOCH;
     }
   }
 
-  private Integer parsedCleanupValue() {
-    if (newsFeedCleanupIntervalValue == null) {
-      return null;
-    }
-    try {
-      int value = Integer.parseInt(newsFeedCleanupIntervalValue.trim());
-      return value > 0 ? value : null;
-    } catch (NumberFormatException e) {
-      return null;
-    }
+  private record CleanupRetention(int value, ChronoUnit unit) {}
+
+  private CleanupRetention effectiveRetention() {
+    return configuredRetention().orElse(DEFAULT_NEWS_FEED_CLEANUP_RETENTION);
   }
 
-  private ChronoUnit parsedCleanupUnit() {
-    return newsFeedCleanupIntervalUnit == null
-        ? null
-        : NEWS_FEED_CLEANUP_UNITS.get(newsFeedCleanupIntervalUnit.trim().toLowerCase(Locale.ROOT));
+  /** The configured retention, empty unless both its value and its unit are valid. */
+  private Optional<CleanupRetention> configuredRetention() {
+    if (newsFeedCleanupIntervalValue == null || newsFeedCleanupIntervalUnit == null) {
+      return Optional.empty();
+    }
+    ChronoUnit unit =
+        NEWS_FEED_CLEANUP_UNITS.get(newsFeedCleanupIntervalUnit.trim().toLowerCase(Locale.ROOT));
+    try {
+      int value = Integer.parseInt(newsFeedCleanupIntervalValue.trim());
+      return unit != null && value > 0
+          ? Optional.of(new CleanupRetention(value, unit))
+          : Optional.empty();
+    } catch (NumberFormatException e) {
+      return Optional.empty();
+    }
   }
 
   private static int effective(Integer interval) {
