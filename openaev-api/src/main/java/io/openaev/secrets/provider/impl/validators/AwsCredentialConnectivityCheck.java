@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.validators;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,9 @@ public class AwsCredentialConnectivityCheck {
 
   private final AwsCredentialConnectivityCheckFactory awsCredentialsFactory;
 
+  @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
+  private int timeoutSeconds;
+
   /**
    * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
    * link-local included. Off by default, so a credential cannot be used to probe the platform's own
@@ -83,8 +87,10 @@ public class AwsCredentialConnectivityCheck {
       String secretAccessKey,
       String sessionToken,
       String endpointUrl) {
-    if (EndpointUrls.isRefused(endpointUrl, allowInternalEndpoints)) {
-      return SecretConnectionResult.formatError();
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
     }
     AwsCredentials credentials =
         awsCredentialsFactory.forAccessKey(accessKeyId, secretAccessKey, sessionToken);
@@ -119,8 +125,10 @@ public class AwsCredentialConnectivityCheck {
       String sourceProfileAccessKeyId,
       String sourceProfileSecretAccessKey,
       String endpointUrl) {
-    if (EndpointUrls.isRefused(endpointUrl, allowInternalEndpoints)) {
-      return SecretConnectionResult.formatError();
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
     }
     AwsCredentialsProvider sourceProvider =
         awsCredentialsFactory.getSourceCredentialsProvider(

@@ -760,43 +760,33 @@ class GcpCredentialConnectivityCheckTest {
       verify(googleCredentialsFactory, never()).forOAuth2(any(), any(), any(), any(), any());
     }
 
-    @ParameterizedTest(name = "token_uri=\"{0}\"")
-    @ValueSource(strings = {"http://127.0.0.1:4566/token", "http://169.254.169.254/token"})
+    @ParameterizedTest(name = "extra key file field=\"{0}\"")
+    @ValueSource(strings = {"\"unused\": true", "\"unused\": TRUE"})
     @DisplayName("A token_uri inside the platform's network, declared by the key file, is refused")
-    void given_internalTokenUriInKeyFile_should_returnFormatError(String tokenUri)
+    void given_internalTokenUriInKeyFile_should_sendNoRequest(String extraField)
         throws IOException {
-      // Act — no override: the SDK would call the token server the key file names.
-      SecretConnectionResult result =
-          validator.validateServiceAccount(
-              createServiceAccountKeyJson(tokenUri), GCP_SCOPE, null, null, null);
+      // Arrange — the real SDK, which reads the key file its own way, and a live local server named
+      // by the key file only: no override.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud.respond("/token", 200, "application/json", "{\"access_token\": \"t\"}");
+        String keyFile =
+            new String(createServiceAccountKeyJson(cloud.url("/token")), StandardCharsets.UTF_8);
+        byte[] keyFileWithExtraField =
+            (keyFile.substring(0, keyFile.lastIndexOf('}')) + ", " + extraField + "}")
+                .getBytes(StandardCharsets.UTF_8);
 
-      // Assert
-      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
-      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
-    }
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateServiceAccount(keyFileWithExtraField, GCP_SCOPE, null, null, null);
 
-    @Test
-    @DisplayName("A token_uri in the key file is not read when an override replaces it")
-    void given_overrideReplacesKeyFileTokenUri_should_ignoreTheKeyFile() throws IOException {
-      // Arrange — the override is public (an IP literal, no DNS); the key file's own is internal
-      // but the SDK never calls it.
-      when(googleCredentialsFactory.forServiceAccount(any(), any(), any()))
-          .thenReturn(googleCredentials);
-      when(googleCredentials.refreshAccessToken())
-          .thenReturn(
-              new AccessToken(ACCESS_TOKEN, new Date(System.currentTimeMillis() + 3_600_000)));
-
-      // Act
-      SecretConnectionResult result =
-          validator.validateServiceAccount(
-              createServiceAccountKeyJson("http://127.0.0.1:4566/token"),
-              GCP_SCOPE,
-              null,
-              "https://8.8.8.8/token",
-              null);
-
-      // Assert
-      assertThat(result.status()).isEqualTo(ACTIVE);
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
     }
 
     @Test

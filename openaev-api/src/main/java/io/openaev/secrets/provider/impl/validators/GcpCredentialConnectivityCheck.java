@@ -1,10 +1,9 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -13,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,8 +67,6 @@ public class GcpCredentialConnectivityCheck {
 
   /** The token server the Google SDK uses when a key file declares none other. */
   private static final String OFFICIAL_TOKEN_URI = "https://oauth2.googleapis.com/token";
-
-  private static final ObjectMapper KEY_FILE_READER = new ObjectMapper();
 
   /** Google answers a revoked or expired refresh token with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_GRANT = "invalid_grant";
@@ -129,12 +127,14 @@ public class GcpCredentialConnectivityCheck {
         || privateKeyJson.length == 0
         || isBlank(scope)
         || isMalformedProjectId(projectId)
-        || EndpointUrls.isMalformedOverride(customProjectsUri)
-        || EndpointUrls.isRefused(customResourceManagerUri, allowInternalEndpoints)
-        || (isBlank(customResourceManagerUri)
-            && EndpointUrls.isRefused(keyFileTokenUri(privateKeyJson), allowInternalEndpoints))
-        || EndpointUrls.isRefused(customProjectsUri, allowInternalEndpoints)) {
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customResourceManagerUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     GoogleCredentials credentials;
@@ -146,6 +146,16 @@ public class GcpCredentialConnectivityCheck {
       // Malformed or unparsable stored key, or malformed override: the configuration is broken, so
       // the credential cannot be checked at all — never "rejected".
       return SecretConnectionResult.formatError();
+    }
+    if (isBlank(customResourceManagerUri)) {
+      // The SDK calls the token server the key file declares, as it parsed it: that one is checked,
+      // not a second reading of the file.
+      refused =
+          EndpointUrls.refusal(
+              allowInternalEndpoints, timeoutSeconds, declaredTokenUri(credentials));
+      if (refused.isPresent()) {
+        return refused.get();
+      }
     }
     return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
@@ -175,10 +185,14 @@ public class GcpCredentialConnectivityCheck {
         || isBlank(refreshToken)
         || isBlank(scope)
         || isMalformedProjectId(projectId)
-        || EndpointUrls.isMalformedOverride(customProjectsUri)
-        || EndpointUrls.isRefused(customTokenUri, allowInternalEndpoints)
-        || EndpointUrls.isRefused(customProjectsUri, allowInternalEndpoints)) {
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customTokenUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     GoogleCredentials credentials;
@@ -193,22 +207,16 @@ public class GcpCredentialConnectivityCheck {
   }
 
   /**
-   * The token server a key file declares for itself, which the SDK calls when no override replaces
-   * it. Only a value other than the official one is returned, so the official endpoint is never
-   * looked up.
-   *
-   * @return the declared {@code token_uri}, or null when absent, official or unreadable: an
-   *     unreadable key file is refused by the SDK right after
+   * The token server a service account declares, which the SDK calls when no override replaces it.
+   * The official one is not returned, so it is never looked up.
    */
-  private static String keyFileTokenUri(byte[] privateKeyJson) {
-    try {
-      JsonNode tokenUri = KEY_FILE_READER.readTree(privateKeyJson).path("token_uri");
-      return tokenUri.isTextual() && !OFFICIAL_TOKEN_URI.equals(tokenUri.asText())
-          ? tokenUri.asText()
-          : null;
-    } catch (IOException | RuntimeException e) {
-      return null;
+  private static String declaredTokenUri(GoogleCredentials credentials) {
+    if (credentials instanceof ServiceAccountCredentials account
+        && account.getTokenServerUri() != null) {
+      String tokenUri = account.getTokenServerUri().toString();
+      return OFFICIAL_TOKEN_URI.equals(tokenUri) ? null : tokenUri;
     }
+    return null;
   }
 
   /** An absent project id is fine, it only skips the project read. */

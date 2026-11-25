@@ -15,6 +15,7 @@ import io.openaev.database.model.AzureEnvironments;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -101,11 +102,13 @@ public class AzureCredentialConnectivityCheck {
         || isBlank(clientId)
         || isBlank(clientSecret)
         || EndpointUrls.isMalformedOverride(authorityHostUri)
-        || EndpointUrls.isMalformedOverride(resourceManagerEndpoint)
-        || (hasOverride(authorityHostUri, scope)
-            && (EndpointUrls.isRefused(authorityHostUri, allowInternalEndpoints)
-                || EndpointUrls.isRefused(resourceManagerEndpoint, allowInternalEndpoints)))) {
+        || EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        refusal(authorityHostUri, scope, authorityHostUri, resourceManagerEndpoint);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     TokenCredential credential;
@@ -154,10 +157,13 @@ public class AzureCredentialConnectivityCheck {
 
     String resourceManagerEndpoint = resourceManagerEndpoint(environment, authorityHostUri, scope);
     // The authority host does not serve to log in here: only the resource manager is called.
-    if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)
-        || (hasOverride(authorityHostUri, scope)
-            && EndpointUrls.isRefused(resourceManagerEndpoint, allowInternalEndpoints))) {
+    if (EndpointUrls.isMalformedOverride(resourceManagerEndpoint)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        refusal(authorityHostUri, scope, resourceManagerEndpoint);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
@@ -165,8 +171,12 @@ public class AzureCredentialConnectivityCheck {
   }
 
   /** The official endpoints of the stored cloud are never looked up: only what was typed is. */
-  private static boolean hasOverride(String authorityHostUri, String scope) {
-    return !isBlank(authorityHostUri) || !isBlank(scope);
+  private Optional<SecretConnectionResult> refusal(
+      String authorityHostUri, String scope, String... endpoints) {
+    if (isBlank(authorityHostUri) && isBlank(scope)) {
+      return Optional.empty();
+    }
+    return EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpoints);
   }
 
   /**

@@ -1,12 +1,20 @@
 package io.openaev.secrets.provider.impl.validators;
 
+import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.security.ssrf.HostResolver;
 import io.openaev.security.ssrf.PublicAddressPolicy;
+import io.openaev.security.ssrf.TimeoutHostResolver;
+import io.openaev.security.ssrf.TimeoutHostResolver.LookupTimeoutException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Validates the endpoint overrides of a credential before an SDK is built from them.
@@ -16,12 +24,17 @@ import java.util.Set;
  * exchange, and the failure reads as a network error instead of the configuration problem it is.
  *
  * <p>An override is also a destination the platform calls on its own, with a credential attached,
- * so by default it must not point inside the platform's network: see {@link
- * #targetsInternalAddress(String)}.
+ * so by default it must not point inside the platform's network: see {@link #refusal}.
  */
 final class EndpointUrls {
 
   private static final Set<String> SUPPORTED_SCHEMES = Set.of("http", "https");
+
+  /** Lookups allowed to wait on DNS at once, abandoned ones included. */
+  private static final int MAX_CONCURRENT_LOOKUPS = 8;
+
+  /** One bounded resolver per probe budget: each owns a small pool of daemon threads. */
+  private static final Map<Integer, HostResolver> BOUNDED_RESOLVERS = new ConcurrentHashMap<>();
 
   private EndpointUrls() {}
 
@@ -70,53 +83,77 @@ final class EndpointUrls {
   }
 
   /**
-   * Whether an override points at a private, loopback, link-local or otherwise internal address.
+   * Decides whether the probe may call the given endpoint overrides.
    *
    * <p>The probes call these endpoints from the platform with the credential's token attached, and
    * report the outcome in the credential status. Left unchecked, an override naming an internal
-   * host would turn that status into a way to map the platform's own network. The host is resolved
-   * the way the HTTP stack resolves it, and one internal answer is enough to refuse it. A host that
-   * does not resolve is not refused here: the call fails by itself and the status says so.
+   * host would turn that status into a way to map the platform's own network. Each host is resolved
+   * the way the HTTP stack resolves it, and one internal answer is enough to refuse it.
+   *
+   * <p>The lookup is bounded by the probe budget. One that is not answered in time is inconclusive:
+   * the probe is not started, since a host that stalls the check and answers the SDK right after
+   * would otherwise get through, and the credential is not flagged, since a slow resolver says
+   * nothing about it. A host that does not resolve is not refused: the call fails by itself and the
+   * status says so.
    *
    * <p>Meant to run after {@link #isMalformedOverride(String)}; a value that cannot be parsed is
-   * reported as not internal, since the malformed check already rejects it.
+   * left to it.
    *
    * <p>Limits: the address is checked when the probe starts, and the HTTP stack resolves the host
    * again when it connects, so a host that changes its answer between the two is not caught; a
    * redirect from a public host, or an egress proxy that resolves the host itself, is not seen
    * either.
    *
-   * @param value a stored override, null or blank when there is none
-   * @return {@code true} when the host resolves to at least one internal address
+   * @param allowInternal the on-premise opt-out
+   * @param timeoutSeconds the probe budget, one lookup at most
+   * @param endpoints stored overrides, null or blank when there is none
+   * @return the outcome to report when the probe must not go on, empty otherwise
    */
-  static boolean targetsInternalAddress(String value) {
-    if (value == null || value.isBlank()) {
-      return false;
-    }
-    String host;
-    try {
-      host = URI.create(value).getHost();
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
-    if (host == null || host.isBlank()) {
-      return false;
-    }
-    try {
-      return Arrays.stream(InetAddress.getAllByName(host))
-          .anyMatch(PublicAddressPolicy::isInternal);
-    } catch (UnknownHostException e) {
-      return false;
-    }
+  static Optional<SecretConnectionResult> refusal(
+      boolean allowInternal, int timeoutSeconds, String... endpoints) {
+    int seconds = Math.max(1, timeoutSeconds);
+    return refusal(
+        allowInternal,
+        BOUNDED_RESOLVERS.computeIfAbsent(
+            seconds,
+            budget ->
+                new TimeoutHostResolver(
+                    InetAddress::getAllByName, Duration.ofSeconds(budget), MAX_CONCURRENT_LOOKUPS)),
+        endpoints);
   }
 
-  /**
-   * @param endpoint a stored override, null or blank when there is none
-   * @param allowInternal the on-premise opt-out
-   * @return {@code true} when the override must not be called: it targets an internal address and
-   *     the opt-out is off
-   */
-  static boolean isRefused(String endpoint, boolean allowInternal) {
-    return !allowInternal && targetsInternalAddress(endpoint);
+  static Optional<SecretConnectionResult> refusal(
+      boolean allowInternal, HostResolver resolver, String... endpoints) {
+    if (allowInternal) {
+      return Optional.empty();
+    }
+    for (String endpoint : endpoints) {
+      String host = hostOf(endpoint);
+      if (host == null) {
+        continue;
+      }
+      try {
+        if (Arrays.stream(resolver.resolve(host)).anyMatch(PublicAddressPolicy::isInternal)) {
+          return Optional.of(SecretConnectionResult.formatError());
+        }
+      } catch (LookupTimeoutException e) {
+        return Optional.of(SecretConnectionResult.timeout());
+      } catch (UnknownHostException e) {
+        // Not refused: the call fails by itself.
+      }
+    }
+    return Optional.empty();
+  }
+
+  private static String hostOf(String endpoint) {
+    if (endpoint == null || endpoint.isBlank()) {
+      return null;
+    }
+    try {
+      String host = URI.create(endpoint).getHost();
+      return host == null || host.isBlank() ? null : host;
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
   }
 }

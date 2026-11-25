@@ -933,7 +933,8 @@ class AzureCredentialConnectivityCheckTest {
         // Assert
         assertThat(servicePrincipal.status()).isEqualTo(ACTIVE);
         assertThat(managedIdentity.status()).isEqualTo(ACTIVE);
-        endpointUrls.verify(() -> EndpointUrls.targetsInternalAddress(any()), never());
+        endpointUrls.verify(
+            () -> EndpointUrls.refusal(anyBoolean(), anyInt(), any(String[].class)), never());
       }
     }
   }
