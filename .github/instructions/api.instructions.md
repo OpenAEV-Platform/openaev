@@ -16,7 +16,11 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 - **One output per kind**: no shared output whose fields stay empty for some kinds
 - JSON names: `<object>_<field>` (`catalog_payload_name`); a result summary may use plain names
   (`added`, `refused`)
-- A field another system reads is a contract: keep it, and never send `null` where it expects a string
+- A field another system reads is a contract: keep it, and never send `null` where it expects a string.
+  Removing, renaming or retyping an endpoint URL or method, a required input field, an output field or a
+  response status is a breaking change: it needs a migration plan
+- Inputs hold plain values and ids, never a JPA entity
+- An id list in an output is annotated `@ArraySchema(schema = @Schema(type = "string"))`
 
 ## Pagination
 
@@ -34,6 +38,7 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 
 - `@Operation` `summary`: 60 characters at most, plain words
 - `description` only when the summary is not enough: one sentence, 120 characters at most
+- `@ApiResponse` for each status the endpoint returns; complex fields documented with `@Schema`
 
 ## Anti-Patterns
 

@@ -29,20 +29,20 @@ Escalate to **Opus 4.6** for reviews involving complex query optimization or arc
 
 | Severity | Criteria | Action |
 |---|---|---|
-| 🔴 **CRITICAL** | Unbounded `findAll()` on large table, N+1 in hot path (>10 queries per request), memory leak | `issue (blocking):` — PR must not merge |
-| 🟠 **HIGH** | N+1 query (3-10 extra queries), missing pagination on list endpoint, `EAGER` on unbounded collection | `issue (blocking):` — must fix before merge |
-| 🟡 **MEDIUM** | Missing `readOnly = true` on read transaction, `findById` loop (≤3 iterations), missing index on filtered column | `suggestion (non-blocking):` — should fix |
-| 🟢 **LOW** | Could use projection instead of full entity, minor optimization opportunity | `suggestion (non-blocking):` — nice to have |
+| 🔴 **CRITICAL** | Unbounded `findAll()` on a large table ([Anti-Patterns](../instructions/performance.instructions.md#anti-patterns-to-avoid)), N+1 in hot path (>10 queries per request, [N+1 Queries](../instructions/performance.instructions.md#n1-queries)), memory leak ([Collections & Streams](../instructions/performance.instructions.md#collections--streams)) | `issue (blocking):` — PR must not merge |
+| 🟠 **HIGH** | N+1 query (3-10 extra queries), missing pagination on list endpoint ([Pagination](../instructions/performance.instructions.md#pagination)), `EAGER` on unbounded collection ([Fetch Strategy](../instructions/performance.instructions.md#fetch-strategy)) | `issue (blocking):` — must fix before merge |
+| 🟡 **MEDIUM** | Missing `readOnly = true` ([N+1 Queries](../instructions/performance.instructions.md#n1-queries)), `findById` loop (≤3 iterations), missing index on filtered column ([Queries](../instructions/performance.instructions.md#queries)) | `suggestion (non-blocking):` — should fix |
+| 🟢 **LOW** | Could use projection instead of full entity ([Queries](../instructions/performance.instructions.md#queries)), minor optimization opportunity | `suggestion (non-blocking):` — nice to have |
 
 ## Quantitative Thresholds
 
 - **N+1 threshold**: >3 extra queries in a single service method = 🟠 HIGH
-- **Pagination**: Any endpoint returning `List<T>` on a table with >100 potential rows = 🟠 HIGH
-- **EAGER loading**: On any `@OneToMany` or `@ManyToMany` that can exceed 50 items = 🟠 HIGH
-- **Transaction scope**: Read method without `readOnly = true` = 🟡 MEDIUM
-- **Loop DB calls**: Any `findById()` inside a loop = 🟠 HIGH regardless of collection size
-- **DTO mapping**: `entity.getCollection()` in a mapper without `@Fetch(SUBSELECT)` = 🟠 HIGH (N+1)
-- **Query plans**: a global `prepareThreshold` or a role/database `plan_cache_mode` added to fix a slow plan = 🟠 HIGH (ADR-022). `QueryPlanHelper.forceCustomPlan()` goes inside the transaction, last before the query, with a test asserting the call
+- **Pagination**: [Pagination](../instructions/performance.instructions.md#pagination) — `List<T>` on a table with >100 potential rows = 🟠 HIGH
+- **EAGER loading**: [Fetch Strategy](../instructions/performance.instructions.md#fetch-strategy) — collection that can exceed 50 items = 🟠 HIGH
+- **Transaction scope**: read method without `readOnly = true` = 🟡 MEDIUM
+- **Loop DB calls**: Any `findById()` inside a loop = 🟠 HIGH regardless of collection size ([Resolving Entity Associations from IDs](../instructions/performance.instructions.md#resolving-entity-associations-from-ids))
+- **DTO mapping**: collection read in a mapper without `@Fetch(SUBSELECT)` ([N+1 Queries](../instructions/performance.instructions.md#n1-queries)) = 🟠 HIGH
+- **Query plans**: global `prepareThreshold` or `plan_cache_mode` ([Queries](../instructions/performance.instructions.md#queries), ADR-022) = 🟠 HIGH
 
 ## What NOT to Flag
 
@@ -81,7 +81,7 @@ Estimated query impact: [e.g. "+15 queries per request on /api/scenarios/search"
 
 - Never modify production code directly — only suggest changes via conventional comments
 - Focus on performance — leave security to the Security Reviewer and style to linters
-- When recommending a native or bulk delete/write for performance, verify the entity is not `@Indexable` / `@AuditDiffTracked` / streamed; if it is, defer to the **ORM Reviewer** (the write skips the listener chain, so the index, audit, and stream go stale). See `orm.instructions.md`
+- Before recommending a native or bulk delete/write, apply [orm › Write correctness](../instructions/orm.instructions.md#write-correctness-the-listener-chain); if it fails, defer to the **ORM Reviewer**
 - Escalate to a human reviewer if a fix requires significant architectural changes
 - Prefer DB-level fixes (indexes, queries, fetch strategies) over application-level workarounds
 - When quantifying impact, state assumptions (e.g. "assuming default page size of 20")

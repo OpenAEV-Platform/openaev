@@ -87,6 +87,7 @@ under-scopes an unrelated read.
     declared under other names (`SecurityPlatformRepository.findAllByIds`,
     `AiTargetRepository.findAiTargetsByIds`, `InjectorContractRepository.findAllByIdOrExternalIdIn`),
     `deleteAllById`, `findAll(Specification)` or `entityManager.find`: a reviewer reads for them.
+11. A cache key includes the tenant id
 
 ## Background Threads Carry Both Scopes
 

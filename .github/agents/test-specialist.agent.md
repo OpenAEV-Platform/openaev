@@ -57,38 +57,21 @@ For every feature, ensure coverage of:
 
 ## What NOT to Test
 
-- Private methods directly — test them through public API
-- Framework behavior (Spring Security config, Hibernate internals)
-- Exact error message wording — test status codes and error structure
+- [testing › How Many Tests](../instructions/testing.instructions.md#how-many-tests)
 - Other team's code — only test the feature you're working on
 - Performance — leave that to the Performance Reviewer
-- Configuration restated as tests (one test per enum value or mapping entry)
-
-Write the fewest tests that cover all the new code: one integration test per flow, parameterized tests for
-the refusal and error cases, data in fixtures.
 - Whether production isolation logic is correct — leave that to the Multi-Tenancy Reviewer
 
 ## Test Structure Conventions
 
-- `@TestInstance(PER_CLASS)` for integration tests
-- `@Nested` + `@DisplayName` for logical grouping
-- `given_<precondition>_should_<expected_outcome>()` naming
+- Backend: [testing › Integration Tests (API)](../instructions/testing.instructions.md#integration-tests-api), [Fixtures](../instructions/testing.instructions.md#fixtures), [Composers](../instructions/testing.instructions.md#composers)
 - AAA comments: `// -- ARRANGE --`, `// -- ACT --`, `// -- ASSERT --` (or `// -- ACT & ASSERT --`)
-- OpenAEV's `@WithMockUser` (from `io.openaev.utils.mockUser`), **never Spring's**
-- Fixture + Composer pattern — no inline test data construction
 - `@BeforeAll` / `@AfterAll` with `composer.reset()` for cleanup
-- E2E (Playwright): import `test` from `tests_e2e/fixtures` (enforced by lint) and pick the user with
-  `test.use({ persona })`. It defaults to admin; a permission test runs as `manager` or `observer`
+- E2E: [testing › Frontend E2E Tests (Playwright)](../instructions/testing.instructions.md#frontend-e2e-tests-playwright)
 
 ## Coverage Requirements
 
-- **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it in the
-  `coverage-backend-gate` job (advisory in the Pipeline Gate for now), counting lines like Codecov: a
-  line where only some branches ran is partial, and does not count as covered.
-- **Project**: a PR does not drop backend line coverage by more than 0.1 point against its base commit.
-  The same job checks it.
-- **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:
-  `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80`
+[copilot-instructions.md › Testing](../copilot-instructions.md#testing) and [Important Notes](../copilot-instructions.md#important-notes) 9.
 
 ## Output Format
 

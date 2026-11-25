@@ -58,6 +58,12 @@ EE check: chaining EE-only endpoints/operations are explicitly marked with `@Acc
 
 Key checks: no `${{ }}` expression inside a `run:` script or a `github-script` `script:` (pass it through the step `env:` and read a quoted `"$VAR"`), secrets never written into script text, arguments built as bash arrays rather than pre-quoted strings passed between steps.
 
+## Documentation
+
+> Agent: `docs-reviewer`
+
+Key checks: a user-facing change (new endpoint, UI page, injector, collector or executor; changed default, field or workflow; new configuration parameter or CLI flag, new or changed environment variable) updates `docs/` in the same PR or links a follow-up doc issue. Refactors with no visible effect, tests, CI and dependency bumps need none.
+
 ## Review Style
 
 - Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`
