@@ -10,6 +10,13 @@
   <a href="https://community.filigran.io"><img src="https://img.shields.io/badge/community-slack-001BDA?style=flat-square&labelColor=0A0C1C&logo=slack&logoColor=white" alt="community"></a>
 </p>
 
+> **Community workshop:** Join us as Taylor Walton (of SOCFortress) walks through his working SOC stack: OpenCTI → OpenAEV → Wazuh → Velociraptor. Taylor will be joined by OpenAEV's product owner to cover what's coming next for OpenCTI and OpenAEV.
+>
+> [Register](https://events.filigran.io/register/e751635a-9aec-49f5-801c-40cfded49c87?utm_medium=community&utm_source=github) · Dec 10 at 10 AM New York City time
+>
+> Join us on the
+> [Filigran Community Slack](https://community.filigran.io/?utm_medium=community&utm_source=github).
+
 <p align="center"><b>The open source adversarial exposure validation platform: prove which threats get through your defenses.</b></p>
 
 OpenAEV turns threat intelligence from [OpenCTI](https://github.com/OpenCTI-Platform/opencti) into attack scenarios, runs them against your real endpoints, cloud and security stack, and tells you which techniques were prevented, which were detected and which got through. It is the validation stage of CTEM in the XTM Platform: validated exposure is priced by [OpenCRQ](https://github.com/OpenCRQ-Platform/opencrq) and taken to a verified fix by [XTM One](https://github.com/XTM-One-Platform/xtm-one).

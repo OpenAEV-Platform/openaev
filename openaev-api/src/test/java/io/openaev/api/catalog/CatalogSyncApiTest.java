@@ -25,6 +25,7 @@ import io.openaev.api.catalog.action.dto.AvailableActionOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,6 +55,7 @@ class CatalogSyncApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -119,7 +121,7 @@ class CatalogSyncApiTest extends IntegrationTest {
       if (tenantIds.length > 0) {
         request.header("X-Tenant-Ids", String.join(",", tenantIds));
       }
-      return mvc.perform(request.with(csrf()));
+      return committed(mvc.perform(request.with(csrf())));
     }
   }
 
@@ -128,9 +130,19 @@ class CatalogSyncApiTest extends IntegrationTest {
   }
 
   private ResultActions post(byte[] manifest, Map<String, byte[]> files) throws Exception {
-    return mvc.perform(
-        syncRequest(manifest, files, TENANT_CATALOG_URI + "/sync", DEFAULT_TENANT_UUID)
-            .with(csrf()));
+    return committed(
+        mvc.perform(
+            syncRequest(manifest, files, TENANT_CATALOG_URI + "/sync", DEFAULT_TENANT_UUID)
+                .with(csrf())));
+  }
+
+  // The sync runs in the test's transaction, where production commits it in the request's scope.
+  // Its updates (the latest offered flag) are pending here, and the next request flushes
+  // them with no scope. Scoping the transaction to the tenant written makes that request flush them
+  // first, in this scope, as the commit of the request does.
+  private ResultActions committed(ResultActions sync) {
+    rowTenantScope.write(DEFAULT_TENANT_UUID, () -> {});
+    return sync;
   }
 
   private JsonNode body(ResultActions result) throws Exception {

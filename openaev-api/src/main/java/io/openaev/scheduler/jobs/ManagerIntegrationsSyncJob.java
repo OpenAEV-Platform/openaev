@@ -83,8 +83,7 @@ public class ManagerIntegrationsSyncJob implements Job {
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> {
-            // Bridge for v1 tables still relying on TenantContext via
-            // HibernateFilterTransactionAspect
+            // TenantBaseListener stamps the tenant of every persisted row from TenantContext
             TenantContext.setCurrentTenant(tenantId);
             managerFactory.getManager(tenantId).monitorIntegrations();
             return null;

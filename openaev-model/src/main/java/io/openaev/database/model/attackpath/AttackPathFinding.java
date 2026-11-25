@@ -2,12 +2,10 @@ package io.openaev.database.model.attackpath;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -26,7 +24,6 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "attackpath_finding")
-@EntityListeners(TenantBaseListener.class)
 public class AttackPathFinding implements TenantBase {
 
   @Id

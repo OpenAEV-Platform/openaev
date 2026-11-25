@@ -46,7 +46,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -3465,11 +3464,9 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
 
-    // Simulate a session WITHOUT the Hibernate tenant filter (the filter aspect only arms it
-    // around @Transactional entry points): the tenant-scoped repository query must protect on its
-    // own.
+    // Write the foreign tenant's rows to the database first: the import must miss them because
+    // of its tenant predicate, not because they never reached the database.
     entityManager.flush();
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
 
     // -- Act --
     this.importer.importData(
@@ -3570,10 +3567,9 @@ class V1_DataImporterTest extends IntegrationTest {
     scenario.setId(UUID.randomUUID().toString());
     Workflow workflow = Workflow.builder().scenario(scenario).build();
 
-    // Simulate a session WITHOUT the Hibernate tenant filter (the filter aspect only arms it around
-    // @Transactional entry points): the tenant-scoped repository query must protect on its own.
+    // Write the foreign tenant's rows to the database first: the lookup must miss them because
+    // of its tenant predicate, not because they never reached the database.
     entityManager.flush();
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
 
     // -- Act --
     V1_DataImporter.StepDataResolution resolution =
@@ -3649,10 +3645,9 @@ class V1_DataImporterTest extends IntegrationTest {
     dataObject.set("inject_injector_contract", contractNode);
     dataObject.put("inject_injector", UUID.randomUUID().toString());
 
-    // Simulate a session WITHOUT the Hibernate tenant filter (the filter aspect only arms it
-    // around @Transactional entry points): the tenant-scoped query must protect on its own.
+    // Write the foreign tenant's contract to the database first: the lookup must miss it because
+    // of its tenant predicate, not because it never reached the database.
     entityManager.flush();
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
 
     // -- Act --
     assertDoesNotThrow(
