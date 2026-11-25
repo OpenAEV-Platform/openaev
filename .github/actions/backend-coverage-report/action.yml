@@ -1,7 +1,7 @@
 name: Backend Coverage Report
 description: >
   Merge the JaCoCo exec files of every API test shard and build the backend coverage report at
-  openaev-api/target/site/jacoco/jacoco.xml. Reuses the jars and build output from Backend Compile
+  openaev-api/target/site/jacoco/jacoco.xml. Reuses the API build output from Backend Compile
   rather than building again. Used by both the Codecov upload and the backend coverage check, so
   that each starts as soon as the API tests are green instead of waiting for a shared report job.
   Expects a checkout of the repository.
@@ -31,12 +31,8 @@ runs:
         restore-keys: |
           maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
-    - name: Download compiled Maven artifacts
-      uses: actions/download-artifact@v8
-      with:
-        name: backend-compiled
-        path: ~/.m2/repository/io/openaev/
-
+    # jacoco:report resolves no project dependency, so it does not need the 500 MB backend-compiled
+    # artifact: the API classes in the build output are all the report reads.
     - name: Download API build output
       uses: actions/download-artifact@v8
       with:

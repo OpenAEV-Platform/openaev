@@ -178,13 +178,13 @@ public class CatalogConnectorApiTest extends IntegrationTest {
 
     private static final String ROTATE_URI = CATALOG_CONNECTOR_URI + "/token/rotate";
 
-    /** Persists a connector instance in the current tenant, holding {@code token}. */
-    private ConnectorInstanceConfiguration givenInstanceHoldingToken(String token)
+    /** Persists a connector instance of {@code tenantId}, holding {@code token}. */
+    private ConnectorInstanceConfiguration givenInstanceHoldingToken(String tenantId, String token)
         throws Exception {
       ConnectorInstanceConfiguration tokenConfiguration =
           createConnectorInstanceConfiguration(OPENAEV_KEY_TOKEN, token);
       connectorInstanceComposer
-          .forConnectorInstance(createDefaultConnectorInstance())
+          .forConnectorInstance(createDefaultConnectorInstance(tenantId))
           .withCatalogConnector(
               catalogConnectorComposer.forCatalogConnector(
                   createDefaultCatalogConnectorManagedByXtmComposer("Rotated collector")))
@@ -212,7 +212,8 @@ public class CatalogConnectorApiTest extends IntegrationTest {
       String previousToken =
           catalogConnectorPrivilegeService.getOrCreateToken(
               TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
-      ConnectorInstanceConfiguration tokenConfiguration = givenInstanceHoldingToken(previousToken);
+      ConnectorInstanceConfiguration tokenConfiguration =
+          givenInstanceHoldingToken(Tenant.DEFAULT_TENANT_UUID, previousToken);
       entityManager.flush();
       entityManager.clear();
 
@@ -241,7 +242,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
       Tenant otherTenant = tenantIsolationHelper.createTenant("Other tenant");
       tenantIsolationHelper.switchToTenant(otherTenant.getId(), entityManager);
       ConnectorInstanceConfiguration otherTenantConfiguration =
-          givenInstanceHoldingToken("other-tenant-token");
+          givenInstanceHoldingToken(otherTenant.getId(), "other-tenant-token");
       tenantIsolationHelper.switchToTenant(Tenant.DEFAULT_TENANT_UUID, entityManager);
 
       // Act

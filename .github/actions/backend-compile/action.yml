@@ -34,11 +34,16 @@ runs:
           -Djacoco.skip=true
       shell: bash
 
+    # The installed openaev-api jar is left out: openaev-api's pom forces the Spring Boot repackage,
+    # so it is the 480 MB fat jar, and every consumer builds openaev-api from source with -pl
+    # openaev-api and only resolves the other modules from the repository.
     - name: Upload compiled Maven artifacts
       uses: actions/upload-artifact@v7
       with:
         name: backend-compiled
-        path: ~/.m2/repository/io/openaev/
+        path: |
+          ~/.m2/repository/io/openaev/
+          !~/.m2/repository/io/openaev/openaev-api/
         # JARs are already compressed.
         compression-level: 0
 

@@ -49,8 +49,8 @@ const injectContextForScenario = (scenario: Scenario) => {
     }> {
       return dispatch(updateInjectActivationForScenario(scenario.scenario_id, injectId, injectEnabled));
     },
-    onDeleteInject(injectId: Inject['inject_id'], keepFindings = false): Promise<void> {
-      return dispatch(deleteInjectScenario(scenario.scenario_id, injectId, keepFindings));
+    onDeleteInject(injectId: Inject['inject_id']): Promise<void> {
+      return dispatch(deleteInjectScenario(scenario.scenario_id, injectId));
     },
     onImportInjectFromJson(file: File): Promise<void> {
       return importInjectsForScenario(scenario.scenario_id, file).then(response => new Promise((resolve, _reject) => {

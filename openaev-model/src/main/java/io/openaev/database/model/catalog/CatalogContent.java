@@ -18,5 +18,9 @@ public interface CatalogContent {
   @JsonIgnore
   String getCatalogVersion();
 
+  /** The id all its versions share in the tenant. */
+  @JsonIgnore
+  String getCatalogContentId();
+
   Tenant getTenant();
 }

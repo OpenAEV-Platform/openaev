@@ -42,10 +42,8 @@ import org.springframework.stereotype.Service;
  * not per-tenant), like {@code total_users_count} in {@link GlobalMetricCollector}. How that is
  * achieved depends on which isolation the counted table is on, and the difference is easy to miss.
  *
- * <p>For a table still on v1, it comes for free: the suppliers run on the OpenTelemetry exporter
- * thread outside any {@code @Transactional} method, so the Hibernate {@code tenantFilter} is never
- * enabled (it is only turned on by {@code HibernateFilterTransactionAspect} on method-level
- * {@code @Transactional} executions) and the count spans every tenant.
+ * <p>A table outside {@code openaev.tenant.active-tables} comes for free: the suppliers run on the
+ * OpenTelemetry exporter thread outside any scope and the count spans every tenant.
  *
  * <p>For a table in {@code openaev.tenant.active-tables} that reasoning does NOT hold. {@code
  * TenantStatementInspector} does not care whether a transaction is active: with {@code
@@ -56,8 +54,8 @@ import org.springframework.stereotype.Service;
  * <p>{@link #collectSecurityPlatforms()} and {@link #collectEndpoints()} carry the same scope for
  * the same reason: both count rows of the {@code assets} table (#6438).
  *
- * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to any
- * other gauge here whose table joins a future activation.
+ * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to
+ * every gauge here that counts a tenant table: under {@code *} each of them is armed.
  */
 @Slf4j
 @Service

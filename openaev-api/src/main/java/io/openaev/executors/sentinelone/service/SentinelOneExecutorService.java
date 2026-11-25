@@ -65,11 +65,9 @@ public class SentinelOneExecutorService implements Runnable {
       tenantTx.execute(
           TxCtx.forTenant(executor.getTenantId()),
           () -> {
-            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
-            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
-            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
-            // set here otherwise and falls back to the default tenant, silently scoping the v1
-            // Hibernate filter to the wrong tenant.
+            // This Runnable executes on the shared scheduler thread pool outside any HTTP
+            // request. TenantBaseListener stamps the tenant of every persisted row from
+            // TenantContext, which falls back to the default tenant when nothing sets it.
             TenantContext.setCurrentTenant(executor.getTenantId());
             doRun();
             return null;
@@ -131,7 +129,7 @@ public class SentinelOneExecutorService implements Runnable {
         assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
         assetGroup.setAssets(
             agents.stream()
-                .filter(agent -> agentIds.contains(agent.getId()))
+                .filter(agent -> agentIds.contains(agent.getExternalReference()))
                 .map(Agent::getAsset)
                 .collect(Collectors.toCollection(ArrayList::new)));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(

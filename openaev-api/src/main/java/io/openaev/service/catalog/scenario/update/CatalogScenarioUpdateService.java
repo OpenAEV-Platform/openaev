@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.CatalogScenario;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.catalog.CatalogListService;
-import io.openaev.service.catalog.event.CatalogChangePublisher;
+import io.openaev.service.catalog.event.ContentChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.scenario.ScenarioService;
@@ -43,7 +43,7 @@ public class CatalogScenarioUpdateService {
   private final ScenarioRevisionService scenarioRevisionService;
   private final ScenarioPayloadCheckService scenarioPayloadCheckService;
   private final ScenarioContentWriter writer;
-  private final CatalogChangePublisher changePublisher;
+  private final ContentChangePublisher changePublisher;
 
   // -- LIST --
 
@@ -88,7 +88,7 @@ public class CatalogScenarioUpdateService {
     payloadFiles.forEach(
         (released, file) ->
             catalogPayloadService.installIfMissing(
-                ctx, update.installed().tenantId(), released, file, CatalogHistory.Mode.MANUAL));
+                ctx, update.installed().tenantId(), released, file, ContentChange.Mode.MANUAL));
     Scenario scenario = unchanged(ctx, update);
     Collection<Inject> injects = trackedInjects(scenario);
     ObjectNode local = scenarioRevisionService.content(scenario, injects);
@@ -100,7 +100,7 @@ public class CatalogScenarioUpdateService {
     scenarioRevisionService.keep(scenario, update.reason(), local);
     writer.write(scenario, injects, merge.merged());
     scenario.setCatalogVersion(update.version());
-    changePublisher.changed(scenario, update.reason().action(), CatalogHistory.Mode.MANUAL);
+    changePublisher.changed(scenario, update.reason().action(), ContentChange.Mode.MANUAL);
   }
 
   // -- STEPS --

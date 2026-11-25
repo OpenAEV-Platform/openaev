@@ -37,8 +37,8 @@ Additional security-specific levels:
 | Severity | Security-specific criteria |
 |---|---|
 | 🔴 **CRITICAL** | Cross-tenant data leak, auth bypass, privilege escalation, secret exposure |
-| 🟠 **HIGH** | Missing `@AccessControl`, native query without tenant filter, `tenant_id` in response |
-| 🟡 **MEDIUM** | Overly permissive RBAC, missing input validation, verbose error messages |
+| 🟠 **HIGH** | Missing `@AccessControl` ([@AccessControl](../instructions/security.instructions.md#accesscontrol-aop-aspect)), native query without tenant filter or `tenant_id` in a response ([Tenant Isolation](../instructions/security.instructions.md#tenant-isolation)) |
+| 🟡 **MEDIUM** | Overly permissive RBAC, missing input validation ([api › Validation](../instructions/api.instructions.md#validation)), verbose error messages ([Never Do](../instructions/security.instructions.md#never-do)) |
 | 🟢 **LOW** | Hardening opportunities, defense-in-depth suggestions |
 
 ## What NOT to Flag
@@ -52,13 +52,9 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 Since multi-tenancy is actively being developed, pay special attention to:
 
-1. **New entities**: Do they extend `TenantBase`? Do they have `@Filter(name = "tenantFilter")`?
-2. **Native queries**: Do they ALL have `WHERE tenant_id = :tenantId`?
-3. **Unique constraints**: Are they composite with `tenant_id` for tenant-scoped entities?
-4. **Background jobs/async**: Is `TenantContext` set before DB access?
-5. **Caching**: Does the cache key include `tenant_id`?
-6. **API responses**: Is `tenant_id` absent from all DTOs/outputs?
-7. **Grant filtering**: Do services apply `applyGrantFilter()` consistently on search, list, and options endpoints?
+1. **New entities, native queries, unique constraints, API responses, caching**: [multi-tenancy › Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules)
+2. **Background jobs/async**: [multi-tenancy › Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes)
+3. **Grant filtering**: Do services apply `applyGrantFilter()` consistently on search, list, and options endpoints?
 
 ## Output Format
 

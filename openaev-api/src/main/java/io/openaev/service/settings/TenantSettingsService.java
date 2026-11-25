@@ -2,7 +2,6 @@ package io.openaev.service.settings;
 
 import static io.openaev.database.model.TenantSettingKeys.ASSET_DISCOVERY_TAG;
 import static io.openaev.database.model.TenantSettingKeys.ASSET_STALE_AFTER_DAYS;
-import static io.openaev.database.model.TenantSettingKeys.COVERAGE_SCENARIO_READ_ONLY_FIRST;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -21,7 +20,6 @@ import io.openaev.opencrq.config.OpenCRQConfig;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
-import io.openaev.rest.settings.form.CoverageScenarioSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -152,25 +150,6 @@ public class TenantSettingsService {
       days = Integer.parseInt(ASSET_STALE_AFTER_DAYS.defaultValue());
     }
     return new AssetFreshnessSettingsInput(days, readDiscoveryTag(tenantSettings));
-  }
-
-  /** Effective scheduling setting of coverage-built scenarios. */
-  @Transactional(readOnly = true)
-  public CoverageScenarioSettingsInput findCoverageScenarioSettings(@NotBlank String tenantId) {
-    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
-    return new CoverageScenarioSettingsInput(
-        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
-  }
-
-  public CoverageScenarioSettingsInput updateCoverageScenarioSettings(
-      @NotBlank String tenantId, @NotNull CoverageScenarioSettingsInput input) {
-    upsert(
-        new Tenant(tenantId),
-        COVERAGE_SCENARIO_READ_ONLY_FIRST.key(),
-        String.valueOf(input.readOnlyFirst()));
-    Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
-    return new CoverageScenarioSettingsInput(
-        Boolean.parseBoolean(resolveValue(tenantSettings, COVERAGE_SCENARIO_READ_ONLY_FIRST)));
   }
 
   public void updateCatalogAutoInstall(

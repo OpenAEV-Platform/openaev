@@ -91,6 +91,12 @@ public interface RawFindingIndexing extends RawTenant {
   /** Returns the simulation of the inject the finding is deleted with. */
   String getFinding_simulation_id();
 
+  /** Returns the asset of the finding's location, which deletes the finding with it. */
+  String getFinding_location_asset_id();
+
+  /** Returns the user of the finding's location, which deletes the finding with it. */
+  String getFinding_location_user_id();
+
   /** Returns the scenario of the inject the finding is deleted with. */
   String getFinding_scenario_id();
 

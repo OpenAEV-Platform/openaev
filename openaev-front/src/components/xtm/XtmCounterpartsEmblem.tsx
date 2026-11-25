@@ -28,6 +28,10 @@ import { PivotFactList } from './XtmPivotPreview';
 // is off useCounterpart asks nothing and answers not connected, and the backend answers 404.
 
 const SECONDARY_INK = 'var(--text-default-secondary)';
+// The outline of the emblem button: the XTM One purple in every state, found or not, hover and focus
+// included (Sam, 24 Nov 2026), the same token in OpenCTI, OpenAEV and OpenCRQ. The design system's
+// hover fill and focus ring are kept.
+export const EMBLEM_OUTLINE = 'var(--color-filigran-ia-primary)';
 
 const ProductSection: FunctionComponent<EmblemSection> = ({ def, answer, kind }) => {
   const { t } = useFormatter();
@@ -156,6 +160,7 @@ export const XtmCounterpartsEmblemView: FunctionComponent<{ sections: EmblemSect
             size="md"
             data-testid="xtm-emblem"
             data-found={found}
+            style={{ borderColor: EMBLEM_OUTLINE }}
             onClick={(event: MouseEvent<HTMLElement>) => setAnchor(event.currentTarget)}
           />
         </TooltipTrigger>

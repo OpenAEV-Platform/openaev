@@ -18,19 +18,19 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download, isFeatureEnabled } from '../../../utils/utils';
 import useCanUpdateAction from './hook/useCanUpdateAction';
+import { type OpenedTab } from './hook/useOpenedAction';
 import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionEditDrawer from './ThreatArsenalActionEditDrawer';
 import { isCustomizedCopy } from './utils/threatArsenalStatusUtils';
-import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
-import useNewVersionNotice from './versions/useNewVersionNotice';
+import useAfterNewVersion from './versions/useAfterNewVersion';
 
 interface PayloadPopoverNewProps {
   action: ThreatArsenalAction;
   onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
-  onShowVersions?: (action: ThreatArsenalAction) => void;
+  onShowVersions?: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
 const ThreatArsenalActionPopover = ({
@@ -50,7 +50,7 @@ const ThreatArsenalActionPopover = ({
   const ability = useAbility();
 
   const actionId = action.injector_contract_id;
-  const { notice, afterSave, closeNotice } = useNewVersionNotice(actionId, onUpdate);
+  const afterSave = useAfterNewVersion(actionId, onUpdate, saved => onShowVersions?.(saved, 'saved'));
   const payloadId = action.action_payload?.payload_id ?? '';
   const grantResourceId = action.action_grant_resource_id;
   const name = tPick(action.action_labels);
@@ -185,14 +185,6 @@ const ThreatArsenalActionPopover = ({
         onClose={closeRevocation}
         onDone={revocationDone}
       />
-
-      {notice && (
-        <PayloadNewVersionDialog
-          action={notice.action}
-          olderVersions={notice.olderVersions}
-          onClose={closeNotice}
-        />
-      )}
 
       <DialogDelete
         open={deletion}

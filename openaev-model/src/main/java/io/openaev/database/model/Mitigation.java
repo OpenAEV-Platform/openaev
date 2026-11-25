@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -24,7 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "mitigations")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 // mitigations is fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant).
 // The v1 @Filter has been removed. Do NOT add it back: if this table ever drops out of
 // openaev.tenant.active-tables without restoring @Filter, it would have no isolation at all.

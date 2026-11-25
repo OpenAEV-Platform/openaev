@@ -47,7 +47,7 @@ class ProductionActiveTablesTest {
       // Assert
       assertThat(tables)
           .doesNotContain(TenantTables.ALL_STRICT)
-          .contains("scenarios", "exercises")
+          .contains("scenarios", "exercises", "groups", "roles", "parameters")
           .containsExactlyInAnyOrderElementsOf(
               BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables());
     }

@@ -357,6 +357,11 @@ public class Scenario extends ModelBehaviour
     return catalogIdentity == null ? null : catalogIdentity.getExternalId();
   }
 
+  @Override
+  public String getCatalogContentId() {
+    return id;
+  }
+
   // -- MESSAGE --
 
   @Column(name = "scenario_message_header")

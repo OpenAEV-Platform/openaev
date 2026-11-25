@@ -312,9 +312,8 @@ public class BackgroundEntrypointTenantScopeArchTest {
     assertTrue(
         unknown.isEmpty(),
         "an until-active:<table> tag must name a table the terminal '*' activation turns v2 (a"
-            + " strict, non-self-isolated table), or it can never expire and the waiver is permanent"
-            + " by"
-            + " accident:\n  "
+            + " tenant table that is not self-isolated), or it can never expire and the waiver is"
+            + " permanent by accident:\n  "
             + String.join("\n  ", unknown));
   }
 
@@ -437,14 +436,11 @@ public class BackgroundEntrypointTenantScopeArchTest {
 
   /**
    * The waivers whose table is no longer v1. Under an explicit allowlist a table counts as active
-   * when it is named, so a waiver on a dual-scope table (which {@link TenantTables#restrictTo}
-   * accepts in an explicit list) expires the day that table is listed. Under the wildcard {@link
-   * TenantTables#ALL_STRICT} the terminal state does not activate <em>every</em> table: {@code *}
-   * activates strict tables only, minus the self-isolated ones ({@link TenantTables#restrictTo}).
-   * So a tag expires under {@code *} only when its table is in {@code wildcardActivates} (the
-   * {@code *}-expansion); a dual-scope waiver does not expire under {@code *} (it is not in that
-   * set) but does under an explicit list. A self-isolated table is in neither, and is rejected
-   * upstream as an illegal until-active target by {@code
+   * when it is named. Under the wildcard {@link TenantTables#ALL_STRICT} the terminal state
+   * activates every tenant table, dual-scope ones included, minus the self-isolated ones ({@link
+   * TenantTables#restrictTo}). So a tag expires under {@code *} when its table is in {@code
+   * wildcardActivates} (the {@code *}-expansion). A self-isolated table is in neither, and is
+   * rejected upstream as an illegal until-active target by {@code
    * every_until_active_tag_names_a_real_tenant_table}.
    *
    * <p>(The active-tables set is resolved by {@link #effectiveActiveTables()}: the nightly shadow
@@ -470,7 +466,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
                       + table
                       + "' activates, but that table is now active"
                       + (wildcard
-                          ? " ('*' activates every strict table except the self-isolated ones)"
+                          ? " ('*' activates every tenant table except the self-isolated ones)"
                           : "")
                       + "; scope the path through TenantScopedTransaction and remove the waiver");
             }
@@ -481,17 +477,17 @@ public class BackgroundEntrypointTenantScopeArchTest {
 
   /**
    * The tables the terminal {@code *} activation turns v2: the strict entity tables minus the
-   * self-isolated ones, plus the strict tables that carry a {@code tenant_id} but no tenant-marker
-   * entity ({@link #strictTablesMissedByEntityScan()}). Production derives its set from {@code
-   * information_schema} and so covers those; this guard has no database, so it unions the
-   * checked-in inventory to stay identical to production. {@code
+   * self-isolated ones, every dual-scope entity table, plus the strict tables that carry a {@code
+   * tenant_id} but no tenant-marker entity ({@link #strictTablesMissedByEntityScan()}). Production
+   * derives its set from {@code information_schema} and so covers those; this guard has no
+   * database, so it unions the checked-in inventory to stay identical to production. {@code
    * TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema} fails the build if
    * the two ever diverge.
    */
   public static Set<String> wildcardActivatedTables() {
-    Set<String> activated =
-        new TreeSet<>(
-            productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT)).strict());
+    TenantTables armed = productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT));
+    Set<String> activated = new TreeSet<>(armed.strict());
+    activated.addAll(armed.dualScope());
     activated.addAll(strictTablesMissedByEntityScan());
     return activated;
   }
@@ -629,30 +625,19 @@ public class BackgroundEntrypointTenantScopeArchTest {
   /**
    * The tables an until-active tag may legally name: every table {@code
    * openaev.tenant.active-tables} can activate, so that a waiver always has an activation to expire
-   * it. That is the union of
+   * it. That is the tables the terminal {@code *} turns v2 ({@link #wildcardActivatedTables()}:
+   * strict and dual-scope, minus the self-isolated ones), which expire under {@code *} or when
+   * named explicitly. A self-isolated table ({@code attackpath_graph_version}, {@code tenants},
+   * {@code users_tenants}) and a typo are rejected: they are never activated, so a waiver on one
+   * has no honest way to expire.
    *
-   * <ul>
-   *   <li>the strict tables the terminal {@code *} turns v2 ({@link #wildcardActivatedTables()},
-   *       minus the self-isolated ones), which expire under {@code *} or when named explicitly; and
-   *   <li>the dual-scope tables: {@code *} never activates one, but {@link TenantTables#restrictTo}
-   *       accepts a dual table in an explicit allowlist (e.g. {@code groups}), so an {@code
-   *       until-active:<dual>} waiver expires the day that table is listed explicitly. Barring it
-   *       here would reject a legal waiver as unknown and leave the path permanently un-expiring.
-   * </ul>
-   *
-   * A self-isolated strict table ({@code attackpath_graph_version}, {@code tenants}) and a typo are
-   * still rejected: {@code *} never activates them and they must never be activated, so a waiver on
-   * one could not honestly expire.
-   *
-   * <p>The dual set is derived from the entity model ({@link #productionTenantTables()}); a dual
+   * <p>The dual-scope tables come from the entity model ({@link #productionTenantTables()}); a dual
    * link table with no entity would be missed and its waiver rejected as unknown. That is
    * fail-closed (it demands attention, never hides a path) and none exists today (the missed-table
    * inventory lists only strict tables); the day one appears, add it there or an entity marker.
    */
   static Set<String> knownTenantTables() {
-    Set<String> known = new TreeSet<>(wildcardActivatedTables());
-    known.addAll(productionTenantTables().dualScope());
-    return known;
+    return wildcardActivatedTables();
   }
 
   // --- family recognition ------------------------------------------------------------------------

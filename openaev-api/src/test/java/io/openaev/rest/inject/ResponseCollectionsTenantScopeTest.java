@@ -155,9 +155,9 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
 
     @Test
     @DisplayName(
-        "given the scenario of a simulation is read, should answer the scenario's tags and"
-            + " document")
-    void given_scenarioOfASimulation_should_answerItsTagsAndDocument() throws Exception {
+        "given the scenario of a simulation is read, should answer the scenario's tags, document"
+            + " and simulation")
+    void given_scenarioOfASimulation_should_answerItsTagsDocumentAndSimulation() throws Exception {
       // -- ARRANGE --
       List<String> ids = new ArrayList<>();
       inTenant(
@@ -176,6 +176,7 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
       // -- ASSERT --
       assertThat(ids(response, "$.scenario_tags")).containsExactly(tagId);
       assertThat(ids(response, "$.scenario_documents")).containsExactly(documentId);
+      assertThat(ids(response, "$.scenario_exercises")).containsExactly(ids.get(0));
     }
 
     @Test

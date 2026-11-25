@@ -73,6 +73,7 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingLocationComposer findingLocationComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private CustomDashboardParameterComposer customDashboardParameterComposer;
   @Autowired private AttackPatternRepository attackPatternRepository;
@@ -1112,6 +1113,14 @@ class DashboardApiTest extends IntegrationTest {
           assetGroupComposer
               .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group B"))
               .withAsset(endpointB);
+      FindingLocationComposer.Composer locationEndpointA =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointA);
+      FindingLocationComposer.Composer locationEndpointB =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointB);
       exerciseComposer
           .forExercise(ExerciseFixture.createDefaultExercise())
           .withInject(
@@ -1122,11 +1131,11 @@ class DashboardApiTest extends IntegrationTest {
                   .withFinding(
                       findingComposer
                           .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
-                          .withEndpoint(endpointA))
+                          .withLocation(locationEndpointA))
                   .withFinding(
                       findingComposer
                           .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
-                          .withEndpoint(endpointA)))
+                          .withLocation(locationEndpointA)))
           .withInject(
               injectComposer
                   .forInject(InjectFixture.getDefaultInject())
@@ -1134,7 +1143,7 @@ class DashboardApiTest extends IntegrationTest {
                   .withFinding(
                       findingComposer
                           .forFinding(FindingFixture.createDefaultTextFindingWithRandomValue())
-                          .withEndpoint(endpointB)))
+                          .withLocation(locationEndpointB)))
           .persist();
       Widget widget =
           persistWidget(

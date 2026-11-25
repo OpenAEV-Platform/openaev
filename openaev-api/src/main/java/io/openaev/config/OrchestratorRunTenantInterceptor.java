@@ -12,24 +12,20 @@ import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * Establishes the legacy v1 {@link TenantContext} for the orchestrator CALLBACK route, for two
- * reasons: {@code injects} and {@code injectors_contracts} still carry the v1 Hibernate {@code
- * tenantFilter} and listener (scoped by {@link io.openaev.aop.HibernateFilterTransactionAspect},
- * which reads this ThreadLocal), and some reads are keyed by {@link TenantContext} explicitly (for
- * example {@code ExerciseService#exercise(String)}). Both follow the run's own tenant. It is the v1
- * counterpart of what {@link TxCtxArgumentResolver#runTenantScope} does for the v2 {@code
- * app.current_tenants} GUC.
+ * reasons: the v1 listener stamps rows from this ThreadLocal, and some reads are keyed by {@link
+ * TenantContext} explicitly (for example {@code ExerciseService#exercise(String)}). Both follow the
+ * run's own tenant. It is the v1 counterpart of what {@link TxCtxArgumentResolver#runTenantScope}
+ * does for the v2 {@code app.current_tenants} GUC.
  *
  * <p>Why an interceptor and not per-method: the callbacks ride the legacy NON-prefixed route
  * ({@code /api/autonomous-runs/**}), which {@link TenantInterceptor} (registered only for {@code
- * /api/tenants/**}) never covers, so on that route the v1 ThreadLocal is unset and {@code
- * HibernateFilterTransactionAspect} falls back to {@link
+ * /api/tenants/**}) never covers, so on that route the v1 ThreadLocal is unset and {@link
+ * TenantContext#getCurrentTenant()} falls back to {@link
  * io.openaev.database.model.Tenant#DEFAULT_TENANT_UUID}. A run owned by a non-default tenant would
- * then record its v2 state correctly (its {@code TxCtx} is run-derived) yet silently read/write
- * NOTHING through the v1 filter: an empty attack-path state read (so the orchestrator re-authors
- * duplicates), no workflow scope mirror, no team enablement, dropped finding-to-asset promotions.
- * The v1 filter is enabled at transaction START, so the scope has to be set BEFORE the handler's
- * {@code @Transactional} opens - {@code preHandle} is that point, and it also covers the {@code
- * REQUIRES_NEW} sessions the service opens on the same thread.
+ * then record its v2 state correctly (its {@code TxCtx} is run-derived) yet stamp or look up v1
+ * data in the default tenant. The scope has to be set BEFORE the handler's {@code @Transactional}
+ * opens - {@code preHandle} is that point, and it also covers the {@code REQUIRES_NEW} sessions the
+ * service opens on the same thread.
  *
  * <p>The gating mirrors {@link TxCtxArgumentResolver} EXACTLY so v1 and v2 can never derive
  * different tenants for the same request: only the VERIFIED XTM One cross-platform service identity

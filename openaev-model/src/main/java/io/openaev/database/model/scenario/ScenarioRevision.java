@@ -9,7 +9,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.User;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -26,17 +26,17 @@ import org.hibernate.annotations.UuidGenerator;
 public class ScenarioRevision implements TenantBase {
 
   public enum Reason {
-    INSTALL(CatalogHistory.Action.INSTALL),
-    UPDATE(CatalogHistory.Action.UPDATE),
-    ROLLBACK(CatalogHistory.Action.ROLLBACK);
+    INSTALL(ContentChange.Action.INSTALL),
+    UPDATE(ContentChange.Action.UPDATE),
+    ROLLBACK(ContentChange.Action.ROLLBACK);
 
-    private final CatalogHistory.Action action;
+    private final ContentChange.Action action;
 
-    Reason(CatalogHistory.Action action) {
+    Reason(ContentChange.Action action) {
       this.action = action;
     }
 
-    public CatalogHistory.Action action() {
+    public ContentChange.Action action() {
       return action;
     }
   }

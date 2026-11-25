@@ -67,8 +67,14 @@ public class FindingMapper {
         .id(finding.getId())
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
+        .firstSeen(
+            seen != null
+                ? seen.getFirstSeen()
+                : Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate()))
+        .lastSeen(
+            seen != null
+                ? seen.getLastSeen()
+                : Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate()))
         .occurrences(seen != null ? seen.getOccurrences() : 1)
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())
@@ -91,7 +97,6 @@ public class FindingMapper {
         .field(occurrence.map(FindingOccurrence::getField).orElse(null))
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .labels(finding.getLabels())
         .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .injectId(inject.map(Inject::getId).orElse(null))

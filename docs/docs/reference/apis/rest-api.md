@@ -351,23 +351,8 @@ PUT /api/tenants/{tenantId}/scenarios/{scenarioId}/reachability-assertion
 ```
 
 - **Body**: `{"scenario_reachability_assertion": true}` declares it, `false` clears it. `scenario_reachability_assertion` is `false` on every Scenario by default and filterable in the Scenario searches; a Scenario that is not an assertion behaves exactly as before.
-- **Read-only only**: every enabled Inject of an assertion must be read-only (`injector_contract_read_only` on its Injector contract, or `payload_read_only` on its Payload). Declaring a scheduled Scenario, or scheduling an assertion with `PUT /api/scenarios/{scenarioId}/recurrence`, is refused with `400` naming the Injects that are not read-only, and the scheduler skips an assertion that holds one (an Inject made writable after scheduling never runs on its own).
 - **Access**: the launch right on the Scenario, as for its recurrence.
 - **Results**: a failed check is reported like any simulation: the Inject's output parser records its findings (an open port, an answer) on the target, and when a run scores lower than the previous one the existing `SCORE_DEGRADATION` notification event fires.
-
-## Coverage scenario read-only first
-
-Scenarios built from an OpenCTI Security Coverage can be built with only their read-only Injects enabled. See [Scenario generation from OpenCTI Security Coverage](../../usage/build/scenario/security-coverage.md#read-only-first-build-and-run-order).
-
-```http
-GET /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
-PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios
-```
-
-- **Settings body**: `{"coverage_scenario_read_only_first": false}`, `false` by default. With the default, a Security Coverage builds and schedules its Scenario exactly as before.
-- **Access**: `GET` needs the right to read Tenant settings, `PUT` the right to manage them.
-- **Read-only marker**: `injector_contract_read_only` on Injector contracts and `payload_read_only` on Payloads, both `false` by default.
-- **Starting a held Scenario**: the existing `PUT /api/scenarios/{scenarioId}/recurrence` (launch right on the Scenario, records `scenario_scheduled_by`) and `inject_enabled` on each held Inject. Run order: the existing `inject_depends_duration` of each Inject.
 
 ## Finding re-test
 
