@@ -385,6 +385,7 @@ export interface AiTargetInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  /** @uniqueItems true */
   asset_markings?: string[];
   /** @minLength 1 */
   asset_name: string;
@@ -4737,149 +4738,6 @@ export interface Endpoint {
   listened?: boolean;
 }
 
-export interface MarkedEndpointInput {
-  asset_category?:
-    | "HOST"
-    | "CONTAINER_WORKLOAD"
-    | "CLOUD_RESOURCE"
-    | "WEB_APPLICATION"
-    | "NETWORK_DEVICE"
-    | "MOBILE_DEVICE"
-    | "IOT_OT_DEVICE"
-    | "IDENTITY"
-    | "SAAS_APPLICATION"
-    | "AI_TARGET"
-    | "SECURITY_PLATFORM"
-    | "SOURCE_CODE"
-    | "GENERIC_ASSET";
-  asset_cloud_native_type?: string | null;
-  asset_cloud_provider?:
-    | "AWS"
-    | "AZURE"
-    | "GCP"
-    | "OCI"
-    | "ALIBABA"
-    | "KUBERNETES"
-    | "OTHER";
-  asset_cloud_region?: string | null;
-  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
-  asset_description?: string;
-  asset_external_reference?: string;
-  asset_hostname?: string;
-  asset_internet_facing?: boolean | null;
-  asset_ips?: string[];
-  asset_linked_person?: string | null;
-  asset_mac_addresses?: string[];
-  /** @uniqueItems true */
-  asset_markings?: string[];
-  asset_metadata?: Record<string, any>;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_subcategory?:
-    | "SERVER"
-    | "WORKSTATION"
-    | "LAPTOP"
-    | "VIRTUAL_MACHINE"
-    | "HYPERVISOR"
-    | "MAINFRAME"
-    | "THIN_CLIENT"
-    | "CONTAINER"
-    | "CONTAINER_IMAGE"
-    | "KUBERNETES_POD"
-    | "KUBERNETES_CLUSTER"
-    | "KUBERNETES_NODE"
-    | "SERVERLESS_FUNCTION"
-    | "COMPUTE"
-    | "STORAGE"
-    | "DATABASE"
-    | "NETWORKING"
-    | "SERVERLESS"
-    | "CONTAINER_REGISTRY"
-    | "KUBERNETES"
-    | "IAM_PRINCIPAL"
-    | "SECRETS_KEY_MGMT"
-    | "MESSAGING_QUEUE"
-    | "ANALYTICS_DATA"
-    | "AI_ML_SERVICE"
-    | "IAC_TEMPLATE"
-    | "CLOUD_OTHER"
-    | "WEBSITE"
-    | "WEB_API"
-    | "SINGLE_PAGE_APP"
-    | "GRAPHQL_API"
-    | "WEB_SERVICE"
-    | "MICROSERVICE"
-    | "ROUTER"
-    | "SWITCH"
-    | "FIREWALL"
-    | "LOAD_BALANCER"
-    | "VPN_GATEWAY"
-    | "WIRELESS_AP"
-    | "PROXY"
-    | "DNS_SERVER"
-    | "DHCP_SERVER"
-    | "SAN_NAS"
-    | "NETWORK_OTHER"
-    | "SMARTPHONE"
-    | "TABLET"
-    | "IOT_SENSOR"
-    | "IP_CAMERA"
-    | "GATEWAY"
-    | "POINT_OF_SALE"
-    | "MEDIA_DEVICE"
-    | "PLC"
-    | "RTU"
-    | "HMI"
-    | "SCADA_HISTORIAN"
-    | "MEDICAL_DEVICE"
-    | "PRINTER_PERIPHERAL"
-    | "BUILDING_MGMT"
-    | "USER_ACCOUNT"
-    | "SERVICE_ACCOUNT"
-    | "GROUP"
-    | "ROLE"
-    | "SHARED_MAILBOX"
-    | "NON_HUMAN_IDENTITY"
-    | "SAAS_APP"
-    | "SAAS_TENANT"
-    | "LLM_MODEL"
-    | "AI_AGENT"
-    | "MCP_SERVER"
-    | "RAG_PIPELINE"
-    | "EDR"
-    | "XDR"
-    | "SIEM"
-    | "SOAR"
-    | "NDR"
-    | "ISPM"
-    | "EMAIL_SECURITY"
-    | "LLM_FIREWALL"
-    | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER"
-    | "CODE_REPOSITORY"
-    | "CI_CD_PIPELINE"
-    | "PACKAGE_REGISTRY"
-    | "SOFTWARE_PACKAGE"
-    | "CODE_OTHER";
-  asset_tags?: string[];
-  asset_url?: string | null;
-  endpoint_agent_version?: string;
-  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
-  /** True if the endpoint is in an End of Life state */
-  endpoint_is_eol?: boolean;
-  endpoint_platform?:
-    | "Linux"
-    | "Windows"
-    | "MacOS"
-    | "Android"
-    | "iOS"
-    | "Container"
-    | "Service"
-    | "Generic"
-    | "Internal"
-    | "Unknown";
-}
-
 export interface EndpointInput {
   asset_category?:
     | "HOST"
@@ -9049,6 +8907,149 @@ export interface MapperConditionOutput {
   )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
+}
+
+export interface MarkedEndpointInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
+  asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
+  /** @uniqueItems true */
+  asset_markings?: string[];
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "EMAIL_SECURITY"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
+  asset_tags?: string[];
+  asset_url?: string | null;
+  endpoint_agent_version?: string;
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
+  /** True if the endpoint is in an End of Life state */
+  endpoint_is_eol?: boolean;
+  endpoint_platform?:
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown";
 }
 
 export interface MarkingDefinitionInput {
