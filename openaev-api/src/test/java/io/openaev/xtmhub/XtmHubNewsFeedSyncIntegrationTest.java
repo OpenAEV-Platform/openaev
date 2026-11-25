@@ -12,6 +12,8 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NewsFeedItem;
@@ -73,6 +75,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   @Autowired private NewsFeedItemRepository newsFeedItemRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private GroupFixtureWriter groupFixtureWriter;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ApplicationEvents applicationEvents;
@@ -102,8 +105,14 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
     newsFeedItemRepository.deleteAll();
     // Groups first, each in the scope it was written in: deleting a group drops its memberships.
     createdGroups.forEach(groupFixtureWriter::delete);
-    userRepository.deleteAllById(createdUsers.stream().map(User::getId).toList());
-    createdTenantIds.forEach(registrationRepository::deleteByTenantId);
+    // Removing a user serializes its teams, tags and organization for the stream event, which
+    // are active tables: the cleanup runs in the scope of every tenant it created rows in.
+    tenantScopedTransaction.execute(
+        TxCtx.allTenants(),
+        () -> {
+          userRepository.deleteAllById(createdUsers.stream().map(User::getId).toList());
+          createdTenantIds.forEach(registrationRepository::deleteByTenantId);
+        });
     createdTenantIds.forEach(tenantRepository::deleteById);
   }
 
@@ -253,7 +262,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User unsubscribed = createUser(firstTenant);
       unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {"RESOURCE_SCENARIO"});
-      userRepository.save(unsubscribed);
+      updateUser(unsubscribed);
       User subscribed = createUser(firstTenant);
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
@@ -272,7 +281,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
       User unsubscribed = createUser(firstTenant);
       unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedUtils.ALL_TYPES});
-      userRepository.save(unsubscribed);
+      updateUser(unsubscribed);
       givenHubReturns(FIRST_TOKEN, scenario("hub-1"));
 
       // Act
@@ -331,7 +340,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       markRead(first, "hub-1");
       // Unsubscribing keeps the rows already received: the deletion reaches them too
       second.setUnsubscribedNewsFeedTypes(new String[] {NewsFeedUtils.ALL_TYPES});
-      userRepository.save(second);
+      updateUser(second);
       givenHubReturns(FIRST_TOKEN, deleted("hub-1"));
       applicationEvents.clear();
 
@@ -420,7 +429,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       User newcomer = createUser(firstTenant);
       User unsubscribed = createUser(firstTenant);
       unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {"RESOURCE_SCENARIO"});
-      userRepository.save(unsubscribed);
+      updateUser(unsubscribed);
       givenHubReturns(FIRST_TOKEN, renamed("hub-1"));
 
       // Act
@@ -839,6 +848,14 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       users.add(user);
     }
     return saveUsers(users, tenants);
+  }
+
+  /**
+   * Saving a user serializes its teams, tags and organization for the stream event, which are
+   * active tables: the update runs in the scope of every tenant.
+   */
+  private void updateUser(User user) {
+    tenantScopedTransaction.execute(TxCtx.allTenants(), () -> userRepository.save(user));
   }
 
   /** A player: neither admin nor member of a group, only known through its teams. */

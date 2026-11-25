@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -37,6 +39,7 @@ class XtmHubConnectivityRefreshIntegrationTest extends IntegrationTest {
   @Autowired private XtmHubService xtmHubService;
   @Autowired private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   @MockitoBean private XtmHubClient xtmHubClient;
 
@@ -48,7 +51,9 @@ class XtmHubConnectivityRefreshIntegrationTest extends IntegrationTest {
   void cleanup() {
     createdRegistrationIdToTenantId.forEach(
         (registrationId, tenantId) ->
-            tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId));
+            tenantScopedTransaction.execute(
+                TxCtx.forTenant(tenantId),
+                () -> tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId)));
     createdTenantIds.forEach(tenantRepository::deleteById);
     createdRegistrationIdToTenantId.clear();
     createdTenantIds.clear();
