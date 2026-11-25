@@ -1,22 +1,20 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.awaitLockConflict;
+import static io.openaev.migration.MigrationSessions.backendPid;
+import static io.openaev.migration.MigrationSessions.columnExists;
+import static io.openaev.migration.MigrationSessions.execute;
+import static io.openaev.migration.MigrationSessions.read;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.fail;
 
 import io.openaev.IntegrationTest;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -71,8 +69,8 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
           // Arrange: the platform's transaction has read payloads, the migration starts.
           read(platform, "payloads");
           int upgradePid = backendPid(upgrade);
-          Future<?> migrating = pool.submit(() -> migrate(upgrade));
-          awaitWaiting(upgradePid);
+          Future<?> migrating = pool.submit(() -> MigrationSessions.migrate(migration, upgrade));
+          awaitLockConflict(jdbc, upgradePid);
 
           // Act: the same platform transaction reads injector contracts, then commits.
           read(platform, "injectors_contracts");
@@ -86,13 +84,13 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
       }
 
       // Assert
-      assertThat(columnExists("injectors_contracts", CONTRACT_COLUMN)).isTrue();
-      assertThat(columnExists("payloads", PAYLOAD_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "injectors_contracts", CONTRACT_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "payloads", PAYLOAD_COLUMN)).isTrue();
     }
 
     @Test
-    @DisplayName("Given the migration waits for payloads, should let the platform read contracts")
-    void given_migrationWaitsForPayloads_should_notBlockThePlatformReadOfInjectorContracts()
+    @DisplayName("Given the migration cannot take payloads, should let the platform read contracts")
+    void given_migrationCannotTakePayloads_should_notBlockThePlatformReadOfInjectorContracts()
         throws Exception {
       ExecutorService pool = Executors.newSingleThreadExecutor();
       try (Connection platform = dataSource.getConnection();
@@ -103,12 +101,12 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
           execute(platform, "SET LOCAL lock_timeout = '100ms'");
           read(platform, "payloads");
           int upgradePid = backendPid(upgrade);
-          Future<?> migrating = pool.submit(() -> migrate(upgrade));
-          awaitWaiting(upgradePid);
+          Future<?> migrating = pool.submit(() -> MigrationSessions.migrate(migration, upgrade));
+          awaitLockConflict(jdbc, upgradePid);
 
-          // Act and Assert: the platform's read is granted while the migration waits.
+          // Act and Assert: the platform's read is granted while the migration is under way.
           assertThatCode(() -> read(platform, "injectors_contracts"))
-              .as("the migration holds no lock on injectors_contracts while it waits for payloads")
+              .as("the migration holds no lock on injectors_contracts while payloads is taken")
               .doesNotThrowAnyException();
           platform.commit();
           migrating.get(60, SECONDS);
@@ -118,8 +116,42 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
       } finally {
         pool.shutdownNow();
       }
-      assertThat(columnExists("injectors_contracts", CONTRACT_COLUMN)).isTrue();
-      assertThat(columnExists("payloads", PAYLOAD_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "injectors_contracts", CONTRACT_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "payloads", PAYLOAD_COLUMN)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given the migration cannot take payloads, should not queue another payloads read")
+    void given_migrationCannotTakePayloads_should_notQueueAnotherReadOfPayloads() throws Exception {
+      ExecutorService pool = Executors.newSingleThreadExecutor();
+      try (Connection platform = dataSource.getConnection();
+          Connection reader = dataSource.getConnection();
+          Connection upgrade = dataSource.getConnection()) {
+        platform.setAutoCommit(false);
+        reader.setAutoCommit(false);
+        try {
+          // Arrange: the platform holds payloads; another request gives up after 100 ms.
+          read(platform, "payloads");
+          execute(reader, "SET LOCAL lock_timeout = '100ms'");
+          int upgradePid = backendPid(upgrade);
+          Future<?> migrating = pool.submit(() -> MigrationSessions.migrate(migration, upgrade));
+          awaitLockConflict(jdbc, upgradePid);
+
+          // Act and Assert: the other request reads payloads while the migration is under way.
+          assertThatCode(() -> read(reader, "payloads"))
+              .as("the migration never waits in the lock queue of payloads")
+              .doesNotThrowAnyException();
+          reader.commit();
+          platform.commit();
+          migrating.get(60, SECONDS);
+        } finally {
+          reader.rollback();
+          platform.rollback();
+        }
+      } finally {
+        pool.shutdownNow();
+      }
+      assertThat(columnExists(jdbc, "payloads", PAYLOAD_COLUMN)).isTrue();
     }
   }
 
@@ -139,8 +171,8 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
           // Arrange: the platform's transaction has read injector contracts, the migration starts.
           read(platform, "injectors_contracts");
           int upgradePid = backendPid(upgrade);
-          Future<?> migrating = pool.submit(() -> migrate(upgrade));
-          awaitWaiting(upgradePid);
+          Future<?> migrating = pool.submit(() -> MigrationSessions.migrate(migration, upgrade));
+          awaitLockConflict(jdbc, upgradePid);
 
           // Act: the same platform transaction reads payloads, then commits.
           read(platform, "payloads");
@@ -154,83 +186,8 @@ class CoverageScenarioSafeModeMigrationConcurrencyTest extends IntegrationTest {
       }
 
       // Assert
-      assertThat(columnExists("injectors_contracts", CONTRACT_COLUMN)).isTrue();
-      assertThat(columnExists("payloads", PAYLOAD_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "injectors_contracts", CONTRACT_COLUMN)).isTrue();
+      assertThat(columnExists(jdbc, "payloads", PAYLOAD_COLUMN)).isTrue();
     }
-  }
-
-  /** Runs the migration as Flyway does: in a transaction when the migration accepts one. */
-  private Void migrate(Connection connection) throws Exception {
-    Context context =
-        new Context() {
-          @Override
-          public Configuration getConfiguration() {
-            return null;
-          }
-
-          @Override
-          public Connection getConnection() {
-            return connection;
-          }
-        };
-    if (migration.canExecuteInTransaction()) {
-      connection.setAutoCommit(false);
-      try {
-        migration.migrate(context);
-        connection.commit();
-      } catch (Exception e) {
-        connection.rollback();
-        throw e;
-      } finally {
-        connection.setAutoCommit(true);
-      }
-    } else {
-      migration.migrate(context);
-    }
-    return null;
-  }
-
-  private static void read(Connection connection, String table) throws SQLException {
-    execute(connection, "SELECT count(*) FROM " + table);
-  }
-
-  private static void execute(Connection connection, String sql) throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      statement.execute(sql);
-    }
-  }
-
-  private static int backendPid(Connection connection) throws SQLException {
-    try (PreparedStatement statement = connection.prepareStatement("SELECT pg_backend_pid()");
-        ResultSet resultSet = statement.executeQuery()) {
-      resultSet.next();
-      return resultSet.getInt(1);
-    }
-  }
-
-  /** Polls {@code pg_locks} until the session of this backend waits on a lock. */
-  private void awaitWaiting(int pid) throws InterruptedException {
-    long deadline = System.nanoTime() + SECONDS.toNanos(30);
-    while (System.nanoTime() < deadline) {
-      Long waiting =
-          jdbc.queryForObject(
-              "SELECT count(*) FROM pg_locks WHERE pid = ? AND NOT granted", Long.class, pid);
-      if (waiting != null && waiting > 0) {
-        return;
-      }
-      Thread.sleep(20);
-    }
-    fail("the session %d never waited on a lock", pid);
-  }
-
-  private boolean columnExists(String table, String column) {
-    Long count =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM information_schema.columns"
-                + " WHERE table_name = ? AND column_name = ?",
-            Long.class,
-            table,
-            column);
-    return count != null && count == 1;
   }
 }
