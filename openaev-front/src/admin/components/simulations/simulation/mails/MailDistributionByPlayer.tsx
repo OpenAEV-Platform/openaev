@@ -45,7 +45,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
   const sortedUsersByCommunicationNumber = R.pipe(
     (usersList: User[]) => usersList.map((n: User) => ({
       ...n,
-      user_communications_number: communications.filter((c: Communication) => n && R.includes(n.user_id, c.communication_users)).length,
+      user_communications_number: communications.filter((c: Communication) => n && c.communication_users!.includes(n.user_id!)).length,
     })),
     (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')).slice(0, 10),
   )(communicationsUsers);

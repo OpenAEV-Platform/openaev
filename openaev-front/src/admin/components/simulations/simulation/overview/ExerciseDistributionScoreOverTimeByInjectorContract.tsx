@@ -38,7 +38,8 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       ...n,
       inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
     })),
-    (list: InjectExpectationOutput[]) => Object.groupBy(list, R.path(['inject_expectation_inject', 'inject_contract'])),
+    // `inject_contract` is not a field of the inject model, so every expectation falls in the same 'undefined' group
+    (list: Array<Omit<InjectExpectationOutput, 'inject_expectation_inject'> & { inject_expectation_inject?: { inject_contract?: string } }>) => Object.groupBy(list, item => String(item.inject_expectation_inject?.inject_contract)),
     Object.entries,
     (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;

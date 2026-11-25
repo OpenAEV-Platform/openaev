@@ -20,13 +20,7 @@ const { default: customRules } = await import('eslint-plugin-custom-rules');
 const legacyRamdaFiles = [
   'src/admin/components/common/injects/InjectDistributionByTeam.tsx',
   'src/admin/components/common/injects/InjectDistributionByType.tsx',
-  'src/admin/components/common/injects/Injects.tsx',
-  'src/admin/components/common/injects/form/challenges/InjectAddChallenges.tsx',
-  'src/admin/components/components/teams/TeamPlayers.tsx',
   'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
-  'src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx',
-  'src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx',
-  'src/admin/components/lessons/simulations/Lessons.tsx',
   'src/admin/components/settings/attack_patterns/CreateAttackPattern.jsx',
   'src/admin/components/settings/groups/tenant_groups/GroupPopover.jsx',
   'src/admin/components/settings/tags/CreateTag.jsx',
@@ -44,7 +38,6 @@ const legacyRamdaFiles = [
   'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeam.tsx',
   'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeamInPercentage.tsx',
   'src/admin/components/simulations/simulation/validation/Validations.jsx',
-  'src/admin/components/simulations/simulation/validation/expectations/TechnicalExpectationAsset.tsx',
   'src/admin/components/teams/organizations/OrganizationPopover.jsx',
   'src/admin/components/teams/utils.ts',
   'src/components/CountryField.jsx',
@@ -54,15 +47,9 @@ const legacyRamdaFiles = [
   'src/components/OldAttackPatternField.jsx',
   'src/components/OrganizationField.jsx',
   'src/components/TagField.jsx',
-  'src/components/common/queryable/filter/FilterChip.tsx',
-  'src/components/common/queryable/filter/FilterUtils.tsx',
   'src/store.ts',
   'src/utils/Action.ts',
   'src/utils/BrowserLanguage.ts',
-  'src/utils/Environment.ts',
-  'src/utils/injector_contract/InjectorContractUtils.ts',
-  'src/utils/permissions/useScenarioPermissions.ts',
-  'src/utils/utils.ts',
 ];
 
 const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
