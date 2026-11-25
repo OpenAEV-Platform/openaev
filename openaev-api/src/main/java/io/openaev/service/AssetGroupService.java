@@ -505,6 +505,14 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
    */
   @Transactional(readOnly = true)
   public Set<String> dynamicAssetIds(@NotNull final AssetGroup assetGroup) {
+    return dynamicAssetIdsOf(assetGroup);
+  }
+
+  /**
+   * Body of {@link #dynamicAssetIds(AssetGroup)}, callable from another method of this class
+   * without self-invoking a {@code @Transactional} method (the caller's transaction applies).
+   */
+  private Set<String> dynamicAssetIdsOf(final AssetGroup assetGroup) {
     if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
       return Set.of();
     }
@@ -542,7 +550,7 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
     }
     for (AssetGroup group : this.assetGroupRepository.findAllById(assetGroupIds)) {
       group.getAssets().forEach(asset -> ids.add(asset.getId()));
-      ids.addAll(dynamicAssetIds(group));
+      ids.addAll(dynamicAssetIdsOf(group));
     }
     return ids;
   }
