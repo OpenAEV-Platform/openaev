@@ -17,6 +17,8 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 - **No unused code**: every class, method, field and constant a PR adds has a caller in that PR. What a
   later step needs comes with that step.
+- **Search before writing**: reuse the existing method, helper, constant, enum or composer before adding one;
+  when two places need the same code, extract one shared version.
 - **No undecided concept**: no default value, option or notion nobody asked for (a "stable" channel, an
   `isOffered()` that also accepts `null`). Add it when the need is real.
 
@@ -90,8 +92,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 
 ## Entities
 
-- Tenant-scoped: `TenantBase` + `@Filter("tenantFilter")` + `TenantBaseListener`
-- Dual-scope (Settings, User, Role, Group): `DualScopeBase` + `ModelBaseListener` only — no `@Filter`, nullable `tenant_id`, see `multi-tenancy.instructions.md`
+- Tenant-scoped: `TenantBase` + `TenantBaseListener`, no `@Filter` (reads are scoped by the statement inspector, see `multi-tenancy.instructions.md`)
+- Dual-scope (Settings, User, Role, Group): `DualScopeBase` + `ModelBaseListener` only, nullable `tenant_id`, see `multi-tenancy.instructions.md`
 - Platform-level: `Base` only + `ModelBaseListener`
 - Audit timestamps: implement `Auditable` + add `AuditableListener` (do **not** use Hibernate `@CreationTimestamp`/`@UpdateTimestamp`)
 - Column: `{entity_singular}_{field}` → `@JsonProperty("same")`
@@ -126,7 +128,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
 - Organize methods with section comments in this order: `// -- LIST --`, `// -- SEARCH --`, `// -- CREATE --`, `// -- UPDATE --`, `// -- DELETE --`, `// -- OPTIONS --`
-- Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules
+- Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules; throw instead of logging and going on
 - **Resolving associations from IDs**: use `ReferenceResolver.resolve(ids, Entity.class, repo::countByIdIn)` — never loop `findById()` (see `performance.instructions.md`)
 - **One role per service**: split a service whose methods have different jobs or transaction rules
   (check files outside a transaction, write in one, list read-only)
@@ -135,6 +137,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
   existing aggregate service
 - **A long method reads like a recipe**: named private steps (`latestRelease`, `refuseIfOlder`, `saveItems`),
   plain loops; no generic `Supplier`/`Consumer` machinery to save a few lines
+- **One hook, not one call per service**: a rule every save or delete of an entity needs (refuse, clean up)
+  goes in one JPA listener or DB trigger, not in each service that writes it
 - **A rule that depends on a type lives on its enum** (e.g. the resource an event type is limited to), not
   in a chain of `if` in a service
 - **Notifications go through the notification engine**: add the resource to `NotificationResourceCatalog`
@@ -142,7 +146,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 
 ## Repositories
 
-- Use `JpaRepository` instead of `CrudRepository`
+- New repositories extend `Repository<T, ID>` and declare only the methods they use (no inherited `findAll()`/`deleteAll()`); existing ones are not migrated
 - Extend `JpaSpecificationExecutor` for entities that need search/filtering
 
 ## Lombok
@@ -161,6 +165,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - **Don't comment the obvious**: never add a comment that merely restates what the code already
   makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
   created with `new Connector()`). Comments should explain *why*, not *what*.
+- **No history in comments**: no ticket, story or change log; one short line, only where the code cannot explain itself.
 - **Javadoc only for what the signature does not say**: side effects, thrown exceptions, non-obvious behaviour.
   Never a sentence that paraphrases the method name (`/** Updates a tenant. */`). Same rule for private methods: most need none.
 - **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)

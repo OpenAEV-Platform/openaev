@@ -144,13 +144,7 @@ public class FindingRecordingService {
   }
 
   private static DetectedFinding withUnknownLocation(DetectedFinding detection) {
-    return new DetectedFinding(
-        detection.type(),
-        detection.value(),
-        detection.field(),
-        detection.name(),
-        UnknownLocation.INSTANCE,
-        detection.tagIds());
+    return detection.toBuilder().location(UnknownLocation.INSTANCE).build();
   }
 
   /**
@@ -193,8 +187,7 @@ public class FindingRecordingService {
             .filter(entry -> !existingKeys.contains(entry.getKey()))
             .map(entry -> newFindingLocation(entry.getValue()))
             .toList();
-    // Flushed: the database computes the key the findings are matched on
-    List<FindingLocation> added = findingLocationRepository.saveAllAndFlush(missing);
+    List<FindingLocation> added = findingLocationRepository.saveAll(missing);
     return Stream.concat(existing.stream(), added.stream()).toList();
   }
 
@@ -202,6 +195,7 @@ public class FindingRecordingService {
     FindingLocation findingLocation = new FindingLocation();
     findingLocation.setAsset(referenceResolver.resolve(assetIdOf(location), Asset.class));
     findingLocation.setUser(referenceResolver.resolve(userIdOf(location), User.class));
+    findingLocation.setLocationKey(findingLocationKeyOf(location));
     return findingLocation;
   }
 

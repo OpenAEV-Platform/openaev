@@ -384,7 +384,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<String> expectedFindingIds =
             scenarioWrapper.get().getExercises().stream()
                 .flatMap(exercise -> exercise.getInjects().stream())
-                .flatMap(inject -> inject.getFindings().stream())
+                .flatMap(inject -> findingsOf(inject).stream())
                 .map(Finding::getId)
                 .toList();
 
@@ -457,7 +457,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
-                            .flatMap(inject -> inject.getFindings().stream().map(Finding::getId))
+                            .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
@@ -519,7 +519,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<RelatedFindingOutput> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
-                        inject.getFindings().stream().map(Finding::getId).toList()))
+                        findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
                 .limit(input.getSize())
@@ -561,7 +561,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -650,7 +650,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -728,7 +728,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -1697,5 +1697,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  // The findings of an inject are those with an occurrence on it
+  private List<Finding> findingsOf(Inject inject) {
+    return findingRepository.findAllByInjectId(inject.getId());
   }
 }

@@ -22,10 +22,10 @@ public interface AssetRepository
     extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does NOT apply to a plain
-   * {@code findById} (primary-key loads bypass entity filters), so a user-supplied id could load
-   * another tenant's asset. Constraining on {@code tenant_id} keeps cross-tenant reads out - used
-   * when snapshotting a scope rule's asset display name.
+   * Tenant-scoped primary-key lookup. A plain {@code findById} carries no tenant predicate on a
+   * table outside {@code active-tables}, so a user-supplied id loads another tenant's asset.
+   * Constraining on {@code tenant_id} excludes cross-tenant reads. Used when snapshotting a scope
+   * rule's asset display name.
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 

@@ -52,8 +52,8 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 Since multi-tenancy is actively being developed, pay special attention to:
 
-1. **New entities**: Do they extend `TenantBase`? Do they have `@Filter(name = "tenantFilter")`?
-2. **Native queries**: Do they ALL have `WHERE tenant_id = :tenantId`?
+1. **New entities**: Do they extend `TenantBase`? They must not declare a Hibernate `@Filter` (`TenantFilterRemovedArchTest`)
+2. **Native queries**: Do they ALL have `WHERE tenant_id = :tenantId`, or a shape the inspector accepts on an active table?
 3. **Unique constraints**: Are they composite with `tenant_id` for tenant-scoped entities?
 4. **Background jobs/async**: Is `TenantContext` set before DB access?
 5. **Caching**: Does the cache key include `tenant_id`?

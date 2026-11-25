@@ -414,18 +414,24 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
-  @DisplayName("a waiver on a table '*' does not activate (dual-scope) does NOT expire under '*'")
-  void dualScopeWaiverDoesNotExpireUnderWildcard() {
-    // 'groups' is a dual-scope table; '*' activates strict tables only, so a waiver named against a
-    // dual-scope table must not be treated as expired the moment '*' appears.
+  @DisplayName("a waiver on a dual-scope table expires under '*', which activates it")
+  void dualScopeWaiverExpiresUnderWildcard() {
+    // 'groups' is a dual-scope table; '*' activates it like a strict one, so a waiver named
+    // against it must expire the moment '*' appears, and not before: a table '*' leaves out
+    // holds on to its waiver.
     Map<String, String> baseline =
         Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:groups");
     assertTrue(
         BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("*"), Set.of("reporting_schedules", "injects"))
+                baseline, Set.of("*"), Set.of("groups", "reporting_schedules"))
+            .stream()
+            .anyMatch(s -> s.contains("io.openaev.Fixture")),
+        "'*' activates 'groups', so its waiver must expire");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
+                baseline, Set.of("*"), Set.of("reporting_schedules"))
             .isEmpty(),
-        "'*' does not activate dual-scope tables, so a waiver on 'groups' must not spuriously"
-            + " expire");
+        "a waiver on a table '*' does not activate must not expire");
   }
 
   @Test
