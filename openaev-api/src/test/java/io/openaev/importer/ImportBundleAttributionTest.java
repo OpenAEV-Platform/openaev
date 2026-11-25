@@ -421,6 +421,9 @@ class ImportBundleAttributionTest extends IntegrationTest {
       // creator to it, so the caller is a member of C as well: what keeps the bundle out of C is
       // the header selecting B, never the caller's memberships.
       tenantC = tenantHelper.createTenant("import-bundle-c").getId();
+      // The provisioning rows of C are committed before the requests, as in production, so they
+      // are not flushed inside the import's own scope.
+      entityManager.flush();
       // Creating C left it on the test thread: back to the default tenant before the requests.
       TenantContext.clearCurrentTenant();
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
@@ -793,6 +796,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
       // is a guess, or a replayed id, that the import must not honour whatever the caller's
       // memberships (creating a tenant through the helper attaches its creator to it).
       tenantC = tenantHelper.createTenant("import-bundle-ref-c").getId();
+      entityManager.flush();
       TenantContext.clearCurrentTenant();
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
