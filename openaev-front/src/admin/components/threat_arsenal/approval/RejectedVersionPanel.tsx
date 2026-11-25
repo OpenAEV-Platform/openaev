@@ -4,6 +4,7 @@ import { type FunctionComponent } from 'react';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
 import PayloadVersionComparison from './PayloadVersionComparison';
+import useVersionChanges from './useVersionChanges';
 import useVersionDetails from './useVersionDetails';
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
 const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) => {
   const { t, nsdt } = useFormatter();
   const details = useVersionDetails(version.payload_action_id);
-  const baselineDetails = useVersionDetails(baseline?.payload_action_id, false);
+  const changes = useVersionChanges(version.payload_action_id, baseline?.payload_action_id);
   // The latest rejection of this version (history newest first).
   const rejection = details.history.find(entry => entry.approval_status === 'REJECTED') ?? null;
 
@@ -49,11 +50,11 @@ const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) =
         </div>
       )}
       {/* What was proposed: against the version in use, or, for a first version, everything as added. */}
-      {details.content && (!baseline || baselineDetails.content) && (
+      {changes && (
         <PayloadVersionComparison
           title={t('What was proposed')}
-          active={baseline ? baselineDetails.content : undefined}
-          pending={details.content}
+          changes={changes}
+          isNew={!baseline}
           activeNumber={baseline?.payload_version ?? undefined}
           pendingNumber={version.payload_version ?? '-'}
         />

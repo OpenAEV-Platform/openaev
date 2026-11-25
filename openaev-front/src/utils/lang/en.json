@@ -4902,7 +4902,6 @@
   "Multi-turn": "Multi-turn",
   "Network traffic": "Network traffic",
   "New version pending approval": "New version pending approval",
-  "No change in what the action runs.": "No change in what the action runs.",
   "Optional comment kept in the approval history": "Optional comment kept in the approval history",
   "Payload pending approval": "Payload pending approval",
   "Payload rejected": "Payload rejected",
@@ -5215,5 +5214,9 @@
   "Table settings": "Table settings",
   "Reset table": "Reset table",
   "Rows per page": "Rows per page",
-  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, one {# inject moved} other {# injects moved}}"
+  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, one {# inject moved} other {# injects moved}}",
+  "Source IP": "Source IP",
+  "Destination IP": "Destination IP",
+  "Source port": "Source port",
+  "Destination port": "Destination port"
 }

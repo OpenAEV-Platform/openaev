@@ -7,6 +7,7 @@ import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContentHistory;
 import io.openaev.database.model.ContentType;
 import io.openaev.database.model.EventStatus;
@@ -16,6 +17,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.payload.PayloadFieldChangeService;
 import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,6 +43,7 @@ public class ContentHistoryService {
   private final ObjectMapper mapper;
   private final ContentMetricCollector contentMetricCollector;
   private final Optional<AuditLogger> auditLogger;
+  private final PayloadFieldChangeService payloadFieldChangeService;
 
   // -- LIST --
 
@@ -125,10 +128,18 @@ public class ContentHistoryService {
     return save(saved, ContentHistory.ACTION.UPDATE, source.getVersion(), null, details);
   }
 
-  /** A rejected version fixed in a draft and sent again under its own number. */
-  public ContentHistory payloadReworked(Payload before, Payload saved) {
-    return save(
-        saved, ContentHistory.ACTION.REWORK, saved.getVersion(), null, changes(before, saved));
+  /**
+   * A rejected version fixed in a draft and sent again under its own number. It changed in place,
+   * so the attack patterns it had are given: its action now has the new ones.
+   */
+  public ContentHistory payloadReworked(
+      Payload before, Collection<AttackPattern> beforePatterns, Payload saved) {
+    ObjectNode details = mapper.createObjectNode();
+    details.set(
+        "changes",
+        payloadFieldChangeService.between(
+            before, beforePatterns, saved, payloadFieldChangeService.attackPatternsOf(saved)));
+    return save(saved, ContentHistory.ACTION.REWORK, saved.getVersion(), null, details);
   }
 
   public ContentHistory payloadUpdated(Payload previous, Payload saved) {
@@ -215,7 +226,7 @@ public class ContentHistoryService {
 
   private ObjectNode changes(Payload previous, Payload saved) {
     ObjectNode details = mapper.createObjectNode();
-    details.set("changes", PayloadFieldChanges.between(mapper, previous, saved));
+    details.set("changes", payloadFieldChangeService.between(previous, saved));
     return details;
   }
 

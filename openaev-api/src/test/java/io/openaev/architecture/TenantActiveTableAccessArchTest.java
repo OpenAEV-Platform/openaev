@@ -1780,6 +1780,11 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.payload.PayloadExecutionSnapshotService.class,
               // Numbers variant versions inside the variant API's scoped transactions:
               io.openaev.rest.payload.service.PayloadVariantService.class,
+              // Compares two versions field by field (version and draft changes, History) inside
+              // the Threat Arsenal API's and the version save's scoped transactions:
+              io.openaev.service.payload.PayloadFieldChangeService.class,
+              io.openaev.service.threat_arsenal.ThreatArsenalService.class,
+              io.openaev.rest.payload.service.PayloadUpdateService.class,
               WorkflowExportInitializer.class)
           .should()
           .callMethod(InjectorContract.class, "getAttackPatterns")

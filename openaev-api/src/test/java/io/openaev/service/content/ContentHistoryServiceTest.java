@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ContentHistoryRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.payload.PayloadFieldChangeService;
 import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,7 @@ class ContentHistoryServiceTest {
   @Mock private ContentHistoryRepository contentHistoryRepository;
   @Mock private UserService userService;
   @Mock private ContentMetricCollector contentMetricCollector;
+  @Mock private PayloadFieldChangeService payloadFieldChangeService;
   private ContentHistoryService contentHistoryService;
 
   @BeforeEach
@@ -35,7 +37,8 @@ class ContentHistoryServiceTest {
             userService,
             new ObjectMapper(),
             contentMetricCollector,
-            Optional.empty());
+            Optional.empty(),
+            payloadFieldChangeService);
   }
 
   private static Payload payload(String externalId, String version) {

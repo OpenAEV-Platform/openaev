@@ -15,6 +15,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { APPROVAL_COMMENT_MAX_LENGTH } from './approvalStatusUtils';
 import PayloadVersionComparison from './PayloadVersionComparison';
 import useApprovalDecisionError from './useApprovalDecisionError';
+import useVersionChanges from './useVersionChanges';
 import useVersionDetails from './useVersionDetails';
 
 interface Props {
@@ -53,7 +54,7 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
     if (details.authorName) return t('Submitted by {name}', { name: details.authorName });
     return details.fromCollector ? t('Submitted by a collector') : null;
   })();
-  const baselineDetails = useVersionDetails(baseline?.payload_action_id, false);
+  const changes = useVersionChanges(actionId, baseline?.payload_action_id);
 
   const closeApprove = () => {
     setApproveOpen(false);
@@ -133,10 +134,10 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
           )}
       {/* 2. The evidence: what this version changes, read before deciding. A first version (nothing
           approved yet) is compared with nothing: all it runs shows as added. */}
-      {details.content && (!baseline || baselineDetails.content) && (
+      {changes && (
         <PayloadVersionComparison
-          active={baseline ? baselineDetails.content : undefined}
-          pending={details.content}
+          changes={changes}
+          isNew={!baseline}
           activeNumber={baseline?.payload_version ?? undefined}
           pendingNumber={version.payload_version ?? '-'}
         />

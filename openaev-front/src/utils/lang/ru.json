@@ -4902,7 +4902,6 @@
   "Multi-turn": "Многоходовый",
   "Network traffic": "Сетевой трафик",
   "New version pending approval": "Новая версия ожидает одобрения",
-  "No change in what the action runs.": "Нет изменений в том, что выполняет действие.",
   "Optional comment kept in the approval history": "Необязательный комментарий, сохраняемый в истории утверждений",
   "Payload pending approval": "Полезная нагрузка ожидает утверждения",
   "Payload rejected": "Полезная нагрузка отклонена",
@@ -5215,5 +5214,9 @@
   "Table settings": "Настройки таблицы",
   "Reset table": "Сбросить таблицу",
   "Rows per page": "Строк на странице",
-  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, one {# инжект перенесён} few {# инжекта перенесено} many {# инжектов перенесено} other {# инжекта перенесено}}"
+  "{count, plural, one {# inject moved} other {# injects moved}}": "{count, plural, one {# инжект перенесён} few {# инжекта перенесено} many {# инжектов перенесено} other {# инжекта перенесено}}",
+  "Source IP": "IP-адрес источника",
+  "Destination IP": "IP-адрес назначения",
+  "Source port": "Порт источника",
+  "Destination port": "Порт назначения"
 }

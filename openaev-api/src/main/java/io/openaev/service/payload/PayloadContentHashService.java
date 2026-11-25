@@ -53,6 +53,19 @@ public class PayloadContentHashService {
   }
 
   ObjectNode canonicalTree(Payload source, Collection<AttackPattern> attackPatterns) {
+    return tree(source, attackPatterns, false);
+  }
+
+  /**
+   * The same fields as {@link #canonicalTree}, as people read them: a file by its name instead of
+   * its hash, an attack pattern by its external id and name. Never fails on a missing file.
+   */
+  ObjectNode displayTree(Payload source, Collection<AttackPattern> attackPatterns) {
+    return tree(source, attackPatterns, true);
+  }
+
+  private ObjectNode tree(
+      Payload source, Collection<AttackPattern> attackPatterns, boolean display) {
     Payload payload = (Payload) Hibernate.unproxy(source);
     ObjectNode node = MAPPER.createObjectNode();
     put(node, "payload_type", payload.getType());
@@ -63,23 +76,31 @@ public class PayloadContentHashService {
     node.put("payload_elevation_required", payload.isElevationRequired());
     node.set("payload_expectations", sortedValues(payload.getExpectations()));
     node.set("payload_expected_security_platforms", expectedSecurityPlatforms(payload));
-    node.set("payload_arguments", arguments(payload));
+    node.set("payload_arguments", arguments(payload, display));
     node.set("payload_prerequisites", MAPPER.valueToTree(payload.getPrerequisites()));
     put(node, "payload_cleanup_executor", payload.getCleanupExecutor());
     put(node, "payload_cleanup_command", payload.getCleanupCommand());
-    typeSpecific(node, payload);
+    typeSpecific(node, payload, display);
     node.set(
         "payload_attack_patterns",
         sortedValues(
             attackPatterns == null
                 ? null
-                : attackPatterns.stream().map(AttackPattern::getExternalId).toArray()));
+                : attackPatterns.stream()
+                    .map(pattern -> display ? patternLabel(pattern) : pattern.getExternalId())
+                    .toArray()));
     node.set("payload_detection_remediations", detectionRemediations(payload));
     node.set("payload_output_parsers", outputParsers(payload));
     return (ObjectNode) withoutEmpty(node);
   }
 
-  private void typeSpecific(ObjectNode node, Payload payload) {
+  private static String patternLabel(AttackPattern pattern) {
+    return pattern.getName() == null
+        ? pattern.getExternalId()
+        : pattern.getExternalId() + " " + pattern.getName();
+  }
+
+  private void typeSpecific(ObjectNode node, Payload payload, boolean display) {
     switch (payload) {
       case Command command -> {
         put(node, "command_executor", command.getExecutor());
@@ -102,20 +123,25 @@ public class PayloadContentHashService {
         node.set("ai_attack_success_detector", MAPPER.valueToTree(attack.getSuccessDetector()));
       }
       case Executable executable ->
-          put(node, "executable_file", fileHash(executable.getExecutableFile()));
-      case FileDrop fileDrop -> put(node, "file_drop_file", fileHash(fileDrop.getFileDropFile()));
+          put(node, "executable_file", file(executable.getExecutableFile(), display));
+      case FileDrop fileDrop ->
+          put(node, "file_drop_file", file(fileDrop.getFileDropFile(), display));
       default -> {}
     }
   }
 
   // Ordered: argument order is meaningful. A document argument refers to its file by hash.
-  private ArrayNode arguments(Payload payload) {
+  private ArrayNode arguments(Payload payload, boolean display) {
     ArrayNode arguments = MAPPER.createArrayNode();
     for (PayloadArgument argument : Optional.ofNullable(payload.getArguments()).orElse(List.of())) {
       ObjectNode node = MAPPER.valueToTree(argument);
       if (DOCUMENT_ARGUMENT.equals(node.path("type").asText())
           && argument.getDefaultValue() != null) {
-        node.put("default_value", fileHash(documentOf(argument.getDefaultValue())));
+        node.put(
+            "default_value",
+            display
+                ? documentName(argument.getDefaultValue())
+                : fileHash(documentOf(argument.getDefaultValue())));
       }
       arguments.add(node);
     }
@@ -178,6 +204,21 @@ public class PayloadContentHashService {
       parsers.add(parserNode);
     }
     return sortedNodes(parsers);
+  }
+
+  private String file(Document document, boolean display) {
+    if (!display) {
+      return fileHash(document);
+    }
+    return document == null ? null : document.getName();
+  }
+
+  private String documentName(String documentId) {
+    try {
+      return documentService.document(documentId).getName();
+    } catch (ElementNotFoundException e) {
+      return documentId;
+    }
   }
 
   private Document documentOf(String documentId) {

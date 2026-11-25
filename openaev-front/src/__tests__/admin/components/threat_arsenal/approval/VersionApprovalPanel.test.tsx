@@ -50,6 +50,8 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
 
 vi.mock('../../../../../admin/components/threat_arsenal/approval/useVersionDetails', () => ({ default: () => ({ authorName: 'Author User' }) }));
 
+vi.mock('../../../../../admin/components/threat_arsenal/approval/useVersionChanges', () => ({ default: () => [] }));
+
 vi.mock('../../../../../admin/components/threat_arsenal/approval/PayloadVersionComparison', () => ({ default: () => null }));
 
 const REMOVED = 'You can no longer approve or reject payloads: Approve content was removed from your role.';

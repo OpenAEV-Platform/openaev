@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalDraftEditor from '../../../../../admin/components/threat_arsenal/drafts/ThreatArsenalDraftEditor';
 
-const { source } = vi.hoisted(() => ({
+const { source, mockContentChanges } = vi.hoisted(() => ({
+  mockContentChanges: vi.fn(),
   source: {
     injector_contract_id: 'a1',
     action_labels: { en: 'Dump credentials' },
@@ -36,6 +37,7 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
 }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-version-actions', () => ({
+  fetchThreatArsenalContentChanges: (...args: unknown[]) => mockContentChanges(...args),
   fetchThreatArsenalVersions: () => Promise.resolve({
     data: [{
       payload_action_id: 'a1',
@@ -74,6 +76,15 @@ describe('ThreatArsenalDraftEditor: what a draft changes (#9469 follow-up)', () 
   afterEach(() => cleanup());
 
   it('given a draft should compare it with the version it started from', async () => {
+    // Arrange
+    mockContentChanges.mockResolvedValue({
+      data: [{
+        field: 'command_content',
+        before: 'echo before',
+        after: 'echo after',
+      }],
+    });
+
     // Act
     render(
       <ThemeProvider theme={createTheme()}>
@@ -86,5 +97,30 @@ describe('ThreatArsenalDraftEditor: what a draft changes (#9469 follow-up)', () 
     // Assert
     expect(await screen.findByText('What this draft changes')).toBeTruthy();
     expect(screen.getByText('1 field changed: Command · compared with v1.0.0, the version this draft started from')).toBeTruthy();
+    // The saved draft is sent as publishing would send it, to the version it started from.
+    expect(mockContentChanges).toHaveBeenCalledWith('a1', expect.objectContaining({ command_content: 'echo after' }));
+  });
+
+  it('given a draft that only renames the action should show the Name change', async () => {
+    // Arrange
+    mockContentChanges.mockResolvedValue({
+      data: [{
+        field: 'payload_name',
+        before: 'Dump credentials',
+        after: 'Dump credentials v2',
+      }],
+    });
+
+    // Act
+    render(
+      <ThemeProvider theme={createTheme()}>
+        <TooltipProvider>
+          <ThreatArsenalDraftEditor actionId="a1" initialSelection="draft:d1" onClose={vi.fn()} onPublished={vi.fn()} />
+        </TooltipProvider>
+      </ThemeProvider>,
+    );
+
+    // Assert
+    expect(await screen.findByText('1 field changed: Name · compared with v1.0.0, the version this draft started from')).toBeTruthy();
   });
 });

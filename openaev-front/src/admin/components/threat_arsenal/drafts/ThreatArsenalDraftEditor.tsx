@@ -9,16 +9,16 @@ import {
   publishThreatArsenalDraft,
   saveThreatArsenalDraft,
 } from '../../../../actions/threat_arsenals/threatArsenal-draft-actions';
-import { fetchThreatArsenalVersions } from '../../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { fetchThreatArsenalContentChanges, fetchThreatArsenalVersions } from '../../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { type PayloadFieldChange } from '../../../../components/common/content_versions/payloadFieldChanges';
 import { useFormatter } from '../../../../components/i18n';
-import { type PayloadDraftOutput, type PayloadVersionOutput, type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
+import { type PayloadDraftOutput, type PayloadFieldChangeOutput, type PayloadVersionOutput, type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildInitialValues, type ThreatArsenalActionFormValues, toActionUpdateInput } from '../actionFormValues';
 import PayloadVersionComparison from '../approval/PayloadVersionComparison';
-import { type PayloadExecutableContent, toExecutableContentFromInput } from '../approval/payloadVersionDiff';
 import ThreatArsenalActionForm from '../ThreatArsenalActionForm';
 import SnapshotRemediationProvider from '../utils/SnapshotRemediationProvider';
 import { defaultSelection, draftOptionLabel, editOptions, parseSelection, rejectedOptionLabel } from './draftSelection';
@@ -55,8 +55,8 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
   const [failed, setFailed] = useState(false);
   // The form's current values, for "Save draft" in the switch dialog.
   const formValues = useRef<(() => ThreatArsenalActionCreateCustomInput) | null>(null);
-  // What the selected draft is compared with: the version it started from.
-  const [sourceContent, setSourceContent] = useState<PayloadExecutableContent | null>(null);
+  // What the selected draft changes in the version it started from, field by field.
+  const [draftChanges, setDraftChanges] = useState<PayloadFieldChange[] | null>(null);
 
   useEffect(() => {
     Promise.all([fetchThreatArsenalVersions(actionId), fetchThreatArsenalDrafts(actionId)])
@@ -92,18 +92,25 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
     });
   }, [selection]);
 
-  // Both sides read the same way (editor values to an action update), so only real changes show.
-  const executableOf = (formValues: ThreatArsenalActionFormValues) => toExecutableContentFromInput(
-    toActionUpdateInput(formValues as unknown as ThreatArsenalActionCreateCustomInput),
-  );
+  // The saved draft as publishing would send it, compared by the API with the version it started from:
+  // the same fields as a new version and the History tab.
   const sourceActionId = currentDraft?.draft_source_action_id;
   useEffect(() => {
-    setSourceContent(null);
-    if (!sourceActionId) return;
-    fetchThreatArsenalAction(sourceActionId).then((response: { data: ThreatArsenalActionFullOutput }) => {
-      setSourceContent(executableOf(buildInitialValues(response.data, tPick(response.data.action_labels))));
-    });
-  }, [sourceActionId]);
+    setDraftChanges(null);
+    if (!sourceActionId || !currentDraft) return undefined;
+    let cancelled = false;
+    fetchThreatArsenalContentChanges(
+      sourceActionId,
+      toActionUpdateInput(currentDraft.draft_content as unknown as ThreatArsenalActionCreateCustomInput),
+    )
+      .then((response: { data: PayloadFieldChangeOutput[] }) => {
+        if (!cancelled) setDraftChanges(response.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceActionId, currentDraft?.draft_id, currentDraft?.draft_updated_at]);
 
   const options = editOptions(versions ?? [], drafts);
   const draftLabel = (draft: PayloadDraftOutput) => draftOptionLabel(t, draft);
@@ -230,13 +237,12 @@ const ThreatArsenalDraftEditor: FunctionComponent<Props> = ({ actionId, initialS
           </Text>
         )}
       </div>
-      {currentDraft && sourceContent && (
+      {currentDraft && draftChanges && (
         <PayloadVersionComparison
           draft
           title={t('What this draft changes')}
-          active={sourceContent}
+          changes={draftChanges}
           activeNumber={currentDraft.draft_source_version}
-          pending={executableOf(currentDraft.draft_content as ThreatArsenalActionFormValues)}
           pendingNumber={currentDraft.draft_source_version ?? ''}
         />
       )}

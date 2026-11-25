@@ -10472,6 +10472,16 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+/** A field that differs between two versions of a payload, as people read it. */
+export interface PayloadFieldChangeOutput {
+  /** Value after; null when the field is now empty */
+  after?: JsonNode;
+  /** Value before; null when the field was empty */
+  before?: JsonNode;
+  /** Field of the payload content, e.g. payload_name or command_content */
+  field: string;
+}
+
 export interface PayloadUsageOutput {
   /** @minLength 1 */
   usage_id: string;
