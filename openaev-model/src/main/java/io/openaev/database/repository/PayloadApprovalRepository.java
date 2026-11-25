@@ -15,9 +15,6 @@ public interface PayloadApprovalRepository extends CrudRepository<PayloadApprova
   /** The latest entry of a payload's approval history. */
   Optional<PayloadApproval> findFirstByPayloadIdOrderByCreatedAtDesc(String payloadId);
 
-  /** The first entry of a payload's approval history: who created the version. */
-  Optional<PayloadApproval> findFirstByPayloadIdOrderByCreatedAtAsc(String payloadId);
-
   /** Whether the status of this version was already decided (a version is decided once). */
   boolean existsByPayloadId(String payloadId);
 }

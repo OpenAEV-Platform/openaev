@@ -34,9 +34,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Turns content changes (revocations, new versions, catalogue releases) into notification events,
- * once their transaction commits. Messages are computed in a tenant transaction, then handed to the
- * engine, which opens its own.
+ * Turns content changes (revocations, approval decisions, new versions, catalogue releases) into
+ * notification events, once their transaction commits. Messages are computed in a tenant
+ * transaction, then handed to the engine, which opens its own.
  */
 @Component
 @Slf4j
@@ -155,6 +155,57 @@ public class ContentNotificationListener {
                                 usages.getFirst().scenarioName(),
                                 action,
                                 reason == null || reason.isBlank() ? "" : " (" + reason + ")",
+                                injects(usages.size())))));
+    return emits;
+  }
+
+  // -- APPROVAL --
+
+  /**
+   * A version waits for approval or was rejected: users watching payloads are told. When an
+   * approver took an approval back, the scenarios whose injects are still on that version are told
+   * that those injects can no longer run (injects moved away before the decision are not counted).
+   */
+  @Async("notificationEngineExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onApprovalChanged(PayloadApprovalChanged event) {
+    emit(
+        event.tenantId(),
+        () -> approvalEmits(payloadVersionService.findById(event.payloadId()), event));
+  }
+
+  private List<Emit> approvalEmits(Payload payload, PayloadApprovalChanged event) {
+    String action = payloadLabel(payload);
+    boolean hasReason = event.reason() != null && !event.reason().isBlank();
+    List<Emit> emits = new ArrayList<>();
+    emits.add(
+        new Emit(
+            NotificationResourceCatalog.PAYLOAD,
+            payload.getId(),
+            event.rejected() ? REJECTED : APPROVAL_PENDING,
+            event.rejected()
+                ? "[payload] " + action + " rejected" + (hasReason ? ": " + event.reason() : "")
+                : "[payload] " + action + " is waiting for approval"));
+    if (!event.wasApproved()) {
+      return emits;
+    }
+    String decision =
+        event.rejected()
+            ? "rejected" + (hasReason ? " (" + event.reason() + ")" : "")
+            : "moved back to pending approval";
+    byScenario(List.of(payload))
+        .forEach(
+            (scenarioId, usages) ->
+                emits.add(
+                    new Emit(
+                        NotificationResourceCatalog.SCENARIO,
+                        scenarioId,
+                        event.rejected() ? PAYLOAD_REJECTED : PAYLOAD_PENDING_APPROVAL,
+                        "[scenario] %s: %s %s, %s can no longer run"
+                            .formatted(
+                                usages.getFirst().scenarioName(),
+                                action,
+                                decision,
                                 injects(usages.size())))));
     return emits;
   }

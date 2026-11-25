@@ -107,21 +107,22 @@ The *History* tab shows the same diff for each change. The list can be filtered 
 
 An approver who approved a version by mistake, or wants it reviewed again, uses the Action's menu, like **Revoke**:
 
-* **Reject**: pick a pending or approved version and give a reason. The version can no longer be picked or run, and its author is notified with the reason.
-* **Move to pending approval**: pick an approved or rejected version and add an optional note. The version waits for approval again and can no longer be picked or run until an approver approves it. Nobody is notified: ask for the review yourself.
+* **Reject**: pick a pending or approved version and give a reason. The version can no longer be picked or run.
+* **Move to pending approval**: pick an approved or rejected version and add an optional note. The version waits for approval again and can no longer be picked or run until an approver approves it.
 
 Both entries appear only for users whose role holds *Approve content*, and only when a version can take them. Each change is recorded in the approval history and the audit log. When the latest approved version is taken back, pickers and automatic selection offer the previous approved version again.
 
-Injects still using a version that is not approved cannot launch. The **Revoke**, **Reject** and **Move to pending approval** dialogs show how many Injects use the chosen version and offer, checked by default, to **move the injects using this version to another version**: pick an approved, non-revoked version in the list. Only the Injects and chained steps you can edit move; the others stay on their version and are reported.
+Injects still using a version that is not approved cannot launch. The **Revoke**, **Reject** and **Move to pending approval** dialogs show how many Injects use the chosen version and offer, checked by default, to **move the injects using this version to another version**: pick an approved, non-revoked version in the list. The Injects move first, then the decision is applied. Only the Injects and chained steps you can edit move; the others stay on their version and are reported.
 
 ### Notifications
 
-Approvers and authors are notified in the [Notification Center](../../run-and-evaluate/notifications/notification-center.md#payload-approval-notifications), without any Trigger to configure:
+Nobody is notified by default. To follow approval, create a Live Trigger in the
+[Notification Center](../../run-and-evaluate/notifications/notification-center.md#payload-approval-notifications), like
+for revocations:
 
-* users whose role in the Tenant explicitly holds *Approve content* are told when a Payload, or a new version of an approved Payload, waits for approval (never about their own edits, and not again for each newer version while one already waits);
-* authors are told when their version is approved, rejected (with the reason, also when an approved version is rejected afterwards), or superseded by someone else's newer version.
-
-Notifications are batched every minute and link to the version's Action. Each user chooses in-app and email delivery in the Notification Center's **Preferences** tab (in-app on, email off by default).
+* on **Payload**: **Pending approval** (a version waits for approval) and **Rejected** (with the reason);
+* on **Scenario**: **Payload rejected** and **Payload pending approval**, when an approved version its Injects still use
+  is rejected or moved back to pending approval, so those Injects can no longer run.
 
 Scenario owners are told that a new version of an Action they use is available only once that version is approved.
 

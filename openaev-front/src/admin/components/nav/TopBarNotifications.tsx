@@ -36,10 +36,9 @@ const TopBarNotifications = () => {
             aria-label={t('Notifications')}
             to="/admin/profile/notifications"
             // The bell is the single entry point of the notification center:
-            // all its tabs (alerts, triggers, preferences) light it up.
+            // both its tabs (alerts and triggers) light it up.
             active={location.pathname.startsWith('/admin/profile/notifications')
-              || location.pathname.startsWith('/admin/profile/triggers')
-              || location.pathname.startsWith('/admin/profile/notification-preferences')}
+              || location.pathname.startsWith('/admin/profile/triggers')}
             icon={<NotificationsOutlined fontSize="medium" />}
           />
         </Badge>

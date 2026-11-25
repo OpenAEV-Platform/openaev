@@ -39,6 +39,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -128,26 +129,72 @@ public class NotificationTriggerApiTest extends IntegrationTest {
     assertFalse(notificationTriggerRepository.findById(triggerId).isPresent());
   }
 
-  @Test
-  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  @DisplayName(
-      "A live trigger on payload approval events is rejected: they are sent by the platform only")
-  void liveTriggerRefusesPayloadApprovalEvents() throws Exception {
+  private ResultActions createLiveTrigger(
+      ResourceType resourceType, List<NotificationTriggerEventType> eventTypes) throws Exception {
     NotificationTriggerInput input =
         NotificationTriggerInput.builder()
             .name("Approval trigger")
             .type(NotificationTriggerType.LIVE)
-            .resourceType(ResourceType.PAYLOAD)
-            .eventTypes(List.of(NotificationTriggerEventType.APPROVAL_PENDING))
+            .resourceType(resourceType)
+            .eventTypes(eventTypes)
             .notifierIds(List.of(uiNotifierId()))
             .build();
+    return mvc.perform(
+        post(NOTIFICATION_TRIGGER_URI)
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
 
-    mvc.perform(
-            post(NOTIFICATION_TRIGGER_URI)
-                .content(asJsonString(input))
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .with(csrf()))
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName(
+      "given a payload trigger on pending approval and rejected, should accept it like revoked")
+  void given_payloadApprovalEvents_should_acceptTrigger() throws Exception {
+    // Act / Assert
+    createLiveTrigger(
+            ResourceType.PAYLOAD,
+            List.of(
+                NotificationTriggerEventType.REVOKED,
+                NotificationTriggerEventType.APPROVAL_PENDING,
+                NotificationTriggerEventType.REJECTED))
+        .andExpect(status().is2xxSuccessful());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName(
+      "given a scenario trigger on payload rejected and payload pending approval, should accept"
+          + " it like payload revoked")
+  void given_scenarioApprovalEvents_should_acceptTrigger() throws Exception {
+    // Act / Assert
+    createLiveTrigger(
+            ResourceType.SCENARIO,
+            List.of(
+                NotificationTriggerEventType.PAYLOAD_REVOKED,
+                NotificationTriggerEventType.PAYLOAD_REJECTED,
+                NotificationTriggerEventType.PAYLOAD_PENDING_APPROVAL))
+        .andExpect(status().is2xxSuccessful());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("given approved or superseded, should refuse the trigger: they are no longer sent")
+  void given_retiredApprovalEvents_should_refuseTrigger() throws Exception {
+    // Act / Assert
+    createLiveTrigger(ResourceType.PAYLOAD, List.of(NotificationTriggerEventType.APPROVED))
+        .andExpect(status().is4xxClientError());
+    createLiveTrigger(ResourceType.PAYLOAD, List.of(NotificationTriggerEventType.SUPERSEDED))
+        .andExpect(status().is4xxClientError());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("given a scenario approval event on a payload trigger, should refuse it")
+  void given_scenarioEventOnPayloadTrigger_should_refuseTrigger() throws Exception {
+    // Act / Assert
+    createLiveTrigger(ResourceType.PAYLOAD, List.of(NotificationTriggerEventType.PAYLOAD_REJECTED))
         .andExpect(status().is4xxClientError());
   }
 

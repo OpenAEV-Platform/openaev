@@ -1,10 +1,9 @@
 # Notification Center
 
 The **Notification Center** is where every Notification produced by your Triggers lands. It is reachable from the
-bell icon in the top navigation bar and has three tabs: **Alerts**, covered by this page, **Triggers**, where you
-configure what you're notified about (see [Triggers](triggers.md)), and **Preferences**, where you choose how you
-receive the notifications the platform sends you itself. This page details how to read, filter, and manage the
-Alerts tab, and the Preferences tab.
+bell icon in the top navigation bar and has two tabs: **Alerts**, covered by this page, and **Triggers**, where you
+configure what you're notified about (see [Triggers](triggers.md)). This page details how to read, filter, and
+manage the Alerts tab.
 
 ## What Is the Notification Center?
 
@@ -15,10 +14,10 @@ Center is open.
 Each row in the list shows:
 
 - **Operation**: a colored chip showing what happened: **Creation**, **Modification**, **Deletion**,
-  **Score degradation**, **Pending approval**, **Approved**, **Rejected**, **Superseded** (payload approval, see
-  below), or, for a Digest Notification, **Multiple** (several operations rolled up together). The
-  row's icon mirrors the same operation with a distinct bell glyph, and an unread Notification shows an additional
-  dot on that icon.
+  **Score degradation**, **Pending approval**, **Rejected**, **Payload rejected**, **Payload pending approval**
+  (payload approval, see below), or, for a Digest Notification, **Multiple** (several operations rolled up
+  together). The row's icon mirrors the same operation with a distinct bell glyph, and an unread Notification
+  shows an additional dot on that icon.
 - **Message**: the human-readable description of the event. A Digest Notification instead shows how many events it
   bundles.
 - **Original creation date**: when the underlying event actually happened, not when the Digest was sent.
@@ -44,7 +43,7 @@ Each row in the list shows:
 2. Click a **Live** Notification's row to open the entity that produced it in a new context, for example, the
    Scenario whose score degraded, or the Asset that was created. A Notification is not navigable when its
    Operation is **Deletion** (the entity no longer exists) or when its Resource type has no dedicated detail page
-   (Payload, Vulnerability, Document, Challenge). A payload approval Notification opens the Action's drawer in the
+   (Vulnerability, Document, Challenge). A Payload Notification opens the version's Action in the
    [Threat Arsenal](../../build/threat-arsenals/threat-arsenals.md).
 3. Click a **Digest** Notification's row to open a dialog listing every composed Trigger group and the events it
    matched. Any event pointing to an entity that still exists is itself clickable, and closes the dialog before
@@ -61,24 +60,18 @@ Each row in the list shows:
 
 ### Payload approval notifications
 
-The platform notifies you about payload approval without any Trigger to configure:
+Payload approval notifications come from Triggers, like revocations: create a Live Trigger in the **Triggers** tab.
 
-| You receive | When |
-|---|---|
-| **Payloads pending approval** | A Payload, a new version of an approved Payload, or a rejected version fixed and sent again waits for approval. Sent to the users whose role in the Tenant explicitly holds *Approve content*, except its author. Platform administrators and *Bypass* holders without that capability are not notified. A Payload already pending does not notify again |
-| **Approval of your payloads** | A Payload or version you submitted is approved, rejected (with the reason), or replaced by a newer version submitted by someone else |
+| Resource type | Event | Sent when |
+|---|---|---|
+| Payload | **Pending approval** | A version waits for approval: a new Payload or version, a rejected version fixed and sent again, or a version moved back to pending approval |
+| Payload | **Rejected** | A version is rejected, with the reason |
+| Scenario | **Payload rejected** | An approved version that its Injects use is rejected: those Injects can no longer run |
+| Scenario | **Payload pending approval** | An approved version that its Injects use is moved back to pending approval: those Injects can no longer run until it is approved again |
 
-Notifications are sent in batches every minute: several Payloads going pending at once (for example a Collector
-synchronization) give one Notification listing them all. Each item links to its Action in the Threat Arsenal.
-
-### Choose how you receive them
-
-1. Open the Notification Center and select the **Preferences** tab.
-2. For **Payloads to approve** and **Outcome of my payloads**, turn **In-app** (the Alerts tab and the bell) and
-   **Email** on or off. By default, In-app is on and Email is off.
-
-Your preferences apply to every Tenant you belong to. Emails are sent through the platform's mailer, with the same
-content and links as the in-app Notification.
+The Scenario events count only the Injects still on the version: Injects the approver moved to another version in
+the same dialog are not counted, and no Scenario is notified when none is left. A Payload alert opens the version's
+Action in the [Threat Arsenal](../../build/threat-arsenals/threat-arsenals.md).
 
 ## Example: Investigating a Score Degradation Alert
 

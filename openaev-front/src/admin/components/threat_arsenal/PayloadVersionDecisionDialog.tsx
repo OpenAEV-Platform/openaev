@@ -32,7 +32,7 @@ const TITLES: Record<PayloadVersionDecision, string> = {
 const WARNINGS: Record<Exclude<PayloadVersionDecision, 'lift'>, string> = {
   revoke: 'A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.',
   reject: 'A rejected version can no longer be picked or run: injects using it cannot launch until they move to another version. The reason is shown to its author.',
-  reopen: 'The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved. Nobody is notified: ask for the review yourself.',
+  reopen: 'The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved.',
 };
 
 const EMPTY: Record<PayloadVersionDecision, string> = {
@@ -100,15 +100,17 @@ const PayloadVersionDecisionDialog: FunctionComponent<Props> = ({ open, name, ac
     }
     setSubmitting(true);
     try {
-      await onSubmit(selected, reason.trim(), inherited);
+      // The injects move before the decision: the scenarios told that a version can no longer run
+      // are then only those still using it.
       if (canMove && move && version.payload_action_id && targetVersion?.payload_id) {
         await movePayloadVersionUsages(version.payload_action_id, targetVersion.payload_id, targetVersion.payload_version ?? '', t);
       }
+      await onSubmit(selected, reason.trim(), inherited);
       setReason('');
       setMove(true);
       setTarget('');
     } catch {
-      // The refusal was already shown by the call that failed; nothing is moved.
+      // The refusal was already shown by the call that failed.
     } finally {
       setSubmitting(false);
     }

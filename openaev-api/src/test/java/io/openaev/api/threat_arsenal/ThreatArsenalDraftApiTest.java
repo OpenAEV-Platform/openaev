@@ -23,6 +23,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalRejectInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadApprovalChanged;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -35,17 +36,21 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+@RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("Threat Arsenal payload drafts")
 class ThreatArsenalDraftApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private ApplicationEvents applicationEvents;
   @Autowired private ObjectMapper mapper;
   @Autowired private DomainComposer domainComposer;
   @Autowired private UserComposer userComposer;
@@ -419,12 +424,11 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Notifying the approvers of a fixed version")
+  @DisplayName("Announcing a fixed version that waits for approval")
   class ReworkNotification {
 
-    // The pending notifications (outbox rows for the approvers) of the action's payload version,
-    // read in raw JDBC: the outbox is a tenant-v2 table and a raw read is never rewritten.
-    private List<String> pendingNotificationActors(String actionId) {
+    // The payload version of an action, read in raw JDBC like the rest of this class's raw reads.
+    private String payloadIdOf(String actionId) {
       entityManager.flush();
       return entityManager
           .unwrap(Session.class)
@@ -432,34 +436,33 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
               connection -> {
                 try (PreparedStatement statement =
                     connection.prepareStatement(
-                        "SELECT payload_approval_notification_actor_name"
-                            + " FROM payload_approval_notifications WHERE payload_id ="
-                            + " (SELECT injector_contract_payload FROM injectors_contracts"
-                            + " WHERE injector_contract_id = ?)"
-                            + " AND payload_approval_notification_event IN"
-                            + " ('PAYLOAD_PENDING', 'VERSION_PENDING')"
-                            + " ORDER BY payload_approval_notification_created_at")) {
+                        "SELECT injector_contract_payload FROM injectors_contracts"
+                            + " WHERE injector_contract_id = ?")) {
                   statement.setString(1, actionId);
-                  List<String> actors = new ArrayList<>();
                   try (ResultSet rows = statement.executeQuery()) {
-                    while (rows.next()) {
-                      actors.add(rows.getString(1));
-                    }
+                    return rows.next() ? rows.getString(1) : null;
                   }
-                  return actors;
                 }
               });
+    }
+
+    // The "waits for approval" announcements of a version, which live triggers turn into alerts.
+    private long pendingAnnouncements(String payloadId) {
+      return applicationEvents.stream(PayloadApprovalChanged.class)
+          .filter(event -> event.payloadId().equals(payloadId) && !event.rejected())
+          .count();
     }
 
     @Test
     @DisplayName(
         "given an author without Approve content sending a fixed rejected version again, should"
-            + " notify the approvers that it waits for approval")
-    void given_authorResubmitsRejectedVersion_should_notifyApprovers() throws Exception {
+            + " announce that it waits for approval")
+    void given_authorResubmitsRejectedVersion_should_announcePending() throws Exception {
       // Arrange
       String actionId = createAction(author);
       reject(actionId);
-      List<String> before = pendingNotificationActors(actionId);
+      String payloadId = payloadIdOf(actionId);
+      long before = pendingAnnouncements(payloadId);
       String draftId = createDraft(author, actionId, "echo fixed");
 
       // Act
@@ -467,20 +470,19 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
       // Assert
       assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
-      List<String> after = pendingNotificationActors(actionId);
-      assertThat(after).hasSize(before.size() + 1);
-      assertThat(after.getLast()).isEqualTo("Author User");
+      assertThat(pendingAnnouncements(payloadId)).isEqualTo(before + 1);
     }
 
     @Test
     @DisplayName(
-        "given an approver fixing a rejected version, should approve it at once and notify no"
-            + " approver")
-    void given_approverResubmitsRejectedVersion_should_notNotifyApprovers() throws Exception {
+        "given an approver fixing a rejected version, should approve it at once and announce"
+            + " nothing")
+    void given_approverResubmitsRejectedVersion_should_announceNothing() throws Exception {
       // Arrange
       String actionId = createAction(author);
       reject(actionId);
-      List<String> before = pendingNotificationActors(actionId);
+      String payloadId = payloadIdOf(actionId);
+      long before = pendingAnnouncements(payloadId);
       String draftId = createDraft(approver, actionId, "echo fixed");
 
       // Act
@@ -488,7 +490,7 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
       // Assert
       assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
-      assertThat(pendingNotificationActors(actionId)).isEqualTo(before);
+      assertThat(pendingAnnouncements(payloadId)).isEqualTo(before);
     }
   }
 

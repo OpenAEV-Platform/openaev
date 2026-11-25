@@ -135,6 +135,139 @@ class ContentNotificationListenerTest {
   }
 
   @Nested
+  @DisplayName("Approval decisions")
+  class ApprovalDecisions {
+
+    @Test
+    @DisplayName(
+        "given a version waiting for approval, should tell the payload's watchers and no scenario")
+    void given_pendingVersion_should_sendApprovalPendingOnly() {
+      // Arrange
+      Payload payload = payload("payload-1", "1.2.0", identity(false));
+      when(payloadVersionService.findById("payload-1")).thenReturn(payload);
+      usedByScenario(payload, 2);
+
+      // Act
+      listener.onApprovalChanged(
+          new PayloadApprovalChanged(TENANT, "payload-1", false, false, null));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.PAYLOAD,
+          "payload-1",
+          APPROVAL_PENDING,
+          "[payload] Network discovery v1.2.0 is waiting for approval");
+      verify(engine, never())
+          .handleEventWithMessage(
+              eq(NotificationResourceCatalog.SCENARIO), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName(
+        "given a pending version rejected, should tell the payload's watchers with the reason and"
+            + " no scenario")
+    void given_pendingVersionRejected_should_sendRejectedOnly() {
+      // Arrange
+      Payload payload = payload("payload-1", "1.2.0", identity(false));
+      when(payloadVersionService.findById("payload-1")).thenReturn(payload);
+
+      // Act
+      listener.onApprovalChanged(
+          new PayloadApprovalChanged(TENANT, "payload-1", true, false, "deletes system logs"));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.PAYLOAD,
+          "payload-1",
+          REJECTED,
+          "[payload] Network discovery v1.2.0 rejected: deletes system logs");
+      verify(engine, never())
+          .handleEventWithMessage(any(), anyString(), anyString(), eq(PAYLOAD_REJECTED), any());
+    }
+
+    @Test
+    @DisplayName(
+        "given an approved version rejected while injects still use it, should tell every"
+            + " scenario that runs it")
+    void given_approvedVersionRejected_should_sendPayloadRejected() {
+      // Arrange
+      Payload payload = payload("payload-1", "1.2.0", identity(false));
+      when(payloadVersionService.findById("payload-1")).thenReturn(payload);
+      usedByScenario(payload, 2);
+
+      // Act
+      listener.onApprovalChanged(
+          new PayloadApprovalChanged(TENANT, "payload-1", true, true, "deletes system logs"));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.PAYLOAD,
+          "payload-1",
+          REJECTED,
+          "[payload] Network discovery v1.2.0 rejected: deletes system logs");
+      verifySent(
+          NotificationResourceCatalog.SCENARIO,
+          SCENARIO_ID,
+          PAYLOAD_REJECTED,
+          "[scenario] Salt Typhoon: Network discovery v1.2.0 rejected (deletes system logs), 2"
+              + " injects can no longer run");
+    }
+
+    @Test
+    @DisplayName(
+        "given an approved version moved back to pending while an inject still uses it, should"
+            + " tell the scenario")
+    void given_approvedVersionReopened_should_sendPayloadPendingApproval() {
+      // Arrange
+      Payload payload = payload("payload-1", "1.2.0", identity(false));
+      when(payloadVersionService.findById("payload-1")).thenReturn(payload);
+      usedByScenario(payload, 1);
+
+      // Act
+      listener.onApprovalChanged(
+          new PayloadApprovalChanged(TENANT, "payload-1", false, true, null));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.PAYLOAD,
+          "payload-1",
+          APPROVAL_PENDING,
+          "[payload] Network discovery v1.2.0 is waiting for approval");
+      verifySent(
+          NotificationResourceCatalog.SCENARIO,
+          SCENARIO_ID,
+          PAYLOAD_PENDING_APPROVAL,
+          "[scenario] Salt Typhoon: Network discovery v1.2.0 moved back to pending approval, 1"
+              + " inject can no longer run");
+    }
+
+    @Test
+    @DisplayName(
+        "given an approved version rejected after its injects moved away, should tell no"
+            + " scenario")
+    void given_injectsMovedBeforeRejection_should_sendNoScenarioEvent() {
+      // Arrange
+      Payload payload = payload("payload-1", "1.2.0", identity(false));
+      when(payloadVersionService.findById("payload-1")).thenReturn(payload);
+      usedByScenario(payload, 0);
+
+      // Act
+      listener.onApprovalChanged(
+          new PayloadApprovalChanged(TENANT, "payload-1", true, true, "deletes system logs"));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.PAYLOAD,
+          "payload-1",
+          REJECTED,
+          "[payload] Network discovery v1.2.0 rejected: deletes system logs");
+      verify(engine, never())
+          .handleEventWithMessage(
+              eq(NotificationResourceCatalog.SCENARIO), anyString(), anyString(), any(), any());
+    }
+  }
+
+  @Nested
   @DisplayName("Revocations")
   class Revocations {
 

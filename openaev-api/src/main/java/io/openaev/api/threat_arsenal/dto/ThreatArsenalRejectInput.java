@@ -8,7 +8,9 @@ import jakarta.validation.constraints.Size;
 
 /** Rejection of a pending action payload. */
 public record ThreatArsenalRejectInput(
-    @Schema(description = "Reason of the rejection, shown to the author and kept in the history")
+    @Schema(
+            description =
+                "Reason of the rejection, kept in the history and sent with the notification")
         @JsonProperty("approval_reason")
         @NotBlank
         @Size(max = PayloadApprovalService.MAX_COMMENT_LENGTH)

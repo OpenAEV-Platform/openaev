@@ -44,28 +44,6 @@ export interface PayloadApprovalOutput {
   approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
 }
 
-export interface NotificationPreferenceInput {
-  /** Also sent by email */
-  notification_preference_email?: boolean;
-  /** Shown in the notification center and the bell */
-  notification_preference_in_app?: boolean;
-  /** Notification type */
-  notification_preference_type:
-    | "PAYLOAD_APPROVAL_REQUESTS"
-    | "PAYLOAD_APPROVAL_OUTCOMES";
-}
-
-export interface NotificationPreferenceOutput {
-  /** Also sent by email */
-  notification_preference_email?: boolean;
-  /** Shown in the notification center and the bell */
-  notification_preference_in_app?: boolean;
-  /** Notification type */
-  notification_preference_type:
-    | "PAYLOAD_APPROVAL_REQUESTS"
-    | "PAYLOAD_APPROVAL_OUTCOMES";
-}
-
 export interface ThreatArsenalApprovalDecisionOutput {
   /** Action of the decided version */
   action_id: string;
@@ -106,7 +84,7 @@ export interface ThreatArsenalReopenInput {
 
 export interface ThreatArsenalRejectInput {
   /**
-   * Reason of the rejection, shown to the author and kept in the history
+   * Reason of the rejection, kept in the history and sent with the notification
    * @minLength 0
    * @maxLength 2000
    */
@@ -8761,6 +8739,8 @@ export interface NotificationTriggerInput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "PAYLOAD_REVOKED"
+    | "PAYLOAD_REJECTED"
+    | "PAYLOAD_PENDING_APPROVAL"
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
@@ -8769,8 +8749,8 @@ export interface NotificationTriggerInput {
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
     | "APPROVAL_PENDING"
-    | "APPROVED"
     | "REJECTED"
+    | "APPROVED"
     | "SUPERSEDED"
   )[];
   /** Filter group applied to matching entities */
@@ -8887,6 +8867,8 @@ export interface NotificationTriggerOutput {
     | "DELETE"
     | "SCORE_DEGRADATION"
     | "PAYLOAD_REVOKED"
+    | "PAYLOAD_REJECTED"
+    | "PAYLOAD_PENDING_APPROVAL"
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
@@ -8895,8 +8877,8 @@ export interface NotificationTriggerOutput {
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
     | "APPROVAL_PENDING"
-    | "APPROVED"
     | "REJECTED"
+    | "APPROVED"
     | "SUPERSEDED"
   )[];
   /** Filter group applied to matching entities */
