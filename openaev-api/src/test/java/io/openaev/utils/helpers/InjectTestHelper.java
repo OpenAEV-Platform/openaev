@@ -8,6 +8,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -120,9 +121,16 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Finding forceSaveFinding(Finding finding) {
     inDefaultScope();
+    if (finding.getTenant() == null) {
+      finding.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    }
     Finding saved = findingRepository.save(finding);
     if (saved.getInject() != null) {
-      findingOccurrenceService.recordOccurrencesByInject(saved.getInject(), List.of(saved));
+      findingOccurrenceService.recordOccurrences(
+          saved.getInject(),
+          FindingOccurrenceService.occurrenceDate(saved.getInject()),
+          List.of(saved),
+          Collections.singletonMap(saved.getId(), saved.getField()));
     }
     return saved;
   }

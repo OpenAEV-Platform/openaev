@@ -169,18 +169,6 @@ public class Payload
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
-  /**
-   * True when this payload only reads the target and changes nothing on it. Safe-mode scenarios run
-   * read-only payloads only; any other payload waits for an approval. A marker on the payload, not
-   * its content: kept out of the content hash.
-   */
-  @NotHashed
-  @Getter
-  @Column(name = "payload_read_only")
-  @JsonProperty("payload_read_only")
-  @Queryable(filterable = true)
-  private boolean readOnly;
-
   @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
   @Column(name = "payload_arguments", nullable = false)
@@ -313,6 +301,11 @@ public class Payload
   @Override
   public String getCatalogVersion() {
     return version;
+  }
+
+  @Override
+  public String getCatalogContentId() {
+    return getIdentity().getId();
   }
 
   /** The version the Threat Arsenal shows: its identity's latest, else a local payload. */

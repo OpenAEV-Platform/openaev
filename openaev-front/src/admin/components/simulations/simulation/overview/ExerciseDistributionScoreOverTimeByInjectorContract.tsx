@@ -10,6 +10,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
+import { ascendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { isTopLevelScoredExpectation } from './scoreByInjectorContractExpectations';
 
@@ -37,14 +38,14 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       ...n,
       inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
     })),
-    R.groupBy(R.path(['inject_expectation_inject', 'inject_contract'])),
-    R.toPairs,
+    (list: InjectExpectationOutput[]) => Object.groupBy(list, R.path(['inject_expectation_inject', 'inject_contract'])),
+    Object.entries,
     R.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
       return [
         n[0],
         R.pipe(
-          R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
+          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')),
           R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
             return {

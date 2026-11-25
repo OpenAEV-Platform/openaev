@@ -24,6 +24,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -100,14 +101,21 @@ public class InjectStatusService {
     return this.injectStatusRepository.findByInjectId(injectId);
   }
 
+  /**
+   * @throws BadRequestException for {@link ExecutionStatus#NOT_VISIBLE}, a value shown to a reader
+   *     and never stored
+   */
   @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
+    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
+    if (newStatus == ExecutionStatus.NOT_VISIBLE) {
+      throw new BadRequestException("NOT_VISIBLE is not a status an inject can be set to");
+    }
     Inject inject = injectRepository.findById(injectId).orElseThrow();
     ExecutionStatus previousStatus = inject.getStatus().map(InjectStatus::getName).orElse(null);
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    ExecutionStatus newStatus = ExecutionStatus.fromName(input.getStatus());
     injectStatus.setName(newStatus);
     // Save status for inject
     inject.setStatus(injectStatus);
@@ -172,12 +180,21 @@ public class InjectStatusService {
   /**
    * Computes the final status of the inject from its COMPLETE traces and logs the transition.
    *
+   * <p>A status launched before the expected agent count was persisted gets it here, as the
+   * backfill counts it ({@code V6_20261120120000000}): the distinct agents with a COMPLETE trace,
+   * the ones the verdict is computed from. Without it, the status a reader sees would show the
+   * stored verdict, including the outcome on agents the reader may not see.
+   *
    * @param agent the agent whose trace completed the inject, null when not driven by an agent
    */
   public void updateFinalInjectStatus(InjectStatus injectStatus, @Nullable Agent agent) {
     ExecutionStatus previousStatus = injectStatus.getName();
     ExecutionStatus finalStatus =
         InjectStatusUtils.computeStatus(completeTraces(injectStatus.getTraces()).toList());
+    if (injectStatus.getExpectedAgentCount() == null) {
+      injectStatus.setExpectedAgentCount(
+          ExecutionTraceUtils.getCompletedAgentIds(injectStatus.getTraces()).size());
+    }
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setName(finalStatus);
     injectStatus.getInject().setUpdatedAt(Instant.now());
@@ -289,7 +306,10 @@ public class InjectStatusService {
       injectRepository.updateUpdatedAt(
           injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
       executionTraceRepositoryHelper.updateInjectStatus(
-          injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());
+          injectStatus.getId(),
+          injectStatus.getName().name(),
+          injectStatus.getTrackingEndDate(),
+          injectStatus.getExpectedAgentCount());
       // The final status is persisted by bulk updates, which bypass the entity listeners: stream
       // it explicitly so the execution board moves the inject to "completed" without a reload.
       publishInjectStatusUpdate(inject);

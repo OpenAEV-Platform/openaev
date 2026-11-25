@@ -132,4 +132,44 @@ describe('ScenarioLaunchCheckDrawer', () => {
       manual: '10.0.0.1',
     });
   });
+
+  it('given_aSharedCheck_should_showItWithoutLoadingItsOwn', async () => {
+    // Arrange
+    const checkAgain = vi.fn();
+
+    // Act
+    render(
+      <MemoryRouter>
+        <ScenarioLaunchCheckDrawer
+          scenario={{
+            scenarioId: 'phishing',
+            name: 'Phishing',
+            type: SCENARIO_TYPE_TIME_BASED,
+          }}
+          onLaunch={vi.fn()}
+          onClose={vi.fn()}
+          sharedCheck={{
+            launchCheck: {
+              check: NO_PROBLEM,
+              untargeted: [],
+              revokedByAction: [],
+              healthchecks: [],
+              scopeBlocked: false,
+              blocking: 0,
+              failing: 0,
+              onlyRevokedInjectsFail: false,
+            },
+            checking: false,
+            checkAgain,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(await screen.findByText('Ready to launch')).toBeTruthy();
+    expect(mocks.fetchScenarioLaunchCheck).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
+    expect(checkAgain).toHaveBeenCalled();
+  });
 });

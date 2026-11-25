@@ -3,9 +3,11 @@ package io.openaev.secrets.provider.impl.validators;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -58,6 +60,17 @@ public class AwsCredentialConnectivityCheck {
 
   private final AwsCredentialConnectivityCheckFactory awsCredentialsFactory;
 
+  @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
+  private int timeoutSeconds;
+
+  /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
   /**
    * Validates an AWS access key credential by calling STS {@code GetCallerIdentity}.
    *
@@ -74,6 +87,11 @@ public class AwsCredentialConnectivityCheck {
       String secretAccessKey,
       String sessionToken,
       String endpointUrl) {
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
     AwsCredentials credentials =
         awsCredentialsFactory.forAccessKey(accessKeyId, secretAccessKey, sessionToken);
 
@@ -107,6 +125,11 @@ public class AwsCredentialConnectivityCheck {
       String sourceProfileAccessKeyId,
       String sourceProfileSecretAccessKey,
       String endpointUrl) {
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
     AwsCredentialsProvider sourceProvider =
         awsCredentialsFactory.getSourceCredentialsProvider(
             sourceIdentityType, sourceProfileAccessKeyId, sourceProfileSecretAccessKey);

@@ -2,7 +2,6 @@ package io.openaev.database.model.attackpath;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.*;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -20,7 +19,6 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "attackpath_execution")
-@EntityListeners(TenantBaseListener.class)
 public class AttackPathExecution implements TenantBase {
 
   @Id

@@ -9,6 +9,9 @@ vi.mock('../../../components/xtm/counterpartStore', () => ({
   resolveCounterparts: vi.fn(),
 }));
 
+const flagOn = vi.hoisted(() => ({ value: true }));
+vi.mock('../../../components/xtm/useXtmCounterparts', () => ({ default: () => flagOn.value }));
+
 const connected = (value: boolean) => [{
   xtm_connection_product: 'opencti',
   xtm_connection_connected: value,
@@ -30,6 +33,16 @@ describe('useCounterpartMatches', () => {
   beforeEach(() => {
     vi.mocked(getXtmConnections).mockReset();
     vi.mocked(resolveCounterparts).mockReset();
+    flagOn.value = true;
+  });
+
+  it('given the XTM_COUNTERPARTS flag off should look nothing up and mark nothing', () => {
+    flagOn.value = false;
+    vi.mocked(getXtmConnections).mockResolvedValue(connected(true) as never);
+    const { result } = renderHook(() => useCounterpartMatches(REFS));
+    expect(getXtmConnections).not.toHaveBeenCalled();
+    expect(resolveCounterparts).not.toHaveBeenCalled();
+    expect(result.current.size).toBe(0);
   });
 
   it('given OpenCTI connected should mark only the objects with a match', async () => {

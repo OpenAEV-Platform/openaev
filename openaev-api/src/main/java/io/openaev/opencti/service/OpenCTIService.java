@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,37 +46,14 @@ public class OpenCTIService {
   private final TagService tagService;
   private final DocumentService documentService;
 
-  public QueryTypeFields.ResponsePayload queryTypeFields(ConnectorBase connector, String typeName)
-      throws IOException, ConnectorError {
-    Response r =
-        openCTIClient.execute(
-            connector.getApiUrl(), connector.getToken(), new QueryTypeFields(connector, typeName));
-    if (r.isError()) {
-      throw new ConnectorError(
-          """
-              Failed to query type fields for type %s with OpenCTI at %s
-              Errors: %s
-              """
-              .formatted(
-                  typeName,
-                  connector.getApiUrl(),
-                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
-    } else {
-      return mapper.convertValue(r.getData(), QueryTypeFields.ResponsePayload.class);
-    }
-  }
+  public static final String JWKS_FIELD_UNKNOWN_ERROR = "Cannot query field \"jwks\"";
 
   public RegisterConnector.ResponsePayload registerConnector(ConnectorBase connector)
       throws IOException, ConnectorError {
     openCTIConnectorPrivilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
-    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
-
     Response r =
-        openCTIClient.execute(
-            connector.getApiUrl(),
-            connector.getToken(),
-            new RegisterConnector(connector, typeFields.hasJwks()));
+        executeWithJwksFallback(connector, withJwks -> new RegisterConnector(connector, withJwks));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -110,11 +88,7 @@ public class OpenCTIService {
     }
     openCTIConnectorPrivilegeService.ensurePrivilegedUserExistsForConnector(connector);
 
-    QueryTypeFields.ResponsePayload typeFields = this.queryTypeFields(connector, "Connector");
-
-    Response r =
-        openCTIClient.execute(
-            connector.getApiUrl(), connector.getToken(), new Ping(connector, typeFields.hasJwks()));
+    Response r = executeWithJwksFallback(connector, withJwks -> new Ping(connector, withJwks));
     if (r.isError()) {
       throw new ConnectorError(
           """
@@ -318,6 +292,31 @@ public class OpenCTIService {
   }
 
   // -- PRIVATE --
+
+  /**
+   * Retries without jwks only while OpenCTI has never returned it, and only when OpenCTI rejects
+   * the field itself (OpenCTI 6.x); any other error is returned to the caller.
+   */
+  private Response executeWithJwksFallback(
+      ConnectorBase connector, Function<Boolean, Mutation> mutation) throws IOException {
+    Response r =
+        openCTIClient.execute(connector.getApiUrl(), connector.getToken(), mutation.apply(true));
+    if (!r.isError()) {
+      connector.setSupportsJwks(true);
+      return r;
+    }
+    if (connector.isSupportsJwks() || !rejectsJwksField(r)) {
+      return r;
+    }
+    return openCTIClient.execute(
+        connector.getApiUrl(), connector.getToken(), mutation.apply(false));
+  }
+
+  private static boolean rejectsJwksField(Response r) {
+    return r.getErrors().stream()
+        .map(Error::getMessage)
+        .anyMatch(m -> m != null && m.contains(JWKS_FIELD_UNKNOWN_ERROR));
+  }
 
   private ResponseFile downloadFile(String uri, final String tenantId)
       throws IOException, ConnectorError {

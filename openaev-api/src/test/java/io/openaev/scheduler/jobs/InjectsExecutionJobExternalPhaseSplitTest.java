@@ -329,7 +329,7 @@ class InjectsExecutionJobExternalPhaseSplitTest extends IntegrationTest {
             CompletableFuture.runAsync(
                     () ->
                         executionTraceRepositoryHelper.updateInjectStatus(
-                            statusId, ExecutionStatus.EXECUTED.name(), Instant.now()))
+                            statusId, ExecutionStatus.EXECUTED.name(), Instant.now(), null))
                 .join();
             eventCapture.streamedStatuses().clear();
           }

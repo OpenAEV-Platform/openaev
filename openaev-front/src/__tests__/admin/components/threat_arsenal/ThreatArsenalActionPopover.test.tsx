@@ -41,13 +41,7 @@ vi.mock('../../../../admin/components/threat_arsenal/revocation/usePayloadRevoca
   }),
 }));
 vi.mock('../../../../admin/components/threat_arsenal/revocation/PayloadRevocationDialog', () => ({ default: () => null }));
-vi.mock('../../../../admin/components/threat_arsenal/versions/useNewVersionNotice', () => ({
-  default: () => ({
-    notice: null,
-    afterSave: vi.fn(),
-    closeNotice: vi.fn(),
-  }),
-}));
+vi.mock('../../../../admin/components/threat_arsenal/versions/useAfterNewVersion', () => ({ default: () => vi.fn() }));
 vi.mock('../../../../components/common/Drawer', () => ({
   default: ({ open, title, children }: {
     open: boolean;

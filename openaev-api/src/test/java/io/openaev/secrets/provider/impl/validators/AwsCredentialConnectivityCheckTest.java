@@ -48,6 +48,8 @@ class AwsCredentialConnectivityCheckTest {
     // wider budget keeps the local round trips clear of the timeout under a loaded test run.
     ReflectionTestUtils.setField(factory, "timeoutSeconds", TIMEOUT_SECONDS);
     check = new AwsCredentialConnectivityCheck(factory);
+    // The mocked STS listens on loopback: the on-premise opt-out is what lets the probe in.
+    ReflectionTestUtils.setField(check, "allowInternalEndpoints", true);
   }
 
   @AfterEach
@@ -153,6 +155,67 @@ class AwsCredentialConnectivityCheckTest {
           .satisfiesExactly(
               first -> assertThat(isStsAction(first.body(), "AssumeRole")).isTrue(),
               second -> assertThat(isStsAction(second.body(), "GetCallerIdentity")).isTrue());
+    }
+  }
+
+  @Nested
+  @DisplayName("Internal endpoint overrides")
+  class InternalEndpointOverrides {
+
+    private AwsCredentialConnectivityCheck defaultCheck;
+
+    @BeforeEach
+    void withoutOptOut() {
+      DefaultAwsCredentialConnectivityCheckFactory factory =
+          new DefaultAwsCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager());
+      ReflectionTestUtils.setField(factory, "timeoutSeconds", TIMEOUT_SECONDS);
+      defaultCheck = new AwsCredentialConnectivityCheck(factory);
+    }
+
+    @ParameterizedTest(name = "endpoint=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4566/",
+          "http://localhost:4566/",
+          "http://10.0.0.5/",
+          "http://169.254.169.254/",
+          "http://[::1]:8080/"
+        })
+    @DisplayName("An STS endpoint inside the platform's network is refused")
+    void given_internalEndpoint_should_returnFormatError(String endpointUrl) {
+      // Act
+      SecretConnectionResult accessKey =
+          defaultCheck.validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, endpointUrl);
+      SecretConnectionResult assumeRole =
+          defaultCheck.validateAssumeRole(
+              AWS_DEFAULT_REGION,
+              AWS_ROLE_ARN,
+              AWS_EXTERNAL_ID,
+              STATIC_ACCESS_KEY,
+              AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
+              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+              endpointUrl);
+
+      // Assert
+      assertThat(accessKey.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(assumeRole.status()).isEqualTo(FORMAT_ERROR);
+    }
+
+    @Test
+    @DisplayName("Nothing reaches an internal endpoint, so its status cannot be read back")
+    void given_internalEndpoint_should_sendNoRequest() {
+      // Arrange
+      sts.respond("/", 200, STS_CONTENT_TYPE, GET_CALLER_IDENTITY_RESPONSE);
+
+      // Act
+      SecretConnectionResult result =
+          defaultCheck.validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, sts.url("/"));
+
+      // Assert
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(sts.requests()).isEmpty();
     }
   }
 }

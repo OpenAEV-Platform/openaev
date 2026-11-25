@@ -4,7 +4,6 @@ import static io.openaev.database.model.Secret.SECRET_TYPE.HASH_VALUE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +16,6 @@ import lombok.ToString;
 @Setter
 @Entity
 @DiscriminatorValue(HASH_VALUE)
-@EntityListeners(ModelBaseListener.class)
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true, onlyExplicitlyIncluded = true)
 public class HashSecret extends Secret {

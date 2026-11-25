@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import java.util.*;
@@ -21,7 +20,6 @@ import org.hibernate.annotations.BatchSize;
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =

@@ -14,6 +14,7 @@ import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../utils/SampleCharts';
+import { descendBy } from '../../../../utils/Sorting';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
@@ -32,13 +33,16 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const injectsByType = R.pipe(
     R.filter((n: InjectStore) => n.inject_sent_at !== null),
-    R.groupBy(R.prop('inject_type')),
-    R.toPairs,
+    (list: InjectStore[]) => Object.groupBy(list, R.prop('inject_type')),
+    Object.entries,
     R.map((n: [string, InjectExpectationOutput[]]) => ({
       inject_type: n[0],
       number: n[1].length,
     })),
-    R.sortWith([R.descend(R.prop('number'))]),
+    (items: Array<{
+      inject_type: string;
+      number: number;
+    }>) => items.toSorted(descendBy('number')),
   )(injects);
   const injectsByInjectorContractData = [
     {

@@ -19,6 +19,7 @@ import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.ExerciseRepository;
@@ -331,6 +332,7 @@ class AttackPathApiRbacTest extends IntegrationTest {
   private void saveExecutionRow(String simulationId) {
     AttackPathExecution row = new AttackPathExecution();
     row.setId(UUID.randomUUID().toString());
+    row.setTenant(new Tenant(DEFAULT_TENANT_UUID));
     row.setSimulationId(simulationId);
     row.setSourceKind("AGENT_ASSET");
     row.setTargetKind("ASSET");

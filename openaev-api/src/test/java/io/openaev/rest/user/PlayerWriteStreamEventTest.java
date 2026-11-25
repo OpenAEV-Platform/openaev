@@ -624,7 +624,7 @@ public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest 
   /** A user carries no marking: its events are not filtered. */
   private static StreamVisibilityService unfilteredMarkings() {
     StreamVisibilityService markings = mock(StreamVisibilityService.class);
-    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    when(markings.visibilityOrUnresolved(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
     return markings;
   }
 }

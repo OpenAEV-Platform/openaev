@@ -54,11 +54,11 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
-import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.CatalogScenario;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
-import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioIdentityRepository;
@@ -127,7 +127,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @Autowired private ScenarioIdentityRepository scenarioIdentityRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private EndpointRepository endpointRepository;
-  @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private WorkflowRepository workflowRepository;
   // Chained scenarios need the Enterprise Edition: a mock never finds the license inactive.
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -236,9 +236,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
     return List.copyOf(injectRepository.findByScenarioId(scenario.getId()));
   }
 
-  private List<CatalogHistory> history() {
+  private List<ContentChange> history() {
     entityManager.flush();
-    return catalogHistoryRepository.findAll();
+    return contentChangeRepository.findAll();
   }
 
   // -- INSTALL --
@@ -264,10 +264,10 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       assertThat(payload.getExternalId()).isEqualTo(PAYLOAD_ID);
       assertThat(payload.getVersion()).isEqualTo(VERSION);
       assertThat(history())
-          .extracting(CatalogHistory::getType, CatalogHistory::getAction)
+          .extracting(ContentChange::getType, ContentChange::getAction)
           .containsExactlyInAnyOrder(
-              tuple(ContentType.PAYLOAD, CatalogHistory.Action.INSTALL),
-              tuple(ContentType.SCENARIO, CatalogHistory.Action.INSTALL));
+              tuple(ContentType.PAYLOAD, ContentChange.Action.INSTALL),
+              tuple(ContentType.SCENARIO, ContentChange.Action.INSTALL));
     }
 
     @Test
@@ -431,10 +431,10 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       assertThat(history())
           .filteredOn(row -> row.getType() == ContentType.SCENARIO)
-          .extracting(CatalogHistory::getAction, CatalogHistory::getMode)
+          .extracting(ContentChange::getAction, ContentChange::getMode)
           .containsExactlyElementsOf(
               autoInstall
-                  ? List.of(tuple(CatalogHistory.Action.INSTALL, CatalogHistory.Mode.AUTO))
+                  ? List.of(tuple(ContentChange.Action.INSTALL, ContentChange.Mode.AUTO))
                   : List.of());
     }
 
@@ -452,8 +452,8 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       assertThat(history())
           .filteredOn(row -> row.getType() == ContentType.SCENARIO)
-          .extracting(CatalogHistory::getAction)
-          .containsExactly(CatalogHistory.Action.INSTALL, CatalogHistory.Action.UNINSTALL);
+          .extracting(ContentChange::getAction)
+          .containsExactly(ContentChange.Action.INSTALL, ContentChange.Action.UNINSTALL);
     }
   }
 
@@ -900,11 +900,11 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Assert
       assertThat(history())
           .filteredOn(row -> row.getType() == ContentType.SCENARIO)
-          .extracting(CatalogHistory::getAction)
+          .extracting(ContentChange::getAction)
           .containsExactly(
-              CatalogHistory.Action.INSTALL,
-              CatalogHistory.Action.UNINSTALL,
-              CatalogHistory.Action.INSTALL);
+              ContentChange.Action.INSTALL,
+              ContentChange.Action.UNINSTALL,
+              ContentChange.Action.INSTALL);
       assertThat(scenarioIdentityRepository.findAll())
           .singleElement()
           .satisfies(
@@ -931,15 +931,17 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
 
       // Act & Assert
       committed(
-              get(
-                  TENANT_SCENARIO_URI + "/{scenarioId}/history",
-                  DEFAULT_TENANT_UUID,
-                  reinstalled.getId()))
+              post(
+                      TENANT_SCENARIO_URI + "/{scenarioId}/history/search",
+                      DEFAULT_TENANT_UUID,
+                      reinstalled.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(new SearchPaginationInput())))
           .andExpect(status().isOk())
           .andExpect(
-              jsonPath("$[*].catalog_history_action")
+              jsonPath("$.content[*].content_change_action")
                   .value(contains("INSTALL", "UNINSTALL", "INSTALL")))
-          .andExpect(jsonPath("$[*].catalog_history_version").value(everyItem(is(VERSION))));
+          .andExpect(jsonPath("$.content[*].content_change_version").value(everyItem(is(VERSION))));
     }
 
     @Test

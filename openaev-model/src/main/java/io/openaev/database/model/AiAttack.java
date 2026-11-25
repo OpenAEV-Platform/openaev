@@ -4,12 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.hash.Hashed;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotNull;
@@ -33,7 +31,6 @@ import org.hibernate.annotations.Type;
 @Data
 @Entity
 @DiscriminatorValue(AiAttack.AI_ATTACK_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class AiAttack extends Payload {
 
   public static final String AI_ATTACK_TYPE = "AiAttack";

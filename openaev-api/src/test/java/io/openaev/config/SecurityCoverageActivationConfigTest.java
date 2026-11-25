@@ -2,11 +2,8 @@ package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +22,7 @@ class SecurityCoverageActivationConfigTest {
   @Test
   @DisplayName("openaev.tenant.active-tables in application.properties contains security_coverages")
   void prodConfigActivatesSecurityCoverages() throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    }
-    String active = props.getProperty("openaev.tenant.active-tables", "");
+    String active = String.join(",", ProductionActiveTables.names());
     // Exact token comparison, not substring: a value like "security_coverages_archive" must not
     // satisfy this guard once the real table has been deactivated.
     List<String> tables = Arrays.stream(active.split(",")).map(String::trim).toList();

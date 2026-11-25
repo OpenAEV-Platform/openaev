@@ -21,6 +21,9 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity.UnknownLocation;
+import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
@@ -786,19 +789,25 @@ public class PhishingTrackingService {
     if (value == null || value.isBlank()) {
       return;
     }
-    Finding finding = new Finding();
-    finding.setType(ContractOutputType.Credentials);
-    finding.setField(CREDENTIALS_FIELD);
-    finding.setValue(value);
-    finding.setName(landingPage.getName());
-    if (result.getUser() != null) {
-      finding.setUsers(List.of(result.getUser()));
-    }
-    if (result.getTeam() != null) {
-      finding.setTeams(List.of(result.getTeam()));
-    }
+    // Located on the user who submitted; a team is not a location
+    DetectedFinding detection =
+        DetectedFinding.builder()
+            .type(ContractOutputType.Credentials)
+            .value(value)
+            .field(CREDENTIALS_FIELD)
+            .name(landingPage.getName())
+            .location(
+                result.getUser() != null
+                    ? new UserLocation(result.getUser().getId())
+                    : UnknownLocation.INSTANCE)
+            .build();
+    Finding finding;
     try {
-      findingService.createFindings(List.of(finding), inject.getId());
+      finding =
+          findingService
+              .recordFindingsByInject(
+                  TxCtx.forTenant(inject.getTenant().getId()), inject, List.of(detection))
+              .getFirst();
       result.setFinding(finding);
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);

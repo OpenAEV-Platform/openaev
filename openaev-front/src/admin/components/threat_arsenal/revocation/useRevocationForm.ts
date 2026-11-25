@@ -76,7 +76,10 @@ const useRevocationForm = ({ open, lift, versions, currentPayloadId, onDone }: O
     setReplacement,
     replacements,
     submitting,
-    canSubmit: !!version && !submitting && (lift || reason.trim() !== ''),
+    // Until the injects have loaded, the move would be skipped and the revocation would leave them failing.
+    canSubmit: !!version && !submitting && usages !== null && (lift || reason.trim() !== ''),
+    moving: canReplace && replace,
+    moveCount: shown.length,
     submit,
   };
 };

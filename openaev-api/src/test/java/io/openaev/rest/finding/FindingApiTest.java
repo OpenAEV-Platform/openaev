@@ -384,7 +384,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<String> expectedFindingIds =
             scenarioWrapper.get().getExercises().stream()
                 .flatMap(exercise -> exercise.getInjects().stream())
-                .flatMap(inject -> inject.getFindings().stream())
+                .flatMap(inject -> findingsOf(inject).stream())
                 .map(Finding::getId)
                 .toList();
 
@@ -457,7 +457,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
-                            .flatMap(inject -> inject.getFindings().stream().map(Finding::getId))
+                            .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
@@ -519,7 +519,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<RelatedFindingOutput> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
-                        inject.getFindings().stream().map(Finding::getId).toList()))
+                        findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
                 .limit(input.getSize())
@@ -561,7 +561,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -650,7 +650,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -728,7 +728,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -1608,6 +1608,62 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       }
     }
 
+    @Test
+    @DisplayName("The summary reads first/last seen, not the row's update time (#9822)")
+    void summaryAggregate_readsLastSeenNotUpdateDate() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+
+      // A migration rewrote the detected row late: its update time is not a detection.
+      Instant rewrittenAt = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), Instant.parse("2026-01-05T00:00:00Z"), rewrittenAt);
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      // A row without first/last seen falls back to its creation and update times.
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-02-02T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+
+      assertThat(seen.getOccurrences()).isEqualTo(2);
+      assertThat(seen.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
+    }
+
+    private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_first_seen = CAST(:firstSeen AS timestamptz),"
+                  + " finding_last_seen = CAST(:lastSeen AS timestamptz) WHERE finding_id = :id")
+          .setParameter("firstSeen", firstSeen == null ? null : firstSeen.toString())
+          .setParameter("lastSeen", lastSeen == null ? null : lastSeen.toString())
+          .setParameter("id", findingId)
+          .executeUpdate();
+    }
+
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {
       entityManager
           .createNativeQuery(
@@ -1697,5 +1753,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  // The findings of an inject are those with an occurrence on it
+  private List<Finding> findingsOf(Inject inject) {
+    return findingRepository.findAllByInjectId(inject.getId());
   }
 }

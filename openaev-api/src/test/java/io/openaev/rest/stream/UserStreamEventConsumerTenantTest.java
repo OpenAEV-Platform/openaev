@@ -701,7 +701,6 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
           "user_lastname",
           "user_lang",
           "user_theme",
-          "user_pastel_colours",
           "user_home_dashboard",
           "user_email",
           "user_phone",
@@ -1894,7 +1893,7 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
   /** A user carries no marking: its events are not filtered. */
   private static StreamVisibilityService unfilteredMarkings() {
     StreamVisibilityService markings = mock(StreamVisibilityService.class);
-    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    when(markings.visibilityOrUnresolved(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
     return markings;
   }
 }

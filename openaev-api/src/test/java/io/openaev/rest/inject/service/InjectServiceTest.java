@@ -42,6 +42,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -100,6 +101,7 @@ class InjectServiceTest {
   @Mock private GrantRepository grantRepository;
   @Mock private InjectUtils injectUtils;
   @Mock private InjectStatusMapper injectStatusMapper;
+  @Mock private InjectVisibleStatusService injectVisibleStatusService;
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private InjectorContractService injectorContractService;
@@ -140,6 +142,7 @@ class InjectServiceTest {
   @Mock private ObjectProvider<PermissionService> permissionServiceProvider;
   @Mock private PermissionService permissionService;
   @Mock private CredentialMetricCollector credentialMetricCollector;
+  @Mock private FindingOccurrenceService findingOccurrenceService;
 
   ObjectMapper mapper;
 
@@ -199,7 +202,9 @@ class InjectServiceTest {
                 conditionService,
                 previewFeatureService,
                 payloadRevocationService,
-                injectorContractContentUtils)));
+                injectorContractContentUtils),
+            mapper,
+            injectVisibleStatusService));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -261,6 +266,7 @@ class InjectServiceTest {
     assertNull(inject.getAuthorisation());
     assertNull(inject.getTriggerNowDate());
     assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+    verify(findingOccurrenceService).detachFromSimulation("exercise-reset");
     verify(injectRepository).saveAll(List.of(inject));
   }
 

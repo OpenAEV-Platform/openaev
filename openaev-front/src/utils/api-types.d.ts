@@ -312,7 +312,6 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2463,7 +2462,6 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2803,25 +2801,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
   catalog_connector_logo_url?: string;
   catalog_connector_short_description?: string;
-}
-
-export interface CatalogHistoryOutput {
-  catalog_history_action:
-    | "INSTALL"
-    | "UNINSTALL"
-    | "REVOKE"
-    | "LIFT_REVOCATION"
-    | "UPDATE"
-    | "ROLLBACK";
-  /** @format date-time */
-  catalog_history_created_at: string;
-  /** @minLength 1 */
-  catalog_history_id: string;
-  catalog_history_mode: "MANUAL" | "AUTO";
-  /** Who made the change; empty when the platform made it alone */
-  catalog_history_user?: string;
-  /** @minLength 1 */
-  catalog_history_version: string;
 }
 
 export interface CatalogInstallAllOutput {
@@ -3262,7 +3241,6 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3557,6 +3535,26 @@ export interface ConsumedFindingKeyDTO {
   value?: string;
 }
 
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
+}
+
 export interface ContractOutputElement {
   /** @format date-time */
   contract_output_element_created_at: string;
@@ -3728,10 +3726,6 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
-}
-
-export interface CoverageScenarioSettingsInput {
-  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4473,7 +4467,6 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6130,7 +6123,6 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6380,7 +6372,6 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
-  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6594,7 +6585,6 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6659,11 +6649,6 @@ export interface FindingOutput {
   finding_id: string;
   /** Inject that produced the finding */
   finding_inject_id?: string;
-  /**
-   * Deprecated, kept for backward compatibility
-   * @deprecated
-   */
-  finding_labels?: string[];
   /**
    * When a re-test last ended on the finding
    * @format date-time
@@ -7308,14 +7293,6 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
-}
-
-export interface InjectBulkDeleteInput {
-  inject_ids_to_ignore?: string[];
-  inject_ids_to_process?: string[];
-  keep_findings?: boolean;
-  search_pagination_input?: SearchPaginationInput;
-  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -8107,7 +8084,6 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
-  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -9084,7 +9060,6 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -9725,6 +9700,25 @@ export interface PageConnectorInstanceLog {
   totalPages?: number;
 }
 
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCredentialOutput {
   content?: CredentialOutput[];
   empty?: boolean;
@@ -10107,6 +10101,25 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10534,6 +10547,30 @@ export interface PayloadCommandBlock {
   command_content?: string;
   command_executor?: string;
   payload_cleanup_command?: string[];
+}
+
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export type PayloadCreateInput = BasePayloadCreateInput &
@@ -10969,6 +11006,17 @@ export interface PayloadUsagesOutput {
   payload_usages_hidden_count?: number;
 }
 
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
+}
+
 export interface PayloadVersionOutput {
   /**
    * The Threat Arsenal action of this version
@@ -11170,6 +11218,7 @@ export interface PlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11582,6 +11631,7 @@ export interface PublicPlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -12357,7 +12407,6 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
-  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
@@ -14577,7 +14626,6 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
-  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14756,8 +14804,6 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */

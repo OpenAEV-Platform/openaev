@@ -170,10 +170,6 @@ export const useFdsTheme = () => useContext(FdsThemeContext);
 const useFdsThemeScope = (
   mode: FdsThemeMode,
   custom: FdsCustomTheme = {},
-  /** The user's "Pastel colours" preference: the `pastel` root class the library's `pastel:`
-   *  variant reads. On by default in OpenAEV (no change for existing users); turned off, the
-   *  chips draw the standard colours every XTM Platform module uses. */
-  pastel = true,
 ): FdsThemeMode => {
   const { background, paper, nav, primary, secondary, accent, text } = custom;
 
@@ -182,10 +178,6 @@ const useFdsThemeScope = (
     root.classList.toggle('dark', mode === 'dark');
     root.classList.toggle('light', mode === 'light');
   }, [mode]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('pastel', pastel);
-  }, [pastel]);
 
   useEffect(() => {
     const root = document.documentElement;
