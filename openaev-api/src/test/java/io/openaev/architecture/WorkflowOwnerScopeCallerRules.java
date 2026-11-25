@@ -136,7 +136,9 @@ final class WorkflowOwnerScopeCallerRules {
               "a platform operator's create or update of a user's tenantIds: widens the group"
                   + " part to the tenants attached, detached, or already held, read before the"
                   + " eager groups load or the auto-assign grant runs, whatever the operator's"
-                  + " own tenant memberships are - in particular a platform admin with none"));
+                  + " own tenant memberships are - in particular a platform admin with none."
+                  + " The login and the password reset also hydrate the response in the scope of"
+                  + " the tenants the user is a member of, before any request scope exists"));
 
   /**
    * The classes allowed to call {@link WorkflowOwnerScope}, each with how the simulation, scenario

@@ -123,8 +123,8 @@ export const deleteInjectExpectationResult = (injectExpectationId: string, sourc
   {},
 )(dispatch);
 
-export const deleteExercise = (exerciseId: string, keepFindings = false) => (dispatch: AppDispatch) => delReferential(
-  `/api/exercises/${exerciseId}${keepFindings ? '?keep_findings=true' : ''}`,
+export const deleteExercise = (exerciseId: string) => (dispatch: AppDispatch) => delReferential(
+  `/api/exercises/${exerciseId}`,
   'exercises',
   exerciseId,
 )(dispatch);

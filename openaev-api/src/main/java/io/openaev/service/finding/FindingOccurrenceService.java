@@ -8,7 +8,6 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.repository.FindingOccurrenceRepository;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,30 +51,23 @@ public class FindingOccurrenceService {
     return fromIterable(findingOccurrenceRepository.saveAll(occurrences));
   }
 
+  // -- UPDATE --
+
   /**
-   * Records the occurrence of each finding on the inject that detected it, dated when the inject
-   * was sent (now when it was not) and carrying the finding's field. A finding that already has an
-   * occurrence on this inject is left as it is, so a repeated detection adds nothing.
+   * Unlinks the occurrences from the simulation's injects: a reset simulation no longer shows its
+   * findings until a new run records them again. The findings keep their history.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void recordOccurrencesByInject(Inject inject, Collection<Finding> findings) {
-    if (findings.isEmpty()) {
-      return;
-    }
-    List<String> findingIds = findings.stream().map(Finding::getId).toList();
-    Set<String> findingIdsWithOccurrence =
-        new HashSet<>(
-            findingOccurrenceRepository.findFindingIdsWithOccurrenceOnInject(
-                inject.getId(), findingIds));
-    Instant date = occurrenceDate(inject);
-    List<FindingOccurrence> occurrences = new ArrayList<>();
-    for (Finding finding : findings) {
-      if (!findingIdsWithOccurrence.contains(finding.getId())) {
-        findingIdsWithOccurrence.add(finding.getId());
-        occurrences.add(newOccurrence(finding, inject, date, finding.getField()));
-      }
-    }
-    findingOccurrenceRepository.saveAll(occurrences);
+  public void detachFromSimulation(String simulationId) {
+    detach(findingOccurrenceRepository.findAllBySimulationId(simulationId));
+  }
+
+  /**
+   * Unlinks the occurrences from the inject: a relaunched inject shows only what it detects again.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void detachFromInject(String injectId) {
+    detach(findingOccurrenceRepository.findAllByInjectId(injectId));
   }
 
   // -- READ --
@@ -87,6 +79,16 @@ public class FindingOccurrenceService {
   }
 
   // -- PRIVATE --
+
+  private void detach(List<FindingOccurrence> occurrences) {
+    Instant now = Instant.now();
+    for (FindingOccurrence occurrence : occurrences) {
+      occurrence.setInject(null);
+      // Re-feeds the finding's document, which lists the simulations of its occurrences
+      occurrence.getFinding().setUpdateDate(now);
+    }
+    findingOccurrenceRepository.saveAll(occurrences);
+  }
 
   private static FindingOccurrence newOccurrence(
       Finding finding, Inject inject, Instant date, String field) {

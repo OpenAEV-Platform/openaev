@@ -3,6 +3,7 @@ package io.openaev.finding.identity;
 import io.openaev.database.model.ContractOutputType;
 import java.util.Objects;
 import java.util.Set;
+import lombok.Builder;
 
 /**
  * One finding detected by an inject, whatever its source (injector, agent, phishing): the single
@@ -16,6 +17,7 @@ import java.util.Set;
  * @param tagIds the tags to put on the finding
  * @param valueHash computed from the type, the value and the location: the one passed is ignored
  */
+@Builder(toBuilder = true)
 public record DetectedFinding(
     ContractOutputType type,
     String value,

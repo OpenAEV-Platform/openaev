@@ -61,9 +61,7 @@ public class V20260725_Fix_starter_pack_payload_contracts extends RuntimeMigrati
     // scope of the tenant being processed, so the statement inspector limits findById(String)
     // below to that tenant's copy of a contract. The contract, payload, injector, attack pattern,
     // domain and tag reads of this migration are all tenant-active, so the statement inspector
-    // scopes them to the migration's tenant. The call below arms the v1 filter, which no entity
-    // read here carries.
-    enableV1TenantFilter(tenant);
+    // scopes them to the migration's tenant.
     String tenantId = tenant.getId();
     List<String> brokenContractIds =
         injectorContractRepository.findContractsWithoutPayloadAndInjector(tenantId).stream()
