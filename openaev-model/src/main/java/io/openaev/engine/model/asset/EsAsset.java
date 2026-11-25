@@ -4,6 +4,8 @@ import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.AssetCriticality;
+import io.openaev.database.model.AssetSubCategory;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
 import io.openaev.engine.model.tenant.EsTenantBase;
@@ -33,13 +35,31 @@ public class EsAsset extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String asset_description;
 
-  @Queryable(label = "asset external reference")
+  @Queryable(label = "asset external reference", filterable = true)
   @EsQueryable(keyword = true)
   private String asset_external_reference;
 
   @Queryable(label = "asset category", filterable = true, refEnumClazz = AssetCategory.class)
   @EsQueryable(keyword = true)
   private String asset_category;
+
+  // -- CLASSIFICATION --
+
+  @Queryable(label = "asset subcategory", filterable = true, refEnumClazz = AssetSubCategory.class)
+  @EsQueryable(keyword = true)
+  private String asset_subcategory;
+
+  @Queryable(label = "asset criticality", filterable = true, refEnumClazz = AssetCriticality.class)
+  @EsQueryable(keyword = true)
+  private String asset_criticality;
+
+  @Queryable(label = "asset internet facing", filterable = true)
+  @EsQueryable(keyword = true)
+  private Boolean asset_internet_facing;
+
+  @Queryable(label = "asset url", filterable = true)
+  @EsQueryable(keyword = true)
+  private String asset_url;
 
   @Queryable(label = "asset ips", filterable = true)
   @EsQueryable(keyword = true)
