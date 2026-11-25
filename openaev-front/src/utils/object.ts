@@ -20,8 +20,10 @@ export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly
   return result as Omit<T, K>;
 };
 
-// Same semantics as Ramda's `isEmpty`, for any input: `true` only for an empty string, array, plain object,
-// Map, Set, typed array or `arguments`. `null` and `undefined` are NOT empty (unlike a `!value` check), and
+// Same semantics as Ramda's `isEmpty` for the JSON data of the application: `true` only for an empty string,
+// array, plain object, Map, Set, typed array or `arguments`. Known gaps with Ramda, none reachable with our
+// data: a sparse array like `[,]` (Ramda `true`, here `false`) and an empty BigInt64Array (Ramda `false`, here
+// `true`). `null` and `undefined` are NOT empty (unlike a `!value` check), and
 // neither are a number, a boolean, a function or a Date. Own enumerable string keys are what makes an object
 // non-empty (symbol keys and inherited ones are ignored). Ramda's `empty` hooks (a `fantasy-land/empty` or an
 // `empty` method on the value or its constructor) are not supported: none of our data carries them
