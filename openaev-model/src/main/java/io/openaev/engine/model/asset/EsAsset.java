@@ -53,8 +53,8 @@ public class EsAsset extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String asset_criticality;
 
+  // Boolean: mapped as `boolean` with no `.keyword` subfield, so never declared keyword (#9873).
   @Queryable(label = "asset internet facing", filterable = true)
-  @EsQueryable(keyword = true)
   private Boolean asset_internet_facing;
 
   @Queryable(label = "asset url", filterable = true)
@@ -98,8 +98,8 @@ public class EsAsset extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String endpoint_arch;
 
+  // Boolean: mapped as `boolean` with no `.keyword` subfield, so never declared keyword (#9873).
   @Queryable(label = "endpoint is end of life", filterable = true)
-  @EsQueryable(keyword = true)
   private Boolean endpoint_is_eol;
 
   // -- SIDE --
