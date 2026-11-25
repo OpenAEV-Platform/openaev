@@ -23,11 +23,7 @@ public enum TenantSettingKeys {
   ASSET_STALE_AFTER_DAYS("asset_stale_after_days", "0", false),
   // Asset discovery: tag the assets a run creates (autonomous promotion, inject output) with
   // "discovered". false (the default) keeps the behaviour as before.
-  ASSET_DISCOVERY_TAG("asset_discovery_tag", "false", false),
-  // Security coverage: build scenarios received from OpenCTI with only their read-only injects
-  // enabled, and leave the schedule unset while an inject that is not read-only is present. Off
-  // by default: a coverage builds and schedules exactly as before.
-  COVERAGE_SCENARIO_READ_ONLY_FIRST("coverage_scenario_read_only_first", "false", false);
+  ASSET_DISCOVERY_TAG("asset_discovery_tag", "false", false);
 
   private final String key;
   private final String defaultValue;

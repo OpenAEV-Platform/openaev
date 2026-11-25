@@ -1,4 +1,5 @@
 import { Button } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 
@@ -10,12 +11,15 @@ interface Props {
   scenario: CatalogScenarioOutput;
   canInstall: boolean;
   onInstall: () => void;
+  // Installs the scenario, then launches it.
+  onLaunch?: () => void;
   size?: 'sm';
 }
 
-// Opens the scenario installed from the item, else installs it; one missing a requirement cannot be installed.
-const CatalogScenarioAction: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, size }) => {
+// Opens the scenario installed from the item, else installs it, and launches it when allowed.
+const CatalogScenarioAction: FunctionComponent<Props> = ({ scenario, canInstall, onInstall, onLaunch, size }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const installedUrl = installedScenarioUrl(scenario);
   if (installedUrl) {
     return (
@@ -27,7 +31,19 @@ const CatalogScenarioAction: FunctionComponent<Props> = ({ scenario, canInstall,
   if (!canInstall) {
     return null;
   }
-  return <Button size={size} disabled={scenario.catalog_scenario_missing_requirements.length > 0} onClick={onInstall}>{t('Install')}</Button>;
+  if (!onLaunch) {
+    return <Button size={size} onClick={onInstall}>{t('Install')}</Button>;
+  }
+  return (
+    <div style={{
+      display: 'flex',
+      gap: theme.spacing(1),
+    }}
+    >
+      <Button size={size} priority="secondary" onClick={onInstall}>{t('Install')}</Button>
+      <Button size={size} onClick={onLaunch}>{t('Launch')}</Button>
+    </div>
+  );
 };
 
 export default CatalogScenarioAction;

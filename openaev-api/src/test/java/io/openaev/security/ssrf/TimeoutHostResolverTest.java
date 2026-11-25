@@ -2,6 +2,8 @@ package io.openaev.security.ssrf;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,6 +69,7 @@ class TimeoutHostResolverTest {
     long elapsedMillis = Duration.ofNanos(System.nanoTime() - start).toMillis();
 
     assertTrue(failure.getMessage().contains("timed out"), failure.getMessage());
+    assertInstanceOf(TimeoutHostResolver.LookupTimeoutException.class, failure);
     assertTrue(
         elapsedMillis < 2_000,
         "the caller must be released soon after the timeout, not when DNS finally answers: "
@@ -88,6 +91,7 @@ class TimeoutHostResolverTest {
         assertThrows(UnknownHostException.class, () -> resolver.resolve("no-such-host.invalid"));
 
     assertEquals("no-such-host.invalid: Name or service not known", failure.getMessage());
+    assertFalse(failure instanceof TimeoutHostResolver.LookupTimeoutException);
   }
 
   @Test

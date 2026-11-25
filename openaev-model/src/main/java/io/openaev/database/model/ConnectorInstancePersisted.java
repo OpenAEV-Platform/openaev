@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,15 +24,14 @@ import org.hibernate.type.SqlTypes;
  * TxCtx.allTenants()} set on the joined transaction); writes are explicitly attributed via {@code
  * ConfigurationMigration#migrate}'s {@code setTenant(...)} or the create-endpoint's write-scope
  * resolver. The v1 {@code @Filter} must NOT come back: it would AND its own thread-local predicate
- * with v2's scope and silently return nothing. {@link TenantBaseListener} stays as an inert
- * fallback (it only sets {@code tenant} when still {@code null}); every write path here sets it
- * explicitly first, so the listener never fires in practice.
+ * with v2's scope and silently return nothing. No listener stamps {@code tenant}: a creator that
+ * leaves it null fails on the {@code NOT NULL} column.
  */
 @Getter
 @Setter
 @Entity(name = "ConnectorInstance")
 @Table(name = "connector_instances")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 public class ConnectorInstancePersisted extends ConnectorInstance
     implements TenantBase, AuditStateCapturable {
   @Id

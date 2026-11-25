@@ -40,6 +40,7 @@ import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
@@ -215,7 +216,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
 import io.openaev.rest.finding.FindingSearchApi;
 import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.finding.FindingWriter;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
@@ -345,8 +345,6 @@ import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import io.openaev.xtmone.XtmOneHealthSnapshot;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -358,7 +356,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -403,6 +400,35 @@ class TenantActiveTableAccessArchTest {
     // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
     io.openaev.processor.core.V20260811_Add_phishing_reporting_capabilities_to_default_roles.class,
     io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class
+  };
+
+  /**
+   * The accessors of {@code GroupRepository}, each with the scope it runs under, following the
+   * pattern {@link #ROLES_REPOSITORY_ACCESSORS} set for roles.
+   */
+  private static final Class<?>[] GROUPS_REPOSITORY_ACCESSORS = {
+    // Tenant groups, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantGroupService.class,
+    // Platform groups, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.groups.PlatformGroupService.class,
+    // SSO group mapping and the user-side group reads: reads by name/id, the platform-group create
+    // wrapped in executeNewAsPlatformWrite, the tenant-group create through TenantGroupService:
+    io.openaev.service.UserService.class,
+    // Adds or removes one users_groups row from the group side, by (user, group) id: the group is
+    // looked up by id and the row write is bounded to that one group's own rows:
+    io.openaev.service.UserGroupMembershipService.class,
+    // Resolves a notification trigger's recipient group ids inside the TxCtx-scoped
+    // NotificationTriggerApi transaction; the inspector scopes the lookup:
+    NotificationTriggerMapper.class,
+    // Deletes the legacy pre-multi-tenant connector group of the default tenant, a tenant row:
+    io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    V20260330_Default_tenant_data.class,
+    V20261002_Default_group_markings.class,
+    // A role's delete clears it from the groups that link it (findAllByRoles), under the scope or
+    // platform-write marker of the role delete itself:
+    io.openaev.service.TenantRoleService.class,
+    io.openaev.service.platform.roles.PlatformRoleService.class
   };
 
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
@@ -478,7 +504,7 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
           "injectors_injector_contracts",
-          "catalog_history",
+          "content_changes",
           "scenario_identities",
           "payload_revocations",
           "exercises",
@@ -486,19 +512,12 @@ class TenantActiveTableAccessArchTest {
           "injects",
           "execution_traces",
           "roles",
-          "scenario_revisions");
+          "scenario_revisions",
+          "groups");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    }
-    Set<String> active =
-        Arrays.stream(props.getProperty("openaev.tenant.active-tables", "").split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toSet());
+    Set<String> active = ProductionActiveTables.names();
     assertTrue(
         GUARDED_TABLES.containsAll(active),
         "every table in openaev.tenant.active-tables needs a guard in this test; missing: "
@@ -908,7 +927,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Force-initializes the article documents inside the scoped read transaction
-              // (ChannelService.withDocumentLinksInitialized) so the open-in-view serialization of
+              // (ChannelService.withLinksInitialized) so the open-in-view serialization of
               // the channel reader cannot return an empty list:
               io.openaev.service.ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, resolving and rebinding the
@@ -942,9 +961,6 @@ class TenantActiveTableAccessArchTest {
               // serializes it; ExerciseService holds the initializer and the duplication copy:
               ExerciseApi.class,
               ExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the exercise inside the request transaction:
               ChannelApi.class,
@@ -978,9 +994,6 @@ class TenantActiveTableAccessArchTest {
               // Scenario-to-simulation copy, reached from the TxCtx-carrying launch handlers, the
               // autonomous run's tenant transaction and the per-tenant scheduled scenario job:
               ScenarioToExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the scenario inside the request transaction:
               ChannelApi.class,
@@ -1719,7 +1732,6 @@ class TenantActiveTableAccessArchTest {
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
-              FindingWriter.class,
               FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.
@@ -1736,10 +1748,6 @@ class TenantActiveTableAccessArchTest {
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
               FindingValueDisplayBackfill.class,
-              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
-              // tenant-scoped transaction of the delete entry point that calls it (pinned by
-              // DeleteKeepFindingsApiTest).
-              io.openaev.service.finding.FindingDetachService.class,
               // Re-test on demand: reached only from FindingApi#retestFindings, a TxCtx-carrying
               // @Transactional handler, with the one tenant of its scope; every read names it.
               io.openaev.service.finding.FindingRetestService.class,
@@ -2766,6 +2774,47 @@ class TenantActiveTableAccessArchTest {
                   + " accessors must carry a scope and be allowlisted here");
 
   /**
+   * {@code groups} is dual-scope like {@code roles} (see {@link PlatformRowWriters#GROUPS}): a
+   * write of a platform group outside a platform-write transaction is refused by the database.
+   * Every writer this rule can see is marked or listed as a tenant-row-only writer.
+   */
+  @ArchTest
+  static final ArchRule groups_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.GROUPS, PlatformRowWriters.GROUPS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.GROUPS))
+          .because(
+              "groups is dual-scope: a write of a platform row outside a platform-write transaction"
+                  + " will be refused once groups is active. Every writer the rule can see must sit"
+                  + " under @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite, or"
+                  + " be a listed writer of tenant groups only");
+
+  /** Each tenant-row-only exemption of {@code groups} is live and touches tenant groups only. */
+  @ArchTest
+  static void groups_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.GROUPS);
+  }
+
+  /**
+   * Follows the pattern {@link #roles_repository_access_is_reviewed} set for roles: the platform
+   * groups are read by {@code PlatformGroupService} under any scope, the tenant groups by {@code
+   * TenantGroupService} under the tenant each method names.
+   */
+  @ArchTest
+  static final ArchRule groups_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(GROUPS_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.GroupRepository.class)
+          .because(
+              "groups is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " group. New accessors must carry a scope and be allowlisted here");
+
+  /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
    * platform rows are readable under any scope, the tenant rows are not. Every method that reads
    * one (any repository read not named for the platform row) must be reached on every path through
@@ -2873,7 +2922,7 @@ class TenantActiveTableAccessArchTest {
               // tenant of its TxCtx-carrying threat arsenal version endpoints:
               PayloadVersionService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
-              io.openaev.service.catalog.event.CatalogChangePublisher.class,
+              io.openaev.service.catalog.event.ContentChangePublisher.class,
               // Subquery of the Available tab search, run by CatalogPayloadOfferService:
               io.openaev.database.specification.CatalogItemSpecification.class)
           .should()
@@ -4515,19 +4564,19 @@ class TenantActiveTableAccessArchTest {
   }
 
   @ArchTest
-  static final ArchRule catalog_history_repository_access_is_reviewed =
+  static final ArchRule content_changes_repository_access_is_reviewed =
       noClasses()
           .that()
           .doNotBelongToAnyOf(
               // Written by the catalogue events, inside the scoped transaction that raises them:
-              io.openaev.service.catalog.event.CatalogHistoryListener.class,
+              io.openaev.service.catalog.event.ContentChangeListener.class,
               // Read by tenant, inside the scoped transaction of the history routes:
-              io.openaev.service.catalog.history.CatalogHistoryService.class)
+              io.openaev.service.catalog.history.ContentHistoryService.class)
           .should()
           .dependOnClassesThat()
-          .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
+          .areAssignableTo(io.openaev.database.repository.ContentChangeRepository.class)
           .because(
-              "catalog_history is tenant-active: an accessor without a tenant scope silently"
+              "content_changes is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest

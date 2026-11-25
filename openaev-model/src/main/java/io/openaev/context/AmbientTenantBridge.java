@@ -1,47 +1,27 @@
 package io.openaev.context;
 
-import jakarta.persistence.EntityManager;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
-import lombok.RequiredArgsConstructor;
-import org.hibernate.Filter;
-import org.hibernate.Session;
-import org.hibernate.internal.FilterImpl;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Runs a unit of work with the ambient {@link TenantContext} aligned on a resolved write tenant.
  *
- * <p>Tables that are not tenant-active yet still take their tenant from the ambient context: {@code
- * TenantBaseListener} stamps new rows from it, the Hibernate {@code tenantFilter} scopes their
- * reads with it and tenant-bound lookups pass it explicitly. {@code TenantInterceptor} only sets it
- * on the {@code /api/tenants/{tenantId}/} route, so on the {@code X-Tenant-Ids} route it falls back
- * to the default tenant while the rows attributed explicitly follow the request scope, and one
- * request writes to two tenants. Running the work here keeps the whole unit in the write tenant.
+ * <p>Code that has not moved to an explicit tenant argument takes its tenant from the ambient
+ * context: {@code TenantBaseListener} stamps new rows from it and tenant-bound lookups pass it
+ * explicitly. {@code TenantInterceptor} only sets it on the {@code /api/tenants/{tenantId}/} route,
+ * so on the {@code X-Tenant-Ids} route it falls back to the default tenant while the rows
+ * attributed explicitly follow the request scope, and one request writes to two tenants. Running
+ * the work here holds the whole unit in the write tenant.
  *
- * <p>It does nothing when the ambient tenant AND the {@code tenantFilter} of the current
- * transaction are already on the write tenant, which is the case on the prefixed route. An ambient
- * tenant that matches is not enough: a transaction opened by the background primitive arms no
- * filter at all, and one whose caller moved the ambient tenant after entry keeps the filter the
- * aspect armed, so in both cases the v1 reads inside the call would run on the wrong tenant, or on
- * none. It goes away with the ambient tenant layer.
- *
- * <p>Inside the call the {@code tenantFilter} of the current transaction follows the write tenant.
- * On return it goes back to exactly the state found on entry: armed on the same tenant, or absent
- * when the transaction had none, as one opened by the background primitive or a cross-tenant sweep
- * that disabled it. Re-arming it unconditionally would narrow the rest of such a transaction to one
- * tenant. The parameter of an enabled filter is only readable on Hibernate's {@link FilterImpl},
- * which the snapshot depends on.
+ * <p>It does nothing when an ambient tenant is set and already is the write tenant. With none set,
+ * {@link TenantContext#getCurrentTenant()} answers the default tenant, which does not count: the
+ * listener that stamps new rows requires {@link TenantContext#hasCurrentTenant()}. On return the
+ * ambient tenant goes back to exactly the state found on entry: the same tenant, or none. It goes
+ * away with the ambient tenant layer.
  */
 @Component
-@RequiredArgsConstructor
 public class AmbientTenantBridge {
-
-  private static final String TENANT_FILTER = "tenantFilter";
-  private static final String TENANT_PARAMETER = "tenantId";
-
-  private final EntityManager entityManager;
 
   public <T> T callInTenant(String tenantId, Supplier<T> work) {
     try {
@@ -56,21 +36,12 @@ public class AmbientTenantBridge {
 
   /** Same as {@link #callInTenant} for work that declares a checked exception. */
   public <T> T callInTenantChecked(String tenantId, Callable<T> work) throws Exception {
-    if (tenantId == null) {
+    boolean ambientSet = TenantContext.hasCurrentTenant();
+    if (tenantId == null || (ambientSet && tenantId.equals(TenantContext.getCurrentTenant()))) {
       return work.call();
     }
-    boolean inTransaction = TransactionSynchronizationManager.isActualTransactionActive();
-    TenantFilterState previousFilter = inTransaction ? snapshotTenantFilter() : null;
-    if (tenantId.equals(TenantContext.getCurrentTenant())
-        && (previousFilter == null || previousFilter.isOn(tenantId))) {
-      return work.call();
-    }
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    String previousTenant = ambientSet ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
-    if (inTransaction) {
-      session().enableFilter(TENANT_FILTER).setParameter(TENANT_PARAMETER, tenantId);
-    }
     try {
       return work.call();
     } finally {
@@ -79,46 +50,6 @@ public class AmbientTenantBridge {
       } else {
         TenantContext.setCurrentTenant(previousTenant);
       }
-      if (inTransaction) {
-        restoreTenantFilter(previousFilter);
-      }
-    }
-  }
-
-  private TenantFilterState snapshotTenantFilter() {
-    Filter filter = session().getEnabledFilter(TENANT_FILTER);
-    if (filter == null) {
-      return TenantFilterState.DISABLED;
-    }
-    if (!(filter instanceof FilterImpl enabled)) {
-      throw new IllegalStateException(
-          "cannot read the " + TENANT_FILTER + " parameter from " + filter.getClass().getName());
-    }
-    return new TenantFilterState(true, (String) enabled.getParameter(TENANT_PARAMETER));
-  }
-
-  private void restoreTenantFilter(TenantFilterState state) {
-    Session session = session();
-    if (!state.enabled()) {
-      session.disableFilter(TENANT_FILTER);
-      return;
-    }
-    Filter filter = session.enableFilter(TENANT_FILTER);
-    if (state.tenantId() != null) {
-      filter.setParameter(TENANT_PARAMETER, state.tenantId());
-    }
-  }
-
-  private Session session() {
-    return entityManager.unwrap(Session.class);
-  }
-
-  /** What {@code tenantFilter} looked like when the bridge was entered. */
-  private record TenantFilterState(boolean enabled, String tenantId) {
-    static final TenantFilterState DISABLED = new TenantFilterState(false, null);
-
-    boolean isOn(String candidate) {
-      return enabled && candidate.equals(tenantId);
     }
   }
 }

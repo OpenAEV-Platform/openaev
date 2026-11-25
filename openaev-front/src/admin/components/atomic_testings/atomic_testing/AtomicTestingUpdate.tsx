@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext } from 'react';
 
 import { updateAtomicTesting } from '../../../../actions/atomic_testings/atomic-testing-actions';
-import { type AtomicTestingInput, type Inject, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { type AtomicTestingInput, type InjectInput, type InjectResultOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForAtomicTesting from '../../../../utils/context/endpoint/EndpointContextForAtomicTesting';
 import { pick } from '../../../../utils/object';
@@ -20,12 +20,10 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
   handleClose,
 }) => {
   const { updateInjectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
-  const onUpdateAtomicTesting = async (data: Inject) => {
-    // inject_documents holds ids on Inject but objects on the input: the mismatch was hidden by Ramda's loose typing
-    const toUpdate = pick(data, [
+  const onUpdateAtomicTesting = async (data: InjectInput) => {
+    const toUpdate: AtomicTestingInput = pick(data, [
       'inject_tags',
       'inject_title',
-      'inject_type',
       'inject_injector_contract',
       'inject_injector',
       'inject_description',
@@ -36,7 +34,7 @@ const AtomicTestingUpdate: FunctionComponent<Props> = ({
       'inject_asset_groups',
       'inject_secret_references',
       'inject_teams',
-    ]) as unknown as AtomicTestingInput;
+    ]);
     updateAtomicTesting(atomic.inject_id, toUpdate).then((result: { data: InjectResultOverviewOutput }) => {
       updateInjectResultOverviewOutput(result.data);
     });

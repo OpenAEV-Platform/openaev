@@ -84,6 +84,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
         createConnectorInstanceConfiguration("INJECTOR_ID", externalInjector.getId());
 
     ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    connectorInstance.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     connectorInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);

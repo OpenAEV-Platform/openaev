@@ -172,22 +172,6 @@ public class StreamService {
   }
 
   /**
-   * Once per event, after commit; on failure, only the readers who see everything get it. With the
-   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
-   */
-  private StreamVisibility visibilityOf(BaseEvent event) {
-    if (!streamClearanceService.isFiltering()) {
-      return StreamVisibility.UNFILTERED;
-    }
-    try {
-      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
-    } catch (RuntimeException e) {
-      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
-      return StreamVisibility.unresolved();
-    }
-  }
-
-  /**
    * The marking clearance the event is checked against for this consumer. Checked after the READ
    * permission: reading assets does not mean reading every asset.
    */
@@ -290,6 +274,25 @@ public class StreamService {
     sendStreamEvent(flux, event, mapper.valueToTree(event.getInstance()));
   }
 
+  /** A deletion carrying the id only. */
+  private void sendTombstone(FluxSink<Object> flux, BaseEvent event) {
+    try {
+      String propertyId = event.getAttributeId();
+      if (propertyId == null || propertyId.isBlank()) {
+        log.warn(
+            "Class {} can't be streamed without an identifier",
+            event.getInstance().getClass().getSimpleName());
+        return;
+      }
+      ObjectNode deleteNode = mapper.createObjectNode();
+      deleteNode.set(propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+      sendStreamEvent(flux, event.clone(), deleteNode);
+    } catch (Exception e) {
+      String simpleName = event.getInstance().getClass().getSimpleName();
+      log.warn(String.format("Class %s can't be streamed", simpleName), e);
+    }
+  }
+
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event, JsonNode instanceData) {
     event.setInstanceData(instanceData);
     ServerSentEvent<BaseEvent> message =
@@ -366,7 +369,8 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
-    StreamVisibility visibility = visibilityOf(event);
+    StreamVisibility visibility =
+        streamVisibilityService.visibilityOrUnresolved(event, markingTenantOf(event));
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
@@ -420,24 +424,8 @@ public class StreamService {
       if (!hasReadPermission(consumer, user, event)) {
         // A consumer that cannot read the entity gets nothing: even an id-only tombstone
         // discloses the id, schema and timing of an unreadable mutation.
-        if (!isGrantManagedRootDeletion(event)) {
-          return;
-        }
-        try {
-          String propertyId = event.getAttributeId();
-          if (propertyId == null || propertyId.isBlank()) {
-            log.warn(
-                "Class {} can't be streamed without an identifier",
-                event.getInstance().getClass().getSimpleName());
-            return;
-          }
-          ObjectNode deleteNode = mapper.createObjectNode();
-          deleteNode.set(
-              propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-          sendStreamEvent(fluxSink, event.clone(), deleteNode);
-        } catch (Exception e) {
-          String simpleName = event.getInstance().getClass().getSimpleName();
-          log.warn(String.format("Class %s can't be streamed", simpleName), e);
+        if (isGrantManagedRootDeletion(event)) {
+          sendTombstone(fluxSink, event);
         }
       } else {
         MarkingCtx clearance =
@@ -445,6 +433,11 @@ public class StreamService {
         if (!visibility.visibleUnder(clearance)) {
           // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
           // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          // Accepted disclosure: a deleted row whose parent is gone has no markings left to read,
+          // so its tombstone goes to every READ consumer, who may learn its id and deletion time.
+          if (DATA_DELETE.equals(event.getType()) && visibility.parentDeleted()) {
+            sendTombstone(fluxSink, event);
+          }
           return;
         }
         if (event.getInstance().getResourceType() == ResourceType.NOTIFIER

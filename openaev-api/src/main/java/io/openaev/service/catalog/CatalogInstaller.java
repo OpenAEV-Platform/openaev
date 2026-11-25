@@ -1,7 +1,7 @@
 package io.openaev.service.catalog;
 
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -15,24 +15,24 @@ public abstract class CatalogInstaller<V extends InstallableVersion, R> {
 
   protected abstract CatalogOffer<V> offer();
 
-  protected abstract R install(TxCtx ctx, String tenantId, V released, CatalogHistory.Mode mode)
+  protected abstract R install(TxCtx ctx, String tenantId, V released, ContentChange.Mode mode)
       throws Exception;
 
   /** Installs the latest version of every item the tenant never installed. */
   public Installed<V, R> installAll(TxCtx ctx, String tenantId) {
     return installEach(
-        ctx, tenantId, offer().neverInstalled(ctx, tenantId), CatalogHistory.Mode.MANUAL);
+        ctx, tenantId, offer().neverInstalled(ctx, tenantId), ContentChange.Mode.MANUAL);
   }
 
   /** Installs what a release brings to install by itself. */
   public Installed<V, R> autoInstall(TxCtx ctx, String tenantId) {
     return installEach(
-        ctx, tenantId, offer().toAutoInstall(ctx, tenantId), CatalogHistory.Mode.AUTO);
+        ctx, tenantId, offer().toAutoInstall(ctx, tenantId), ContentChange.Mode.AUTO);
   }
 
   /** Installs each version; one that fails is logged and skipped, the others still install. */
   protected Installed<V, R> installEach(
-      TxCtx ctx, String tenantId, List<V> versions, CatalogHistory.Mode mode) {
+      TxCtx ctx, String tenantId, List<V> versions, ContentChange.Mode mode) {
     List<R> installed = new ArrayList<>();
     List<V> failed = new ArrayList<>();
     for (V released : versions) {

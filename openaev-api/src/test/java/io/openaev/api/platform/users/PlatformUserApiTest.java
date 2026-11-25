@@ -17,11 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.MailingService;
@@ -30,6 +31,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -55,8 +57,9 @@ class PlatformUserApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private UserService userService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Autowired private UserComposer userComposer;
   @Autowired private TenantRepository tenantRepository;
 
@@ -107,10 +110,13 @@ class PlatformUserApiTest extends IntegrationTest {
 
     // -- ASSERT --
     String userId = JsonPath.read(response, "$.user_id");
-    User created = userService.user(userId);
-    assertThat(created.getUnscopedGroups())
-        .extracting(Group::getId)
-        .contains(platformGroup.getId(), tenantGroup.getId());
+    // Read in the scope of the attached tenant, where its group is visible; a platform group is
+    // visible in every scope.
+    List<String> groupIds =
+        tenantScopedTransaction.execute(
+            TxCtx.forTenant(tenant.getId()),
+            () -> userService.user(userId).getUnscopedGroups().stream().map(Group::getId).toList());
+    assertThat(groupIds).contains(platformGroup.getId(), tenantGroup.getId());
 
     ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
     Awaitility.await()
@@ -212,6 +218,6 @@ class PlatformUserApiTest extends IntegrationTest {
     group.setName(name);
     group.setDefaultUserAssignation(true);
     group.setTenant(tenant);
-    return groupRepository.save(group);
+    return groupFixtureWriter.save(group);
   }
 }

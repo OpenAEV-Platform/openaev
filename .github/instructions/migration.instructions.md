@@ -12,16 +12,17 @@ OpenAEV uses **Java-based Flyway migrations** (not SQL files).
 ## Naming Convention
 
 ```
-V{Y}_{XX}__{Description}.java
+V{major}_{yyyyMMddHHmmssSSS}__{Description}.java
 ```
 
-- `V{Y}_` is the major version prefix
-- `{XX}` is a sequential number — **check the latest migration before creating a new one**:
+- Follow the format of the latest migration: same major, a later timestamp
   ```bash
   ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -5
   ```
-- `{Description}` uses PascalCase, descriptive of the change
-- Example: `V4_57__AddTenantToAlerts.java`
+- Before merging, the timestamp must still be later than every migration on `main` and than the last
+  release; otherwise rename the file and the class
+- `{Description}`: words joined by underscores, first one capitalized
+- Example: `V6_20261124100000000__Drop_read_only_marker_and_coverage_read_only_first.java`
 
 ## Migration Class Structure
 
@@ -34,7 +35,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V4_57__AddTenantToAlerts extends BaseJavaMigration {
+public class V6_20261124100000000__Add_tenant_to_alerts extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {

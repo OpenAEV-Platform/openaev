@@ -18,6 +18,7 @@ import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjec
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -71,6 +72,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -134,7 +136,6 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
-  private final io.openaev.service.finding.FindingDetachService findingDetachService;
   private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -161,6 +162,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final CredentialMetricCollector credentialMetricCollector;
 
   private final LicenseCacheManager licenseCacheManager;
@@ -547,28 +549,15 @@ public class InjectService {
         true);
   }
 
+  /** Deletes the given injects. */
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
-    deleteInjects(injectIds, false);
-  }
-
-  /**
-   * Deletes the given injects.
-   *
-   * @param keepFindings true keeps the findings they produced, detached from them; false (the
-   *     default) deletes them with the injects
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteAllByIds(TxCtx ctx, List<String> injectIds, boolean keepFindings) {
-    deleteInjects(injectIds, keepFindings);
+    deleteInjects(injectIds);
   }
 
   // Non-transactional body shared by both @Transactional entry points (no self-invocation).
-  private void deleteInjects(List<String> injectIds, boolean keepFindings) {
+  private void deleteInjects(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
-      if (keepFindings) {
-        findingDetachService.detachFromInjects(injectIds);
-      }
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
       // inject docs (and their expectation/finding docs via dependency cascade) are removed.
@@ -738,8 +727,7 @@ public class InjectService {
    * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
-    String[] assetMarkingIds = asset.getMarkingIds();
-    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
+    return clearance.allows(markingIds(asset));
   }
 
   /**
@@ -821,6 +809,7 @@ public class InjectService {
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     this.throwIfInjectNotLaunchable(inject);
+    findingOccurrenceService.detachFromInject(id);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
     inject.setLaunchedBy(userService.currentUser());
@@ -878,29 +867,14 @@ public class InjectService {
     return savedInject;
   }
 
+  /** Deletes an inject. */
   @Transactional
   public void delete(String id) {
-    deleteInject(id, false);
-  }
-
-  /**
-   * Deletes an inject.
-   *
-   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
-   *     deletes them with the inject
-   */
-  @Transactional
-  public void delete(String id, boolean keepFindings) {
-    deleteInject(id, keepFindings);
+    deleteInject(id);
   }
 
   // Non-transactional body shared by both @Transactional entry points (no self-invocation).
-  private void deleteInject(String id, boolean keepFindings) {
-    if (keepFindings) {
-      // Clears the session: the inject is loaded again without the detached findings, so its
-      // cascade (Inject.findings) no longer removes them.
-      findingDetachService.detachFromInjects(List.of(id));
-    }
+  private void deleteInject(String id) {
     injectRepository.deleteById(id);
   }
 
@@ -1430,6 +1404,7 @@ public class InjectService {
   public void resetInjectByExercise(String simulationId) {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
+    findingOccurrenceService.detachFromSimulation(simulationId);
     injects.forEach(Inject::clean);
     injectRepository.saveAll(injects);
   }

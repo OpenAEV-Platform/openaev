@@ -392,11 +392,14 @@ class XtmHubEmailRecipientsTest extends ProductionTablesIntegrationTest {
     group.setTenant(tenant);
     group.setRoles(new ArrayList<>(List.of(role)));
     group.setUsers(new ArrayList<>(List.of(userRepository.findById(userId).orElseThrow())));
-    // Saving the group checks that the role exists, a read of the active roles table
-    String scopeTenant = tenantId == null ? Tenant.DEFAULT_TENANT_UUID : tenantId;
+    // Saving the group checks that the role exists, a read of the active roles table; a platform
+    // row (tenant == null) is written under a platform-write transaction
     groupIds.add(
-        tenantScopedTransaction
-            .execute(TxCtx.forTenant(scopeTenant), () -> groupRepository.save(group))
+        (tenantId == null
+                ? tenantScopedTransaction.executeAsPlatformWrite(
+                    TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> groupRepository.save(group))
+                : tenantScopedTransaction.execute(
+                    TxCtx.forTenant(tenantId), () -> groupRepository.save(group)))
             .getId());
   }
 

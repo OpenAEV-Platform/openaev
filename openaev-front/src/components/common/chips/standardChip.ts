@@ -1,22 +1,22 @@
-import { type Theme } from '@mui/material';
+/**
+ * The single chip look of @filigran/design-system 1.13 (filigran-design-system #436, #439),
+ * for the hand-drawn and MUI neutral chips that are not the design-system Chip: the neutral
+ * tone fill and a 1px hairline at 30% of the neutral tone ink. There is no pastel variant
+ * any more.
+ */
+export const STANDARD_CHIP_FILL = 'var(--color-feedback-neutral-secondary-transparency-30)';
+
+/** The 1px hairline of a neutral chip: the neutral tone ink at 30%, as the design-system Chip. */
+export const STANDARD_CHIP_EDGE = '1px solid color-mix(in srgb, var(--color-feedback-neutral-tertiary) 30%, transparent)';
 
 /**
- * Edge of a neutral chip in standard colours ("Pastel colours" off): the design-system
- * neutral chip token, which holds 3:1 against the surface in dark and light
- * (`theme.palette.divider` drew 1.2:1 to 1.4:1).
+ * Edge of a chip that still waits for its value (an incomplete filter): the neutral tone
+ * ink in full, no fill, so it reads apart from a complete chip.
  */
-export const STANDARD_CHIP_EDGE = '1px solid var(--color-feedback-neutral-tertiary)';
+export const PENDING_CHIP_EDGE = '1px solid var(--color-feedback-neutral-tertiary)';
 
-/**
- * Style of a hand-drawn or MUI neutral chip: outlined in standard colours, as the
- * design-system Chip; under the `pastel` root class (useFdsThemeScope) the filled tile
- * of today. Use it with `variant="outlined"` on an MUI Chip.
- */
-export const neutralChipSx = (theme: Theme) => ({
-  'border': STANDARD_CHIP_EDGE,
-  'backgroundColor': 'transparent',
-  '.pastel &': {
-    borderColor: 'transparent',
-    backgroundColor: theme.palette.action.selected,
-  },
+/** Style of a hand-drawn or MUI neutral chip. Use it with `variant="outlined"` on an MUI Chip. */
+export const neutralChipSx = () => ({
+  border: STANDARD_CHIP_EDGE,
+  backgroundColor: STANDARD_CHIP_FILL,
 });

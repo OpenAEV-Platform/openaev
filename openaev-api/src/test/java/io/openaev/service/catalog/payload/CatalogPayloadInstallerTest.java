@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Payload;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.Installed;
 import java.util.List;
@@ -45,7 +45,7 @@ class CatalogPayloadInstallerTest {
     return Stream.of(
         Arguments.of(
             "every payload never installed",
-            CatalogHistory.Mode.MANUAL,
+            ContentChange.Mode.MANUAL,
             new Installs() {
               public void listing(CatalogPayloadOfferService s, List<InstallablePayloadVersion> v) {
                 when(s.neverInstalled(CTX, TENANT_ID)).thenReturn(v);
@@ -57,7 +57,7 @@ class CatalogPayloadInstallerTest {
             }),
         Arguments.of(
             "what a release brings",
-            CatalogHistory.Mode.AUTO,
+            ContentChange.Mode.AUTO,
             new Installs() {
               public void listing(CatalogPayloadOfferService s, List<InstallablePayloadVersion> v) {
                 when(s.toAutoInstall(CTX, TENANT_ID)).thenReturn(v);
@@ -73,7 +73,7 @@ class CatalogPayloadInstallerTest {
   @MethodSource("installs")
   @DisplayName("Installing skips a payload that fails and installs the others")
   void given_onePayloadFailing_should_installTheOthers(
-      String description, CatalogHistory.Mode mode, Installs installs) {
+      String description, ContentChange.Mode mode, Installs installs) {
     // Arrange
     InstallablePayloadVersion broken =
         new InstallablePayloadVersion("repo", "a", "1.0.0", "c1", "f1");

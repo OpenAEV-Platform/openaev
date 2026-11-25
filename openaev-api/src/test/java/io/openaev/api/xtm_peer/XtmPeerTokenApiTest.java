@@ -16,6 +16,7 @@ import io.openaev.database.repository.TokenRepository;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.account.ReservedServiceAccount;
+import jakarta.persistence.EntityManager;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ class XtmPeerTokenApiTest extends IntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private UserService userService;
   @Autowired private TokenRepository tokenRepository;
+  @Autowired private EntityManager entityManager;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -206,6 +208,10 @@ class XtmPeerTokenApiTest extends IntegrationTest {
   @DisplayName("the peer group does not receive every marking of the tenant")
   void thePeerGroupReceivesNoNewMarking() throws Exception {
     issue(adminToken, EMAIL, 200);
+    // The membership is written as one users_groups row: read the account back from the database,
+    // not from the instance this test's session already holds.
+    entityManager.flush();
+    entityManager.clear();
     User user = userService.findByEmailIgnoreCase(EMAIL).orElseThrow();
     assertThat(user.getUnscopedGroups()).isNotEmpty().noneMatch(Group::isAutoNewMarking);
   }

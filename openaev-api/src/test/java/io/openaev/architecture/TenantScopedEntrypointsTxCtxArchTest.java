@@ -677,7 +677,36 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.role.TenantRoleApi#roles",
           "io.openaev.rest.role.TenantRoleApi#search",
           "io.openaev.rest.role.TenantRoleApi#update",
-          // payloads, payload_identities, catalog_items, catalog_history: catalogue installs.
+          // groups (v2, dual-scope): the tenant group endpoints read and write the groups of the
+          // tenants of the request scope, the platform group endpoints the platform rows, and the
+          // others reach a group through a membership, a recipient or a delete
+          "io.openaev.api.groups.TenantGroupApi#createGroup",
+          "io.openaev.api.groups.TenantGroupApi#group",
+          "io.openaev.api.groups.TenantGroupApi#groups",
+          "io.openaev.api.groups.TenantGroupApi#groupGrant",
+          "io.openaev.api.groups.TenantGroupApi#deleteGrant",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupInformation",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupMarkings",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupRoles",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupUsers",
+          "io.openaev.api.groups.TenantGroupApi#delete",
+          "io.openaev.api.groups.PlatformGroupApi#create",
+          "io.openaev.api.groups.PlatformGroupApi#delete",
+          "io.openaev.api.groups.PlatformGroupApi#findById",
+          "io.openaev.api.groups.PlatformGroupApi#findPlatformRoles",
+          "io.openaev.api.groups.PlatformGroupApi#findUsers",
+          "io.openaev.api.groups.PlatformGroupApi#search",
+          "io.openaev.api.groups.PlatformGroupApi#update",
+          "io.openaev.api.groups.PlatformGroupApi#updatePlatformRoles",
+          "io.openaev.api.groups.PlatformGroupApi#updateUsers",
+          "io.openaev.api.platform.users.PlatformUserApi#create",
+          "io.openaev.api.platform.users.PlatformUserApi#update",
+          "io.openaev.api.platform.roles.PlatformRoleApi#delete",
+          "io.openaev.rest.user.PlayerApi#deletePlayer",
+          "io.openaev.rest.user.PlayerApi#bulkDeletePlayers",
+          "io.openaev.rest.user.TenantUserApi#create",
+          "io.openaev.rest.user.TenantUserApi#delete",
+          // payloads, payload_identities, catalog_items, content_changes: catalogue installs.
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
@@ -692,19 +721,22 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioVersions",
           // exercises, injects: a scenario launched with targets for its simulation only.
           "io.openaev.api.scenario.ScenarioLaunchApi#launch",
+          // injects, payload_revocations, catalog_items: what a scenario launch meets.
+          "io.openaev.api.scenario.ScenarioLaunchCheckApi#launchCheck",
           // payload_revocations: a tenant admin revokes a payload version.
           "io.openaev.api.payload.PayloadRevocationApi#revoke",
           "io.openaev.api.payload.PayloadRevocationApi#lift",
           // injects, steps: moving the usages of a payload version to another version.
           "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
-          // catalog_history: the History tabs of an action and of a scenario.
-          "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
-          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
+          // content_changes: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.ContentHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.ContentHistoryApi#scenarioHistory",
           // payloads, payload_identities: customized copies of Filigran payloads.
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
           // payload_identities, injects, steps: the injects left on an older version.
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#changes",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions",
           // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated

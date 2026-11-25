@@ -27,6 +27,7 @@ import {
   type Inject,
   type InjectBulkUpdateOperation,
   type InjectExportFromSearchRequestInput,
+  type InjectInput,
   type InjectTestStatusOutput,
   type SearchPaginationInput,
   type Team,
@@ -293,7 +294,7 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
-  const onUpdateInject = async (data: Inject) => {
+  const onUpdateInject = async (data: InjectInput) => {
     if (selectedInjectId) {
       await injectContext.onUpdateInject(selectedInjectId, data).then((result: {
         result: string;

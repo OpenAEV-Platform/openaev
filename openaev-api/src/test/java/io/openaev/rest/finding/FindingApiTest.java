@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -29,6 +30,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -82,6 +84,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   /**
    * Scopes the test's own transaction, for the tests that query the repository directly instead of
@@ -92,6 +98,23 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
    */
   private void scopeToAmbientTenant() {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  private MarkingDefinition persistClearedMarking() {
+    MarkingDefinition marking =
+        markingDefinitionComposer
+            .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+            .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .persist()
+            .get();
+    // The caller sees a marked asset only through a group holding its marking.
+    Group group = TenantGroupFixture.getGroup("finding-markings-" + UUID.randomUUID());
+    group.setMarkings(new HashSet<>(Set.of(marking)));
+    group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+    tenantGroupComposer.forGroup(group).persist();
+    entityManager.flush();
+    markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+    return marking;
   }
 
   @BeforeEach
@@ -111,6 +134,8 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     endpointComposer.reset();
     assetGroupComposer.reset();
     injectorContractComposer.reset();
+    markingDefinitionComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Nested
@@ -359,7 +384,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<String> expectedFindingIds =
             scenarioWrapper.get().getExercises().stream()
                 .flatMap(exercise -> exercise.getInjects().stream())
-                .flatMap(inject -> inject.getFindings().stream())
+                .flatMap(inject -> findingsOf(inject).stream())
                 .map(Finding::getId)
                 .toList();
 
@@ -432,7 +457,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
-                            .flatMap(inject -> inject.getFindings().stream().map(Finding::getId))
+                            .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
@@ -494,7 +519,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<RelatedFindingOutput> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
-                        inject.getFindings().stream().map(Finding::getId).toList()))
+                        findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
                 .limit(input.getSize())
@@ -536,7 +561,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -625,7 +650,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -703,7 +728,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -947,6 +972,8 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     @DisplayName("Search global findings")
     @Test
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
+      MarkingDefinition marking = persistClearedMarking();
+      savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
               .forFinding(FindingFixture.createDefaultTextFinding())
@@ -973,6 +1000,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_assets.[0].asset_markings.[0]")
+                  .value(marking.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_inject.inject_id")
                   .value(savedFinding.getInject().getId()))
@@ -1578,6 +1608,62 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       }
     }
 
+    @Test
+    @DisplayName("The summary reads first/last seen, not the row's update time (#9822)")
+    void summaryAggregate_readsLastSeenNotUpdateDate() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+
+      // A migration rewrote the detected row late: its update time is not a detection.
+      Instant rewrittenAt = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), Instant.parse("2026-01-05T00:00:00Z"), rewrittenAt);
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      // A row without first/last seen falls back to its creation and update times.
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-02-02T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+
+      assertThat(seen.getOccurrences()).isEqualTo(2);
+      assertThat(seen.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
+    }
+
+    private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_first_seen = CAST(:firstSeen AS timestamptz),"
+                  + " finding_last_seen = CAST(:lastSeen AS timestamptz) WHERE finding_id = :id")
+          .setParameter("firstSeen", firstSeen == null ? null : firstSeen.toString())
+          .setParameter("lastSeen", lastSeen == null ? null : lastSeen.toString())
+          .setParameter("id", findingId)
+          .executeUpdate();
+    }
+
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {
       entityManager
           .createNativeQuery(
@@ -1667,5 +1753,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  // The findings of an inject are those with an occurrence on it
+  private List<Finding> findingsOf(Inject inject) {
+    return findingRepository.findAllByInjectId(inject.getId());
   }
 }

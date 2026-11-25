@@ -1,6 +1,7 @@
 package io.openaev.service.targets.search;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.*;
@@ -117,6 +118,7 @@ public class EndpointTargetSearchAdaptor extends SearchAdaptorBase {
                   endpoint.getId(),
                   endpoint.getName(),
                   endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+                  markingIds(endpoint),
                   endpoint.getPlatform().name());
           if (endpoint.getCategory() != null) {
             target.setTargetCategory(endpoint.getCategory().name());

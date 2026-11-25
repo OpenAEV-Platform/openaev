@@ -2,6 +2,7 @@ package io.openaev.database.specification;
 
 import io.openaev.database.model.Group;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Collection;
 import org.springframework.data.jpa.domain.Specification;
 
 public class GroupSpecification {
@@ -28,6 +29,10 @@ public class GroupSpecification {
 
   public static Specification<Group> tenantScope(String tenantId) {
     return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  }
+
+  public static Specification<Group> tenantScope(Collection<String> tenantIds) {
+    return (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
   }
 
   // -- PLATFORM --

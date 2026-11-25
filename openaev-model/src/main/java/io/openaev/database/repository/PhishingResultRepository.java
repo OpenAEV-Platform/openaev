@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 public interface PhishingResultRepository
     extends CrudRepository<PhishingResult, String>, JpaSpecificationExecutor<PhishingResult> {
 
-  /** Tenant-filtered lookup by id (JPQL so {@code tenantFilter} applies). */
+  /** Lookup by id through JPQL, so the statement inspector scopes it. */
   @NotNull
   @Query("SELECT r FROM PhishingResult r WHERE r.id = :id")
   Optional<PhishingResult> findById(@NotNull @Param("id") String id);
@@ -23,11 +23,12 @@ public interface PhishingResultRepository
   Optional<PhishingResult> findByToken(@NotNull @Param("token") String token);
 
   /**
-   * Resolves the owning tenant of a tracking token without any tenant context. The public,
-   * unauthenticated landing/tracking endpoints no longer carry the tenant in the URL (the token is
-   * globally unique, 192 bits), so the tenant is recovered from the token here and then set on the
-   * {@code TenantContext} before any tenant-filtered work runs. Native so the Hibernate {@code
-   * tenantFilter} is not applied (there is no tenant to filter by yet).
+   * Resolves the owning tenant of a tracking token. The public, unauthenticated landing and
+   * tracking endpoints do not carry the tenant in the URL (the token is globally unique, 192 bits),
+   * so the tenant is recovered from the token here before any tenant-scoped work runs. {@code
+   * phishing_results} is tenant-active, so the statement inspector rewrites this native query too:
+   * the caller runs it under {@code TxCtx.allTenants()} ({@code
+   * PhishingTrackingPublicLookupService.tenantIdByToken}), without which it finds no row.
    */
   @Query(
       value = "SELECT tenant_id FROM phishing_results WHERE phishing_result_token = :token",

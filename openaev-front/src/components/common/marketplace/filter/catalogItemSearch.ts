@@ -3,6 +3,7 @@ import { FACET_PLATFORMS, platformFacetIcon } from '../../facets/facetPlatforms'
 import { type MarketplaceFacet } from './MarketplaceFacetSidebar';
 
 // The search fields both Available tabs share, as the catalogue items name them.
+export const CATALOG_ITEM_EXTERNAL_ID = 'catalog_item_external_id';
 export const CATALOG_ITEM_NAME = 'catalog_item_name';
 export const CATALOG_ITEM_DESCRIPTION = 'catalog_item_description';
 export const CATALOG_ITEM_PUBLISHED = 'catalog_item_published_at';

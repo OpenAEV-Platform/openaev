@@ -11,6 +11,7 @@ import io.openaev.xtm.counterpart.Counterpart;
 import io.openaev.xtm.counterpart.CounterpartKind;
 import io.openaev.xtm.counterpart.CounterpartProvider;
 import io.openaev.xtm.counterpart.CounterpartUnavailableException;
+import io.openaev.xtmone.XtmOneClient;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +46,12 @@ public class OpenCRQCounterpartProvider implements CounterpartProvider {
 
   static final String LOOKUP_PROCEDURE = "xtm.lookup";
 
+  /**
+   * A JWT XTM One signed for the person the answer is shown to, addressed to OpenCRQ (OpenCRQ #29):
+   * OpenCRQ reads the facts as that person when it verifies, the links only otherwise.
+   */
+  static final String XTM_USER_TOKEN_HEADER = "X-XTM-User-Token";
+
   /** The kinds OpenCRQ keys its objects by: threats, CVEs and assets (by hostname). */
   static final Set<CounterpartKind> SUPPORTED =
       Set.of(CounterpartKind.THREAT, CounterpartKind.VULNERABILITY, CounterpartKind.ASSET);
@@ -55,6 +62,7 @@ public class OpenCRQCounterpartProvider implements CounterpartProvider {
   private final XtmConfig xtmConfig;
   private final HttpClientFactory httpClientFactory;
   private final ObjectMapper mapper;
+  private final XtmOneClient xtmOneClient;
 
   @Override
   public String product() {
@@ -84,6 +92,8 @@ public class OpenCRQCounterpartProvider implements CounterpartProvider {
     HttpGet request = new HttpGet(lookupUrl(config.getApiUrl(), kind, keys));
     request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(config.getToken()));
     request.addHeader(HttpHeaders.ACCEPT, "application/json");
+    // No XTM One, or XTM One refuses the exchange: the lookup goes without it, links only.
+    userToken(config).ifPresent(token -> request.addHeader(XTM_USER_TOKEN_HEADER, token));
     String body;
     int status;
     try (CloseableHttpClient client = httpClientFactory.httpClientNoRetry(TIMEOUT)) {
@@ -163,6 +173,17 @@ public class OpenCRQCounterpartProvider implements CounterpartProvider {
               facts));
     }
     return found;
+  }
+
+  private Optional<String> userToken(OpenCRQConfig config) {
+    if (xtmOneClient == null) {
+      return Optional.empty();
+    }
+    try {
+      return xtmOneClient.exchangeUserToken(config.getFormattedUrl());
+    } catch (RuntimeException e) {
+      return Optional.empty();
+    }
   }
 
   private Optional<OpenCRQConfig> config(String tenantId) {

@@ -29,6 +29,17 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
+  /**
+   * The tenant ids of the user with this email, with no {@code User} entity hydration: {@code
+   * User.groups} is an eager association over the v2-active {@code groups} table, so loading the
+   * entity itself reads it under whatever scope happens to be set at that point. A caller that must
+   * widen the scope to the user's own tenants BEFORE that eager read runs (the SSO login) can only
+   * do so from a projection like this one, never from {@code findByEmailIgnoreCase(email)
+   * .getTenants()}. Empty for an unknown email or one with no tenant membership yet.
+   */
+  @Query("SELECT t.id FROM User u JOIN u.tenants t WHERE LOWER(u.email) = LOWER(:email)")
+  List<String> findTenantIdsByEmailIgnoreCase(@Param("email") String email);
+
   @Query(
       "SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE LOWER(u.email) IN :emails AND t.id = :tenantId")
   List<User> findAllByEmailInAndTenantIdNormalized(

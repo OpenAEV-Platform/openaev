@@ -1,4 +1,4 @@
-import { Alert, Checkbox } from '@filigran/design-system';
+import { Alert } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -78,15 +78,13 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
-  const [keepFindings, setKeepFindings] = useState(false);
   const handleOpenDelete = () => {
-    setKeepFindings(false);
     setOpenDelete(true);
   };
   const handleCloseDelete = () => setOpenDelete(false);
 
   const submitDelete = () => {
-    dispatch(deleteExercise(exercise.exercise_id, keepFindings)).then(() => {
+    dispatch(deleteExercise(exercise.exercise_id)).then(() => {
       handleCloseDelete();
       if (onDelete) onDelete(exercise.exercise_id);
     });
@@ -264,13 +262,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
                 className="mt-4"
               />
             )}
-            <div className="mt-4">
-              <Checkbox
-                checked={keepFindings}
-                label={t('Keep the findings it produced, detached from it')}
-                onCheckedChange={checked => setKeepFindings(checked === true)}
-              />
-            </div>
           </>
         )}
       />

@@ -326,7 +326,7 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     injector.setExecutorCommands(executorCommands == null ? null : new HashMap<>(executorCommands));
     injector.setExecutorClearCommands(
         executorClearCommands == null ? null : new HashMap<>(executorClearCommands));
-    // Write attribution is explicit since injectors went fully v2 (no more TenantIdBaseListener).
+    // Write attribution is explicit since injectors went fully v2 (no listener stamps the tenant).
     injector.setTenantId(TenantContext.getCurrentTenant());
 
     Injector saved =
