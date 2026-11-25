@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.http.Cookie;
@@ -37,7 +38,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * The observer and player channel endpoints answer with the raw simulation or scenario. Its lazy
- * links (teams, tags, pauses, articles, lessons categories, variables, linked simulations) are
+ * links into tenant tables (teams, tags, linked simulations, the groups of the players) are
  * serialized after the controller transaction has committed, where the tenant scope is gone, so
  * every one of them is read without a scope and comes out as an empty array unless the service
  * loads it inside the scoped transaction.
@@ -102,6 +103,7 @@ class ChannelReaderLinksSerializationTenantScopeTest extends ProductionTablesInt
     } else {
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenant);
     }
+    TenantContext.clearCurrentTenant();
   }
 
   @Nested
@@ -138,6 +140,19 @@ class ChannelReaderLinksSerializationTenantScopeTest extends ProductionTablesInt
 
       // Assert
       assertLinks(result, parent);
+    }
+  }
+
+  @Nested
+  @DisplayName("Player route with an authenticated user, scenario only")
+  @WithMockUser(isAdmin = true)
+  class AuthenticatedPlayerRoute {
+
+    @BeforeEach
+    void seedTenantOfTheCaller() throws Exception {
+      jdbc = new JdbcTemplate(dataSource);
+      tenant = tenantHelper.createTenantWithCurrentUser("channel-reader-links").getId();
+      tenantCreatedByHelper = true;
     }
 
     @Test

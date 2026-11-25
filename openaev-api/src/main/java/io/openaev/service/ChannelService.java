@@ -140,22 +140,31 @@ public class ChannelService {
   /**
    * Initializes the lazy links the reader serializes inside the caller's tenant-scoped transaction:
    * the associations of the simulation or scenario ({@link ExerciseResponseHydrator}, {@link
-   * ScenarioResponseHydrator}) and the {@code article_documents} of every article. The reader holds
-   * raw entities, so those collections are otherwise loaded open-in-view after the transaction
-   * commits, where the tenant scope is gone: every one of them reads a tenant table and serializes
-   * as an empty array with no error. The articles cost one statement each, bounded by the articles
-   * of one channel in one simulation or scenario.
+   * ScenarioResponseHydrator}), the players of its teams and the {@code article_documents} of every
+   * article. The reader holds raw entities, so those collections are otherwise loaded open-in-view
+   * after the transaction commits, where the tenant scope is gone: every one of them reads a tenant
+   * table and serializes as an empty array with no error.
+   *
+   * <p>The player list is the distinct users of the {@code teamUsers} rows. Each user is a lazy
+   * proxy, and the serializer's distinct reads its hash code, which loads the user and its eager
+   * {@code groups}, a tenant table. Initializing every player proxy here runs that load in the
+   * scope. The articles cost one statement each, bounded by the articles of one channel in one
+   * simulation or scenario.
    */
   public ChannelReader withLinksInitialized(ChannelReader channelReader) {
     if (channelReader.getExercise() != null) {
       ExerciseResponseHydrator.hydrateForResponse(channelReader.getExercise());
-      // Listing the distinct players loads their user rows inside the scope, as the serializer
-      // lists them after the commit, with no scope
-      channelReader.getExercise().getUsers();
+      channelReader
+          .getExercise()
+          .getTeamUsers()
+          .forEach(teamUser -> Hibernate.initialize(teamUser.getUser()));
     }
     if (channelReader.getScenario() != null) {
       ScenarioResponseHydrator.hydrateForResponse(channelReader.getScenario());
-      channelReader.getScenario().getUsers();
+      channelReader
+          .getScenario()
+          .getTeamUsers()
+          .forEach(teamUser -> Hibernate.initialize(teamUser.getUser()));
     }
     channelReader
         .getChannelArticles()

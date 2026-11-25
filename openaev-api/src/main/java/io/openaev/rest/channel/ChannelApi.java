@@ -174,8 +174,7 @@ public class ChannelApi extends RestBehavior {
               scenario.getInjects(), publishedArticles, this.mapper);
       channelReader.setChannelArticles(articles);
     }
-    // The reader serializes raw entities after this transaction commits: load their links here,
-    // under the request's tenant scope, as the tenant tables they read are empty out of it.
+    // Raw entities are serialized after the commit: see ChannelService.withLinksInitialized.
     return channelService.withLinksInitialized(channelReader);
   }
 
