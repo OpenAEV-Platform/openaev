@@ -1,3 +1,4 @@
+import { EditNoteOutlined } from '@mui/icons-material';
 import { useMemo } from 'react';
 
 import {
@@ -13,7 +14,7 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
-import { APPROVAL_STATUSES, approvalStatusLabel, DRAFT_APPROVAL_VALUE } from './approval/approvalStatusUtils';
+import { APPROVAL_FILTER_STATUSES, approvalStatusLabel, DRAFT_STATUS_VALUE } from './approval/approvalStatusUtils';
 import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
@@ -79,23 +80,24 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       statusCounts: facetCounts?.statuses,
       toggle: value => toggleValue(STATUS_FILTER_KEY, value),
     });
+    // Payload drafts: not a payload status; finds the actions with a draft (a view can keep it).
+    statusRows.push({
+      value: DRAFT_STATUS_VALUE,
+      label: t('Draft'),
+      count: facetCounts ? facetCounts.statuses?.[DRAFT_STATUS_VALUE] ?? 0 : undefined,
+      icon: () => <EditNoteOutlined sx={{ fontSize: 16 }} />,
+      checked: statusValues.includes(DRAFT_STATUS_VALUE),
+      onToggle: () => toggleValue(STATUS_FILTER_KEY, DRAFT_STATUS_VALUE),
+    });
 
     // Payload-less built-in actions carry no approval status, so they never match these rows.
-    const approvalRows: FacetRow[] = APPROVAL_STATUSES.map(status => ({
+    const approvalRows: FacetRow[] = APPROVAL_FILTER_STATUSES.map(status => ({
       value: status,
       label: t(approvalStatusLabel(status)),
       count: facetCounts ? facetCounts.approvals?.[status] ?? 0 : undefined,
       checked: approvalValues.includes(status),
       onToggle: () => toggleValue(APPROVAL_FILTER_KEY, status),
     }));
-    // Payload drafts: not a version status; finds the actions with a draft (a view can keep it).
-    approvalRows.push({
-      value: DRAFT_APPROVAL_VALUE,
-      label: t('Draft'),
-      count: facetCounts ? facetCounts.approvals?.[DRAFT_APPROVAL_VALUE] ?? 0 : undefined,
-      checked: approvalValues.includes(DRAFT_APPROVAL_VALUE),
-      onToggle: () => toggleValue(APPROVAL_FILTER_KEY, DRAFT_APPROVAL_VALUE),
-    });
 
     const authorRows = buildAuthorRows({
       authorOptions,
