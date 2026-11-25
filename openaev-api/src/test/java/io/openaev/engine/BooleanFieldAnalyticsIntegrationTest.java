@@ -236,5 +236,4 @@ class BooleanFieldAnalyticsIntegrationTest extends IntegrationTest {
                 + " map (only String and collections of String get one)")
         .isEmpty();
   }
-
 }

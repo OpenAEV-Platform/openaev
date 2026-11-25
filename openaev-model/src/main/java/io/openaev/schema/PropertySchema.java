@@ -120,9 +120,9 @@ public class PropertySchema {
    *
    * <p>The engine drivers only give a {@code keyword} subfield to string properties ({@code String}
    * or a collection of {@code String}, mapped as {@code text}); a boolean, number or date property
-   * is mapped as its own type with no subfield. A {@code keyword = true} declared on such a property
-   * would make every filter, sort and histogram target a missing field and silently match nothing,
-   * so it is ignored here.
+   * is mapped as its own type with no subfield. A {@code keyword = true} declared on such a
+   * property would make every filter, sort and histogram target a missing field and silently match
+   * nothing, so it is ignored here.
    *
    * @return {@code true} when the property is declared keyword and is string-valued
    */
