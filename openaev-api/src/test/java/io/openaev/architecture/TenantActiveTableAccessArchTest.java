@@ -926,7 +926,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Force-initializes the article documents inside the scoped read transaction
-              // (ChannelService.withDocumentLinksInitialized) so the open-in-view serialization of
+              // (ChannelService.withLinksInitialized) so the open-in-view serialization of
               // the channel reader cannot return an empty list:
               io.openaev.service.ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, resolving and rebinding the
@@ -960,9 +960,6 @@ class TenantActiveTableAccessArchTest {
               // serializes it; ExerciseService holds the initializer and the duplication copy:
               ExerciseApi.class,
               ExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the exercise inside the request transaction:
               ChannelApi.class,
@@ -996,9 +993,6 @@ class TenantActiveTableAccessArchTest {
               // Scenario-to-simulation copy, reached from the TxCtx-carrying launch handlers, the
               // autonomous run's tenant transaction and the per-tenant scheduled scenario job:
               ScenarioToExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the scenario inside the request transaction:
               ChannelApi.class,
