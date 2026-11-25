@@ -1,4 +1,3 @@
-import * as R from 'ramda';
 import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
 import { type FullArticleStore } from '../../../../../../actions/channels/Article';
@@ -88,10 +87,7 @@ const InjectAddArticles: FunctionComponent<Props> = ({
     ...item,
     article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
   }));
-  const filteredArticles = R.pipe(
-    (articlesList: FullArticleStore[]) => articlesList.filter(n => filterByKeyword(n)),
-    (articlesList: FullArticleStore[]) => articlesList.slice(0, 20),
-  )(fullArticles);
+  const filteredArticles = fullArticles.filter(n => filterByKeyword(n)).slice(0, 20);
 
   const elements: SelectListPickerElements<FullArticleStore> = useMemo(() => ({
     icon: {

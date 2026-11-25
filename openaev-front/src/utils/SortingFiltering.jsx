@@ -1,5 +1,4 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
-import * as R from 'ramda';
 import { useState } from 'react';
 
 import { useFormatter } from '../components/i18n';
@@ -19,8 +18,7 @@ const useSearchAndFilter = (
   const [keyword, setKeyword] = useState(options?.defaultKeyword ?? '');
   const [tags, setTags] = useState([]);
   const handleAddTag = (value) => {
-    // deep equality, as Ramda's uniq did: tag options are rebuilt objects
-    setTags([...tags, value].filter((tag, index, all) => all.findIndex(other => R.equals(other, tag)) === index));
+    setTags(tags.some(tag => tag.id === value.id) ? tags : [...tags, value]);
   };
   const handleRemoveTag = (value) => {
     const remainingTags = tags.filter(n => n.id !== value);
@@ -71,18 +69,14 @@ const useSearchAndFilter = (
       ? compare(sortValue(a), sortValue(b))
       : compare(sortValue(b), sortValue(a)));
     const sort = items => items.toSorted(compareElements);
-    return defaultSortKey
-      ? R.pipe(
-          list => list.filter(
-            n => tags.length === 0
-              || tags.map(tag => tag.id).some(
-                filter => R.includes(filter, n[`${schema}_tags`] || []),
-              ),
-          ),
-          list => list.filter(n => filterByKeyword(n)),
-          sort,
-        )(elements)
-      : R.pipe(list => list.filter(n => filterByKeyword(n)))(elements);
+    if (!defaultSortKey) {
+      return elements.filter(n => filterByKeyword(n));
+    }
+    return sort(
+      elements
+        .filter(n => tags.length === 0 || tags.some(tag => (n[`${schema}_tags`] || []).includes(tag.id)))
+        .filter(n => filterByKeyword(n)),
+    );
   };
   return {
     keyword,

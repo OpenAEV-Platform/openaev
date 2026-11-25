@@ -36,8 +36,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchPlayers());
   });
 
-  // usersMap returns one store object per user id, so a reference Set dedupes like Ramda's uniq did; the mapped
-  // lists hold users (never arrays), so flatMap flattens like Ramda's flatten did
+  // usersMap holds one object per user id, so the Set keeps each user once
   const communicationsUsers = [...new Set(
     communications.flatMap(
       (n: Communication) => n.communication_users!.map((u: string) => usersMap[u]),

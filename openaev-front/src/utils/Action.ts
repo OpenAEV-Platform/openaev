@@ -26,12 +26,10 @@ const buildError = (data: AxiosError) => {
     Object.entries,
     (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
       const extractErrorsPipe = R.pipe(
-        (pair: [string, unknown]) => pair.slice(1),
-        (list: unknown[]) => list[0],
         R.propOr([], 'errors'),
         (errors: unknown[]) => errors[0],
       );
-      return [elem[0], extractErrorsPipe(elem)];
+      return [elem[0], extractErrorsPipe(elem[1])];
     }),
     Object.fromEntries,
     (errors: Record<string, unknown>) => ({

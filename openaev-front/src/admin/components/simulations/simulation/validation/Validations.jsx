@@ -40,8 +40,7 @@ const Validations = () => {
   const handleSearch = value => setKeyword(value);
   const handleAddTag = (value) => {
     if (value) {
-      // deep equality, as Ramda's uniq did: tag options are rebuilt objects
-      setTags([...tags, value].filter((tag, index, all) => all.findIndex(other => R.equals(other, tag)) === index));
+      setTags(tags.some(tag => tag.id === value.id) ? tags : [...tags, value]);
     }
   };
   const handleRemoveTag = value => setTags(tags.filter(n => n.id !== value));
@@ -71,7 +70,7 @@ const Validations = () => {
   const sort = items => items.toSorted(descendBy('inject_expectation_created_at'));
   const sortedInjectExpectations = R.pipe(
     (expectations) => {
-      // keeps the first expectation of each id, as Ramda's uniqBy did (ids are strings)
+      // keeps the first expectation of each id
       const seenIds = new Set();
       return expectations.filter((n) => {
         if (seenIds.has(n.inject_expectation_id)) return false;
