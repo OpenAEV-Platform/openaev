@@ -529,6 +529,24 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
     return ids;
   }
 
+  /**
+   * The ids of every member of the given groups, static (listed in the group) and dynamic (matched
+   * by the group's filter, same rules as {@link #dynamicAssetIds(AssetGroup)}). An unknown or
+   * out-of-scope group id contributes nothing.
+   */
+  @Transactional(readOnly = true)
+  public Set<String> memberAssetIds(@NotNull final Collection<String> assetGroupIds) {
+    Set<String> ids = new LinkedHashSet<>();
+    if (assetGroupIds.isEmpty()) {
+      return ids;
+    }
+    for (AssetGroup group : this.assetGroupRepository.findAllById(assetGroupIds)) {
+      group.getAssets().forEach(asset -> ids.add(asset.getId()));
+      ids.addAll(dynamicAssetIds(group));
+    }
+    return ids;
+  }
+
   /** The ids of the rows of {@code type} the specification selects, without loading the rows. */
   private <T> List<String> idsOf(final Class<T> type, final Specification<T> specification) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();

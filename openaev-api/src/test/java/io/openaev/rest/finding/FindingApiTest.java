@@ -1046,6 +1046,70 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     }
 
     @Test
+    @DisplayName("An asset groups filter matches a finding of a dynamic group member (#9850)")
+    void given_assetGroupsFilterOnDynamicGroup_should_returnFindingsOfItsMembers()
+        throws Exception {
+      // Arrange: a group with no static asset whose filter matches the hostname of savedEndpoint.
+      String hostname = "dyn-finding-" + UUID.randomUUID();
+      savedEndpoint.setHostname(hostname);
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder()
+              .filters(
+                  List.of(
+                      Filters.Filter.builder()
+                          .key("asset_hostname")
+                          .operator(Filters.FilterOperator.contains)
+                          .values(List.of(hostname))
+                          .build()))
+              .build();
+      AssetGroup dynamicGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createAssetGroupWithDynamicFilter(
+                      "dynamic-" + UUID.randomUUID(), dynamicFilter))
+              .persist()
+              .get();
+      Finding finding =
+          findingComposer
+              .forFinding(createDefaultTextFindingWithRandomValue())
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      AssetGroup emptyGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createDefaultAssetGroup("empty-" + UUID.randomUUID()))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert: the dynamic group's member finding is returned, in list and distinct mode.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content.[0].finding_id").value(finding.getId()));
+      performCallbackRequest(
+              FINDING_URI + "/search?distinct=true", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1));
+      // A group with no member filters every finding out.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(emptyGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    private SearchPaginationInput assetGroupsInput(String assetGroupId) {
+      SearchPaginationInput input = new SearchPaginationInput();
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(
+          List.of(
+              buildFilter(
+                  "finding_asset_groups", Filters.FilterOperator.eq, List.of(assetGroupId))));
+      input.setFilterGroup(group);
+      return input;
+    }
+
+    @Test
     @DisplayName("Search findings by simulation")
     void should_return_findings_by_simulation() throws Exception {
       Finding savedFinding =
