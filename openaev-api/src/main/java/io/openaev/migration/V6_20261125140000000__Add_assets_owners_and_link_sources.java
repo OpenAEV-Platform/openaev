@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * tenant. Deleting the asset, the person or the team deletes the owner row.
  */
 @Component
-public class V6_20261124043000000__Add_assets_owners_and_link_sources extends BaseJavaMigration {
+public class V6_20261125140000000__Add_assets_owners_and_link_sources extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -795,13 +795,24 @@ public class GraphExplorationService {
             slice.edge(GraphEdgeType.IN_TEAM, here, t, null);
           });
     }
-    ownedAssets(slice, tenantIds, id, here, want, cap, "o.userId");
+    ownedAssets(slice, tenantIds, id, here, want, cap, ASSETS_OWNED_BY_USER);
     return focus;
   }
 
+  private static final String ASSETS_OWNED_BY_USER =
+      "SELECT a.id, a.name, a.type, o.role FROM AssetOwner o, Asset a"
+          + " WHERE o.userId = :id AND a.id = o.assetId AND a.tenant.id IN :tenantIds"
+          + " ORDER BY a.name";
+
+  private static final String ASSETS_OWNED_BY_TEAM =
+      "SELECT a.id, a.name, a.type, o.role FROM AssetOwner o, Asset a"
+          + " WHERE o.teamId = :id AND a.id = o.assetId AND a.tenant.id IN :tenantIds"
+          + " ORDER BY a.name";
+
   /**
    * The assets a person or a team owns or manages ({@code assets_owners}, #9725), drawn from the
-   * asset to the owner as on the asset side.
+   * asset to the owner as on the asset side. {@code query} is {@link #ASSETS_OWNED_BY_USER} or
+   * {@link #ASSETS_OWNED_BY_TEAM}: a constant, never built from input.
    */
   private void ownedAssets(
       Slice slice,
@@ -810,16 +821,13 @@ public class GraphExplorationService {
       String here,
       Predicate<GraphEdgeType> want,
       int cap,
-      String ownerColumn) {
+      String query) {
     if (!want.test(GraphEdgeType.OWNED_BY) && !want.test(GraphEdgeType.MANAGED_BY)) {
       return;
     }
     rows(
         slice,
-        "SELECT a.id, a.name, a.type, o.role FROM AssetOwner o, Asset a"
-            + " WHERE "
-            + ownerColumn
-            + " = :id AND a.id = o.assetId AND a.tenant.id IN :tenantIds ORDER BY a.name",
+        query,
         tenantIds,
         ownerId,
         cap,
@@ -932,7 +940,7 @@ public class GraphExplorationService {
             slice.edge(GraphEdgeType.TEAM_OF, here, o, null);
           });
     }
-    ownedAssets(slice, tenantIds, id, here, want, cap, "o.teamId");
+    ownedAssets(slice, tenantIds, id, here, want, cap, ASSETS_OWNED_BY_TEAM);
     return focus;
   }
 
