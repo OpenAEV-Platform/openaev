@@ -1,9 +1,6 @@
 package io.openaev.migration;
 
-import static io.openaev.utils.MigrationTableLocks.LockMode.ACCESS_EXCLUSIVE;
-
 import io.openaev.utils.MigrationTableLocks;
-import io.openaev.utils.MigrationTableLocks.TableLock;
 import java.util.List;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -23,10 +20,14 @@ import org.springframework.stereotype.Component;
 public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
     extends BaseJavaMigration {
 
-  /** The migration commits its own transaction, to retry it from the start. */
-  @Override
-  public boolean canExecuteInTransaction() {
-    return false;
+  private final MigrationTableLocks.Retry retry;
+
+  public V6_20261121160000000__Coverage_scenario_safe_mode_and_approval() {
+    this(MigrationTableLocks.RETRY);
+  }
+
+  V6_20261121160000000__Coverage_scenario_safe_mode_and_approval(MigrationTableLocks.Retry retry) {
+    this.retry = retry;
   }
 
   @Override
@@ -34,9 +35,7 @@ public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
     MigrationTableLocks.runLocked(
         context.getConnection(),
         "Read-only marker columns",
-        List.of(
-            new TableLock("payloads", ACCESS_EXCLUSIVE),
-            new TableLock("injectors_contracts", ACCESS_EXCLUSIVE)),
+        List.of("payloads", "injectors_contracts"),
         statement -> {
           statement.execute(
               "ALTER TABLE injectors_contracts ADD COLUMN IF NOT EXISTS"
@@ -44,6 +43,7 @@ public class V6_20261121160000000__Coverage_scenario_safe_mode_and_approval
           statement.execute(
               "ALTER TABLE payloads"
                   + " ADD COLUMN IF NOT EXISTS payload_read_only BOOLEAN NOT NULL DEFAULT false");
-        });
+        },
+        retry);
   }
 }

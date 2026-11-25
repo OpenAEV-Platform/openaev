@@ -72,7 +72,7 @@ final class MigrationSessions {
 
   /**
    * Polls until the session of this backend has reached a lock it cannot take: it waits on it, or
-   * it has given way and rolled back.
+   * it has given way and rolled back, its transaction or the step's savepoint.
    */
   static void awaitLockConflict(JdbcTemplate jdbc, int pid) throws InterruptedException {
     long deadline = System.nanoTime() + SECONDS.toNanos(30);
@@ -81,10 +81,9 @@ final class MigrationSessions {
           jdbc.queryForObject(
               "SELECT (SELECT count(*) FROM pg_locks WHERE pid = ? AND NOT granted)"
                   + " + (SELECT count(*) FROM pg_stat_activity"
-                  + " WHERE pid = ? AND state = 'idle' AND query = 'ROLLBACK')",
-              Long.class,
-              pid,
-              pid);
+                  + " WHERE pid = ? AND state LIKE 'idle%'"
+                  + " AND (query LIKE 'ROLLBACK%' OR state = 'idle in transaction (aborted)'))",
+              Long.class, pid, pid);
       if (conflicts != null && conflicts > 0) {
         return;
       }

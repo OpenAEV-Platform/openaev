@@ -18,7 +18,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * The migration drops the two read-only marker columns and the coverage_scenario_read_only_first
  * tenant setting rows an instance that ran V6_20261121160000000 holds, and a rerun changes nothing.
- * The migration commits its own transaction, so the state is committed and removed after the test.
+ * Each run commits its transaction, as Flyway does, so the state is committed and removed after the
+ * test.
  */
 @DisplayName("Migration V6_20261124100000000: drop read-only marker and read-only-first setting")
 class DropReadOnlyMarkerAndCoverageReadOnlyFirstMigrationTest extends IntegrationTest {
