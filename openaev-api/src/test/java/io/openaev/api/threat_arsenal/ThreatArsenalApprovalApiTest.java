@@ -31,12 +31,14 @@ import io.openaev.migration.V6_20261102100300000__Grant_approve_content_to_threa
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.service.account.ReservedServiceAccount;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -264,25 +266,83 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       assertThat(approvalStatus(newActionId)).isEqualTo("APPROVED");
     }
 
-    @Test
-    @DisplayName("a payload pushed by a collector is pending")
-    void given_collectorUpsert_should_bePending() throws Exception {
+    private String collectorUpsert(Authentication as, String externalId) throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
       PayloadUpsertInput upsertInput =
           PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
-      upsertInput.setExternalId("approval-collector-payload");
+      upsertInput.setExternalId(externalId);
+      return mvc.perform(
+              post(PAYLOAD_URI + "/upsert")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(upsertInput))
+                  .with(authentication(as))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName(
+        "a payload pushed by a collector with the integrations service account is approved"
+            + " automatically, the account recorded as approver")
+    void given_collectorUpsertAsIntegrationsAccount_should_beAutoApproved() throws Exception {
+      User account =
+          userWith(
+              "Integrations",
+              ReservedServiceAccount.CATALOG_CONNECTOR
+                  .access()
+                  .capabilities()
+                  .toArray(Capability[]::new));
+
       String created =
-          mvc.perform(
-                  post(PAYLOAD_URI + "/upsert")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(upsertInput))
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+          collectorUpsert(buildAuthenticationToken(account), "approval-collector-account");
+
+      assertThat((String) JsonPath.read(created, "$.payload_approval_status"))
+          .isEqualTo("APPROVED");
+      List<PayloadApproval> history =
+          payloadApprovalService.history(JsonPath.read(created, "$.payload_id"));
+      assertThat(history).hasSize(1);
+      assertThat(history.getFirst().isAutomatic()).isTrue();
+      assertThat(history.getFirst().getOrigin()).isEqualTo(PayloadApproval.ORIGIN.COLLECTOR);
+      assertThat(history.getFirst().getActor().getId()).isEqualTo(account.getId());
+    }
+
+    @Test
+    @DisplayName("a payload pushed by a collector whose account lacks Approve content is pending")
+    void given_collectorUpsertWithoutApproveContent_should_bePending() throws Exception {
+      User account =
+          userWith(
+              "Collector",
+              Capability.ACCESS_THREAT_ARSENALS,
+              Capability.MANAGE_THREAT_ARSENALS,
+              Capability.MANAGE_PAYLOADS);
+
+      String created =
+          collectorUpsert(buildAuthenticationToken(account), "approval-collector-payload");
 
       assertThat((String) JsonPath.read(created, "$.payload_approval_status")).isEqualTo("PENDING");
+    }
+
+    @Test
+    @DisplayName("the same collector payload pushed again creates no version")
+    void given_identicalCollectorResync_should_createNoVersion() throws Exception {
+      Authentication account =
+          buildAuthenticationToken(
+              userWith(
+                  "Integrations",
+                  ReservedServiceAccount.CATALOG_CONNECTOR
+                      .access()
+                      .capabilities()
+                      .toArray(Capability[]::new)));
+
+      String first = collectorUpsert(account, "approval-collector-resync");
+      String second = collectorUpsert(account, "approval-collector-resync");
+
+      assertThat((String) JsonPath.read(second, "$.payload_id"))
+          .isEqualTo(JsonPath.read(first, "$.payload_id"));
+      assertThat((String) JsonPath.read(second, "$.payload_approval_status")).isEqualTo("APPROVED");
     }
 
     @Test

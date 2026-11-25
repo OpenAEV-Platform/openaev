@@ -292,6 +292,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateConnectorInstanceConfigurations",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#searchConnectorInstanceLogs",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateRequestedStatus",
+          // connector_instances: the token rotation rewrites the OPENAEV_TOKEN configuration of
+          // every instance of the tenant, through a join on connector_instances
+          "io.openaev.rest.catalog_connector.CatalogConnectorApi#rotateCatalogConnectorToken",
           // connector_instances (v2 activation, Phase 3b two-hop finding): CatalogConnectorApi
           // reads connector_instances indirectly (CatalogConnectorService ->
           // ConnectorInstanceService#connectorInstances/#findAllByCatalogConnectorId) to compute

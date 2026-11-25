@@ -791,7 +791,7 @@ class BackgroundEntrypointDetectionTest {
     assertClassification(
         baseline,
         "io.openaev.opencti.connectors.service.OpenCTIConnectorService",
-        "delegates-to-PrivilegeService#ensurePrivilegedUserExistsForConnector");
+        "delegates-to-OpenCTIConnectorPrivilegeService#ensurePrivilegedUserExistsForConnector");
 
     // Near miss: a class that genuinely touches nothing keeps touches-no-tenant-table, so this
     // test is not merely asserting platform-global everywhere.

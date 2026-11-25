@@ -10,7 +10,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.List;
@@ -23,7 +23,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   private final ExecutorService executorService;
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
-  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final OpenAEVConfig openAEVConfig;
 
   public OpenAEVExecutorIntegrationFactory(
@@ -33,13 +33,13 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
       ComponentRequestEngine componentRequestEngine,
       AssetAgentJobRepository assetAgentJobRepository,
       HttpClientFactory httpClientFactory,
-      ServiceAccountPrivilegeService serviceAccountPrivilegeService,
+      AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService,
       OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
-    this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
+    this.agentServiceAccountPrivilegeService = agentServiceAccountPrivilegeService;
     this.openAEVConfig = openAEVConfig;
   }
 
@@ -74,7 +74,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
         connectorInstanceService,
         assetAgentJobRepository,
         componentRequestEngine,
-        serviceAccountPrivilegeService,
+        agentServiceAccountPrivilegeService,
         openAEVConfig);
   }
 

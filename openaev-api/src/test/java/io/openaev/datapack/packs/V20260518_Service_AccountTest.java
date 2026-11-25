@@ -1,5 +1,6 @@
 package io.openaev.datapack.packs;
 
+import static io.openaev.service.account.ReservedServiceAccount.AGENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,7 +14,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.processor.datapack.V20260518_Service_Account;
 import io.openaev.service.DataPackService;
 import io.openaev.service.UserService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class V20260518_Service_AccountTest extends IntegrationTest {
 
   @Autowired private DataPackService dataPackService;
-  @Autowired private ServiceAccountPrivilegeService privilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService privilegeService;
   @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
 
@@ -78,9 +79,7 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
     entityManager.clear();
 
     // Assert — still only one user with one token
-    String expectedEmail =
-        ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN.formatted(
-            TenantContext.getCurrentTenant());
+    String expectedEmail = AGENT.emailPattern().formatted(TenantContext.getCurrentTenant());
     var user = userService.findByEmailIgnoreCase(expectedEmail);
     assertThat(user).isPresent();
     assertThat(user.get().getTokens()).hasSize(1);
@@ -91,8 +90,8 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
   void given_privilegeServiceFailure_should_returnFalse() {
     // Arrange — local mock; we don't need to replace the Spring bean since the datapack
     // takes the privilege service as a constructor argument.
-    ServiceAccountPrivilegeService mockPrivilegeService =
-        mock(ServiceAccountPrivilegeService.class);
+    AgentServiceAccountPrivilegeService mockPrivilegeService =
+        mock(AgentServiceAccountPrivilegeService.class);
     doThrow(new RuntimeException("DB error"))
         .when(mockPrivilegeService)
         .ensurePrivilegedUserExists(anyString());

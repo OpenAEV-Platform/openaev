@@ -84,7 +84,8 @@ public class PayloadApprovalService {
    * for the same version does nothing.
    *
    * @param version the saved version (managed: the status is flushed with the transaction)
-   * @param actor the user who wrote it, {@code null} for a platform or collector write
+   * @param actor the user who wrote it (for a collector, the account it calls with), {@code null}
+   *     for a platform write
    * @param origin what wrote it
    */
   public void onWrite(
@@ -103,7 +104,22 @@ public class PayloadApprovalService {
     } else {
       switch (origin) {
         case SYSTEM -> approveAsSystem(version);
-        case COLLECTOR, CATALOG -> pending(version, null, origin);
+        case CATALOG -> pending(version, null, origin);
+        // A collector writes with an account's token, the integrations service account when it is
+        // deployed from the catalog: like a person's save, that account's rights decide.
+        case COLLECTOR -> {
+          if (canApprove(actor)) {
+            apply(
+                version,
+                PAYLOAD_APPROVAL_STATUS.APPROVED,
+                origin,
+                true,
+                actor,
+                AUTO_APPROVED_COMMENT);
+          } else {
+            pending(version, actor, origin);
+          }
+        }
         case CREATE, DUPLICATE, IMPORT, UPDATE -> {
           if (canApprove(actor)) {
             apply(

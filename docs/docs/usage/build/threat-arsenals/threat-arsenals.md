@@ -82,7 +82,7 @@ How the status of a new version is set:
 * **Filigran catalog versions are approved on arrival**: they are verified by Filigran (see [Filigran catalog and versions](filigran-catalog.md)). The approval history records them as *Verified by Filigran*.
 * Creating, saving, duplicating, customizing or importing an Action is **auto-approved** when you hold *Approve content*; the approval history records it as an automatic approval by its author. Otherwise the new version is **Pending**.
 * Publishing a change to what an Action contains adds a new version; saving a [draft](#drafts) adds none, and changing only its tags or domains keeps the version and its status.
-* Versions synchronized by a collector are **Pending**: collectors bring scripts written by third parties, which is what an approver must review.
+* Versions synchronized by a collector follow the rights of the account the collector connects with, like a person's save. Collectors deployed from the catalog connect with the tenant's integrations service account, which holds *Approve content*: their versions are **auto-approved**, and the approval history records an automatic approval by that account. A collector connecting with an account without *Approve content* adds **Pending** versions.
 * Payloads the platform generates itself are **Approved** automatically, recorded as a *System* approval in the history: for example the file drop created for a security coverage.
 * Payloads that existed before approval was introduced are **Approved**.
 * Built-in Actions without a payload need no approval.
