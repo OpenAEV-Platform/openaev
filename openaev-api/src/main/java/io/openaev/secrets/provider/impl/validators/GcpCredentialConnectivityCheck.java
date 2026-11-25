@@ -148,9 +148,14 @@ public class GcpCredentialConnectivityCheck {
     if (isBlank(customResourceManagerUri)) {
       // The SDK calls the token server the key file declares, as it parsed it: that one is checked,
       // not a second reading of the file.
-      refused =
-          EndpointUrls.refusal(
-              allowInternalEndpoints, timeoutSeconds, declaredTokenUri(credentials));
+      String declaredTokenUri = declaredTokenUri(credentials);
+      if (!allowInternalEndpoints
+          && declaredTokenUri != null
+          && !EndpointUrls.hasHost(declaredTokenUri)) {
+        // The SDK would call it, and no host can be read from it to check.
+        return SecretConnectionResult.formatError();
+      }
+      refused = EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, declaredTokenUri);
       if (refused.isPresent()) {
         return refused.get();
       }

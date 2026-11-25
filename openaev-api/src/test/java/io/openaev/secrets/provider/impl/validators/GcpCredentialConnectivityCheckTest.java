@@ -791,6 +791,30 @@ class GcpCredentialConnectivityCheckTest {
       }
     }
 
+    @Test
+    @DisplayName("A token_uri java.net.URI gives no host for, such as 127.1, is refused too")
+    void given_shortFormLoopbackTokenUriInKeyFile_should_sendNoRequest() throws IOException {
+      // Arrange — the real SDK, which connects to "127.1" as the loopback address.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud.respond("/token", 200, "application/json", "{\"access_token\": \"t\"}");
+        String shortForm = cloud.url("/token").replace("127.0.0.1", "127.1");
+        assertThat(URI.create(shortForm).getHost()).isNull();
+        byte[] keyFile = createServiceAccountKeyJson(shortForm);
+
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateServiceAccount(keyFile, GCP_SCOPE, null, null, null);
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
     @ParameterizedTest(name = "token_uri=\"{0}\"")
     @ValueSource(
         strings = {

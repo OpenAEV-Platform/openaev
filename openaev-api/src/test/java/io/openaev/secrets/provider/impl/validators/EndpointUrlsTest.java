@@ -88,7 +88,10 @@ class EndpointUrlsTest {
         "http://100.64.0.1/",
         "http://[::1]:8080/",
         "http://[fd00::1]/",
-        "http://[::ffff:127.0.0.1]/"
+        "http://[::ffff:127.0.0.1]/",
+        // No host for java.net.URI, a loopback host for the HTTP stack.
+        "http://127.1:8080/token",
+        "http://2130706433/token"
       })
   @DisplayName("A loopback, private, link-local or reserved host is refused as a format error")
   void given_internalHost_should_beRefused(String value) {
@@ -118,6 +121,23 @@ class EndpointUrlsTest {
   void given_absentOrUnparsableOverride_should_beLetThrough(String value) {
     // Act & Assert
     assertThat(refusedStatus(false, value)).isNull();
+  }
+
+  @ParameterizedTest(name = "\"{0}\" has a host")
+  @ValueSource(strings = {"https://a.example/x", "http://127.1:8080/token", "https://my_host.internal/"})
+  @DisplayName("A host is read the way the HTTP stack reads it")
+  void given_urlWithHost_should_haveHost(String value) {
+    // Act & Assert
+    assertThat(EndpointUrls.hasHost(value)).isTrue();
+  }
+
+  @ParameterizedTest(name = "\"{0}\" has no host")
+  @NullAndEmptySource
+  @ValueSource(strings = {"/token", "file:///tmp/token", "not a url"})
+  @DisplayName("A value that names no host has none")
+  void given_urlWithoutHost_should_haveNoHost(String value) {
+    // Act & Assert
+    assertThat(EndpointUrls.hasHost(value)).isFalse();
   }
 
   @Test

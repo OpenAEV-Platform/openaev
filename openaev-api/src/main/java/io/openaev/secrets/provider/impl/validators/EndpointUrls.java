@@ -6,7 +6,9 @@ import io.openaev.security.ssrf.PublicAddressPolicy;
 import io.openaev.security.ssrf.TimeoutHostResolver;
 import io.openaev.security.ssrf.TimeoutHostResolver.LookupTimeoutException;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Arrays;
@@ -145,14 +147,33 @@ final class EndpointUrls {
     return Optional.empty();
   }
 
+  /**
+   * Whether a host can be read from the endpoint, the way the HTTP stack reads it. Used for a URL the
+   * platform did not accept itself (a key file's token URI): one that names no host cannot be
+   * checked, so the caller refuses it.
+   */
+  static boolean hasHost(String endpoint) {
+    return hostOf(endpoint) != null;
+  }
+
   private static String hostOf(String endpoint) {
     if (endpoint == null || endpoint.isBlank()) {
       return null;
     }
     try {
       String host = URI.create(endpoint).getHost();
-      return host == null || host.isBlank() ? null : host;
+      if (host != null && !host.isBlank()) {
+        return host;
+      }
     } catch (IllegalArgumentException e) {
+      // Falls back to the lenient reading below.
+    }
+    // java.net.URI gives no host to "http://127.1/" or "http://my_host/", which the HTTP stacks
+    // still connect to: read it as java.net.URL does.
+    try {
+      String host = new URL(endpoint).getHost();
+      return host == null || host.isBlank() ? null : host;
+    } catch (MalformedURLException e) {
       return null;
     }
   }
