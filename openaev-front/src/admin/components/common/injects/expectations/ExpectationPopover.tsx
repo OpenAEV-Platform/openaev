@@ -43,10 +43,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   // Hook must be called at the top level of the component
   const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectationOutput['inject_expectation_type']);
 
-  const getExpirationTime = (expirationTime: number): number => {
-    if (expirationTime !== null && expirationTime !== undefined) {
-      return expirationTime;
-    }
+  const getExpirationTime = (): number => {
     return defaultExpirationTime;
   };
 
@@ -56,7 +53,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
     expectation_description: expectation.expectation_description ?? '',
     expectation_score: expectation.expectation_score ?? settings.expectation_manual_default_score_value,
     expectation_expectation_group: expectation.expectation_expectation_group ?? false,
-    expectation_expiration_time: getExpirationTime(expectation.expectation_expiration_time),
+    expectation_expiration_time: getExpirationTime(),
     expectation_is_predefined: expectation.expectation_is_predefined ?? false,
     // Carry the existing expected security platforms so the update form pre-fills them instead of
     // showing "Any security platform" - omitting them here also wiped the selection on save.
