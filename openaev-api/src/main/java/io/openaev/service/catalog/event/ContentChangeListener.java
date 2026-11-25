@@ -43,9 +43,6 @@ public class ContentChangeListener {
   @EventListener
   public void onRevocationChanged(PayloadRevocationChanged event) {
     Payload payload = payloadService.payload(event.tenantId(), event.payloadId());
-    if (payload.getCatalogRepository() == null) {
-      return;
-    }
     onContentChanged(
         ContentChanged.of(
             payload,

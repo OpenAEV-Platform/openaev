@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Command;
@@ -629,6 +630,32 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .isEqualTo(Payload.FIRST_VERSION);
     assertThat(history.get(0).get("content_change_fields").findValuesAsText("change_field"))
         .isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("lists the revocation and its lift on a payload made in the tenant")
+  void given_localPayloadRevokedThenLifted_should_listBoth() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+    String payloadId = action.getPayload().getId();
+    mvc.perform(
+            post(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(new PayloadRevocationInput("Too noisy"))))
+        .andExpect(status().isCreated());
+    mvc.perform(
+            delete(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                .with(csrf()))
+        .andExpect(status().isNoContent());
+
+    // Act
+    JsonNode history = history(action.getId(), 20).get("content");
+
+    // Assert
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsExactlyInAnyOrder(
+            ContentChange.Action.REVOKE.name(), ContentChange.Action.LIFT_REVOCATION.name());
   }
 
   // -- SEARCH --
