@@ -1,5 +1,8 @@
 package io.openaev.service.expectation;
 
+import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
+import static io.openaev.database.model.BaseInjectExpectation.NOT_EXECUTED_RESULT;
+import static io.openaev.service.InjectExpectationService.COLLECTOR;
 import static io.openaev.service.InjectExpectationUtils.*;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
@@ -19,6 +22,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -411,14 +415,34 @@ public abstract class AbstractTechnicalBehavior
     if (children.isEmpty()) {
       return Optional.empty();
     }
+    // A child closed as "Not executed" has an unknown outcome: the rollup reads the known children
+    // only, and a parent whose children are all unknown is unknown too, never a success
+    List<TechnicalInjectExpectation> knownChildren =
+        children.stream().filter(child -> !child.isNotExecuted()).toList();
+    parent
+        .getResults()
+        .removeIf(
+            r -> COLLECTOR_ID.equals(r.getSourceId()) && NOT_EXECUTED_RESULT.equals(r.getResult()));
+    if (knownChildren.isEmpty()) {
+      parent.addResult(
+          InjectExpectationResult.builder()
+              .sourceId(COLLECTOR_ID)
+              .sourceType(COLLECTOR)
+              .sourceName(NOT_EXECUTED_SOURCE_NAME)
+              .result(NOT_EXECUTED_RESULT)
+              .date(Instant.now())
+              .build());
+    }
     Double score =
-        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
+        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), knownChildren);
     // A direct VULNERABLE verdict on the parent row comes from legacy data only (assessment
     // injectors such as Nuclei used to answer the asset / asset-group row itself): it must survive
     // the children rollup.
     parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
     return Optional.of(parent);
   }
+
+  private static final String NOT_EXECUTED_SOURCE_NAME = "Expectations Expiration Manager";
 
   // -- END RECOMPUTE PARENT SCORE
 

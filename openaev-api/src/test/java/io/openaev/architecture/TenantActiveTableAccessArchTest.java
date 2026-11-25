@@ -307,6 +307,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.expectation.VulnerabilityBehavior;
 import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
@@ -4848,7 +4849,12 @@ class TenantActiveTableAccessArchTest {
               AgentUtils.class,
               // The reader's status of one inject, from the traces of a status the inject and
               // execution-log endpoints loaded in their TxCtx-carrying scoped transaction:
-              io.openaev.service.InjectVisibleStatusService.class)
+              io.openaev.service.InjectVisibleStatusService.class,
+              // isExecutionProven takes the method reference to tell a scanned leaf from one whose
+              // inject never executed. Reached only from expireLeaves, run by
+              // ExpectationsExpirationManagerJob inside TenantScopedTransaction#forEachTenant for
+              // the tenant being expired:
+              VulnerabilityBehavior.class)
           .should(callOrReferenceMethod(InjectStatus.class, "getTraces"))
           .because(
               "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"
