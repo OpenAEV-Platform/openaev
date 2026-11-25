@@ -925,6 +925,8 @@
   "Comment (optional)": "Комментарий (необязательно)",
   "Comments": "Комментарии",
   "Commit hash": "Хеш коммита",
+  "Image digest": "Дайджест образа",
+  "Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.": "Дайджест образа, запущенного в контейнере, по последнему отчёту Integration Manager. Он определяет сборку за подвижным тегом, например rolling или latest.",
   "Communication check": "Проверка связи",
   "Community": "Сообщество",
   "COMMUNITY": "Сообщество",

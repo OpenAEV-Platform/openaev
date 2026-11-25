@@ -3450,6 +3450,8 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
+  /** Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent when the engine does not report it */
+  connector_instance_image_digest?: string;
   /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
@@ -3488,6 +3490,8 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Digest of the image the container runs (algo:hex), as last reported by the composer; absent when unknown */
+  connector_instance_image_digest?: string;
   /** Whether the container is in a reboot loop */
   connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
@@ -3511,6 +3515,7 @@ export interface ConnectorInstancePersisted {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  connector_instance_image_digest?: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];

@@ -925,6 +925,8 @@
   "Comment (optional)": "댓글(선택 사항)",
   "Comments": "댓글",
   "Commit hash": "커밋 해시",
+  "Image digest": "이미지 다이제스트",
+  "Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.": "Integration Manager가 마지막으로 보고한, 컨테이너가 실행 중인 이미지의 다이제스트입니다. rolling 또는 latest 같은 이동 태그 뒤의 빌드를 식별합니다.",
   "Communication check": "커뮤니케이션 확인",
   "Community": "커뮤니티",
   "COMMUNITY": "커뮤니티",

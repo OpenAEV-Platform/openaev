@@ -32,7 +32,8 @@ public class ConnectorInstanceMapper {
           .image(containerImage(persisted.getCatalogConnector()))
           .startedAt(persisted.getStartedAt())
           .restartCount(persisted.getRestartCount())
-          .inRebootLoop(persisted.isInRebootLoop());
+          .inRebootLoop(persisted.isInRebootLoop())
+          .imageDigest(persisted.getImageDigest());
     }
     return builder.build();
   }
@@ -69,6 +70,7 @@ public class ConnectorInstanceMapper {
     response.setRestartCount(instance.getRestartCount());
     response.setStartedAt(instance.getStartedAt());
     response.setInRebootLoop(instance.isInRebootLoop());
+    response.setImageDigest(instance.getImageDigest());
     response.setLogs(instance.getLogs());
     response.setCurrentStatus(instance.getCurrentStatus());
     response.setSource(instance.getSource());

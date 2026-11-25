@@ -925,6 +925,8 @@
   "Comment (optional)": "评论 (可选)",
   "Comments": "评论",
   "Commit hash": "提交哈希",
+  "Image digest": "镜像摘要",
+  "Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.": "容器所运行镜像的摘要，由 Integration Manager 最近一次上报。它标识 rolling 或 latest 等移动标签背后的构建。",
   "Communication check": "通信检查",
   "Community": "社区版",
   "COMMUNITY": "社区",

@@ -925,6 +925,8 @@
   "Comment (optional)": "コメント（任意）",
   "Comments": "コメント",
   "Commit hash": "コミットハッシュ",
+  "Image digest": "イメージダイジェスト",
+  "Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.": "Integration Manager が最後に報告した、コンテナが実行しているイメージのダイジェストです。rolling や latest のような移動タグの背後にあるビルドを特定します。",
   "Communication check": "コミュニケーションチェック",
   "Community": "コミュニティ",
   "COMMUNITY": "コミュニティ",
