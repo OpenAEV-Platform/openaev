@@ -8,17 +8,19 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Loads notification triggers cross-tenant for the engine (trigger matching and digest evaluation).
  *
- * <p>Background-only: both callers - the trigger cache refresh on the async engine thread and the
- * digest job - run outside any request. Transactions are opened through {@link
- * TenantScopedTransaction} under {@link TxCtx#allTenants()}, never {@code @Transactional}: the
- * engine dispatches for every tenant, and a v2-active table read without a scope fails closed and
- * silently returns nothing.
+ * <p>Transactions are opened through {@link TenantScopedTransaction} under {@link
+ * TxCtx#allTenants()}, never {@code @Transactional}: the engine dispatches for every tenant, and a
+ * v2-active table read without a scope fails closed and silently returns nothing. The trigger cache
+ * also refreshes while a deletion is captured, inside the deleting transaction: there it opens a
+ * nested one.
  *
  * <p>{@code notifiers} is v2-active, and a trigger's notifiers are a lazy {@code @ManyToMany}
  * resolved by {@link ResolvedNotificationTrigger#from}. Without the scope below that collection
@@ -34,8 +36,7 @@ public class NotificationTriggerLoader {
   private final TenantScopedTransaction tenantTx;
 
   public List<ResolvedNotificationTrigger> loadEnabledTriggers(NotificationTriggerType type) {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
+    return acrossTenants(
         () ->
             notificationTriggerRepository.findAllByTypeAndEnabledTrue(type).stream()
                 .map(ResolvedNotificationTrigger::from)
@@ -48,8 +49,7 @@ public class NotificationTriggerLoader {
    */
   public List<NotificationEventRecord> loadEventsWindow(
       List<String> triggerIds, Instant from, Instant to) {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
+    return acrossTenants(
         () -> {
           List<NotificationEventRecord> events =
               notificationEventRecordRepository.findAllByTriggerIdsAndWindow(triggerIds, from, to);
@@ -60,5 +60,11 @@ public class NotificationTriggerLoader {
               });
           return events;
         });
+  }
+
+  private <T> T acrossTenants(Supplier<T> work) {
+    return TransactionSynchronizationManager.isActualTransactionActive()
+        ? tenantTx.executeNew(TxCtx.allTenants(), work)
+        : tenantTx.execute(TxCtx.allTenants(), work);
   }
 }
