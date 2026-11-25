@@ -11,9 +11,7 @@ import { type ScenarioRevisionOutput, type ScenarioUpdateInput, type ScenarioUpd
 export interface ScenarioUpdateTarget {
   scenarioId: string;
   title: string;
-  // One sentence on what applying does.
   intro: string;
-  // The version the content has after applying.
   version: string;
   // The label of the applied side of a conflict.
   theirsLabel: string;
@@ -21,9 +19,7 @@ export interface ScenarioUpdateTarget {
   removedConflictLabel: string;
   addedReason: string;
   removedReason: string;
-  // The two sides of the diff, both named with their version.
   afterLabel: string;
-  // A kept edit is the same now and after: said in words, not as a diff.
   keptCaption: string;
   // The version the client's own edits are measured from.
   installedVersion: string;
@@ -56,7 +52,6 @@ export const updateTarget = (scenarioId: string, version: string, installedVersi
   apply: input => updateScenario(scenarioId, version, input),
 });
 
-// The revision is named by its version and date, so nobody has to remember what "#2" was.
 export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOutput, installedVersion: string, t: Translate, date: string): ScenarioUpdateTarget => {
   const number = String(revision.scenario_revision_number);
   const version = revision.scenario_revision_catalog_version;

@@ -6,13 +6,10 @@ import { searchCatalogScenariosIn, UPDATE_AVAILABLE } from '../catalog/catalogSc
 import { catalogScenarioType } from '../catalog/catalogScenarioType';
 import { SCENARIO_TYPE_CHAINED } from '../scenario/ScenarioType';
 
-// More installed catalogue scenarios with a newer version than a page shows.
+// Beyond this many updates available, the count and the banners miss the rest.
 const PAGE_SIZE = 500;
 
-/**
- * The newer Filigran version of each installed scenario that has one, by scenario id: one call for the page.
- * A chained scenario cannot be updated yet, so it is left out. A new `reloadKey` reads them again.
- */
+/** The newer Filigran version of each installed scenario that can take it, by scenario id: chained ones cannot yet. */
 const useScenarioUpdatesAvailable = (reloadKey = 0) => {
   const catalog = isFeatureEnabled('CATALOG');
   const [updates, setUpdates] = useState<Map<string, string>>(new Map());

@@ -17,10 +17,7 @@ import ScenarioCreation from '../ScenarioCreation';
 const AVAILABLE_URL = '/admin/scenarios/available';
 const searchNotInstalled = searchCatalogScenariosIn(NOT_INSTALLED);
 
-interface Props {
-  // The installed scenarios with an update that can be applied: the same ones their cards offer.
-  updatesAvailable: number;
-}
+interface Props { updatesAvailable: number }
 
 const ScenariosHero: FunctionComponent<Props> = ({ updatesAvailable }) => {
   const { t } = useFormatter();
@@ -34,7 +31,6 @@ const ScenariosHero: FunctionComponent<Props> = ({ updatesAvailable }) => {
     icon: 'download',
     to: AVAILABLE_URL,
   });
-  // It opens the Available tab on them, where each card says so and offers the update.
   const updates = isFeatureEnabled('CATALOG')
     ? [{
         id: 'updates',

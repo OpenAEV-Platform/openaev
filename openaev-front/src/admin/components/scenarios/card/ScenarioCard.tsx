@@ -21,7 +21,6 @@ import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
 
 interface Props {
   scenario: ScenarioRow;
-  // The newer Filigran version of an installed catalogue scenario, when there is one.
   newerVersion?: string;
   catalogState?: ScenarioCatalogStateOutput;
   onDelete: (scenarioId: string) => void;
@@ -37,7 +36,6 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalo
   const { canLaunch, canManage } = useScenarioPermissions(scenario.scenario_id);
   const { launch, launchDrawer } = useScenarioLaunch();
   const installedVersion = scenario.scenario_version;
-  // Updating and rolling back change the content: for the people who can manage the scenario only.
   const canUpdate = catalog && canManage && !!installedVersion;
   const [target, setTarget] = useState<ScenarioUpdateTarget | null>(null);
 
@@ -129,7 +127,6 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalo
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
       />
       {launchDrawer}
-      {/* After an update or a rollback, the scenario opens on what it now is. */}
       {target && (
         <ScenarioUpdateDialog
           target={target}

@@ -40,13 +40,11 @@ const payloadNames = (payloads: ScenarioPayloadVersionOutput[]) => payloads
 interface SectionProps {
   title: string;
   count?: number;
-  // One line on what is inside, read while it is closed.
   summary?: string;
   defaultExpanded: boolean;
   children: ReactNode;
 }
 
-// A part of the preview that opens and closes: what matters is open, the rest one click away.
 const Section: FunctionComponent<SectionProps> = ({ title, count, summary, defaultExpanded, children }) => (
   <Accordion
     defaultExpanded={defaultExpanded}
@@ -91,8 +89,6 @@ const Section: FunctionComponent<SectionProps> = ({ title, count, summary, defau
   </Accordion>
 );
 
-// What an update or a rollback changes, keeps and asks of the user, then applying it. What changes is open;
-// what stays is one click away; a failure shows only itself.
 const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApplied }) => {
   const { t } = useFormatter();
   const counted = useCountLabel();
@@ -103,7 +99,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
     alignItems: 'baseline',
     gap: theme.spacing(1),
   };
-  // After applying, a message with the way back: the Versions tab, where the rollback is.
   const applied = () => {
     MESSAGING$.notifySuccess(
       <span style={{
@@ -131,12 +126,10 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   const update = useScenarioUpdate(target, applied);
   const { preview, refusal, conflicts, taken, kept, added, removed, applyError } = update;
   const notes = preview?.scenario_update_changelogs ?? [];
-  // A kept edit opens on its value, said unchanged: never as a red / green diff that reads like a change.
+  // A kept edit shows its value, not a diff: a red / green diff reads like a change.
   const [shownKept, setShownKept] = useState<string | null>(null);
 
-  // Failed (the preview did not load, or applying did not go through): only what happened and what to do,
-  // in a small dialog, as a DS warning. A refusal the server explains (400) keeps its reason, and offers no
-  // "Try again": the same request would be refused the same way.
+  // A 400 gives its reason and no retry: the same request would be refused again.
   if (applyError || refusal !== null) {
     let title = target.failedTitle;
     let description = String(t('Try again, or contact your administrator if it keeps failing.'));
@@ -158,7 +151,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         <DialogContent size="sm">
           <DialogTitle>{target.title}</DialogTitle>
           <DialogBody>
-            {/* The dialog is a layer-2 surface: its Alerts paint layer 1, as the DS surface rule says. */}
+            {/* The dialog is a layer-2 surface: its Alerts paint layer 1. */}
             <Alert severity="warning" title={title} description={description} elevation={1} />
           </DialogBody>
           <DialogFooter>
@@ -222,7 +215,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
     const changing = taken.length + added.length + removed.length;
     const lostDependencies = preview.scenario_update_lost_dependencies;
     const todo = conflicts.length + (added.length > 0 ? 1 : 0) + (lostDependencies.length > 0 ? 1 : 0);
-    // Both sides of the diff named with their version.
     const beforeLabel = kept.length > 0
       ? t('Now · v{version} with your edits', { version: target.installedVersion })
       : t('Now · v{version}', { version: target.installedVersion });
@@ -306,7 +298,6 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
               </div>
             )
           : (
-              // Something to decide or to do: open, so it isn't missed.
               <Section title={t('What you need to do')} count={todo} defaultExpanded>
                 {conflicts.length > 0 && (
                   <ScenarioConflicts

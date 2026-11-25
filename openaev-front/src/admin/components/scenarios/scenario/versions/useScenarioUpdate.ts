@@ -9,7 +9,6 @@ export type ScenarioUpdateChoice = NonNullable<ScenarioUpdateInput['scenario_upd
 // The changes an update or a rollback brings, the side chosen or the value typed for each conflict, and applying it.
 const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) => {
   const [preview, setPreview] = useState<ScenarioUpdatePreviewOutput | null>(null);
-  // Why the server refused the preview: its message and status, the message empty when it gave none.
   const [refusal, setRefusal] = useState<{
     message: string;
     status?: number;
@@ -17,9 +16,8 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
-  // Why applying failed: the scenario changed since the preview (409), or anything else.
+  // 409: the scenario changed since the preview.
   const [applyError, setApplyError] = useState<'changed' | 'failed' | null>(null);
-  // Read again when the scenario changed since the preview.
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
@@ -33,12 +31,11 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
       .catch((error: {
         message?: string;
         status?: number;
-        response?: { status?: number };
       } | false) => {
         if (active) {
           setRefusal({
             message: (error && error.message) || '',
-            status: error ? error.response?.status ?? error.status : undefined,
+            status: error ? error.status : undefined,
           });
         }
       });
@@ -85,11 +82,7 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
       scenario_update_edits: Object.fromEntries(Object.entries(edits).filter(([changeId]) => choices[changeId] === 'EDIT')),
     })
       .then(() => onApplied())
-      // The dialog then shows only that it failed, and what to do.
-      .catch((error: {
-        status?: number;
-        response?: { status?: number };
-      }) => setApplyError((error.response?.status ?? error.status) === 409 ? 'changed' : 'failed'))
+      .catch((error: { status?: number }) => setApplyError(error.status === 409 ? 'changed' : 'failed'))
       .finally(() => setApplying(false));
   };
 
@@ -107,9 +100,7 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
     applying,
     apply,
     applyError,
-    // The preview did not load: it is asked again.
     retryPreview: () => setPreviewKey(key => key + 1),
-    // The scenario changed: its latest preview replaces the error.
     showLatestPreview: () => {
       setApplyError(null);
       setChoices({});

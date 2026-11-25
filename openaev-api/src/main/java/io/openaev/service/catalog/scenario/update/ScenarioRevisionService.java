@@ -49,9 +49,7 @@ public class ScenarioRevisionService {
             scenario.getTenant().getId(), List.of(scenario.getId())));
   }
 
-  /**
-   * The newest revision of each scenario when an update kept it: that update can be rolled back.
-   */
+  /** The newest revision of each scenario, when an update kept it. */
   @Transactional(readOnly = true)
   public Map<String, NumberedRevision> lastUpdates(
       String tenantId, Collection<String> scenarioIds) {

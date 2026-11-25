@@ -56,7 +56,6 @@ const SORT_OPTIONS = [
 ];
 
 const Scenarios = () => {
-  // The installed Filigran scenarios with a newer version: their card offers the update.
   const updates = useScenarioUpdatesAvailable();
   const { t } = useFormatter();
   const theme = useTheme();

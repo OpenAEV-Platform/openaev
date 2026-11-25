@@ -18,9 +18,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <p>Transactions are opened through {@link TenantScopedTransaction} under {@link
  * TxCtx#allTenants()}, never {@code @Transactional}: the engine dispatches for every tenant, and a
- * v2-active table read without a scope fails closed and silently returns nothing. The trigger cache
- * also refreshes while a deletion is captured, inside the deleting transaction: there it opens a
- * nested one.
+ * v2-active table read without a scope fails closed and silently returns nothing. Inside a deleting
+ * transaction, it opens a nested one.
  *
  * <p>{@code notifiers} is v2-active, and a trigger's notifiers are a lazy {@code @ManyToMany}
  * resolved by {@link ResolvedNotificationTrigger#from}. Without the scope below that collection

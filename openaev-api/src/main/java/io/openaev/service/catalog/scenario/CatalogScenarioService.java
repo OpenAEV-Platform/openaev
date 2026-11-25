@@ -102,7 +102,6 @@ public class CatalogScenarioService {
                 (first, other) -> first));
   }
 
-  /** The manifest key of each catalogue version a scenario of the tenant runs. */
   @Transactional(readOnly = true)
   public Set<String> installedVersionKeys(String tenantId, String repository) {
     return scenarioService.installedFromCatalog(tenantId).stream()

@@ -102,7 +102,6 @@ const ScenariosAvailable = () => {
     fetchFacetCounts: fetchCatalogScenarioFacetCounts,
   });
   const { queryableHelpers, searchPaginationInput } = catalog;
-  // The installed scenarios with an update that can be applied: their cards say so and offer it.
   const [updatesKey, setUpdatesKey] = useState(0);
   const updates = useScenarioUpdatesAvailable(updatesKey);
   const [updating, setUpdating] = useState<ScenarioUpdateTarget | null>(null);
@@ -291,7 +290,7 @@ const ScenariosAvailable = () => {
         canInstall={canInstall}
         onClose={() => setOpened(null)}
         onInstall={scenario => install(scenario)}
-        onUpdate={opened && updateOf(opened) ? scenario => updateOf(scenario)?.() : undefined}
+        onUpdate={opened ? updateOf(opened) : undefined}
       />
       {updating && <ScenarioUpdateDialog target={updating} onClose={() => setUpdating(null)} onApplied={updated} />}
       {installing && (

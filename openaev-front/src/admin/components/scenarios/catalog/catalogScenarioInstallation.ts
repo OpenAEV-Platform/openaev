@@ -11,7 +11,7 @@ export const INSTALLED = 'INSTALLED';
 export const NOT_INSTALLED = 'NOT_INSTALLED';
 export const UPDATE_AVAILABLE = 'UPDATE_AVAILABLE';
 
-// The Available tab's list key: its filters are kept under it, and a link carrying them must name it.
+// A link carrying the Available tab's filters must name its list key.
 export const SCENARIOS_CATALOG_KEY = 'scenarios-catalog';
 
 const LABELS: Record<string, string> = {
@@ -28,23 +28,21 @@ export const installedScenarioUrl = (scenario: CatalogScenarioOutput) => (scenar
   ? scenarioUrl(scenario.catalog_scenario_installed_scenario_id)
   : undefined);
 
-// The catalogue scenarios in one installation state only.
-export const searchCatalogScenariosIn = (installation: string) => (input: SearchPaginationInput) => searchCatalogScenarios({
-  ...input,
-  filterGroup: {
-    mode: 'and',
-    filters: [buildFilter(CATALOG_SCENARIO_INSTALLATION, [installation], 'eq')],
-  },
+const installationFilterGroup = (installation: string) => ({
+  mode: 'and' as const,
+  filters: [buildFilter(CATALOG_SCENARIO_INSTALLATION, [installation], 'eq')],
 });
 
-// The Available tab, opened on the catalogue scenarios in one installation state (the list's own link format).
+export const searchCatalogScenariosIn = (installation: string) => (input: SearchPaginationInput) => searchCatalogScenarios({
+  ...input,
+  filterGroup: installationFilterGroup(installation),
+});
+
+// The Available tab filtered on one installation state, in the list's own link format.
 export const availableUrlIn = (installation: string) => `/admin/scenarios/available?query=${btoa(qs.stringify({
   ...buildSearchPagination({
     sorts: [CATALOG_ITEM_DEFAULT_SORT],
-    filterGroup: {
-      mode: 'and',
-      filters: [buildFilter(CATALOG_SCENARIO_INSTALLATION, [installation], 'eq')],
-    },
+    filterGroup: installationFilterGroup(installation),
   }),
   key: SCENARIOS_CATALOG_KEY,
 }, { allowEmptyArrays: true }))}`;
