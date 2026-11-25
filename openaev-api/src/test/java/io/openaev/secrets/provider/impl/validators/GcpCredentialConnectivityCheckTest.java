@@ -16,11 +16,13 @@ import static org.mockito.Mockito.*;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.utils.helpers.MockCloudServer;
 import io.openaev.utils.helpers.TlsTestSupport;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -787,6 +789,40 @@ class GcpCredentialConnectivityCheckTest {
         assertThat(result.status()).isEqualTo(FORMAT_ERROR);
         assertThat(cloud.requests()).isEmpty();
       }
+    }
+
+    @ParameterizedTest(name = "token_uri=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "https://oauth2.googleapis.com/token",
+          "https://accounts.google.com/o/oauth2/token",
+          "https://oauth2.europe-west3.rep.googleapis.com/token"
+        })
+    @DisplayName("Google's own token servers are never looked up, older key files included")
+    void given_googleTokenServer_should_notBeChecked(String tokenUri) {
+      // Arrange
+      ServiceAccountCredentials account = mock(ServiceAccountCredentials.class);
+      when(account.getTokenServerUri()).thenReturn(URI.create(tokenUri));
+
+      // Act & Assert
+      assertThat(GcpCredentialConnectivityCheck.declaredTokenUri(account)).isNull();
+    }
+
+    @ParameterizedTest(name = "token_uri=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://accounts.google.com/o/oauth2/token",
+          "https://googleapis.com.attacker.example/token",
+          "https://10.0.0.5/token"
+        })
+    @DisplayName("Any other token server, a look-alike or a plain-http one included, is checked")
+    void given_otherTokenServer_should_beChecked(String tokenUri) {
+      // Arrange
+      ServiceAccountCredentials account = mock(ServiceAccountCredentials.class);
+      when(account.getTokenServerUri()).thenReturn(URI.create(tokenUri));
+
+      // Act & Assert
+      assertThat(GcpCredentialConnectivityCheck.declaredTokenUri(account)).isEqualTo(tokenUri);
     }
 
     @Test

@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -64,9 +65,6 @@ public class GcpCredentialConnectivityCheck {
    */
   private static final Pattern PROJECT_ID_PATTERN =
       Pattern.compile("[A-Za-z0-9][A-Za-z0-9.:-]{0,99}");
-
-  /** The token server the Google SDK uses when a key file declares none other. */
-  private static final String OFFICIAL_TOKEN_URI = "https://oauth2.googleapis.com/token";
 
   /** Google answers a revoked or expired refresh token with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_GRANT = "invalid_grant";
@@ -208,15 +206,25 @@ public class GcpCredentialConnectivityCheck {
 
   /**
    * The token server a service account declares, which the SDK calls when no override replaces it.
-   * The official one is not returned, so it is never looked up.
+   * Google's own token servers (the current {@code oauth2.googleapis.com} and the {@code
+   * accounts.google.com} of older key files) are not returned: they are never looked up, so a
+   * network that resolves nothing but through a proxy keeps working.
    */
-  private static String declaredTokenUri(GoogleCredentials credentials) {
+  static String declaredTokenUri(GoogleCredentials credentials) {
     if (credentials instanceof ServiceAccountCredentials account
-        && account.getTokenServerUri() != null) {
-      String tokenUri = account.getTokenServerUri().toString();
-      return OFFICIAL_TOKEN_URI.equals(tokenUri) ? null : tokenUri;
+        && account.getTokenServerUri() != null
+        && !isGoogleTokenServer(account.getTokenServerUri())) {
+      return account.getTokenServerUri().toString();
     }
     return null;
+  }
+
+  private static boolean isGoogleTokenServer(URI tokenUri) {
+    String host = tokenUri.getHost() == null ? "" : tokenUri.getHost().toLowerCase(Locale.ROOT);
+    return "https".equalsIgnoreCase(tokenUri.getScheme())
+        && ("accounts.google.com".equals(host)
+            || "googleapis.com".equals(host)
+            || host.endsWith(".googleapis.com"));
   }
 
   /** An absent project id is fine, it only skips the project read. */
