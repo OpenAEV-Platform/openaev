@@ -8,9 +8,9 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.AfterEach;
@@ -20,13 +20,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-@CoversTenantIsolation("catalog_history")
+@CoversTenantIsolation("content_changes")
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("catalog_history read isolation under a tenant scope")
-class CatalogHistoryIsolationTest extends ProductionTablesIntegrationTest {
+@DisplayName("content_changes read isolation under a tenant scope")
+class ContentChangeIsolationTest extends ProductionTablesIntegrationTest {
 
-  @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -37,8 +37,8 @@ class CatalogHistoryIsolationTest extends ProductionTablesIntegrationTest {
   void seedTwoTenantsWithOneHistoryRowEach() throws Exception {
     tenantA = tenantHelper.createTenantWithCurrentUser("catalog-history-a").getId();
     String tenantB = tenantHelper.createTenantWithCurrentUser("catalog-history-b").getId();
-    historyIdA = catalogHistoryRepository.save(history(tenantA)).getId();
-    catalogHistoryRepository.save(history(tenantB));
+    historyIdA = contentChangeRepository.save(history(tenantA)).getId();
+    contentChangeRepository.save(history(tenantB));
     TenantContext.clearCurrentTenant();
     // Out of the persistence context, so the read issues the SELECT the scope rewrites.
     entityManager.flush();
@@ -57,20 +57,20 @@ class CatalogHistoryIsolationTest extends ProductionTablesIntegrationTest {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
 
     // Act & Assert
-    assertThat(catalogHistoryRepository.findAll())
-        .extracting(CatalogHistory::getId)
+    assertThat(contentChangeRepository.findAll())
+        .extracting(ContentChange::getId)
         .containsExactly(historyIdA);
   }
 
-  private static CatalogHistory history(String tenantId) {
-    CatalogHistory history = new CatalogHistory();
+  private static ContentChange history(String tenantId) {
+    ContentChange history = new ContentChange();
     history.setTenant(new Tenant(tenantId));
     history.setType(ContentType.PAYLOAD);
     history.setRepository("filigran/openaev-payloads");
     history.setExternalId("payload-" + tenantId);
     history.setVersion("1.0.0");
-    history.setAction(CatalogHistory.Action.INSTALL);
-    history.setMode(CatalogHistory.Mode.MANUAL);
+    history.setAction(ContentChange.Action.INSTALL);
+    history.setMode(ContentChange.Mode.MANUAL);
     return history;
   }
 }

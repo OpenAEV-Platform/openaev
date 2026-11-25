@@ -303,6 +303,11 @@ public class Payload
     return version;
   }
 
+  @Override
+  public String getCatalogContentId() {
+    return getIdentity().getId();
+  }
+
   /** The version the Threat Arsenal shows: its identity's latest, else a local payload. */
   @JsonIgnore
   public boolean isLatest() {

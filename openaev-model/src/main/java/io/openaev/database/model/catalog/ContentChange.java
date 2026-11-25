@@ -17,16 +17,28 @@ import org.hibernate.annotations.UuidGenerator;
 @Getter
 @Setter
 @Entity
-@Table(name = "catalog_history")
-public class CatalogHistory implements TenantBase {
+@Table(name = "content_changes")
+public class ContentChange implements TenantBase {
 
   public enum Action {
-    INSTALL,
-    UNINSTALL,
-    REVOKE,
-    LIFT_REVOCATION,
-    UPDATE,
-    ROLLBACK
+    INSTALL(false),
+    UNINSTALL(false),
+    REVOKE(false),
+    LIFT_REVOCATION(false),
+    UPDATE(true),
+    ROLLBACK(false),
+    SAVE(true);
+
+    private final boolean newVersion;
+
+    Action(boolean newVersion) {
+      this.newVersion = newVersion;
+    }
+
+    /** Made its version from the one just below it. */
+    public boolean madeVersion() {
+      return newVersion;
+    }
   }
 
   public enum Mode {
@@ -35,7 +47,7 @@ public class CatalogHistory implements TenantBase {
   }
 
   @Id
-  @Column(name = "catalog_history_id", updatable = false, nullable = false)
+  @Column(name = "content_change_id", updatable = false, nullable = false)
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
   private String id;
@@ -47,40 +59,42 @@ public class CatalogHistory implements TenantBase {
 
   // -- CONTENT --
 
-  @Column(name = "catalog_history_type", updatable = false)
+  @Column(name = "content_change_type", updatable = false)
   @Enumerated(EnumType.STRING)
   @NotNull
   private ContentType type;
 
-  @Column(name = "catalog_history_repository", updatable = false)
-  @NotNull
+  // Null for local content, which is found by its content id.
+  @Column(name = "content_change_repository", updatable = false)
   private String repository;
 
-  @Column(name = "catalog_history_external_id", updatable = false)
-  @NotNull
+  @Column(name = "content_change_external_id", updatable = false)
   private String externalId;
 
-  @Column(name = "catalog_history_version", updatable = false)
+  @Column(name = "content_change_content_id", updatable = false)
+  private String contentId;
+
+  @Column(name = "content_change_version", updatable = false)
   @NotNull
   private String version;
 
   // -- CHANGE --
 
-  @Column(name = "catalog_history_action", updatable = false)
+  @Column(name = "content_change_action", updatable = false)
   @Enumerated(EnumType.STRING)
   @NotNull
   private Action action;
 
-  @Column(name = "catalog_history_mode", updatable = false)
+  @Column(name = "content_change_mode", updatable = false)
   @Enumerated(EnumType.STRING)
   @NotNull
   private Mode mode;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "catalog_history_user", updatable = false)
+  @JoinColumn(name = "content_change_user", updatable = false)
   private User user;
 
-  @Column(name = "catalog_history_created_at", updatable = false)
+  @Column(name = "content_change_created_at", updatable = false)
   @NotNull
   private Instant createdAt = now();
 }

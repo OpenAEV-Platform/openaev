@@ -46,7 +46,7 @@ vi.mock('../../../../admin/components/threat_arsenal/hook/useActiveActions', () 
 }));
 vi.mock('../../../../admin/components/threat_arsenal/hook/useOlderVersionsInUse', () => ({
   default: () => ({
-    isInUse: (actionId: string) => state.olderVersionsInUse.includes(actionId),
+    olderUsages: (actionId: string) => (state.olderVersionsInUse.includes(actionId) ? 1 : 0),
     reload: state.reloadOlderVersions,
   }),
 }));
@@ -99,14 +99,14 @@ vi.mock('../../../../components/common/marketplace/results/MarketplaceSections',
       ))),
 }));
 vi.mock('../../../../admin/components/threat_arsenal/card/ThreatArsenalCard', () => ({
-  default: ({ action, olderVersionsInUse, onSelect, onRunTest }: {
+  default: ({ action, olderUsages, onSelect, onRunTest }: {
     action: ThreatArsenalAction;
-    olderVersionsInUse: boolean;
+    olderUsages: number;
     onSelect: () => void;
     onRunTest: () => void;
   }) => (
     <div>
-      {olderVersionsInUse && <p>{`Older versions of ${action.injector_contract_id}`}</p>}
+      {olderUsages > 0 && <p>{`Older versions of ${action.injector_contract_id}`}</p>}
       <button type="button" onClick={onSelect}>{`Open ${action.injector_contract_id}`}</button>
       <button type="button" onClick={onRunTest}>{`Test ${action.injector_contract_id}`}</button>
     </div>

@@ -4,7 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../../actions/scenarios/scenario-actions';
-import CatalogHistoryTable from '../../../../../components/common/catalog_history/CatalogHistoryTable';
+import ContentHistoryTable from '../../../../../components/common/content_history/ContentHistoryTable';
 import { useFormatter } from '../../../../../components/i18n';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useScenarioPermissions from '../../../../../utils/permissions/useScenarioPermissions';
@@ -61,7 +61,7 @@ const ScenarioVersions: FunctionComponent = () => {
           : <Skeleton className="h-24" />}
       </Paper>
       <Paper title={t('History')} padding={16}>
-        <CatalogHistoryTable history={history} />
+        <ContentHistoryTable history={history} />
       </Paper>
       {target && <ScenarioUpdateDialog target={target} onClose={() => setTarget(null)} onApplied={applied} />}
     </div>

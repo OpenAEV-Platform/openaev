@@ -3,7 +3,7 @@ package io.openaev.telemetry.metric_collectors;
 import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
@@ -30,7 +30,7 @@ public class ContentMetricCollector {
         () -> collectAndReset(actions));
   }
 
-  public void addAction(ContentType type, CatalogHistory.Action action) {
+  public void addAction(ContentType type, ContentChange.Action action) {
     actions
         .computeIfAbsent(
             Attributes.of(

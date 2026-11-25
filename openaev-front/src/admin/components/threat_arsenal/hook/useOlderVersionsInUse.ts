@@ -6,19 +6,18 @@ import { isFeatureEnabled } from '../../../../utils/utils';
 
 const payloadActionIds = (actions: ThreatArsenalAction[]) => actions.filter(action => action.action_payload).map(action => action.injector_contract_id);
 
-/** The listed actions whose injects still run an older version: one call for the actions newly listed. */
+/** How many injects still run an older version of each listed action: one call for the actions newly listed. */
 const useOlderVersionsInUse = (actions: ThreatArsenalAction[]) => {
   const catalog = isFeatureEnabled('CATALOG');
-  const [inUse, setInUse] = useState<Set<string>>(new Set());
+  const [usages, setUsages] = useState<Record<string, number>>({});
   const listed = useRef<Set<string>>(new Set());
 
   const load = (actionIds: string[]) => {
     if (!catalog || actionIds.length === 0) return;
-    fetchThreatArsenalOlderVersionsInUse({ action_ids: actionIds }).then(({ data }: { data: string[] }) => setInUse((previous) => {
-      const next = new Set([...previous].filter(actionId => !actionIds.includes(actionId)));
-      data.forEach(actionId => next.add(actionId));
-      return next;
-    }));
+    fetchThreatArsenalOlderVersionsInUse({ action_ids: actionIds }).then(({ data }: { data: Record<string, number> }) => setUsages(previous => ({
+      ...Object.fromEntries(Object.entries(previous).filter(([actionId]) => !actionIds.includes(actionId))),
+      ...data,
+    })));
   };
 
   const actionIds = payloadActionIds(actions);
@@ -29,7 +28,7 @@ const useOlderVersionsInUse = (actions: ThreatArsenalAction[]) => {
   }, [actionIds.join()]);
 
   return {
-    isInUse: (actionId: string) => inUse.has(actionId),
+    olderUsages: (actionId: string) => usages[actionId] ?? 0,
     reload: (action: ThreatArsenalAction) => load(payloadActionIds([action])),
   };
 };

@@ -6,8 +6,9 @@ import { useFormatter } from '../../../../components/i18n';
 import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
 import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../../utils/api-types';
 
-// 'move' opens the Versions tab ready to move the injects left on older versions.
-export type OpenedTab = 'versions' | 'move';
+// 'move' opens the Versions tab ready to move the injects left on older versions; 'saved' does the same right
+// after a save that added a version, saying so, with nothing ticked: the user picks what moves.
+export type OpenedTab = 'versions' | 'move' | 'saved';
 
 export const versionsTabLink = (actionId: string, tab: OpenedTab = 'versions') => `${THREAT_ARSENAL_BASE_URL}?action=${encodeURIComponent(actionId)}&tab=versions${tab === 'move' ? '&focus=move' : ''}`;
 

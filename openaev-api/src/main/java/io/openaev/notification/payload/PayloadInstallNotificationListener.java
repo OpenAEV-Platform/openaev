@@ -6,13 +6,13 @@ import static io.openaev.notification.content.ContentNotification.count;
 import static io.openaev.notification.content.ContentNotification.named;
 
 import io.openaev.database.model.Payload;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.notification.catalog.CatalogEvents.InstalledAutomatically;
 import io.openaev.notification.content.ContentNotification;
 import io.openaev.notification.content.ContentNotifier;
 import io.openaev.rest.payload.service.PayloadService;
-import io.openaev.service.catalog.event.CatalogContentChanged;
+import io.openaev.service.catalog.event.ContentChanged;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.List;
@@ -37,10 +37,10 @@ public class PayloadInstallNotificationListener {
   // A version installed by itself is told with the rest of its release.
   @Async("notificationEngineExecutor")
   @TransactionalEventListener(fallbackExecution = true)
-  public void onContentChanged(CatalogContentChanged event) {
+  public void onContentChanged(ContentChanged event) {
     if (event.type() != ContentType.PAYLOAD
-        || event.action() != CatalogHistory.Action.INSTALL
-        || event.mode() == CatalogHistory.Mode.AUTO) {
+        || event.action() != ContentChange.Action.INSTALL
+        || event.mode() == ContentChange.Mode.AUTO) {
       return;
     }
     contentNotifier.send(event.tenantId(), () -> newVersion(event.tenantId(), installed(event)));
@@ -61,7 +61,7 @@ public class PayloadInstallNotificationListener {
                 .toList());
   }
 
-  private Payload installed(CatalogContentChanged event) {
+  private Payload installed(ContentChanged event) {
     return payloadService.versions(event.tenantId(), event.externalId()).stream()
         .filter(version -> event.repository().equals(version.getCatalogRepository()))
         .filter(version -> event.version().equals(version.getVersion()))
