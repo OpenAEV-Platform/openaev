@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261124110000000__Rename_catalog_history_to_content_changes
+public class V6_20261125110000000__Rename_catalog_history_to_content_changes
     extends BaseJavaMigration {
 
   private static final String[] COLUMNS = {

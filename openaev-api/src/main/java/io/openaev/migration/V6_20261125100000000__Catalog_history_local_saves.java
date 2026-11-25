@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261124100000000__Catalog_history_local_saves extends BaseJavaMigration {
+public class V6_20261125100000000__Catalog_history_local_saves extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
