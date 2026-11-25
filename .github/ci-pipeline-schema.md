@@ -225,18 +225,18 @@ server it starts, with `search_engine`. Each value maps to a service of
 | | Core CI                                          | Nightly CI                                             |
 |-|--------------------------------------------------|--------------------------------------------------------|
 | Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
-| Browsers | chromium/chrome, firefox, webkit, one per shard  | chrome, chromium, webkit, firefox, edge                |
+| Browsers | mostly chromium/chrome, plus firefox and webkit  | chrome, chromium, webkit, firefox, edge                |
 | Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
 | Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
 | Infra tests | 3 cells on PRs, 5 on main, mixed browsers        | 7 cells across chrome, chromium, firefox, webkit, edge |
 | **Total cells** | **6 on PRs, 10 on main**                         | **25**                                                 |
 
 `ubi9` and `edge` are nightly-only: they exercise the same JAR and engine as the core cells.
-Core CI spreads its shards over Chromium, Firefox and WebKit instead of running every
-browser: pull requests and main each run all three engines, and main moves most suites to
-another engine than pull requests. The `remaining` catch-all stays on Chromium on amd64,
-the only engine that collects E2E coverage, and WebKit stays off arm64, where it runs
-about twice as slow. `artifact_suffix` must stay unique per cell — the report artifact is named
+Core CI keeps most shards on Chromium and moves a few to Firefox and WebKit instead of
+running every browser: pull requests run one shard on each of them, main runs two on
+Firefox and one on WebKit, on other shards than pull requests. The `remaining` catch-all
+stays on Chromium on amd64, the only engine that collects E2E coverage, and WebKit stays
+off arm64, where it runs about twice as slow. `artifact_suffix` must stay unique per cell — the report artifact is named
 `playwright-report-<browser><suffix>` and duplicates fail the upload.
 
 ---
