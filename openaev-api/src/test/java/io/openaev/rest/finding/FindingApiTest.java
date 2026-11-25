@@ -1608,6 +1608,62 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       }
     }
 
+    @Test
+    @DisplayName("The summary reads first/last seen, not the row's update time (#9822)")
+    void summaryAggregate_readsLastSeenNotUpdateDate() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+
+      // A migration rewrote the detected row late: its update time is not a detection.
+      Instant rewrittenAt = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), Instant.parse("2026-01-05T00:00:00Z"), rewrittenAt);
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      // A row without first/last seen falls back to its creation and update times.
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-02-02T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+
+      assertThat(seen.getOccurrences()).isEqualTo(2);
+      assertThat(seen.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
+    }
+
+    private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_first_seen = CAST(:firstSeen AS timestamptz),"
+                  + " finding_last_seen = CAST(:lastSeen AS timestamptz) WHERE finding_id = :id")
+          .setParameter("firstSeen", firstSeen == null ? null : firstSeen.toString())
+          .setParameter("lastSeen", lastSeen == null ? null : lastSeen.toString())
+          .setParameter("id", findingId)
+          .executeUpdate();
+    }
+
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {
       entityManager
           .createNativeQuery(

@@ -39,11 +39,14 @@ public interface FindingRepository
   /**
    * First/last seen and occurrence count for a (type, value) finding group. A single {@code
    * Finding} row is one occurrence per inject, so the true "first seen" is the MIN of the group's
-   * creation dates and "last seen" the MAX of the group's update dates - not the dates of an
-   * arbitrary representative row.
+   * first seen dates and "last seen" the MAX of the group's last seen dates - not the dates of an
+   * arbitrary representative row. A finding without first/last seen (written before they existed)
+   * falls back to its creation and update dates; the update date alone moves on any write to the
+   * row (a migration, an asset or status change), so it is never preferred to last seen.
    */
   @Query(
-      "SELECT MIN(f.creationDate) AS firstSeen, MAX(f.updateDate) AS lastSeen,"
+      "SELECT MIN(COALESCE(f.firstSeen, f.creationDate)) AS firstSeen,"
+          + " MAX(COALESCE(f.lastSeen, f.updateDate)) AS lastSeen,"
           + " COUNT(f) AS occurrences FROM Finding f"
           + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   FindingSeenAggregate findSeenAggregate(
