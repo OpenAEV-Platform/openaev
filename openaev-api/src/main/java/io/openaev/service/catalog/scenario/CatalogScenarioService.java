@@ -93,7 +93,8 @@ public class CatalogScenarioService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
-    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
+    return scenarioService.installedFromCatalog(tenantId).stream()
+        .filter(installed -> externalIds.contains(installed.getExternalId()))
         .collect(
             Collectors.toMap(
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
@@ -104,7 +105,8 @@ public class CatalogScenarioService {
   /** The manifest key of each catalogue version a scenario of the tenant runs. */
   @Transactional(readOnly = true)
   public Set<String> installedVersionKeys(String tenantId, String repository) {
-    return scenarioService.installedCatalogVersions(tenantId, repository).stream()
+    return scenarioService.installedFromCatalog(tenantId).stream()
+        .filter(installed -> repository.equals(installed.getRepository()))
         .map(installed -> CatalogManifest.key(installed.getExternalId(), installed.getVersion()))
         .collect(Collectors.toSet());
   }

@@ -12,7 +12,7 @@ import io.openaev.database.model.PayloadType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadIdentity;
-import io.openaev.database.raw.RawInstalledCatalogVersion;
+import io.openaev.database.raw.RawInstalledPayloadVersion;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -117,7 +117,7 @@ public class CatalogPayloadService {
         .collect(
             Collectors.toMap(
                 v -> CatalogOffer.key(v.getRepository(), v.getExternalId()),
-                RawInstalledCatalogVersion::getVersion));
+                RawInstalledPayloadVersion::getVersion));
   }
 
   // -- DELETE --

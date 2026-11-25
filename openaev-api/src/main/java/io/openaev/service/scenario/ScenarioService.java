@@ -30,7 +30,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
-import io.openaev.database.raw.RawInstalledCatalogVersion;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
@@ -937,16 +936,10 @@ public class ScenarioService {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
-  /** The scenarios of the tenant installed from these catalogue items. */
+  /** The scenarios of the tenant installed from the catalogue, with the version each runs. */
   @Transactional(readOnly = true)
-  public List<RawCatalogInstalledScenario> installedFromCatalog(
-      String tenantId, Collection<String> externalIds) {
-    return scenarioRepository.findInstalledFromCatalog(tenantId, externalIds);
-  }
-
-  public List<RawInstalledCatalogVersion> installedCatalogVersions(
-      String tenantId, String repository) {
-    return scenarioRepository.findInstalledCatalogVersions(tenantId, repository);
+  public List<RawCatalogInstalledScenario> installedFromCatalog(String tenantId) {
+    return scenarioRepository.findInstalledFromCatalog(tenantId);
   }
 
   // -- EXPORT --
