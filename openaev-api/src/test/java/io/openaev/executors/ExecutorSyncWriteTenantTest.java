@@ -154,8 +154,13 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     assertThat(sourceTagTenants(executor)).containsExactly(tenantB);
   }
 
-  // The sync reuses an endpoint of the tenant found by MAC address: each test syncs a device
-  // with its own MAC, so no test reads an endpoint that another test created.
+  // The sync reuses the agent and the endpoint of the tenant found by external reference or by MAC
+  // address, and the asset group found by external reference: each test syncs a device with its
+  // own identifiers, so no test reads or collides with a row that another test created.
+  private static String uniqueId(String prefix) {
+    return prefix + "-" + UUID.randomUUID();
+  }
+
   private static String uniqueMac() {
     String hex = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     StringBuilder mac = new StringBuilder();
@@ -168,8 +173,15 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     return mac.toString();
   }
 
-  private CrowdStrikeExecutorService crowdStrikeSync(Executor executor) {
-    String hostGroupId = "host-group-" + UUID.randomUUID();
+  private static CrowdStrikeDevice crowdStrikeDevice() {
+    CrowdStrikeDevice device = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
+    device.setDevice_id(uniqueId("crowdstrike-device"));
+    device.setMac_address(uniqueMac());
+    return device;
+  }
+
+  private CrowdStrikeExecutorService crowdStrikeSync(Executor executor, CrowdStrikeDevice device) {
+    String hostGroupId = uniqueId("host-group");
     CrowdStrikeHostGroup hostGroup = new CrowdStrikeHostGroup();
     hostGroup.setId(hostGroupId);
     hostGroup.setName("crowdstrike");
@@ -177,8 +189,6 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     resourcesGroups.setResources(List.of(hostGroup));
     CrowdStrikeExecutorClient client = mock(CrowdStrikeExecutorClient.class);
     when(client.hostGroup(hostGroupId)).thenReturn(resourcesGroups);
-    CrowdStrikeDevice device = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
-    device.setMac_address(uniqueMac());
     when(client.devices(hostGroupId)).thenReturn(List.of(device));
     CrowdStrikeExecutorConfig config = mock(CrowdStrikeExecutorConfig.class);
     when(config.getHostGroup()).thenReturn(hostGroupId);
@@ -195,7 +205,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     void given_executorInTenantB_should_writeEveryRowInTenantB() {
       // Arrange
       Executor executor = saveInTenantB(executorFixture.createCrowdstrikeExecutor());
-      CrowdStrikeExecutorService service = crowdStrikeSync(executor);
+      CrowdStrikeExecutorService service = crowdStrikeSync(executor, crowdStrikeDevice());
       assertNoAmbientTenant();
 
       // Act
@@ -211,7 +221,8 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     void given_agentsSyncedInTenantB_should_cleanThemFromTheGarbageCollector() {
       // Arrange
       Executor executor = saveInTenantB(executorFixture.createCrowdstrikeExecutor());
-      crowdStrikeSync(executor).run();
+      CrowdStrikeDevice device = crowdStrikeDevice();
+      crowdStrikeSync(executor, device).run();
       CrowdStrikeExecutorContextService contextService =
           mock(CrowdStrikeExecutorContextService.class);
       CrowdStrikeGarbageCollectorService garbageCollector =
@@ -231,8 +242,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       verify(contextService).executeActions(actions.capture());
       assertThat(actions.getValue())
           .extracting(CrowdStrikeAction::getAgentExternalReference)
-          .containsExactly(
-              CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice().getDevice_id());
+          .containsExactly(device.getDevice_id());
       assertNoAmbientTenant();
     }
   }
@@ -248,7 +258,11 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       Executor executor = saveInTenantB(executorFixture.createSentineloneExecutor());
       SentinelOneExecutorClient client = mock(SentinelOneExecutorClient.class);
       SentinelOneAgent agent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
+      agent.setUuid(uniqueId("sentinelone-agent"));
       agent.getNetworkInterfaces().getFirst().setPhysical(uniqueMac());
+      agent.setAccountId(uniqueId("account"));
+      agent.setSiteId(uniqueId("site"));
+      agent.setGroupId(uniqueId("group"));
       when(client.agents()).thenReturn(Set.of(agent));
       SentinelOneExecutorService service =
           new SentinelOneExecutorService(
@@ -273,7 +287,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     void given_executorInTenantB_should_writeEveryRowInTenantB() {
       // Arrange
       Executor executor = saveInTenantB(executorFixture.createTaniumExecutor());
-      String computerGroupId = "computer-group-" + UUID.randomUUID();
+      String computerGroupId = uniqueId("computer-group");
       TaniumComputerGroup computerGroup = new TaniumComputerGroup();
       computerGroup.setId(computerGroupId);
       computerGroup.setName("tanium");
@@ -282,6 +296,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       TaniumExecutorClient client = mock(TaniumExecutorClient.class);
       when(client.computerGroup(computerGroupId)).thenReturn(dataComputerGroup);
       NodeEndpoint endpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
+      endpoint.getNode().setId(uniqueId("tanium-endpoint"));
       endpoint.getNode().setMacAddresses(new String[] {uniqueMac()});
       when(client.endpoints(computerGroupId)).thenReturn(List.of(endpoint));
       TaniumExecutorConfig config = mock(TaniumExecutorConfig.class);
