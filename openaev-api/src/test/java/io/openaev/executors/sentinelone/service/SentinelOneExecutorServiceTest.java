@@ -2,6 +2,7 @@ package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -118,6 +119,47 @@ public class SentinelOneExecutorServiceTest {
     assertEquals(
         sentinelOneAgent.getSiteId(),
         assetGroupCaptor.getAllValues().get(2).getExternalReference());
+  }
+
+  @Test
+  void given_agentsInDistinctGroups_should_addEachEndpointToTheGroupsOfItsAgent() {
+    // Arrange: two SentinelOne agents in distinct accounts, sites and groups
+    SentinelOneAgent otherSentinelOneAgent =
+        SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
+    otherSentinelOneAgent.setUuid("otherExternalRefSentinelOne");
+    otherSentinelOneAgent.setAccountId("otherAccountId");
+    otherSentinelOneAgent.setSiteId("otherSiteId");
+    otherSentinelOneAgent.setGroupId("otherGroupId");
+    when(client.agents()).thenReturn(Set.of(sentinelOneAgent, otherSentinelOneAgent));
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    Endpoint otherEndpoint = EndpointFixture.createEndpoint();
+    when(endpointService.syncAgentsEndpoints(any(), any(), any()))
+        .thenReturn(
+            List.of(
+                AgentFixture.createAgent(endpoint, sentinelOneAgent.getUuid()),
+                AgentFixture.createAgent(otherEndpoint, otherSentinelOneAgent.getUuid())));
+    sentinelOneExecutorService.setExecutor(sentinelOneExecutor);
+
+    // Act
+    sentinelOneExecutorService.run();
+
+    // Assert: each account, site and group holds the endpoint of its own agent only
+    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
+    verify(assetGroupService, times(6))
+        .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture(), any());
+    Map<String, List<Asset>> assetsByGroup = new HashMap<>();
+    assetGroupCaptor
+        .getAllValues()
+        .forEach(group -> assetsByGroup.put(group.getExternalReference(), group.getAssets()));
+    assertThat(assetsByGroup)
+        .containsOnlyKeys(
+            "accountId", "siteId", "groupId", "otherAccountId", "otherSiteId", "otherGroupId");
+    for (String groupId : List.of("accountId", "siteId", "groupId")) {
+      assertThat(assetsByGroup.get(groupId)).as(groupId).containsExactly(endpoint);
+    }
+    for (String groupId : List.of("otherAccountId", "otherSiteId", "otherGroupId")) {
+      assertThat(assetsByGroup.get(groupId)).as(groupId).containsExactly(otherEndpoint);
+    }
   }
 
   @Test
