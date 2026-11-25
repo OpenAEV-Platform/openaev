@@ -138,6 +138,14 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
         executor.getId());
   }
 
+  private List<String> assetGroupTenantsByExternalReference(String... externalReferences) {
+    return jdbc.queryForList(
+        "SELECT DISTINCT tenant_id FROM asset_groups"
+            + " WHERE asset_group_external_reference = ANY (?)",
+        String.class,
+        (Object) externalReferences);
+  }
+
   private List<String> sourceTagTenants(Executor executor) {
     return jdbc.queryForList(
         "SELECT DISTINCT t.tenant_id FROM tags t"
@@ -273,7 +281,14 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       service.run();
 
       // Assert
-      assertEveryRowInTenantB(executor);
+      assertThat(agentTenants(executor)).containsExactly(tenantB);
+      assertThat(endpointTenants(executor)).containsExactly(tenantB);
+      // Matched by external reference: the sync saves these groups with no member (#9827).
+      assertThat(
+              assetGroupTenantsByExternalReference(
+                  agent.getAccountId(), agent.getSiteId(), agent.getGroupId()))
+          .containsExactly(tenantB);
+      assertThat(sourceTagTenants(executor)).containsExactly(tenantB);
       assertNoAmbientTenant();
     }
   }
