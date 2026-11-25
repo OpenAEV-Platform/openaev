@@ -195,15 +195,25 @@ export interface AggregatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -234,7 +244,7 @@ export interface AggregatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -6638,7 +6648,7 @@ export interface FindingOutput {
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
-   * First time the finding was seen
+   * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
@@ -6648,12 +6658,22 @@ export interface FindingOutput {
    */
   finding_field: string;
   /**
+   * First time the finding was detected; the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
   /** Inject that produced the finding */
   finding_inject_id?: string;
+  /**
+   * Last time the finding was detected; the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * When a re-test last ended on the finding
    * @format date-time
@@ -6708,7 +6728,7 @@ export interface FindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written. Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -11825,10 +11845,15 @@ export interface RelatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -11836,6 +11861,11 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
@@ -11875,7 +11905,7 @@ export interface RelatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;

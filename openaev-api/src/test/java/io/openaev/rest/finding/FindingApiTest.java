@@ -1717,6 +1717,155 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
     }
 
+    @Test
+    @DisplayName("Get, search and summary expose detection times, not write time (#9846)")
+    void given_aWriteAfterTheLastDetection_should_exposeLastSeenOnGetSearchAndSummary()
+        throws Exception {
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // Last detection at T1, a later write of the row (status, asset link, migration) at T2.
+      Instant createdAt = Instant.parse("2026-01-05T00:00:00Z");
+      Instant firstSeen = Instant.parse("2026-01-01T00:00:00Z");
+      Instant lastSeenT1 = Instant.parse("2026-03-02T00:00:00Z");
+      Instant writtenT2 = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), createdAt, writtenT2);
+      setFindingSeen(detected.getId(), firstSeen, lastSeenT1);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(getBody, "$.finding_created_at")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_updated_at")).isEqualTo(writtenT2);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(JsonPath.<Integer>read(searchBody, "$.content.length()")).isEqualTo(1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_updated_at")).isEqualTo(writtenT2);
+
+      String summaryBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId() + "/summary").with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(summaryBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(summaryBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+    }
+
+    @Test
+    @DisplayName("Get and search fall back to creation and update times (#9846)")
+    void given_noDetectionTimes_should_fallBackToCreationAndUpdateTimes() throws Exception {
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Instant createdAt = Instant.parse("2026-02-01T00:00:00Z");
+      Instant updatedAt = Instant.parse("2026-02-02T00:00:00Z");
+      setFindingDates(legacy.getId(), createdAt, updatedAt);
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + legacy.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(updatedAt);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(updatedAt);
+    }
+
+    @Test
+    @DisplayName("Distinct search aggregates detection times across a group (#9846)")
+    void given_aGroupOfOccurrences_should_aggregateSeenWithFallback() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // The detected row was rewritten late (T2); the legacy row has no detection times.
+      setFindingDates(
+          detected.getId(),
+          Instant.parse("2026-01-05T00:00:00Z"),
+          Instant.parse("2026-11-24T22:28:00Z"));
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-04-01T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      Page<AggregatedFindingOutput> page =
+          findingDistinctSearchService.searchDistinctFindings(new SearchPaginationInput());
+
+      assertThat(page.getContent()).hasSize(1);
+      AggregatedFindingOutput group = page.getContent().getFirst();
+      // MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen, updateDate)), the rule
+      // of the summary aggregate: the legacy row's update time wins over the detected row's last
+      // seen, the detected row's late write does not count as a detection.
+      assertThat(group.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(group.getLastSeen()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
+      assertThat(group.getCreationDate()).isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
+      assertThat(group.getUpdateDate()).isEqualTo(Instant.parse("2026-11-24T22:28:00Z"));
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+      assertThat(seen.getFirstSeen()).isEqualTo(group.getFirstSeen());
+      assertThat(seen.getLastSeen()).isEqualTo(group.getLastSeen());
+    }
+
+    private Instant readInstant(String json, String path) {
+      return Instant.parse(JsonPath.<String>read(json, path));
+    }
+
     private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
       entityManager
           .createNativeQuery(
