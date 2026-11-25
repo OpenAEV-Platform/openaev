@@ -5235,5 +5235,7 @@
   "Not found across the XTM Platform": "No encontrado en la plataforma XTM",
   "Found": "Encontrado",
   "Not found": "No encontrado",
-  "Unavailable": "No disponible"
+  "Unavailable": "No disponible",
+  "This change cannot be made. Contact your administrator if you need it.": "Este cambio no se puede hacer. Contacte con su administrador si lo necesita.",
+  "Version revoked": "Versión revocada"
 }

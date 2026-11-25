@@ -19,6 +19,7 @@ import { ScenarioTypeIcon } from '../scenario/ScenarioType';
 import ScenarioUpdateDialog from '../scenario/versions/ScenarioUpdateDialog';
 import { rollbackTarget, type ScenarioUpdateTarget, updateTarget } from '../scenario/versions/scenarioUpdateTargets';
 import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
+import useInstalledVersionRevoked from './useInstalledVersionRevoked';
 
 interface Props {
   scenario: ScenarioRow;
@@ -56,15 +57,19 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, onDele
     event.stopPropagation();
     if (newerVersion && installedVersion) setTarget(updateTarget(scenario.scenario_id, newerVersion, installedVersion, t));
   };
-  const banner = canUpdate && newerVersion && newerVersion !== installedVersion && (
+  const updatable = canUpdate && !!newerVersion && newerVersion !== installedVersion;
+  // A revoked installed version warns as a revoked payload does, with the update as the way out.
+  const revoked = useInstalledVersionRevoked(scenario.scenario_id, updatable);
+  const banner = updatable && (
     <CardBanner
-      severity="info"
+      severity={revoked ? 'error' : 'info'}
+      icon={revoked ? 'ban' : undefined}
       action={{
         label: t('Update'),
         onClick: openUpdate,
       }}
     >
-      {t('Update available')}
+      {revoked ? t('Version revoked') : t('Update available')}
     </CardBanner>
   );
   const rollbackEntries = lastUpdate && installedVersion

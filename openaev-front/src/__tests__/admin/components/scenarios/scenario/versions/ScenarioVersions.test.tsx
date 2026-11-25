@@ -405,14 +405,29 @@ describe('ScenarioVersions', () => {
     // Act
     await open(action);
 
-    // Assert: a warning, the server's reason under it, and a way to try again or close.
+    // Assert: a warning, the server's reason under it, and only Close: the same request would be refused again.
     const failed = await screen.findByRole('dialog');
     expect(await within(failed).findByText('The preview didn\'t load. Nothing was changed.')).toBeInTheDocument();
     expect(within(failed).getByText(refusal)).toBeInTheDocument();
     expect(failed.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
-    expect(within(failed).getByRole('button', { name: 'Try again' })).toBeEnabled();
+    expect(within(failed).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     fireEvent.click(within(failed).getAllByRole('button', { name: 'Close' })[0]);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('given_aPreviewThatFailedToLoad_should_offerToTryAgain', async () => {
+    // Arrange
+    renderVersions();
+    await screen.findAllByRole('button', { name: 'Update' });
+    mocks.simpleCall.mockRejectedValueOnce({ status: 500 });
+
+    // Act
+    await open('Update');
+
+    // Assert
+    const failed = await screen.findByRole('dialog');
+    expect(await within(failed).findByText('Try again, or contact your administrator if it keeps failing.')).toBeInTheDocument();
+    expect(within(failed).getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 
   it('given_anEditStarted_should_markTheEditButtonPressed', async () => {

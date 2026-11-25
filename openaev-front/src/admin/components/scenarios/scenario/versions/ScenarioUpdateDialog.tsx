@@ -135,15 +135,19 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   const [shownKept, setShownKept] = useState<string | null>(null);
 
   // Failed (the preview did not load, or applying did not go through): only what happened and what to do,
-  // in a small dialog, as a DS warning. A refusal the server explains (400) keeps its reason.
+  // in a small dialog, as a DS warning. A refusal the server explains (400) keeps its reason, and offers no
+  // "Try again": the same request would be refused the same way.
   if (applyError || refusal !== null) {
     let title = target.failedTitle;
     let description = String(t('Try again, or contact your administrator if it keeps failing.'));
-    let next = <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>;
+    let next: ReactNode = <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>;
     if (refusal !== null) {
       title = String(t('The preview didn\'t load. Nothing was changed.'));
-      if (refusal.status === 400 && refusal.message) description = refusal.message;
       next = <Button onClick={update.retryPreview}>{t('Try again')}</Button>;
+      if (refusal.status === 400) {
+        description = refusal.message || String(t('This change cannot be made. Contact your administrator if you need it.'));
+        next = null;
+      }
     } else if (applyError === 'changed') {
       title = String(t('The scenario changed since this preview. Nothing was changed.'));
       description = String(t('See the latest preview before applying.'));

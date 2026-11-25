@@ -5235,5 +5235,7 @@
   "Not found across the XTM Platform": "Не найдено на платформе XTM",
   "Found": "Найдено",
   "Not found": "Не найдено",
-  "Unavailable": "Недоступно"
+  "Unavailable": "Недоступно",
+  "This change cannot be made. Contact your administrator if you need it.": "Это изменение выполнить нельзя. Если оно вам нужно, обратитесь к администратору.",
+  "Version revoked": "Версия отозвана"
 }

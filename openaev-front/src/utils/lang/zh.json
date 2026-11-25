@@ -5235,5 +5235,7 @@
   "Not found across the XTM Platform": "在 XTM 平台中未找到",
   "Found": "已找到",
   "Not found": "未找到",
-  "Unavailable": "不可用"
+  "Unavailable": "不可用",
+  "This change cannot be made. Contact your administrator if you need it.": "无法进行此更改。如有需要，请联系您的管理员。",
+  "Version revoked": "版本已撤销"
 }

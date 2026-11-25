@@ -5235,5 +5235,7 @@
   "Not found across the XTM Platform": "XTM 플랫폼에서 찾을 수 없음",
   "Found": "찾음",
   "Not found": "찾을 수 없음",
-  "Unavailable": "사용할 수 없음"
+  "Unavailable": "사용할 수 없음",
+  "This change cannot be made. Contact your administrator if you need it.": "이 변경은 할 수 없습니다. 필요하면 관리자에게 문의하세요.",
+  "Version revoked": "철회된 버전"
 }

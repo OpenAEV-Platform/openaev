@@ -5235,5 +5235,7 @@
   "Not found across the XTM Platform": "XTM プラットフォームで見つかりません",
   "Found": "見つかりました",
   "Not found": "見つかりません",
-  "Unavailable": "利用できません"
+  "Unavailable": "利用できません",
+  "This change cannot be made. Contact your administrator if you need it.": "この変更は実行できません。必要な場合は管理者にお問い合わせください。",
+  "Version revoked": "バージョンは取り消されました"
 }
