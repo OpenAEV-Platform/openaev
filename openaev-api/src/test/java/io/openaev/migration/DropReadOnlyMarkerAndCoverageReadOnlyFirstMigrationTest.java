@@ -1,134 +1,95 @@
 package io.openaev.migration;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.migration.MigrationSessions.columnExists;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import java.sql.Connection;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
-import org.hibernate.Session;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * The migration drops the two read-only marker columns and the coverage_scenario_read_only_first
  * tenant setting rows an instance that ran V6_20261121160000000 holds, and a rerun changes nothing.
- * The columns and the row are seeded over the session connection; the test transaction rolls them
- * back.
+ * The migration commits its own transaction, so the state is committed and removed after the test.
  */
-@Transactional
 @DisplayName("Migration V6_20261124100000000: drop read-only marker and read-only-first setting")
 class DropReadOnlyMarkerAndCoverageReadOnlyFirstMigrationTest extends IntegrationTest {
+
+  private static final String SETTING_KEY = "coverage_scenario_read_only_first";
+  private static final String KEPT_KEY = "asset_discovery_tag_migration_test";
 
   @Autowired
   private V6_20261124100000000__Drop_read_only_marker_and_coverage_read_only_first migration;
 
+  @Autowired private DataSource dataSource;
+
+  private JdbcTemplate jdbc;
+
+  @BeforeEach
+  void setUp() {
+    jdbc = new JdbcTemplate(dataSource);
+  }
+
+  @AfterEach
+  void removeState() {
+    jdbc.execute(
+        "ALTER TABLE injectors_contracts DROP COLUMN IF EXISTS injector_contract_read_only");
+    jdbc.execute("ALTER TABLE payloads DROP COLUMN IF EXISTS payload_read_only");
+    jdbc.update("DELETE FROM parameters WHERE parameter_key IN (?, ?)", SETTING_KEY, KEPT_KEY);
+  }
+
   @Test
   @DisplayName("Given the columns and the setting row should drop them, a rerun is a no-op")
-  void given_columnsAndSettingRow_should_dropThem() {
+  void given_columnsAndSettingRow_should_dropThem() throws Exception {
     // Arrange: the state V6_20261121160000000 left on a deployed instance
-    String keptId = UUID.randomUUID().toString();
-    execute(
+    jdbc.execute(
         "ALTER TABLE injectors_contracts"
             + " ADD COLUMN IF NOT EXISTS injector_contract_read_only BOOLEAN NOT NULL DEFAULT false");
-    execute(
+    jdbc.execute(
         "ALTER TABLE payloads"
             + " ADD COLUMN IF NOT EXISTS payload_read_only BOOLEAN NOT NULL DEFAULT false");
-    execute(
-        "INSERT INTO parameters (parameter_id, parameter_key, parameter_value, tenant_id)"
-            + " VALUES ('%s', 'coverage_scenario_read_only_first', 'true', '%s')",
-        UUID.randomUUID(), DEFAULT_TENANT_UUID);
-    execute(
-        "INSERT INTO parameters (parameter_id, parameter_key, parameter_value, tenant_id)"
-            + " VALUES ('%s', 'asset_discovery_tag_migration_test', 'true', '%s')",
-        keptId, DEFAULT_TENANT_UUID);
+    insertSetting(SETTING_KEY);
+    String keptId = insertSetting(KEPT_KEY);
 
     // Act
     runMigration();
     runMigration();
 
     // Assert
-    assertThat(count(columnQuery("injectors_contracts", "injector_contract_read_only"))).isZero();
-    assertThat(count(columnQuery("payloads", "payload_read_only"))).isZero();
+    assertThat(columnExists(jdbc, "injectors_contracts", "injector_contract_read_only")).isFalse();
+    assertThat(columnExists(jdbc, "payloads", "payload_read_only")).isFalse();
     assertThat(
-            count(
-                "SELECT COUNT(*) FROM parameters"
-                    + " WHERE parameter_key = 'coverage_scenario_read_only_first'"))
+            jdbc.queryForObject(
+                "SELECT count(*) FROM parameters WHERE parameter_key = ?", Long.class, SETTING_KEY))
         .isZero();
-    assertThat(count("SELECT COUNT(*) FROM parameters WHERE parameter_id = '" + keptId + "'"))
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM parameters WHERE parameter_id = ?", Long.class, keptId))
         .isOne();
   }
 
-  private static String columnQuery(String table, String column) {
-    return "SELECT COUNT(*) FROM information_schema.columns"
-        + " WHERE table_name = '"
-        + table
-        + "' AND column_name = '"
-        + column
-        + "'";
+  private String insertSetting(String key) {
+    String id = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO parameters (parameter_id, parameter_key, parameter_value, tenant_id)"
+            + " VALUES (?, ?, 'true', ?)",
+        id,
+        key,
+        DEFAULT_TENANT_UUID);
+    return id;
   }
 
-  private void runMigration() {
-    withConnection(connection -> migration.migrate(contextOn(connection)));
-  }
-
-  private long count(String sql) {
-    long[] result = new long[1];
-    withConnection(
-        connection -> {
-          try (var statement = connection.createStatement();
-              var row = statement.executeQuery(sql)) {
-            assertThat(row.next()).isTrue();
-            result[0] = row.getLong(1);
-          }
-        });
-    return result[0];
-  }
-
-  @FunctionalInterface
-  private interface ConnectionWork {
-    void run(Connection connection) throws Exception;
-  }
-
-  private void withConnection(ConnectionWork work) {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(
-            connection -> {
-              try {
-                work.run(connection);
-              } catch (RuntimeException | AssertionError e) {
-                throw e;
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
-  }
-
-  private void execute(String sql, Object... args) {
-    withConnection(
-        connection -> {
-          try (var statement = connection.createStatement()) {
-            statement.execute(sql.formatted(args));
-          }
-        });
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
+  private void runMigration() throws Exception {
+    try (Connection connection = dataSource.getConnection()) {
+      MigrationSessions.migrate(migration, connection);
+    }
   }
 }
