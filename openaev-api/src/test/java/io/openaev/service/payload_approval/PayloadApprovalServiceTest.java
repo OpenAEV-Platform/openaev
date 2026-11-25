@@ -3,12 +3,10 @@ package io.openaev.service.payload_approval;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Command;
@@ -17,12 +15,12 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Payload.PAYLOAD_APPROVAL_STATUS;
 import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.PayloadApproval.ORIGIN;
-import io.openaev.database.model.PayloadApprovalNotification.EVENT;
 import io.openaev.database.model.PayloadIdentity;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadApprovalRepository;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadApprovalChanged;
 import io.openaev.notification.content.ContentNotificationEvents.PayloadVersionAdded;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.payload.PayloadVersionService;
@@ -46,7 +44,6 @@ import org.springframework.context.ApplicationEventPublisher;
 class PayloadApprovalServiceTest {
 
   @Mock private PayloadApprovalRepository payloadApprovalRepository;
-  @Mock private PayloadApprovalNotificationService payloadApprovalNotificationService;
   @Mock private PayloadVersionService payloadVersionService;
   @Mock private InjectorContractRepository injectorContractRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -91,6 +88,13 @@ class PayloadApprovalServiceTest {
     return command;
   }
 
+  /** The approval change a version announces: waiting for approval, or rejected. */
+  private static PayloadApprovalChanged announced(
+      Payload version, boolean rejected, boolean wasApproved, String reason) {
+    return new PayloadApprovalChanged(
+        Tenant.DEFAULT_TENANT_UUID, version.getId(), rejected, wasApproved, reason);
+  }
+
   private PayloadApproval lastEntry() {
     ArgumentCaptor<PayloadApproval> captor = ArgumentCaptor.forClass(PayloadApproval.class);
     verify(payloadApprovalRepository, atLeastOnce()).save(captor.capture());
@@ -115,13 +119,13 @@ class PayloadApprovalServiceTest {
       // -- ASSERT --
       assertThat(filigran.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.APPROVED);
       assertThat(lastEntry().getOrigin()).isEqualTo(ORIGIN.CATALOG);
-      verify(payloadApprovalNotificationService, never()).recordPending(any(), any(), anyBoolean());
+      verify(eventPublisher, never()).publishEvent(any(PayloadApprovalChanged.class));
     }
 
     @Test
     @DisplayName(
         "Given a catalogue version from a source that is not trusted, onWrite should leave it"
-            + " pending")
+            + " pending and announce it")
     void given_untrustedCatalogueVersion_should_bePending() {
       // -- ARRANGE --
       identity.setManaged(true);
@@ -133,7 +137,7 @@ class PayloadApprovalServiceTest {
 
       // -- ASSERT --
       assertThat(community.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
-      verify(payloadApprovalNotificationService).recordPending(community, null, false);
+      verify(eventPublisher).publishEvent(announced(community, false, false, null));
     }
 
     @Test
@@ -152,13 +156,14 @@ class PayloadApprovalServiceTest {
       PayloadApproval entry = lastEntry();
       assertThat(entry.isAutomatic()).isTrue();
       assertThat(entry.getActor()).isEqualTo(approver);
+      verify(eventPublisher, never()).publishEvent(any(PayloadApprovalChanged.class));
     }
 
     @Test
     @DisplayName(
         "Given a new version by an author of an approved payload, onWrite should make it pending"
-            + " and notify approvers of a new version")
-    void given_authorNewVersion_should_bePendingAndNotify() {
+            + " and announce that it waits for approval")
+    void given_authorNewVersion_should_bePendingAndAnnounced() {
       // -- ARRANGE --
       version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
       Command edited = version("1.1.0", PAYLOAD_APPROVAL_STATUS.PENDING);
@@ -168,7 +173,7 @@ class PayloadApprovalServiceTest {
 
       // -- ASSERT --
       assertThat(edited.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
-      verify(payloadApprovalNotificationService).recordPending(edited, author, true);
+      verify(eventPublisher).publishEvent(announced(edited, false, false, null));
       verify(payloadVersionService).refreshLatest(identity);
     }
 
@@ -222,16 +227,12 @@ class PayloadApprovalServiceTest {
 
     @Test
     @DisplayName(
-        "Given an older pending version, onWrite should supersede it, tell its author and not"
-            + " notify approvers again")
+        "Given an older pending version, onWrite should supersede it without announcing it, and"
+            + " announce the newer version")
     void given_olderPendingVersion_should_beSuperseded() {
       // -- ARRANGE --
       version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
       Command older = version("1.1.0", PAYLOAD_APPROVAL_STATUS.PENDING);
-      PayloadApproval olderEntry = new PayloadApproval();
-      olderEntry.setActor(author);
-      when(payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtAsc(older.getId()))
-          .thenReturn(Optional.of(olderEntry));
       Command newer = version("1.2.0", PAYLOAD_APPROVAL_STATUS.PENDING);
       User otherAuthor = new User();
       otherAuthor.setId("other");
@@ -243,9 +244,9 @@ class PayloadApprovalServiceTest {
       // -- ASSERT --
       assertThat(older.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.SUPERSEDED);
       assertThat(newer.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
-      verify(payloadApprovalNotificationService)
-          .recordOutcome(older, EVENT.SUPERSEDED, otherAuthor, author, true, null);
-      verify(payloadApprovalNotificationService, never()).recordPending(any(), any(), anyBoolean());
+      ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
+      verify(eventPublisher, atLeastOnce()).publishEvent(events.capture());
+      assertThat(events.getAllValues()).containsExactly(announced(newer, false, false, null));
     }
   }
 
@@ -255,7 +256,8 @@ class PayloadApprovalServiceTest {
 
     @Test
     @DisplayName(
-        "Given a pending version, approve should approve it, refresh the pointers and announce it")
+        "Given a pending version, approve should approve it, refresh the pointers and announce it"
+            + " as a new version only")
     void given_pendingVersion_should_approve() {
       // -- ARRANGE --
       version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
@@ -270,6 +272,23 @@ class PayloadApprovalServiceTest {
       verify(payloadVersionService).refreshLatest(identity);
       verify(eventPublisher)
           .publishEvent(new PayloadVersionAdded(Tenant.DEFAULT_TENANT_UUID, pending.getId()));
+      verify(eventPublisher, never()).publishEvent(any(PayloadApprovalChanged.class));
+    }
+
+    @Test
+    @DisplayName(
+        "Given a pending version, reject should reject it and announce the rejection with its"
+            + " reason")
+    void given_pendingVersion_should_rejectAndAnnounce() {
+      // -- ARRANGE --
+      Command pending = version("1.0.0", PAYLOAD_APPROVAL_STATUS.PENDING);
+
+      // -- ACT --
+      service.reject(pending, approver, "Deletes system logs");
+
+      // -- ASSERT --
+      assertThat(pending.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.REJECTED);
+      verify(eventPublisher).publishEvent(announced(pending, true, false, "Deletes system logs"));
     }
 
     @Test
@@ -302,16 +321,12 @@ class PayloadApprovalServiceTest {
 
     @Test
     @DisplayName(
-        "Given an approved version, reject should reject it, tell its author and refresh the"
-            + " pointers")
+        "Given an approved version, reject should reject it, announce it as an approval taken back"
+            + " and refresh the pointers")
     void given_approvedVersion_should_reject() {
       // -- ARRANGE --
       version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
       Command approved = version("1.1.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
-      PayloadApproval creation = new PayloadApproval();
-      creation.setActor(author);
-      when(payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtAsc(approved.getId()))
-          .thenReturn(Optional.of(creation));
 
       // -- ACT --
       service.reject(approved, approver, "Approved by mistake");
@@ -319,15 +334,14 @@ class PayloadApprovalServiceTest {
       // -- ASSERT --
       assertThat(approved.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.REJECTED);
       assertThat(lastEntry().getComment()).isEqualTo("Approved by mistake");
-      verify(payloadApprovalNotificationService)
-          .recordOutcome(approved, EVENT.REJECTED, approver, author, true, "Approved by mistake");
+      verify(eventPublisher).publishEvent(announced(approved, true, true, "Approved by mistake"));
       verify(payloadVersionService).refreshLatest(identity);
     }
 
     @Test
     @DisplayName(
-        "Given an approved version, reopen should move it back to pending without notifying"
-            + " anyone")
+        "Given an approved version, reopen should move it back to pending and announce it as an"
+            + " approval taken back")
     void given_approvedVersion_should_reopen() {
       // -- ARRANGE --
       Command approved = version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
@@ -342,7 +356,7 @@ class PayloadApprovalServiceTest {
       assertThat(entry.isAutomatic()).isFalse();
       assertThat(entry.getComment()).isEqualTo("Second review");
       verify(payloadVersionService).refreshLatest(identity);
-      verifyNoInteractions(payloadApprovalNotificationService);
+      verify(eventPublisher).publishEvent(announced(approved, false, true, null));
     }
 
     @Test
@@ -357,6 +371,7 @@ class PayloadApprovalServiceTest {
       // -- ASSERT --
       assertThat(rejected.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
       assertThat(lastEntry().getComment()).isNull();
+      verify(eventPublisher).publishEvent(announced(rejected, false, false, null));
     }
 
     @Test

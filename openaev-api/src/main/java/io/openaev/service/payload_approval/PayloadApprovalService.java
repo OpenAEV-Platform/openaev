@@ -6,11 +6,11 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.Payload.PAYLOAD_APPROVAL_STATUS;
 import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.PayloadApproval.ORIGIN;
-import io.openaev.database.model.PayloadApprovalNotification;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadApprovalRepository;
+import io.openaev.notification.content.ContentNotificationEvents.PayloadApprovalChanged;
 import io.openaev.notification.content.ContentNotificationEvents.PayloadVersionAdded;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.PermissionService;
@@ -37,7 +37,7 @@ import org.springframework.stereotype.Service;
  *   <li>The same version from anyone else, or from a collector, is PENDING.
  *   <li>A built-in version created by the platform itself is APPROVED.
  *   <li>A new version supersedes the older pending versions of the same payload: they can no longer
- *       be approved, and their authors are told.
+ *       be approved.
  *   <li>A holder of "Approve content" approves a PENDING version, rejects a PENDING or APPROVED one
  *       (a reason is required), and can move an APPROVED or REJECTED one back to PENDING to review
  *       it again.
@@ -45,6 +45,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>Injects stay on the version they run: the approver of a version is the one asked whether the
  * injects of the version it replaces move to it (see {@link #moveOffer}).
+ *
+ * <p>A version that starts waiting for approval, or is rejected, publishes a {@link
+ * PayloadApprovalChanged}: the content notifications tell the users whose live triggers watch it.
  */
 @Service
 @RequiredArgsConstructor
@@ -58,7 +61,6 @@ public class PayloadApprovalService {
   static final String SUPERSEDED_COMMENT = "Replaced by version %s before a decision";
 
   private final PayloadApprovalRepository payloadApprovalRepository;
-  private final PayloadApprovalNotificationService payloadApprovalNotificationService;
   private final PayloadVersionService payloadVersionService;
   private final InjectorContractRepository injectorContractRepository;
   private final PayloadTrustPolicy payloadTrustPolicy;
@@ -89,8 +91,6 @@ public class PayloadApprovalService {
     if (payloadApprovalRepository.existsByPayloadId(version.getId())) {
       return;
     }
-    // Approvers are notified when a payload starts waiting, not again for each newer version.
-    boolean alreadyWaiting = !olderPending(version).isEmpty();
     if (payloadTrustPolicy.isTrusted(version)) {
       apply(
           version,
@@ -102,7 +102,7 @@ public class PayloadApprovalService {
     } else {
       switch (origin) {
         case SYSTEM -> approveAsSystem(version);
-        case COLLECTOR, CATALOG -> pending(version, null, origin, alreadyWaiting);
+        case COLLECTOR, CATALOG -> pending(version, null, origin);
         case CREATE, DUPLICATE, IMPORT, UPDATE -> {
           if (canApprove(actor)) {
             apply(
@@ -116,7 +116,7 @@ public class PayloadApprovalService {
             // Created outside any user request (platform datapacks): built-in content.
             approveAsSystem(version);
           } else {
-            pending(version, actor, origin, alreadyWaiting);
+            pending(version, actor, origin);
           }
         }
         default -> throw new IllegalArgumentException("Not a write origin: " + origin);
@@ -143,7 +143,6 @@ public class PayloadApprovalService {
   public PayloadApproval approve(
       @NotNull final Payload version, @NotNull final User decider, @Nullable final String comment) {
     require(version, "approved", PAYLOAD_APPROVAL_STATUS.PENDING);
-    User author = authorOf(version);
     PayloadApproval approval =
         apply(
             version,
@@ -152,13 +151,6 @@ public class PayloadApprovalService {
             false,
             decider,
             bounded(blankToNull(comment)));
-    payloadApprovalNotificationService.recordOutcome(
-        version,
-        PayloadApprovalNotification.EVENT.APPROVED,
-        decider,
-        author,
-        hasOtherApprovedVersion(version),
-        null);
     payloadVersionService.refreshLatest(version.getIdentity());
     // Now available: scenarios still running an older version are told (see the content
     // notifications), as for a version approved when created.
@@ -169,7 +161,7 @@ public class PayloadApprovalService {
 
   /**
    * Rejects a pending version, or an approved one when the approver changes their mind: it can no
-   * longer be picked or run. The reason is mandatory and shown to the author.
+   * longer be picked or run. The reason is mandatory, kept in the history and in the notification.
    */
   public PayloadApproval reject(
       @NotNull final Payload version, @NotNull final User decider, @Nullable final String reason) {
@@ -180,7 +172,6 @@ public class PayloadApprovalService {
     }
     String boundedReason = bounded(trimmed);
     boolean wasApproved = version.getApprovalStatus() == PAYLOAD_APPROVAL_STATUS.APPROVED;
-    User author = authorOf(version);
     PayloadApproval rejection =
         apply(
             version,
@@ -189,13 +180,9 @@ public class PayloadApprovalService {
             false,
             decider,
             boundedReason);
-    payloadApprovalNotificationService.recordOutcome(
-        version,
-        PayloadApprovalNotification.EVENT.REJECTED,
-        decider,
-        author,
-        hasOtherApprovedVersion(version),
-        boundedReason);
+    eventPublisher.publishEvent(
+        new PayloadApprovalChanged(
+            version.getTenant().getId(), version.getId(), true, wasApproved, boundedReason));
     if (wasApproved) {
       payloadVersionService.refreshLatest(version.getIdentity());
     }
@@ -203,9 +190,8 @@ public class PayloadApprovalService {
   }
 
   /**
-   * Moves an approved or rejected version back to pending, when an approver wants it reviewed again
-   * (the review is asked outside the platform: nobody is notified). It can no longer be picked or
-   * run until approved again.
+   * Moves an approved or rejected version back to pending, when an approver wants it reviewed
+   * again. It can no longer be picked or run until approved again.
    */
   public PayloadApproval reopen(
       @NotNull final Payload version, @NotNull final User decider, @Nullable final String comment) {
@@ -226,12 +212,15 @@ public class PayloadApprovalService {
     if (wasApproved) {
       payloadVersionService.refreshLatest(version.getIdentity());
     }
+    eventPublisher.publishEvent(
+        new PayloadApprovalChanged(
+            version.getTenant().getId(), version.getId(), false, wasApproved, null));
     return entry;
   }
 
   /**
    * A rejected version fixed in a draft and sent again under the same number: it waits for approval
-   * again, approvers are told, or it is approved at once when its author holds "Approve content".
+   * again, or it is approved at once when its author holds "Approve content".
    */
   public void resubmit(@NotNull final Payload version, @Nullable final User actor) {
     require(version, "sent for approval again", PAYLOAD_APPROVAL_STATUS.REJECTED);
@@ -244,7 +233,7 @@ public class PayloadApprovalService {
           actor,
           AUTO_APPROVED_COMMENT);
     } else {
-      pending(version, actor, ORIGIN.UPDATE, !olderPending(version).isEmpty());
+      pending(version, actor, ORIGIN.UPDATE);
     }
     payloadVersionService.refreshLatest(version.getIdentity());
   }
@@ -271,14 +260,6 @@ public class PayloadApprovalService {
             });
   }
 
-  // Who created the version (told the outcome): null for a collector or the platform.
-  User authorOf(Payload version) {
-    return payloadApprovalRepository
-        .findFirstByPayloadIdOrderByCreatedAtAsc(version.getId())
-        .map(PayloadApproval::getActor)
-        .orElse(null);
-  }
-
   /** The approval history of a version, newest first. */
   public List<PayloadApproval> history(@NotNull final String payloadId) {
     return payloadApprovalRepository.findByPayloadIdOrderByCreatedAtDesc(payloadId);
@@ -289,12 +270,11 @@ public class PayloadApprovalService {
     return payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtDesc(payloadId);
   }
 
-  private void pending(Payload version, User actor, ORIGIN origin, boolean alreadyWaiting) {
+  private void pending(Payload version, User actor, ORIGIN origin) {
     apply(version, PAYLOAD_APPROVAL_STATUS.PENDING, origin, true, actor, null);
-    if (!alreadyWaiting) {
-      payloadApprovalNotificationService.recordPending(
-          version, actor, hasOtherApprovedVersion(version));
-    }
+    eventPublisher.publishEvent(
+        new PayloadApprovalChanged(
+            version.getTenant().getId(), version.getId(), false, false, null));
   }
 
   // The pending versions of the same payload below this one.
@@ -308,7 +288,6 @@ public class PayloadApprovalService {
 
   private void supersedeOlderPending(Payload version, User actor) {
     for (Payload older : olderPending(version)) {
-      User author = authorOf(older);
       apply(
           older,
           PAYLOAD_APPROVAL_STATUS.SUPERSEDED,
@@ -316,22 +295,7 @@ public class PayloadApprovalService {
           true,
           actor,
           SUPERSEDED_COMMENT.formatted(version.getVersion()));
-      payloadApprovalNotificationService.recordOutcome(
-          older,
-          PayloadApprovalNotification.EVENT.SUPERSEDED,
-          actor,
-          author,
-          hasOtherApprovedVersion(older),
-          null);
     }
-  }
-
-  private boolean hasOtherApprovedVersion(Payload version) {
-    return payloadVersionService.findVersions(version.getIdentity()).stream()
-        .anyMatch(
-            v ->
-                !v.getId().equals(version.getId())
-                    && v.getApprovalStatus() == PAYLOAD_APPROVAL_STATUS.APPROVED);
   }
 
   private PayloadApproval apply(

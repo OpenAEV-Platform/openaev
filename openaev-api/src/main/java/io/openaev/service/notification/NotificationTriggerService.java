@@ -136,9 +136,10 @@ public class NotificationTriggerService {
     }
   }
 
-  private static boolean isPlatformOnly(NotificationTriggerEventType eventType) {
+  // No longer sent (kept only to read old alerts): nothing to subscribe to.
+  private static boolean isRetired(NotificationTriggerEventType eventType) {
     return switch (eventType) {
-      case APPROVAL_PENDING, APPROVED, REJECTED, SUPERSEDED -> true;
+      case APPROVED, SUPERSEDED -> true;
       default -> false;
     };
   }
@@ -155,11 +156,8 @@ public class NotificationTriggerService {
         throw new IllegalArgumentException(
             "Live notification triggers require at least one event type");
       }
-      // Payload approval operations are sent by the platform to approvers and authors; they
-      // cannot be subscribed to.
-      if (trigger.getEventTypes().stream().anyMatch(NotificationTriggerService::isPlatformOnly)) {
-        throw new IllegalArgumentException(
-            "Payload approval events are sent by the platform and cannot be subscribed to");
+      if (trigger.getEventTypes().stream().anyMatch(NotificationTriggerService::isRetired)) {
+        throw new IllegalArgumentException("This event type is no longer sent");
       }
       trigger.getEventTypes().stream()
           .filter(eventType -> !eventType.appliesTo(trigger.getWatchedResourceType()))

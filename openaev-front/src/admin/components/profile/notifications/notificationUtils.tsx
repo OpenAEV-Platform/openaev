@@ -56,6 +56,8 @@ export const OPERATION_COLORS: Record<string, string> = {
   DELETE: red[500],
   SCORE_DEGRADATION: orange[500],
   PAYLOAD_REVOKED: red[500],
+  PAYLOAD_REJECTED: red[500],
+  PAYLOAD_PENDING_APPROVAL: orange[500],
   REVOKED: red[500],
   SYNC_BLOCKED: red[500],
   REVOCATION_LIFTED: green[500],
@@ -80,6 +82,8 @@ export const OPERATION_LABELS: Record<string, string> = {
   DELETE: 'Deletion',
   SCORE_DEGRADATION: 'Score degradation',
   PAYLOAD_REVOKED: 'Payload revoked',
+  PAYLOAD_REJECTED: 'Payload rejected',
+  PAYLOAD_PENDING_APPROVAL: 'Payload pending approval',
   REVOKED: 'Revoked',
   REVOCATION_LIFTED: 'Revocation lifted',
   NEW_PAYLOAD_VERSION: 'New action version available',
@@ -108,6 +112,7 @@ export const operationIcon = (operation: string): ReactNode => {
       return <BellRemoveOutline style={{ color }} />;
     case 'SCORE_DEGRADATION':
     case 'PAYLOAD_REVOKED':
+    case 'PAYLOAD_PENDING_APPROVAL':
     case 'REVOKED':
     case 'SYNC_BLOCKED':
     case 'APPROVAL_PENDING':
@@ -115,6 +120,7 @@ export const operationIcon = (operation: string): ReactNode => {
     case 'APPROVED':
       return <BellCheckOutline style={{ color }} />;
     case 'REJECTED':
+    case 'PAYLOAD_REJECTED':
       return <BellCancelOutline style={{ color }} />;
     case 'SUPERSEDED':
       return <BellCogOutline style={{ color }} />;
@@ -140,7 +146,8 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   PAYLOAD: () => '/admin/threat-arsenal',
   CATALOG: () => '/admin/threat-arsenal/available',
   CATALOG_SYNC: () => '/admin/threat-arsenal/available',
-  // Payload approval notifications open the action's drawer in the Threat Arsenal.
+  // Approval alerts sent before they went through triggers (resource THREAT_ARSENAL) open the action's
+  // drawer; trigger alerts on a payload go through PAYLOAD.
   THREAT_ARSENAL: id => `/admin/threat-arsenal?${ACTION_PARAM}=${encodeURIComponent(id)}`,
 };
 

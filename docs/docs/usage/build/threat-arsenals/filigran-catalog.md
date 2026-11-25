@@ -134,9 +134,13 @@ the bell at the top of a Scenario to follow that Scenario only.
 | Resource         | Event                            | Sent when                                                                    |
 |------------------|----------------------------------|------------------------------------------------------------------------------|
 | Scenario         | **Payload revoked**              | A version that its Injects use is revoked                                    |
+| Scenario         | **Payload rejected**             | An approved version that its Injects use is rejected                         |
+| Scenario         | **Payload pending approval**     | An approved version that its Injects use is moved back to pending approval   |
 | Scenario         | **New action version available** | A newer version exists for an Action its Injects use, Filigran or local     |
 | Payload          | **Revoked**                      | You, a colleague or Filigran revokes a version                               |
 | Payload          | **Revocation lifted**            | A revocation is lifted                                                       |
+| Payload          | **Pending approval**             | A version waits for approval                                                 |
+| Payload          | **Rejected**                     | A version is rejected, with the reason                                       |
 | Payload          | **Installed automatically**      | A Filigran release installs a version by itself                              |
 | Payload          | **Filigran update available**    | Filigran publishes a new version of the Action a customized copy is based on |
 | Filigran catalog | **Release received**             | A Filigran release arrives: new Scenarios, updates of installed Scenarios, new Actions |

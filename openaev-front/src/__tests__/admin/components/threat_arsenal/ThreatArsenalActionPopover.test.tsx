@@ -358,13 +358,10 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
     expect(screen.queryByRole('menuitem', { name: 'Move to pending approval' })).toBeNull();
   });
 
-  it('rejects with a required reason, then moves the injects to the chosen approved version', async () => {
+  it('moves the injects to the chosen approved version, then rejects with a required reason', async () => {
     // Arrange
+    // The injects move first: the scenarios told about the rejection are only those still on it.
     responses.push(
-      {
-        status: 200,
-        data: { action_approval_status: 'REJECTED' },
-      },
       {
         status: 200,
         data: [{
@@ -382,6 +379,10 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
           refused: [],
         },
       },
+      {
+        status: 200,
+        data: { action_approval_status: 'REJECTED' },
+      },
     );
     renderPopover();
     openMenu();
@@ -396,7 +397,9 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
     fireEvent.click(submit);
 
     // Assert
-    await waitFor(() => expect(posts().some(request => request.url?.endsWith('/change-version'))).toBe(true));
+    await waitFor(() => expect(posts().some(request => request.url?.endsWith('/action-1/reject'))).toBe(true));
+    const urls = posts().map(request => request.url ?? '');
+    expect(urls.findIndex(url => url.endsWith('/change-version'))).toBeLessThan(urls.findIndex(url => url.endsWith('/reject')));
     const reject = posts().find(request => request.url?.endsWith('/action-1/reject'));
     expect(JSON.parse(reject?.data as string)).toEqual({ approval_reason: 'Approved by mistake' });
     const move = posts().find(request => request.url?.endsWith('/action-1/change-version'));
@@ -407,7 +410,7 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
     });
   });
 
-  it('explains a refused rejection when Approve content was removed, and moves no inject', async () => {
+  it('explains a refused rejection when Approve content was removed', async () => {
     // Arrange
     // Refused twice: the client retries a 403 once, in case only the CSRF cookie was dropped.
     const refused = {
@@ -421,6 +424,8 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }));
     const submit = await screen.findByRole('button', { name: 'Reject' });
     fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Approved by mistake' } });
+    // Nothing to move: the refusal is the rejection's own.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Move the injects using this version to another version' }));
 
     // Act
     fireEvent.click(submit);
@@ -428,7 +433,6 @@ describe('ThreatArsenalActionPopover: taking an approval back', () => {
     // Assert
     await waitFor(() => expect(removed).toHaveBeenCalledWith('You can no longer approve or reject payloads: Approve content was removed from your role.'));
     expect(dispatch).toHaveBeenCalledWith('FETCH_ME');
-    expect(posts().some(request => request.url?.endsWith('/change-version'))).toBe(false);
     expect(notifyError).not.toHaveBeenCalled();
     removed.mockRestore();
   });

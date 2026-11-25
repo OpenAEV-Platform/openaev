@@ -65,7 +65,6 @@ import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.PayloadApprovalNotificationRepository;
 import io.openaev.database.repository.PayloadApprovalRepository;
 import io.openaev.database.repository.PayloadDraftRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
@@ -262,7 +261,6 @@ import io.openaev.service.notification.NotifierService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadDraftService;
 import io.openaev.service.payload.PayloadVersionService;
-import io.openaev.service.payload_approval.PayloadApprovalNotificationService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
@@ -365,7 +363,6 @@ class TenantActiveTableAccessArchTest {
           "payloads",
           "payload_approvals",
           "payload_versions",
-          "payload_approval_notifications",
           "payload_drafts",
           "vulnerabilities",
           "phishing_results",
@@ -2159,25 +2156,6 @@ class TenantActiveTableAccessArchTest {
           .because(
               "payload_drafts is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
-
-  @ArchTest
-  static final ArchRule payload_approval_notifications_repository_access_is_reviewed =
-      noClasses()
-          .that()
-          .doNotBelongToAnyOf(
-              // The only accessor. Records are written by the payload approval services inside the
-              // TxCtx-carrying ThreatArsenalApi / PayloadApi / collector transactions; the job
-              // reads
-              // them through TenantScopedJobRunner (allTenants for the tenant list, then
-              // forTenant).
-              PayloadApprovalNotificationService.class)
-          .should()
-          .dependOnClassesThat()
-          .areAssignableTo(PayloadApprovalNotificationRepository.class)
-          .because(
-              "payload_approval_notifications is tenant-active: an accessor without a tenant scope"
-                  + " silently reads zero rows. New accessors must carry a scope and be allowlisted"
-                  + " here");
 
   @ArchTest
   static final ArchRule payloads_repository_access_is_reviewed =

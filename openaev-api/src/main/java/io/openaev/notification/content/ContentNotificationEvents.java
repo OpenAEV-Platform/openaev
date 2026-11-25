@@ -14,6 +14,13 @@ public final class ContentNotificationEvents {
   public record PayloadRevocationChanged(
       String tenantId, String payloadId, boolean revoked, String reason) {}
 
+  /**
+   * A version started waiting for approval, or was rejected. {@code wasApproved} when an approver
+   * took back an approval: the injects still on the version can no longer run.
+   */
+  public record PayloadApprovalChanged(
+      String tenantId, String payloadId, boolean rejected, boolean wasApproved, String reason) {}
+
   public record ListedVersion(String externalId, String version, String reason) {}
 
   /** A revocation list applies to every tenant. */

@@ -333,7 +333,8 @@ public class ThreatArsenalApi {
       summary = "Move the approved or rejected payload version of an action back to pending",
       description =
           "Requires Approve content. The version can no longer be picked or run until it is"
-              + " approved again; the injects stay on the version they run. Nobody is notified.")
+              + " approved again; the injects stay on the version they run. Live triggers on pending"
+              + " approval are notified.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "The decision"),
     @ApiResponse(
