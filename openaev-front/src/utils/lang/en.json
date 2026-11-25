@@ -408,6 +408,8 @@
   "Applying a template will add all its categories and questions to this simulation.": "Applying a template will add all its categories and questions to this simulation.",
   "APPROVE_THREAT_ARSENALS": "Approve content",
   "Approved": "Approved",
+  "Moved to pending approval": "Moved to pending approval",
+  "Auto-approved": "Auto-approved",
   "Architecture": "Architecture",
   "Are you sure you want to delete this element?": "Are you sure you want to delete this element?",
   "Argument {key}": "Argument {key}",

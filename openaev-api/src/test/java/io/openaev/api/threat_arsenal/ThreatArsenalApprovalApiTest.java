@@ -890,4 +890,125 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       assertPendingVersion(actionId, newActionId);
     }
   }
+
+  @Nested
+  @DisplayName("Decisions in the History tab")
+  class DecisionsInHistory {
+
+    private String history(String actionId) throws Exception {
+      return mvc.perform(get(url("/" + actionId + "/history")))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private void decide(String actionId, String decision, Object input) throws Exception {
+      mvc.perform(
+              post(url("/" + actionId + "/" + decision))
+                  .with(authentication(approver))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+    }
+
+    private List<Map<String, Object>> rows(String history, String action) {
+      return JsonPath.read(history, "$[?(@.content_history_action == '" + action + "')]");
+    }
+
+    @Test
+    @DisplayName("an explicit approval shows its approver, its comment and the version")
+    void given_approvedVersion_should_showApprover() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+
+      // Act
+      decide(actionId, "approve", new ThreatArsenalApproveInput("Reviewed"));
+
+      // Assert
+      List<Map<String, Object>> approvals = rows(history(actionId), "APPROVE");
+      assertThat(approvals).hasSize(1);
+      assertThat((String) approvals.getFirst().get("content_history_user")).contains("Approver");
+      assertThat(approvals.getFirst().get("content_history_automatic")).isEqualTo(false);
+      assertThat(approvals.getFirst().get("content_history_version")).isEqualTo("1.0.0");
+      assertThat(approvals.getFirst().get("content_history_details"))
+          .isEqualTo(Map.of("comment", "Reviewed"));
+    }
+
+    @Test
+    @DisplayName("a rejection shows its approver and its reason")
+    void given_rejectedVersion_should_showApproverAndReason() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+
+      // Act
+      decide(actionId, "reject", new ThreatArsenalRejectInput("Deletes system logs"));
+
+      // Assert
+      List<Map<String, Object>> rejections = rows(history(actionId), "REJECT");
+      assertThat(rejections).hasSize(1);
+      assertThat((String) rejections.getFirst().get("content_history_user")).contains("Approver");
+      assertThat(rejections.getFirst().get("content_history_details"))
+          .isEqualTo(Map.of("reason", "Deletes system logs"));
+    }
+
+    @Test
+    @DisplayName("a version moved back to pending shows who moved it and the comment")
+    void given_reopenedVersion_should_showApprover() throws Exception {
+      // Arrange
+      String actionId = createAction(approver);
+
+      // Act
+      decide(actionId, "reopen", new ThreatArsenalReopenInput("Second review"));
+
+      // Assert
+      List<Map<String, Object>> reopened = rows(history(actionId), "REOPEN");
+      assertThat(reopened).hasSize(1);
+      assertThat((String) reopened.getFirst().get("content_history_user")).contains("Approver");
+      assertThat(reopened.getFirst().get("content_history_details"))
+          .isEqualTo(Map.of("comment", "Second review"));
+    }
+
+    @Test
+    @DisplayName("an automatic approval names its author")
+    void given_approverWrite_should_showAutoApprovalByAuthor() throws Exception {
+      // Act
+      String actionId = createAction(approver);
+
+      // Assert
+      List<Map<String, Object>> approvals = rows(history(actionId), "APPROVE");
+      assertThat(approvals).hasSize(1);
+      assertThat(approvals.getFirst().get("content_history_automatic")).isEqualTo(true);
+      assertThat((String) approvals.getFirst().get("content_history_user")).contains("Approver");
+    }
+
+    @Test
+    @DisplayName("a pending version replaced before a decision shows as superseded")
+    void given_newerPendingVersion_should_showSuperseded() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+
+      // Act
+      String newer = updateAs(author, actionId, update(actionId, "echo newer", "newer"));
+
+      // Assert
+      List<Map<String, Object>> superseded = rows(history(newer), "SUPERSEDE");
+      assertThat(superseded).hasSize(1);
+      assertThat(superseded.getFirst().get("content_history_version")).isEqualTo("1.0.0");
+    }
+
+    @Test
+    @DisplayName("a version waiting for approval adds no decision")
+    void given_pendingVersion_should_addNoDecision() throws Exception {
+      // Act
+      String actionId = createAction(author);
+
+      // Assert
+      String history = history(actionId);
+      assertThat(rows(history, "APPROVE")).isEmpty();
+      assertThat(rows(history, "REJECT")).isEmpty();
+      assertThat(rows(history, "REOPEN")).isEmpty();
+    }
+  }
 }

@@ -3410,7 +3410,11 @@ export interface ContentHistoryOutput {
     | "CONFLICT"
     | "DRAFT_CREATE"
     | "DRAFT_DISCARD"
-    | "REWORK";
+    | "REWORK"
+    | "APPROVE"
+    | "REJECT"
+    | "REOPEN"
+    | "SUPERSEDE";
   content_history_automatic?: boolean;
   /** @format int32 */
   content_history_count?: number;

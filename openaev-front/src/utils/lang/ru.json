@@ -408,6 +408,8 @@
   "Applying a template will add all its categories and questions to this simulation.": "Применение шаблона добавит все его категории и вопросы в эту симуляцию.",
   "APPROVE_THREAT_ARSENALS": "Утверждать контент",
   "Approved": "Одобрено",
+  "Moved to pending approval": "Возвращено на одобрение",
+  "Auto-approved": "Одобрено автоматически",
   "Architecture": "Архитектура",
   "Are you sure you want to delete this element?": "Вы действительно хотите удалить этот элемент?",
   "Argument {key}": "Аргумент {key}",

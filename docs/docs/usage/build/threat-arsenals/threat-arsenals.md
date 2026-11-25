@@ -101,7 +101,7 @@ To approve or reject, click **Review** on the Action, or open it and go to its *
 * **what it runs**, line by line like a code diff: removed lines in red with "−", added lines in green with "+". A new version is compared with the approved version in use, and only its changed fields are shown. A **new Action** (no version approved yet) has nothing to compare with: everything it runs (command, cleanup, arguments, prerequisites, platforms…) is shown as added, so the approver sees all they approve;
 * what the decision does, then **Approve** (optional comment) and **Reject** (reason required).
 
-The *History* tab shows the same diff for each change. The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
+The *History* tab shows the same diff for each change, and every decision on a version with who took it and when: *Approved* (with the comment), *Rejected* (with the reason), *Moved to pending approval*, *Auto-approved* (its author, *Platform* for built-in content or *Filigran* for content approved on arrival from its catalogue) and *Superseded*. The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
 
 ### Taking a decision back
 

@@ -195,19 +195,40 @@ public class PayloadVersionChangeService {
                               : ContentHistoryOutput.of(history))
                   .getContent());
       rows.addAll(repositoryRevocations(identity, payload.getExternalId()));
-      rows.sort(
-          Comparator.comparing(
-              ContentHistoryOutput::createdAt, Comparator.nullsLast(Comparator.reverseOrder())));
-      return rows;
+      rows.addAll(approvalDecisions(versions));
+      return newestFirst(rows);
     }
-    List<String> versionIds =
-        payloadVersionService.findVersions(payload.getIdentity()).stream()
-            .map(Payload::getId)
-            .toList();
-    return contentHistoryService
-        .findHistoryOfVersions(ContentType.PAYLOAD, versionIds, page)
-        .map(ContentHistoryOutput::of)
-        .getContent();
+    List<Payload> versions = payloadVersionService.findVersions(payload.getIdentity());
+    List<String> versionIds = versions.stream().map(Payload::getId).toList();
+    List<ContentHistoryOutput> rows =
+        new ArrayList<>(
+            contentHistoryService
+                .findHistoryOfVersions(ContentType.PAYLOAD, versionIds, page)
+                .map(ContentHistoryOutput::of)
+                .getContent());
+    rows.addAll(approvalDecisions(versions));
+    return newestFirst(rows);
+  }
+
+  // Payload approval: who approved, rejected or moved back to pending each version, read from its
+  // approval history (past decisions included, nothing copied into the content history).
+  private List<ContentHistoryOutput> approvalDecisions(List<Payload> versions) {
+    Map<String, String> numbers =
+        versions.stream().collect(Collectors.toMap(Payload::getId, Payload::getVersion));
+    return payloadApprovalService.historyOf(numbers.keySet()).stream()
+        .map(
+            entry ->
+                ContentHistoryOutput.fromApproval(
+                    entry, numbers.get(entry.getPayload().getId()), mapper))
+        .flatMap(Optional::stream)
+        .toList();
+  }
+
+  private static List<ContentHistoryOutput> newestFirst(List<ContentHistoryOutput> rows) {
+    rows.sort(
+        Comparator.comparing(
+            ContentHistoryOutput::createdAt, Comparator.nullsLast(Comparator.reverseOrder())));
+    return rows;
   }
 
   // An install row also tells what the release changed since the previous installed version.
