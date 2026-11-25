@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -110,6 +111,7 @@ class WidgetTenantScopeTest extends IntegrationTest {
               + " dashboard and no tenant, so the scope is the only thing hiding it");
     }
 
+    @ExpectsEmptyScopeReads("the lookup by id with no scope is the subject: it finds nothing")
     @Test
     @WithoutTenantScope
     @DisplayName("with no scope at all: even the caller's own widget fails closed")
