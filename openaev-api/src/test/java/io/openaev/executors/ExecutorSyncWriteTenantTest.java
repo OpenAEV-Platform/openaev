@@ -15,16 +15,19 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
+import io.openaev.executors.crowdstrike.model.CrowdStrikeDevice;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeHostGroup;
 import io.openaev.executors.crowdstrike.model.ResourcesGroups;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService;
 import io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
+import io.openaev.executors.sentinelone.model.SentinelOneAgent;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.DataComputerGroup;
+import io.openaev.executors.tanium.model.NodeEndpoint;
 import io.openaev.executors.tanium.model.TaniumComputerGroup;
 import io.openaev.executors.tanium.service.TaniumExecutorService;
 import io.openaev.service.AgentService;
@@ -151,6 +154,20 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     assertThat(sourceTagTenants(executor)).containsExactly(tenantB);
   }
 
+  // The sync reuses an endpoint of the tenant found by MAC address: each test syncs a device
+  // with its own MAC, so no test reads an endpoint that another test created.
+  private static String uniqueMac() {
+    String hex = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+    StringBuilder mac = new StringBuilder();
+    for (int i = 0; i < hex.length(); i += 2) {
+      if (i > 0) {
+        mac.append(':');
+      }
+      mac.append(hex, i, i + 2);
+    }
+    return mac.toString();
+  }
+
   private CrowdStrikeExecutorService crowdStrikeSync(Executor executor) {
     String hostGroupId = "host-group-" + UUID.randomUUID();
     CrowdStrikeHostGroup hostGroup = new CrowdStrikeHostGroup();
@@ -160,8 +177,9 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
     resourcesGroups.setResources(List.of(hostGroup));
     CrowdStrikeExecutorClient client = mock(CrowdStrikeExecutorClient.class);
     when(client.hostGroup(hostGroupId)).thenReturn(resourcesGroups);
-    when(client.devices(hostGroupId))
-        .thenReturn(List.of(CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice()));
+    CrowdStrikeDevice device = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
+    device.setMac_address(uniqueMac());
+    when(client.devices(hostGroupId)).thenReturn(List.of(device));
     CrowdStrikeExecutorConfig config = mock(CrowdStrikeExecutorConfig.class);
     when(config.getHostGroup()).thenReturn(hostGroupId);
     return new CrowdStrikeExecutorService(
@@ -229,8 +247,9 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       // Arrange
       Executor executor = saveInTenantB(executorFixture.createSentineloneExecutor());
       SentinelOneExecutorClient client = mock(SentinelOneExecutorClient.class);
-      when(client.agents())
-          .thenReturn(Set.of(SentinelOneDeviceFixture.createDefaultSentinelOneAgent()));
+      SentinelOneAgent agent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
+      agent.getNetworkInterfaces().getFirst().setPhysical(uniqueMac());
+      when(client.agents()).thenReturn(Set.of(agent));
       SentinelOneExecutorService service =
           new SentinelOneExecutorService(
               executor, client, endpointService, agentService, assetGroupService, tenantTx);
@@ -262,8 +281,9 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
       dataComputerGroup.setComputerGroup(computerGroup);
       TaniumExecutorClient client = mock(TaniumExecutorClient.class);
       when(client.computerGroup(computerGroupId)).thenReturn(dataComputerGroup);
-      when(client.endpoints(computerGroupId))
-          .thenReturn(List.of(TaniumDeviceFixture.createDefaultTaniumEndpoint()));
+      NodeEndpoint endpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
+      endpoint.getNode().setMacAddresses(new String[] {uniqueMac()});
+      when(client.endpoints(computerGroupId)).thenReturn(List.of(endpoint));
       TaniumExecutorConfig config = mock(TaniumExecutorConfig.class);
       when(config.getComputerGroupId()).thenReturn(computerGroupId);
       TaniumExecutorService service =
