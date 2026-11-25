@@ -16,7 +16,7 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 ## Scope of a Pull Request
 
 - **No unused code**: every class, method, field and constant a PR adds has a caller in that PR. What a
-  later step needs comes with that step.
+  later step needs comes with that step. No commented-out block, no unreachable branch.
 - **Search before writing**: reuse the existing method, helper, constant, enum or composer before adding one;
   when two places need the same code, extract one shared version.
 - **No undecided concept**: no default value, option or notion nobody asked for (a "stable" channel, an
@@ -66,6 +66,7 @@ For each entity exposed via REST, create these files in `io.openaev.api.{feature
 - **`{Entity}Mapper.java`** — Utility class with `private` constructor, static methods `toOutput(Entity)` and optionally `fromInput(String id, Input)`. A `@Component` only when it needs another bean (e.g. `ObjectMapper`)
 
 Copying an input into an entity, or an entity into an output, belongs in the mapper, never in a service.
+The mapper fills every output field: no silent `null`.
 
 ```java
 // DTOs — immutable Java record
@@ -155,10 +156,17 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Entities: `@Getter @Setter` (not `@Data`)
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
+- Logging: `@Slf4j`, never `System.out.println`, no sensitive data in logs
 
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
+
+## Code Quality
+
+- Names: PascalCase classes, camelCase methods and fields
+- `Optional` for a value that may be absent; null-check external inputs
+- Prefer `final` fields and unmodifiable collections, except entity collections (see Hibernate)
 
 ## Code Comments
 

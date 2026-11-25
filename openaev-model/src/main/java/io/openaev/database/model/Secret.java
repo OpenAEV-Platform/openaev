@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -24,7 +23,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "secrets")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "secret_type", discriminatorType = DiscriminatorType.STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 // secrets is fully on v2 (inspector + can_access_tenant); no v1 @Filter
 @ToString(onlyExplicitlyIncluded = true)
 public class Secret implements TenantBase {

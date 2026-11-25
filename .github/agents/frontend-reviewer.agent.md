@@ -29,40 +29,30 @@ Escalate to **Opus 4.6** for reviews involving permission model changes or signi
 
 | Severity | Criteria | Action |
 |---|---|---|
-| 🔴 **CRITICAL** | Missing permission check on create/delete, broken form submission, runtime crash (e.g. `alpha()` on a token colour) | `issue (blocking):` — PR must not merge |
-| 🟠 **HIGH** | Manual API types instead of auto-generated, `makeStyles` in new code, missing `handleSubmitWithoutPropagation` in Drawer, new MUI import where the design system replaces it, hand-edited `fds-tokens.generated.ts` | `issue (blocking):` — must fix before merge |
-| 🟡 **MEDIUM** | Legacy pattern not migrated when file was touched, missing `t()` on user-facing strings, `any` type usage | `suggestion (non-blocking):` — should fix |
+| 🔴 **CRITICAL** | Missing permission check on create/delete ([Permissions](../instructions/frontend.instructions.md#permissions-casl)), broken form submission, runtime crash | `issue (blocking):` — PR must not merge |
+| 🟠 **HIGH** | Manual API types ([TypeScript](../instructions/frontend.instructions.md#typescript)), `makeStyles` in new code ([Design System & Layout](../instructions/frontend.instructions.md#design-system--layout)), Drawer form ([Forms](../instructions/frontend.instructions.md#forms)), new MUI import or hand-edited `fds-tokens.generated.ts` ([Design System & Layout](../instructions/frontend.instructions.md#design-system--layout)) | `issue (blocking):` — must fix before merge |
+| 🟡 **MEDIUM** | Legacy pattern not migrated in a touched file, `any` ([TypeScript](../instructions/frontend.instructions.md#typescript)), missing `t()` ([i18n](../instructions/frontend.instructions.md#i18n)) | `suggestion (non-blocking):` — should fix |
 | 🟢 **LOW** | Style preference, minor refactoring opportunity, naming nitpick | `suggestion (non-blocking):` — nice to have |
 
 ## Quantitative Thresholds
 
-These thresholds trigger automatic severity levels regardless of subjective assessment:
+Rules in `frontend.instructions.md`; severity per check:
 
-| Metric | Threshold | Severity |
+| Check | Rule | Severity |
 |---|---|---|
-| **List without pagination** | Any `map()` over an API list without `PaginationComponentV2` on a collection with >50 potential items | 🟠 HIGH |
-| **Re-render risk** | `useEffect` with missing or incorrect dependency array on a component that fetches data | 🟠 HIGH |
-| **Component size** | Single component file >300 lines → suggest splitting | 🟡 MEDIUM |
-| **`any` type usage** | Any `any` in new code (not pre-existing) | 🟡 MEDIUM |
-| **Missing `t()`** | Any user-facing string literal not wrapped in `t()` | 🟡 MEDIUM |
-| **New MUI import replaced by the library** | A symbol listed in `fds-migration/mui-regression-policy.generated.json` (`enforced`) newly imported from `@mui/*` without a `fds:keep-mui <reason>` comment | 🟠 HIGH |
-| **JS colour helper on a token** | `alpha()` / `darken()` / `lighten()` on a value that can be `var(--…)` or comes from `computeStatusStyle` / `getStatusColor` / `criticalityColor` — use `tint()` | 🔴 CRITICAL |
-| **Navigation by click handler** | Button, chip or card navigating through `onClick={navigate}` instead of wrapping a real `Link` / `<a>` (`asChild`) | 🟠 HIGH |
-| **Unnamed icon control** | Library `IconButton` without `aria-label` (a `Tooltip` does not name it) | 🟠 HIGH |
-| **Library prop misuse** | `IconButton` given children instead of `icon`, `Paper padding` off the `0/8/16/24/32` scale, `Paper title=""`, `TabsContent forceMount` without `hidden` on inactive panels | 🟠 HIGH |
-| **Arbitrary utility class** | Tailwind-like utility class not shipped in `@filigran/design-system/dist/index.css` — the app has no Tailwind build, it is a silent no-op | 🟡 MEDIUM |
-| **`sx` → `style` unit drift** | Spacing value moved from `sx` (spacing units) to `style` (px) without conversion (`p: 2` must become `16`) | 🟡 MEDIUM |
-| **Wrong control size** | Control in a 24px `Paper` header row, list row, form or card not at `size="sm"`; header/footer/toolbar action not at the default size | 🟡 MEDIUM |
-| **Local look-alike** | Hand-styled component imitating a library one (instead of using it or keeping MUI with `fds:keep-mui`) | 🟡 MEDIUM |
-| **Inline styles** | `style={{ }}` on a MUI component — use `sx` (library components take `style`, they have no `sx`) | 🟡 MEDIUM |
-| **Hardcoded tokens** | Colors, spacing, border-radius, or typography not from `theme.*` or a design-system token (fixed `width` exempt) | 🟡 MEDIUM |
-| **Dead props** | Props declared in `interface Props` but never passed by any call-site in the codebase | 🟡 MEDIUM |
-| **`@ts-ignore`** | Any `@ts-ignore` without an explanatory comment | 🟡 MEDIUM |
-| **Ramda** | A new `ramda` import, or a file added to `legacyRamdaFiles` in `eslint.config.js` — write native JavaScript | 🟠 HIGH |
-| **Mutable export** | `export let` / `export var` instead of a `const` or a getter/setter function; lint enforces it (`custom-rules/no-mutable-exports`), so flag a new `eslint-disable` of that rule | 🟡 MEDIUM |
-| **Main component export** | A module's main component exported only by name (helpers, constants and hooks modules may use named exports) | 🟢 LOW |
-| **Button convention** | Affirmative confirm not `priority="primary"`, Cancel not `priority="secondary"`, or irreversible delete confirm not `variant="destructive"` (per `frontend.instructions.md`) | 🟡 MEDIUM |
-| **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
+| **JS colour helper on a token** | [Colours & tokens](../instructions/frontend.instructions.md#colours--tokens) | 🔴 CRITICAL |
+| **List without pagination, re-render risk** | [Data Loading & State](../instructions/frontend.instructions.md#data-loading--state) | 🟠 HIGH |
+| **New MUI import replaced by the library** | [Design System & Layout](../instructions/frontend.instructions.md#design-system--layout) | 🟠 HIGH |
+| **Navigation by click handler, unnamed icon control, library prop misuse** | [Library components](../instructions/frontend.instructions.md#library-components--rules-that-are-easy-to-get-wrong) | 🟠 HIGH |
+| **Ramda** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟠 HIGH |
+| **Component size** | Hint, not a rule: a component file over 300 lines is worth a look | 🟢 LOW |
+| **`any`, `@ts-ignore`, dead props** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |
+| **Mutable export** (also flag a new `eslint-disable` of `custom-rules/no-mutable-exports`) | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |
+| **Missing `t()`** | [i18n](../instructions/frontend.instructions.md#i18n) | 🟡 MEDIUM |
+| **Arbitrary utility class, `sx` → `style` unit drift, local look-alike, inline styles on MUI** | [Design System & Layout](../instructions/frontend.instructions.md#design-system--layout) | 🟡 MEDIUM |
+| **Hardcoded tokens** | [Colours & tokens](../instructions/frontend.instructions.md#colours--tokens) | 🟡 MEDIUM |
+| **Wrong control size, button convention** | [Library components](../instructions/frontend.instructions.md#library-components--rules-that-are-easy-to-get-wrong) | 🟡 MEDIUM |
+| **Main component export, props count** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟢 LOW |
 
 ## What NOT to Flag
 
@@ -107,4 +97,4 @@ Findings: 🔴 [n] Critical | 🟠 [n] High | 🟡 [n] Medium | 🟢 [n] Low
 - Escalate to a human reviewer if a fix requires significant architectural decisions
 - Prefer migration to modern patterns over workarounds in legacy code
 - Run `yarn check-ts` and `yarn lint` findings as supporting evidence, not as sole criteria — neither sees most design-system mistakes (empty `IconButton` in `.jsx`, silent utility classes, layered CSS losing to product CSS); ask for a before/after measurement in the running app when the visual delta matters
-- Missing library capability → recommend keeping MUI with `fds:keep-mui` and reporting the gap upstream, never a local approximation
+- Missing library capability: [Design System & Layout](../instructions/frontend.instructions.md#design-system--layout)

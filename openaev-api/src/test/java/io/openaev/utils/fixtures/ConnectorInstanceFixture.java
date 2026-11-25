@@ -6,11 +6,17 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import java.util.HashSet;
 
 public class ConnectorInstanceFixture {
   public static ConnectorInstancePersisted createMigratedInstance() {
+    return createMigratedInstance(Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  public static ConnectorInstancePersisted createMigratedInstance(String tenantId) {
     ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    connectorInstance.setTenant(new Tenant(tenantId));
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
@@ -18,7 +24,12 @@ public class ConnectorInstanceFixture {
   }
 
   public static ConnectorInstancePersisted createDefaultConnectorInstance() {
+    return createDefaultConnectorInstance(Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  public static ConnectorInstancePersisted createDefaultConnectorInstance(String tenantId) {
     ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    connectorInstance.setTenant(new Tenant(tenantId));
     connectorInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
