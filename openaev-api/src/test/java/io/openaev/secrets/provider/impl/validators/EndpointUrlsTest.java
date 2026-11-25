@@ -124,7 +124,8 @@ class EndpointUrlsTest {
   }
 
   @ParameterizedTest(name = "\"{0}\" has a host")
-  @ValueSource(strings = {"https://a.example/x", "http://127.1:8080/token", "https://my_host.internal/"})
+  @ValueSource(
+      strings = {"https://a.example/x", "http://127.1:8080/token", "https://my_host.internal/"})
   @DisplayName("A host is read the way the HTTP stack reads it")
   void given_urlWithHost_should_haveHost(String value) {
     // Act & Assert

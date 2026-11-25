@@ -148,8 +148,8 @@ final class EndpointUrls {
   }
 
   /**
-   * Whether a host can be read from the endpoint, the way the HTTP stack reads it. Used for a URL the
-   * platform did not accept itself (a key file's token URI): one that names no host cannot be
+   * Whether a host can be read from the endpoint, the way the HTTP stack reads it. Used for a URL
+   * the platform did not accept itself (a key file's token URI): one that names no host cannot be
    * checked, so the caller refuses it.
    */
   static boolean hasHost(String endpoint) {
