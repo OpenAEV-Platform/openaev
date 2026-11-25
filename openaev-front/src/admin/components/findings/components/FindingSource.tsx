@@ -3,19 +3,9 @@ import {Chip, Tooltip, TooltipContent, TooltipTrigger} from "@filigran/design-sy
 import {Box} from "@mui/material";
 import InjectorIcon from "../../common/injectors/InjectorIcon";
 import {useFormatter} from "../../../../components/i18n";
-import {truncate} from "../../../../utils/String";
 import {makeStyles} from "tss-react/mui";
 
 const useStyles = makeStyles()(() => ({
-    inline: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        // Respect the enclosing cell width so the first (shrinkable) chip and the
-        // "+N" chip both stay inside it instead of the "+N" being clipped.
-        minWidth: 0,
-        maxWidth: '100%',
-    },
     tooltipTable: {
         'borderCollapse': 'collapse',
         '& th': {
@@ -37,11 +27,6 @@ const useStyles = makeStyles()(() => ({
         alignItems: 'center',
         gap: 6,
     },
-    tooltipMore: {
-        fontSize: 11,
-        opacity: 0.7,
-        marginTop: 4,
-    },
 }));
 
 interface Props {
@@ -51,9 +36,10 @@ interface Props {
 const FindingSource = ({ sources }: Props) => {
     const { t } = useFormatter();
     const { classes } = useStyles();
+    const maxDisplayedSources = 3;
 
-    const firstSource = sources?.length ? sources[0] : null;
-    const remainingSources = sources?.length ? sources.slice(1, sources.length) : null;
+    const displayedSources = sources?.length ? sources.slice(0, maxDisplayedSources) : null;
+    const remainingSources = sources?.length ? sources.slice(maxDisplayedSources, sources.length) : null;
 
     return (
         <Box sx={{
@@ -61,8 +47,8 @@ const FindingSource = ({ sources }: Props) => {
             flexDirection: 'row',
             gap: 1,
         }}>
-            {firstSource &&
-                <Tooltip>
+            {displayedSources?.map(source =>
+                <Tooltip key={source.injector_id}>
                     <TooltipTrigger asChild>
                         <Box sx={{
                             display: 'flex',
@@ -70,18 +56,18 @@ const FindingSource = ({ sources }: Props) => {
                             alignItems: 'center',
                         }}>
                             <InjectorIcon
-                                type={firstSource.injector_type}
+                                type={source.injector_type}
                                 style={{
-                                    height: '30px',
-                                    width: '30px',
+                                    height: '24px',
+                                    width: '24px',
                                     borderRadius: '3px'
                                 }}
                             />
                         </Box>
                     </TooltipTrigger>
-                    <TooltipContent>{firstSource.injector_type ? t(firstSource.injector_type) : t('Unknown')}</TooltipContent>
+                    <TooltipContent>{source.injector_type ? t(source.injector_type) : t('Unknown')}</TooltipContent>
                 </Tooltip>
-            }
+            )}
             {remainingSources && remainingSources.length > 0 && (
                 <Tooltip>
                     <TooltipTrigger asChild>

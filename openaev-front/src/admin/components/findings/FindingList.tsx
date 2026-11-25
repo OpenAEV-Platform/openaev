@@ -30,6 +30,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
+    'finding_sources',
   ];
 
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
