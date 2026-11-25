@@ -129,9 +129,10 @@ class WriteAttrCompositeKeyAttributionTest extends IntegrationTest {
       // production frame on the stack at all).
       TenantContext.clearCurrentTenant();
       WriteAttrDetectorRecorder.start();
-      setScope(tenantB);
       String sharedId = "wattr-shared-" + UUID.randomUUID();
       String tenantC = tenantHelper.createTenantWithCurrentUser("wattr-ck-c").getId();
+      // Creating C leaves the transaction with no scope: B is set again for the writes below
+      setScope(tenantB);
 
       executorService.register(
           DEFAULT_TENANT,

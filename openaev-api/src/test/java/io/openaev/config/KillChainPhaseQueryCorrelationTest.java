@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.database.model.KillChainPhase;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import java.util.List;
@@ -38,6 +39,8 @@ class KillChainPhaseQueryCorrelationTest extends TenantIsolationIntegrationTest 
 
     @BeforeEach
     void seedOneSimulationWhoseAttackPatternLinksTwoTenantsPhases() {
+      // The seeded rows take the default tenant, and the reads of their tenant run in its scope
+      setScope(Tenant.DEFAULT_TENANT_UUID);
       seedTenant(OTHER_TENANT);
       insertExercise(EXERCISE);
       simulationTenant = readTenantOf("exercises", "exercise_id", EXERCISE);
@@ -87,6 +90,7 @@ class KillChainPhaseQueryCorrelationTest extends TenantIsolationIntegrationTest 
 
     @BeforeEach
     void seedOnePatternLinkedToTwoTenantsPhases() {
+      setScope(Tenant.DEFAULT_TENANT_UUID);
       seedTenant(OTHER_TENANT);
       insertAttackPattern(PATTERN);
       patternTenant = readTenantOf("attack_patterns", "attack_pattern_id", PATTERN);

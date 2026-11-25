@@ -208,3 +208,11 @@ io.openaev.service.UserService.findByToken tables=marking_definitions
 io.openaev.service.UserService.resetPassword tables=marking_definitions
 io.openaev.service.UserService.sendPasswordResetEmail tables=marking_definitions
 io.openaev.service.UserService.user tables=marking_definitions
+
+# BENIGN - the threat arsenal bulk delete is the one THREAT_ARSENAL endpoint with
+# Propagation.SUPPORTS, so its access check runs with no transaction to carry a scope. The check
+# names no resource there (the ids come from the request body), so this lookup is for an empty
+# contract id and finds nothing in any scope; a refusal for a missing right is the same with or
+# without the scope (ThreatArsenalBulkDeleteEligibilityTenantTest). Every other THREAT_ARSENAL
+# endpoint is transactional with a TxCtx, so its check reads inside the request scope.
+io.openaev.service.GrantService.threatArsenalGrantResources tables=injectors_contracts

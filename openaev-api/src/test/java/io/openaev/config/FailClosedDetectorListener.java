@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
@@ -154,13 +153,22 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   }
 
   /**
-   * First application frame that is not this detector, to locate the unscoped call site for triage.
+   * Whether the frame only forwards to the code that asked for the read. The lazy-collection
+   * tracker wraps every collection initialisation, so blaming it would hide the caller beneath it.
+   */
+  static boolean isForwardingFrame(String className) {
+    return className.equals(FailClosedDetectorListener.class.getName())
+        || className.startsWith(LazyCollectionInitTracker.class.getName());
+  }
+
+  /**
+   * First application frame that is not this detector or a forwarding frame, to locate the unscoped
+   * call site for triage.
    */
   private static String callerHint() {
     for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
       String className = frame.getClassName();
-      if (className.startsWith("io.openaev.")
-          && !className.equals(FailClosedDetectorListener.class.getName())) {
+      if (className.startsWith("io.openaev.") && !isForwardingFrame(className)) {
         return frame.getClassName() + "." + frame.getMethodName() + ":" + frame.getLineNumber();
       }
     }

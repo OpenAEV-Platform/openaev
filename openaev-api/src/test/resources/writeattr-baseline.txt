@@ -54,8 +54,13 @@ phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 # this file. Retired when tenant provisioning runs under the created tenant's scope through the v2
 # primitive (forTenant(created tenant)), after which these writes are inside the scope and the
 # signature is no longer produced.
+# The same provisioning seeds the new tenant's copy of the injector contracts, their domains and the
+# built-in injector link; the integration factory writes that link from the same call.
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
+injectors_contracts OTHER io.openaev.service.tenants.TenantService.create
+injectors_contracts_domains OTHER io.openaev.service.tenants.TenantService.create
+injectors_injector_contracts OTHER io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory.registerConnectorForTenant
 
 # --- Platform user memberships. A platform administrator (MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES
 # capability, enterprise edition) attaches or detaches a user's tenants from the platform screen;
