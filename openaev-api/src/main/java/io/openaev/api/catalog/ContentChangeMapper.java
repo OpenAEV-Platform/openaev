@@ -13,25 +13,19 @@ public class ContentChangeMapper {
 
   private ContentChangeMapper() {}
 
-  public static ContentChangeOutput toOutput(ContentChange history) {
+  public static ContentChangeOutput toOutput(ContentChange change) {
     return new ContentChangeOutput(
-        history.getId(),
-        history.getAction(),
-        history.getMode(),
-        history.getVersion(),
-        Optional.ofNullable(history.getUser()).map(User::getNameOrEmail).orElse(null),
-        history.getCreatedAt());
-  }
-
-  public static PayloadContentChangeOutput toPayloadOutput(PayloadHistoryEntry entry) {
-    ContentChange change = entry.change();
-    return new PayloadContentChangeOutput(
         change.getId(),
         change.getAction(),
         change.getMode(),
         change.getVersion(),
         Optional.ofNullable(change.getUser()).map(User::getNameOrEmail).orElse(null),
-        change.getCreatedAt(),
+        change.getCreatedAt());
+  }
+
+  public static PayloadContentChangeOutput toPayloadOutput(PayloadHistoryEntry entry) {
+    return new PayloadContentChangeOutput(
+        toOutput(entry.change()),
         entry.versionChange().map(PayloadVersionChange::fromVersion).orElse(null),
         entry
             .versionChange()
