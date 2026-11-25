@@ -2,13 +2,16 @@ import { IconButton, Skeleton, Text } from '@filigran/design-system';
 // fds:keep-mui the library has no Table yet
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
+import { Fragment, type ReactNode, useState } from 'react';
 
 import { type ContentChangeOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_SX, fdsTableFrameStyle, fdsTableSectionStyle } from '../fdsTableSpec';
 import { FoldArrow } from '../FoldRow';
 import { LIB_SURFACE_LAYER } from '../libSurfaceBorder';
+import TablePaginationComponentV2 from '../queryable/pagination/TablePaginationComponentV2';
+import { DEFAULT_ROWS_PER_PAGE } from '../queryable/pagination/usePaginationState';
+import { type ContentHistory } from './useContentHistory';
 
 const ACTION_LABELS: Record<ContentChangeOutput['content_change_action'], string> = {
   INSTALL: 'Installed',
@@ -29,20 +32,20 @@ export interface ContentHistoryChanges {
   details: ReactNode;
 }
 
-interface Props {
-  history: ContentChangeOutput[] | null;
+interface Props<T extends ContentChangeOutput> {
+  history: ContentHistory<T>;
   // With it, a Changes column and rows that open on their before / after; null for an entry with none.
-  changesOf?: (entry: ContentChangeOutput) => ContentHistoryChanges | null;
+  changesOf?: (entry: T) => ContentHistoryChanges | null;
 }
 
 // What happened to a catalogue content, newest first. A row reads its version first (what the reader scans
 // for), then what happened; the date, then its time.
-const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) => {
+const ContentHistoryTable = <T extends ContentChangeOutput>({ history: { entries, pagination }, changesOf }: Props<T>) => {
   const { t, fsd, ft } = useFormatter();
   const theme = useTheme();
   const [opened, setOpened] = useState<string | null>(null);
 
-  if (history === null) {
+  if (entries === null) {
     return <Skeleton className="h-24" />;
   }
   const author = (entry: ContentChangeOutput) => (entry.content_change_mode === 'AUTO'
@@ -62,7 +65,7 @@ const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
   const columns = changesOf ? 5 : 3;
   return (
     <div className={LIB_SURFACE_LAYER} style={fdsTableFrameStyle(theme)}>
-      {history.length === 0
+      {entries.length === 0
         ? (
             <div style={fdsTableSectionStyle(theme)}>
               <Text variant="content-compact" className="text-default-secondary">{t('No history yet')}</Text>
@@ -80,7 +83,7 @@ const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
                 </TableRow>
               </TableHead>
               <TableBody>
-                {history.map((entry) => {
+                {entries.map((entry) => {
                   const changes = changesOf?.(entry) ?? null;
                   const open = opened === entry.content_change_id;
                   const version = changes
@@ -128,6 +131,9 @@ const ContentHistoryTable: FunctionComponent<Props> = ({ history, changesOf }) =
               </TableBody>
             </Table>
           )}
+      {pagination.getTotalElements() > DEFAULT_ROWS_PER_PAGE && (
+        <TablePaginationComponentV2 page={pagination.page} size={pagination.elementsPerPage} paginationHelpers={pagination} />
+      )}
     </div>
   );
 };

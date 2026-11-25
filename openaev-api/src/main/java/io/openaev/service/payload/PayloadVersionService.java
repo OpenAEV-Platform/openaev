@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -75,11 +76,40 @@ public class PayloadVersionService {
   /** What this version changed since the one just below it; empty for the first version. */
   public Optional<PayloadChange> changeFromPrevious(String tenantId, String actionId) {
     Payload version = payload(tenantId, actionId);
-    return payloadService.versionsOf(tenantId, version).stream()
-        .filter(
-            other -> SemanticVersion.ORDER.compare(other.getVersion(), version.getVersion()) < 0)
-        .max(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER))
-        .map(previous -> payloadChangeKind.since(previous, List.of(version)).getFirst());
+    return Optional.ofNullable(
+            changesFromPrevious(tenantId, version, Set.of(version.getVersion()))
+                .get(version.getVersion()))
+        .map(PayloadVersionChange::change);
+  }
+
+  /** By version, what each of these versions changed since the one just below it. */
+  public Map<String, PayloadVersionChange> changesFromPrevious(
+      String tenantId, String actionId, Collection<String> versions) {
+    if (versions.isEmpty()) {
+      return Map.of();
+    }
+    return changesFromPrevious(tenantId, payload(tenantId, actionId), Set.copyOf(versions));
+  }
+
+  private Map<String, PayloadVersionChange> changesFromPrevious(
+      String tenantId, Payload payload, Set<String> versions) {
+    List<Payload> ordered =
+        payloadService.versionsOf(tenantId, payload).stream()
+            .sorted(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER))
+            .toList();
+    Map<String, PayloadVersionChange> changes = new HashMap<>();
+    for (int i = 1; i < ordered.size(); i++) {
+      Payload previous = ordered.get(i - 1);
+      Payload version = ordered.get(i);
+      if (versions.contains(version.getVersion())) {
+        changes.put(
+            version.getVersion(),
+            new PayloadVersionChange(
+                previous.getVersion(),
+                payloadChangeKind.since(previous, List.of(version)).getFirst()));
+      }
+    }
+    return changes;
   }
 
   /** Refused when the version is not another version of the payload, or is revoked. */

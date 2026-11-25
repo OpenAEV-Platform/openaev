@@ -2,7 +2,8 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.catalog.ContentType;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,10 +12,10 @@ import org.springframework.stereotype.Repository;
 public interface ContentChangeRepository extends JpaRepository<ContentChange, String> {
 
   @EntityGraph(attributePaths = "user")
-  List<ContentChange> findAllByTenantIdAndTypeAndRepositoryAndExternalIdOrderByCreatedAtDesc(
-      String tenantId, ContentType type, String repository, String externalId);
+  Page<ContentChange> findAllByTenantIdAndTypeAndRepositoryAndExternalId(
+      String tenantId, ContentType type, String repository, String externalId, Pageable pageable);
 
   @EntityGraph(attributePaths = "user")
-  List<ContentChange> findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
-      String tenantId, ContentType type, String contentId);
+  Page<ContentChange> findAllByTenantIdAndTypeAndContentId(
+      String tenantId, ContentType type, String contentId, Pageable pageable);
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchScenarioHistory, fetchScenarioRevisions, fetchScenarioVersions } from '../../../../../actions/scenarios/scenario-update-actions';
+import { fetchScenarioRevisions, fetchScenarioVersions, searchScenarioHistory } from '../../../../../actions/scenarios/scenario-update-actions';
 import useContentHistory from '../../../../../components/common/content_history/useContentHistory';
 import { type ScenarioRevisionOutput, type ScenarioVersionsOutput } from '../../../../../utils/api-types';
 
@@ -9,7 +9,7 @@ const useScenarioVersions = (scenarioId: string) => {
   const [versions, setVersions] = useState<ScenarioVersionsOutput | null>(null);
   const [revisions, setRevisions] = useState<ScenarioRevisionOutput[] | null>(null);
   const [loads, setLoads] = useState(0);
-  const history = useContentHistory(fetchScenarioHistory, scenarioId, loads);
+  const history = useContentHistory(searchScenarioHistory, scenarioId, loads);
 
   const load = useCallback(() => {
     fetchScenarioVersions(scenarioId).then(setVersions);

@@ -931,15 +931,17 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
 
       // Act & Assert
       committed(
-              get(
-                  TENANT_SCENARIO_URI + "/{scenarioId}/history",
-                  DEFAULT_TENANT_UUID,
-                  reinstalled.getId()))
+              post(
+                      TENANT_SCENARIO_URI + "/{scenarioId}/history/search",
+                      DEFAULT_TENANT_UUID,
+                      reinstalled.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(new SearchPaginationInput())))
           .andExpect(status().isOk())
           .andExpect(
-              jsonPath("$[*].content_change_action")
+              jsonPath("$.content[*].content_change_action")
                   .value(contains("INSTALL", "UNINSTALL", "INSTALL")))
-          .andExpect(jsonPath("$[*].content_change_version").value(everyItem(is(VERSION))));
+          .andExpect(jsonPath("$.content[*].content_change_version").value(everyItem(is(VERSION))));
     }
 
     @Test

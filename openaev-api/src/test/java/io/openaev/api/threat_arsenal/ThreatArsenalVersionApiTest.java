@@ -547,6 +547,21 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
 
   // -- HISTORY --
 
+  private JsonNode history(String actionId, int size) throws Exception {
+    SearchPaginationInput input = new SearchPaginationInput();
+    input.setSize(size);
+    return body(
+        mvc.perform(
+                post(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history/search",
+                        DEFAULT_TENANT_UUID,
+                        actionId)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(input)))
+            .andExpect(status().isOk()));
+  }
+
   @Test
   @DisplayName("lists who installed each version of the payload, newest first")
   void given_installedVersions_should_listTheirInstallsNewestFirst() throws Exception {
@@ -554,14 +569,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     List<String> ids = installed("1.0.0", "1.1.0");
 
     // Act
-    JsonNode history =
-        body(
-            mvc.perform(
-                    get(
-                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
-                        DEFAULT_TENANT_UUID,
-                        contractOf(ids.getFirst()).getId()))
-                .andExpect(status().isOk()));
+    JsonNode history = history(contractOf(ids.getFirst()).getId(), 20).get("content");
 
     // Assert
     assertThat(history.findValuesAsText("content_change_version"))
@@ -574,19 +582,29 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("pages the history of the payload")
+  void given_historyLongerThanAPage_should_returnOnePage() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+
+    // Act
+    JsonNode page = history(contractOf(ids.getFirst()).getId(), 1);
+
+    // Assert
+    assertThat(page.get("content")).hasSize(1);
+    assertThat(page.get("totalElements").asInt()).isEqualTo(2);
+    assertThat(page.get("content").get(0).get("content_change_version").asText())
+        .isEqualTo("1.1.0");
+  }
+
+  @Test
   @DisplayName("has no history for a payload made in the tenant")
   void given_localPayload_should_haveNoHistory() throws Exception {
     // Arrange
     InjectorContract action = localAction();
 
     // Act & Assert
-    mvc.perform(
-            get(
-                TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
-                DEFAULT_TENANT_UUID,
-                action.getId()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(0));
+    assertThat(history(action.getId(), 20).get("content")).isEmpty();
   }
 
   @Test
@@ -607,14 +625,7 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(status().isOk());
 
     // Act
-    JsonNode history =
-        body(
-            mvc.perform(
-                    get(
-                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
-                        DEFAULT_TENANT_UUID,
-                        action.getId()))
-                .andExpect(status().isOk()));
+    JsonNode history = history(action.getId(), 20).get("content");
 
     // Assert
     assertThat(history.findValuesAsText("content_change_action"))
@@ -623,6 +634,10 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .containsExactly(ContentChange.Mode.MANUAL.name());
     assertThat(history.findValuesAsText("content_change_version"))
         .doesNotContain(Payload.FIRST_VERSION);
+    assertThat(history.get(0).get("content_change_from_version").asText())
+        .isEqualTo(Payload.FIRST_VERSION);
+    assertThat(history.get(0).get("content_change_fields").findValuesAsText("change_field"))
+        .isNotEmpty();
   }
 
   // -- SEARCH --

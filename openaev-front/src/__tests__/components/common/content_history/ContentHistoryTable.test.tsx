@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ContentHistoryTable from '../../../../components/common/content_history/ContentHistoryTable';
+import { type ContentHistory } from '../../../../components/common/content_history/useContentHistory';
+import { type PaginationHelpers } from '../../../../components/common/queryable/pagination/PaginationHelpers';
 import { type ContentChangeOutput } from '../../../../utils/api-types';
 
 vi.mock('../../../../components/i18n', () => ({
@@ -22,12 +24,23 @@ const entry = (overrides: Partial<ContentChangeOutput>): ContentChangeOutput => 
   ...overrides,
 });
 
+const historyOf = (entries: ContentChangeOutput[] | null, total = entries?.length ?? 0): ContentHistory<ContentChangeOutput> => ({
+  entries,
+  pagination: {
+    page: 0,
+    elementsPerPage: 20,
+    getTotalElements: () => total,
+    handleChangePage: vi.fn(),
+    handleChangeRowsPerPage: vi.fn(),
+  } as unknown as PaginationHelpers,
+});
+
 describe('ContentHistoryTable', () => {
   afterEach(cleanup);
 
   it('given_loadingHistory_should_showNoTable', () => {
     // Arrange & Act
-    render(<ContentHistoryTable history={null} />);
+    render(<ContentHistoryTable history={historyOf(null)} />);
 
     // Assert
     expect(screen.queryByRole('table')).toBeNull();
@@ -36,7 +49,7 @@ describe('ContentHistoryTable', () => {
 
   it('given_noHistory_should_sayItIsEmpty', () => {
     // Arrange & Act
-    render(<ContentHistoryTable history={[]} />);
+    render(<ContentHistoryTable history={historyOf([])} />);
 
     // Assert
     expect(screen.getByText('No history yet')).toBeTruthy();
@@ -80,7 +93,7 @@ describe('ContentHistoryTable', () => {
     ];
 
     // Act
-    render(<ContentHistoryTable history={history} />);
+    render(<ContentHistoryTable history={historyOf(history)} />);
 
     // Assert
     const rows = within(screen.getByRole('table', { name: 'History' })).getAllByRole('row').slice(1);
@@ -99,10 +112,10 @@ describe('ContentHistoryTable', () => {
     // Arrange
     render(
       <ContentHistoryTable
-        history={[entry({
+        history={historyOf([entry({
           content_change_action: 'UPDATE',
           content_change_version: '1.1.0',
-        })]}
+        })])}
         changesOf={() => ({
           fromVersion: '1.0.0',
           summary: 'Command',
@@ -118,5 +131,21 @@ describe('ContentHistoryTable', () => {
     // Assert
     expect(within(row).getAllByRole('cell').map(cell => cell.textContent).slice(0, 3)).toEqual(['v1.0.0 → v1.1.0Updated', 'Command', 'Jane']);
     expect(screen.getByText('The before / after')).toBeTruthy();
+  });
+
+  it('given_onePage_should_showNoPagination', () => {
+    // Arrange & Act
+    render(<ContentHistoryTable history={historyOf([entry({})])} />);
+
+    // Assert
+    expect(screen.queryByText(/of 1/)).toBeNull();
+  });
+
+  it('given_moreThanAPage_should_showThePagination', () => {
+    // Arrange & Act
+    render(<ContentHistoryTable history={historyOf([entry({})], 45)} />);
+
+    // Assert
+    expect(screen.getByText('1–20 of 45')).toBeTruthy();
   });
 });

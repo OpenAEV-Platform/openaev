@@ -4,6 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import FoldRow from '../../../../components/common/FoldRow';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import useVersionChanges from './useVersionChanges';
 import VersionChanges from './VersionChanges';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 const SavedVersionChanges: FunctionComponent<Props> = ({ saved, previous }) => {
   const { t } = useFormatter();
   const [open, setOpen] = useState(true);
+  const changes = useVersionChanges(saved.payload_action_id);
   return (
     <>
       <FoldRow
@@ -30,7 +32,7 @@ const SavedVersionChanges: FunctionComponent<Props> = ({ saved, previous }) => {
       </FoldRow>
       {open && (
         <VersionChanges
-          actionId={saved.payload_action_id}
+          changes={changes}
           beforeVersion={previous.payload_version}
           afterVersion={saved.payload_version}
         />

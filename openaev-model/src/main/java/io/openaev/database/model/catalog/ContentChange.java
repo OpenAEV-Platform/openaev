@@ -21,13 +21,24 @@ import org.hibernate.annotations.UuidGenerator;
 public class ContentChange implements TenantBase {
 
   public enum Action {
-    INSTALL,
-    UNINSTALL,
-    REVOKE,
-    LIFT_REVOCATION,
-    UPDATE,
-    ROLLBACK,
-    SAVE
+    INSTALL(false),
+    UNINSTALL(false),
+    REVOKE(false),
+    LIFT_REVOCATION(false),
+    UPDATE(true),
+    ROLLBACK(false),
+    SAVE(true);
+
+    private final boolean newVersion;
+
+    Action(boolean newVersion) {
+      this.newVersion = newVersion;
+    }
+
+    /** Made its version from the one just below it. */
+    public boolean madeVersion() {
+      return newVersion;
+    }
   }
 
   public enum Mode {

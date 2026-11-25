@@ -9700,6 +9700,25 @@ export interface PageConnectorInstanceLog {
   totalPages?: number;
 }
 
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCredentialOutput {
   content?: CredentialOutput[];
   empty?: boolean;
@@ -10082,6 +10101,25 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10519,6 +10557,31 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"DnsResolution", DnsResolution>
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
+
+/** One change of a payload; an update or a save also says what its version changed. */
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
+}
 
 export interface PayloadCustomizationOutput {
   /**

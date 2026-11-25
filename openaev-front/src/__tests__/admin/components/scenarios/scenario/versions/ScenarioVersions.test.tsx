@@ -186,6 +186,13 @@ const history: ContentChangeOutput[] = [{
   content_change_created_at: '2026-11-04',
 }];
 
+const HISTORY_SEARCH = `${SCENARIO}/history/search`;
+const servedHistory = () => Promise.resolve({
+  data: {
+    content: history,
+    totalElements: history.length,
+  },
+});
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
 
 const renderVersions = () => render(<ScenarioVersions />);
@@ -200,12 +207,11 @@ describe('ScenarioVersions', () => {
 
   beforeEach(() => {
     mocks.canManage.mockReturnValue(true);
-    mocks.simplePostCall.mockResolvedValue({ data: {} });
+    mocks.simplePostCall.mockImplementation((uri: string) => (uri === HISTORY_SEARCH ? servedHistory() : Promise.resolve({ data: {} })));
     notifySuccess.mockImplementation(() => undefined);
     serve({
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
-      [`${SCENARIO}/history`]: history,
       [`${SCENARIO}/versions/1.1.0/preview`]: updatePreview,
       [`${SCENARIO}/revisions/revision-3/preview`]: preview([]),
     });
@@ -343,7 +349,7 @@ describe('ScenarioVersions', () => {
     expect(notifySuccess).toHaveBeenCalledWith('Scenario updated to v1.1.0');
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/versions`)).toHaveLength(2);
-    expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/history`)).toHaveLength(2);
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri === HISTORY_SEARCH)).toHaveLength(2);
   });
 
   it('given_anUpdateRefused_should_showWhyAndKeepTheDialogOpen', async () => {
@@ -355,7 +361,7 @@ describe('ScenarioVersions', () => {
       message: 'The scenario changed since the preview',
     };
     mocks.post.mockRejectedValueOnce(refusal);
-    mocks.simplePostCall.mockImplementationOnce(mocks.realSimplePostCall);
+    mocks.simplePostCall.mockImplementation((uri: string, ...rest: unknown[]) => (uri === HISTORY_SEARCH ? servedHistory() : mocks.realSimplePostCall(uri, ...rest)));
     renderVersions();
     const dialog = await open('Update');
     await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });

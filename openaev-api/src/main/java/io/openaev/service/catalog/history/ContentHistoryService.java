@@ -4,10 +4,17 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.catalog.CatalogContent;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.repository.ContentChangeRepository;
+import io.openaev.service.payload.PayloadVersionChange;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
-import java.util.List;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,26 +33,48 @@ public class ContentHistoryService {
   // -- LIST --
 
   @Transactional(readOnly = true)
-  public List<ContentChange> payloadHistory(String tenantId, String actionId) {
-    return history(payloadVersionService.payload(tenantId, actionId));
+  public Page<PayloadHistoryEntry> payloadHistory(
+      String tenantId, String actionId, SearchPaginationInput input) {
+    Page<ContentChange> history = history(payloadVersionService.payload(tenantId, actionId), input);
+    Map<String, PayloadVersionChange> changes =
+        payloadVersionService.changesFromPrevious(
+            tenantId,
+            actionId,
+            history.stream()
+                .filter(change -> change.getAction().madeVersion())
+                .map(ContentChange::getVersion)
+                .toList());
+    return history.map(
+        change ->
+            new PayloadHistoryEntry(
+                change,
+                Optional.of(change)
+                    .filter(made -> made.getAction().madeVersion())
+                    .map(made -> changes.get(made.getVersion()))));
   }
 
   @Transactional(readOnly = true)
-  public List<ContentChange> scenarioHistory(TxCtx ctx, String scenarioId) {
-    return history(scenarioService.scenario(ctx, scenarioId));
+  public Page<ContentChange> scenarioHistory(
+      TxCtx ctx, String scenarioId, SearchPaginationInput input) {
+    return history(scenarioService.scenario(ctx, scenarioId), input);
   }
 
   /** Newest first; local content, which has no catalogue key, is found by its content id. */
-  private List<ContentChange> history(CatalogContent content) {
+  private Page<ContentChange> history(CatalogContent content, SearchPaginationInput input) {
+    Pageable page =
+        PageRequest.of(input.getPage(), input.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
     if (content.getCatalogRepository() == null) {
-      return contentChangeRepository.findAllByTenantIdAndTypeAndContentIdOrderByCreatedAtDesc(
-          content.getTenant().getId(), content.getCatalogType(), content.getCatalogContentId());
+      return contentChangeRepository.findAllByTenantIdAndTypeAndContentId(
+          content.getTenant().getId(),
+          content.getCatalogType(),
+          content.getCatalogContentId(),
+          page);
     }
-    return contentChangeRepository
-        .findAllByTenantIdAndTypeAndRepositoryAndExternalIdOrderByCreatedAtDesc(
-            content.getTenant().getId(),
-            content.getCatalogType(),
-            content.getCatalogRepository(),
-            content.getCatalogExternalId());
+    return contentChangeRepository.findAllByTenantIdAndTypeAndRepositoryAndExternalId(
+        content.getTenant().getId(),
+        content.getCatalogType(),
+        content.getCatalogRepository(),
+        content.getCatalogExternalId(),
+        page);
   }
 }
