@@ -13,7 +13,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
-import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.service.account.AbstractPrivilegeService;
@@ -127,8 +126,6 @@ class LegacyOpenCTIConnectorMigrationTenantScopeTest extends IntegrationTest {
         OPENCTI_CONNECTOR.access().groupId(),
         legacyUserId);
 
-    when(openCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-        .thenReturn(ResponseFixture.getSchemaResponseWithJwks());
     when(openCTIClient.execute(any(), any(), any(RegisterConnector.class)))
         .thenReturn(ResponseFixture.getOkResponse());
     when(openCTIClient.execute(any(), any(), any(Ping.class)))
