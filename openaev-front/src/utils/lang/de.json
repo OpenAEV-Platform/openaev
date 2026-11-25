@@ -299,6 +299,7 @@
   "Affected assets & context": "Betroffene Assets & Kontext",
   "AFTER": "NACH",
   "After": "Nachher",
+  "After · v{version}": "Nachher · v{version}",
   "agent": "agent",
   "Agent": "Agent",
   "Agent auto-update": "Automatische Agentenaktualisierung",

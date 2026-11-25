@@ -299,6 +299,7 @@
   "Affected assets & context": "영향받은 자산 및 컨텍스트",
   "AFTER": "이후",
   "After": "변경 후",
+  "After · v{version}": "이후 · v{version}",
   "agent": "에이전트",
   "Agent": "에이전트",
   "Agent auto-update": "에이전트 자동 업데이트",

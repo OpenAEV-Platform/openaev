@@ -299,6 +299,7 @@
   "Affected assets & context": "受影响的资产与上下文",
   "AFTER": "后",
   "After": "之后",
+  "After · v{version}": "之后 · v{version}",
   "agent": "代理人",
   "Agent": "代理",
   "Agent auto-update": "代理自动更新",

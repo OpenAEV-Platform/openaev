@@ -299,6 +299,7 @@
   "Affected assets & context": "影響を受けるアセットとコンテキスト",
   "AFTER": "後",
   "After": "変更後",
+  "After · v{version}": "変更後 · v{version}",
   "agent": "エージェント",
   "Agent": "エージェント",
   "Agent auto-update": "エージェントの自動更新",
