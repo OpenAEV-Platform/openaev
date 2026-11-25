@@ -104,6 +104,9 @@ class XtmHubCollectorTest {
     config.setNewsFeedCleanupIntervalValue("abc");
     config.setNewsFeedCleanupIntervalUnit("fortnights");
     Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
+    // Explicit: the ambient level depends on the Spring contexts the other tests started
+    Level originalLevel = collectorLogger.getLevel();
+    collectorLogger.setLevel(Level.WARN);
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
     logs.start();
     collectorLogger.addAppender(logs);
@@ -122,6 +125,7 @@ class XtmHubCollectorTest {
     } finally {
       collectorLogger.detachAppender(logs);
       logs.stop();
+      collectorLogger.setLevel(originalLevel);
     }
   }
 
@@ -133,6 +137,9 @@ class XtmHubCollectorTest {
     config.setNewsFeedCleanupIntervalValue("6");
     config.setNewsFeedCleanupIntervalUnit("months");
     Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
+    // Explicit: the ambient level depends on the Spring contexts the other tests started
+    Level originalLevel = collectorLogger.getLevel();
+    collectorLogger.setLevel(Level.WARN);
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
     logs.start();
     collectorLogger.addAppender(logs);
@@ -145,6 +152,7 @@ class XtmHubCollectorTest {
     } finally {
       collectorLogger.detachAppender(logs);
       logs.stop();
+      collectorLogger.setLevel(originalLevel);
     }
   }
 
