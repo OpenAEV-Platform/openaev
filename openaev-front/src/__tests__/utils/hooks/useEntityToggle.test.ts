@@ -28,7 +28,7 @@ describe('useEntityToggle', () => {
       const { result } = renderHook(() => useEntityToggle<Item>('item', [first, second, third]));
 
       // -- ACT --
-      act(() => result.current.onToggleEntity([first, second] as unknown as Item));
+      act(() => result.current.onToggleEntity([first, second]));
 
       // -- ASSERT --
       expect(result.current.selectedElements).toEqual({
@@ -43,7 +43,7 @@ describe('useEntityToggle', () => {
       act(() => result.current.onToggleEntity(first));
 
       // -- ACT --
-      act(() => result.current.onToggleEntity([first, third] as unknown as Item));
+      act(() => result.current.onToggleEntity([first, third]));
 
       // -- ASSERT --
       expect(result.current.selectedElements).toEqual({
@@ -58,7 +58,7 @@ describe('useEntityToggle', () => {
       act(() => result.current.onToggleEntity(first));
 
       // -- ACT --
-      act(() => result.current.onToggleEntity([second, third] as unknown as Item, undefined, [first]));
+      act(() => result.current.onToggleEntity([second, third], undefined, [first]));
 
       // -- ASSERT --
       expect(result.current.selectedElements).toEqual({

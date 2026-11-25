@@ -8,7 +8,7 @@ export interface UseEntityToggle<T> {
   selectAll: boolean;
   numberOfSelectedElements: number;
   onToggleEntity: (
-    entity: T,
+    entity: T | T[],
     _?: SyntheticEvent,
     forceRemove?: T[],
   ) => void;
@@ -33,7 +33,7 @@ const useEntityToggle = <T extends Record<string, any>>(
   >({});
   const [selectAll, setSelectAll] = useState(false);
   const onToggleEntity = (
-    entity: T,
+    entity: T | T[],
     event?: SyntheticEvent,
     forceRemove: T[] = [],
   ) => {
