@@ -29,7 +29,7 @@ import ToolBar from '../../common/ToolBar';
 import NotificationCenterTabs from '../NotificationCenterTabs';
 import DigestNotificationDialog from './DigestNotificationDialog';
 import NotificationOperationChip from './NotificationOperationChip';
-import { eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
+import { displayMessage, eventsOf, eventUrl, getFirstOperation, opensDetails, operationIcon } from './notificationUtils';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -135,19 +135,25 @@ const Notifications = () => {
     });
   };
 
-  // Digests open the details dialog; single-event notifications are real
+  // Digests and sync alerts open the details dialog; other notifications are real
   // router links to the entity that triggered them (ctrl/cmd+click friendly),
   // deleted entities are not navigable.
   const rowUrl = (notification: NotificationOutput): string | null => {
-    if (notification.notification_type === 'DIGEST') {
+    if (opensDetails(notification)) {
       return null;
     }
     return eventUrl(eventsOf(notification).at(0)) ?? null;
   };
 
   const isRowClickable = (notification: NotificationOutput) => (
-    notification.notification_type === 'DIGEST' || rowUrl(notification) !== null
+    opensDetails(notification) || rowUrl(notification) !== null
   );
+
+  const markRead = (notification: NotificationOutput) => {
+    if (!notification.notification_is_read) {
+      onToggleRead(notification);
+    }
+  };
 
   // Headers
   const headers = [
@@ -168,7 +174,15 @@ const Notifications = () => {
         if (notification.notification_type === 'DIGEST') {
           return <em>{t('Digest with {count} events', { count: String(events.length) })}</em>;
         }
-        return events.at(0)?.message ?? '-';
+        const message = displayMessage(events.at(0)?.message).split('\n')[0];
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{message}</span>
+            </TooltipTrigger>
+            <TooltipContent>{message}</TooltipContent>
+          </Tooltip>
+        );
       },
     },
     {
@@ -345,8 +359,16 @@ const Notifications = () => {
                       ? {
                           component: Link,
                           to: url,
+                          onClick: () => markRead(notification),
                         }
-                      : { onClick: () => notification.notification_type === 'DIGEST' && setDigestToOpen(notification) })}
+                      : {
+                          onClick: () => {
+                            if (opensDetails(notification)) {
+                              markRead(notification);
+                              setDigestToOpen(notification);
+                            }
+                          },
+                        })}
                     sx={clickable ? undefined : { cursor: 'default' }}
                   >
                     <ListItemIcon

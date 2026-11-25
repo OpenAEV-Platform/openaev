@@ -28,6 +28,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.scenario.ScenarioIdentity;
+import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
@@ -179,8 +180,6 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
-  private final io.openaev.service.finding.FindingDetachService findingDetachService;
-
   // -- CREATE --
 
   /** Authored by whoever creates it, a person or a service account; no author at startup. */
@@ -294,7 +293,8 @@ public class ScenarioService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             all,
             granted,
             RawScenarioSimpleIndexing::getTenant_id,
@@ -345,7 +345,8 @@ public class ScenarioService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -823,30 +824,15 @@ public class ScenarioService {
     }
   }
 
+  /** Deletes a scenario found inside the request's tenant scope. */
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    deleteScenarioInScope(ctx, scenarioId, false);
-  }
-
-  /**
-   * Deletes a scenario found inside the request's tenant scope.
-   *
-   * @param keepFindings true keeps the findings its injects produced, detached from them; false
-   *     (the default) deletes them with the scenario
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteScenario(
-      @NotNull final TxCtx ctx, @NotBlank final String scenarioId, final boolean keepFindings) {
-    deleteScenarioInScope(ctx, scenarioId, keepFindings);
+    deleteScenarioInScope(ctx, scenarioId);
   }
 
   // Non-transactional body shared by both @Transactional entry points (no self-invocation).
-  private void deleteScenarioInScope(
-      final TxCtx ctx, final String scenarioId, final boolean keepFindings) {
+  private void deleteScenarioInScope(final TxCtx ctx, final String scenarioId) {
     existsInScope(ctx, scenarioId);
-    if (keepFindings) {
-      this.findingDetachService.detachFromScenarios(List.of(scenarioId));
-    }
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -907,9 +893,10 @@ public class ScenarioService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  currentUser.isAdminOrBypass()
-                                      || currentUser
+                              currentUser,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
                                           .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
@@ -937,9 +924,6 @@ public class ScenarioService {
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
               chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
-              if (input.isKeepFindings()) {
-                this.findingDetachService.detachFromScenarios(chunk);
-              }
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
@@ -950,6 +934,13 @@ public class ScenarioService {
 
   public boolean isCatalogInstalled(ScenarioIdentity identity) {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
+  }
+
+  /** The scenarios of the tenant installed from these catalogue items. */
+  @Transactional(readOnly = true)
+  public List<RawCatalogInstalledScenario> installedFromCatalog(
+      String tenantId, Collection<String> externalIds) {
+    return scenarioRepository.findInstalledFromCatalog(tenantId, externalIds);
   }
 
   // -- EXPORT --
@@ -1308,14 +1299,18 @@ public class ScenarioService {
     this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
 
     // Replace teams from a scenario
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, scenario.getTenant().getId()));
     scenario.setTeams(teams);
     this.scenarioRepository.save(scenario);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, scenario.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1840,5 +1835,13 @@ public class ScenarioService {
               .orElse(null));
     }
     return scenario;
+  }
+
+  /**
+   * The scenarios whose external reference is one of the given STIX ids, newest first, for the XTM
+   * counterpart lookup. Scenarios are grant-managed: the caller filters them by grant.
+   */
+  public List<Scenario> findAllByExternalReferenceIn(Collection<String> externalReferences) {
+    return scenarioRepository.findAllByExternalReferenceInOrderByUpdatedAtDesc(externalReferences);
   }
 }

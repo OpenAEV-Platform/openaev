@@ -2,6 +2,7 @@ package io.openaev.notification.engine;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -33,6 +34,7 @@ class NotificationDigestServiceTest {
 
   private NotificationTriggerLoader triggerLoader;
   private NotificationDispatchService dispatchService;
+  private NotificationRecipientFilter recipientFilter;
   private NotificationDigestService digestService;
 
   // 2026-07-20 09:00 UTC is a Monday
@@ -42,6 +44,9 @@ class NotificationDigestServiceTest {
   void setUp() {
     triggerLoader = mock(NotificationTriggerLoader.class);
     dispatchService = mock(NotificationDispatchService.class);
+    recipientFilter = mock(NotificationRecipientFilter.class);
+    // Every recipient still reads every object unless a test says otherwise.
+    when(recipientFilter.canRead(anyString(), anyString(), any(), anyString())).thenReturn(true);
     TenantScopedTransaction tenantTx = mock(TenantScopedTransaction.class);
     // Stand in for the real primitive: just run the work on this thread.
     doAnswer(
@@ -51,7 +56,8 @@ class NotificationDigestServiceTest {
             })
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
-    digestService = new NotificationDigestService(triggerLoader, dispatchService, tenantTx);
+    digestService =
+        new NotificationDigestService(triggerLoader, dispatchService, recipientFilter, tenantTx);
   }
 
   private ResolvedNotificationTrigger digest(List<String> childIds, List<String> userIds) {
@@ -110,6 +116,59 @@ class NotificationDigestServiceTest {
                         && "Live trigger".equals(groups.getFirst().title())
                         && groups.getFirst().events().size() == 2));
     verify(dispatchService, never()).dispatch(any(), any(), eq(List.of("user-2")), anyList());
+  }
+
+  @Test
+  @DisplayName("A recipient who lost access since the event does not get the object's name")
+  void lostAccessRowIsDroppedAtSendTime() {
+    ResolvedNotificationTrigger digest = digest(List.of("child-1"), List.of("user-1"));
+    when(triggerLoader.loadEnabledTriggers(NotificationTriggerType.DIGEST))
+        .thenReturn(List.of(digest));
+    when(triggerLoader.loadEventsWindow(eq(List.of("child-1")), any(), any()))
+        .thenReturn(List.of(event("Live trigger", "user-1")));
+    when(recipientFilter.canRead(
+            "tenant-a", "user-1", NotificationResourceCatalog.SCENARIO, "scenario-id"))
+        .thenReturn(false);
+
+    digestService.runDigests(DUE);
+
+    // The only row is no longer readable: nothing is sent, so its name never leaves.
+    verify(dispatchService, never()).dispatch(any(), any(), anyList(), anyList());
+  }
+
+  @Test
+  @DisplayName("A deleted row the recipient no longer reads is kept with the name masked")
+  void deletedRowIsKeptMasked() {
+    ResolvedNotificationTrigger digest = digest(List.of("child-1"), List.of("user-1"));
+    NotificationEventRecord deleted = event("Live trigger", "user-1");
+    deleted.setEventType(NotificationTriggerEventType.DELETE);
+    deleted.setMessage("[scenario] Secret plan deleted");
+    NotificationEventRecord updated = event("Live trigger", "user-1");
+    updated.setResourceId("other-scenario");
+    updated.setMessage("[scenario] Visible updated");
+    when(triggerLoader.loadEnabledTriggers(NotificationTriggerType.DIGEST))
+        .thenReturn(List.of(digest));
+    when(triggerLoader.loadEventsWindow(eq(List.of("child-1")), any(), any()))
+        .thenReturn(List.of(deleted, updated));
+    when(recipientFilter.canRead(
+            "tenant-a", "user-1", NotificationResourceCatalog.SCENARIO, "scenario-id"))
+        .thenReturn(false);
+
+    digestService.runDigests(DUE);
+
+    verify(dispatchService)
+        .dispatch(
+            eq(digest),
+            eq(NotificationTriggerType.DIGEST),
+            eq(List.of("user-1")),
+            argThat(
+                (List<NotificationContent.Group> groups) ->
+                    groups.size() == 1
+                        && groups.getFirst().events().size() == 2
+                        && "[scenario] Restricted deleted"
+                            .equals(groups.getFirst().events().get(0).message())
+                        && "[scenario] Visible updated"
+                            .equals(groups.getFirst().events().get(1).message())));
   }
 
   @Test

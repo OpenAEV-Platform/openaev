@@ -11,6 +11,7 @@ import { type Exercise, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from '../overview/DistributionUtils';
 import { sampleMailsByTeam } from './mailsSampleData';
@@ -31,18 +32,17 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const teamsColors = computeTeamsColors(teams, theme);
   const sortedTeamsByCommunicationNumber = R.pipe(
-    R.map((a: Team) => R.assoc(
-      'team_communications_number',
-      a.team_communications?.length,
-      a,
-    )),
-    R.sortWith([R.descend(R.prop('team_communications_number'))]),
+    R.map((a: Team) => ({
+      ...a,
+      team_communications_number: a.team_communications?.length,
+    })),
+    (items: Array<Team & { team_communications_number: number | undefined }>) => items.toSorted(descendBy('team_communications_number')),
     R.take(10),
   )(teams || []);
   const totalMailsByTeamData = [
     {
       name: t('Total mails'),
-      data: sortedTeamsByCommunicationNumber.map((a: Team & { team_communications_number: number }) => ({
+      data: sortedTeamsByCommunicationNumber.map((a: Team & { team_communications_number: number | undefined }) => ({
         x: a.team_name,
         y: a.team_communications_number,
         fillColor: teamsColors[a.team_id],

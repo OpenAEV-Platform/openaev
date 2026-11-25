@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.test.context.transaction.TestTransaction;
@@ -321,7 +320,7 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Switches the current tenant context and enables the Hibernate tenant filter.
+   * Switches the current tenant context.
    *
    * @param tenantId the tenant ID to switch to
    * @param entityManager the current {@link EntityManager}
@@ -333,14 +332,12 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Switches the current tenant context and enables the Hibernate tenant filter.
+   * Switches the current tenant context.
    *
    * @param tenantId the tenant ID to switch to
    */
   public void switchToTenantNoFlush(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 
   /**

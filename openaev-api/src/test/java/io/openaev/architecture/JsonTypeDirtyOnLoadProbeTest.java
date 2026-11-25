@@ -71,6 +71,7 @@ import io.openaev.database.model.autonomous.AutonomousEventType;
 import io.openaev.database.model.autonomous.AutonomousRun;
 import io.openaev.database.model.autonomous.AutonomousRunStatus;
 import io.openaev.database.model.autonomous.AutonomousScopeTarget;
+import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.engine.api.DateHistogramWidget;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.engine.api.WidgetType;
@@ -174,7 +175,8 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
           "Condition.keyTypes",
           "WorkflowScopeRule.snapshotStart",
           "WorkflowScopeRule.snapshotEnd",
-          "Scenario.autonomousConfig");
+          "Scenario.autonomousConfig",
+          "ScenarioRevision.content");
 
   /**
    * Fields measured although their table is not tenant-active yet, because a dirty-on-load defect
@@ -450,6 +452,25 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
     scenario.setAutonomousConfig(Map.of("objective", "probe", "max_steps", 3));
 
     assertNoUpdateOnLoad("scenarios", scenario, Scenario.class);
+  }
+
+  @Test
+  @DisplayName("given a scenario revision with its content, when loaded, then no update")
+  void given_a_scenario_revision_with_json_fields_should_not_update_on_load() {
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(defaultTenant());
+    entityManager.persist(scenario);
+    ScenarioRevision revision = new ScenarioRevision();
+    revision.setTenant(defaultTenant());
+    revision.setScenario(scenario);
+    revision.setReason(ScenarioRevision.Reason.UPDATE);
+    revision.setCatalogVersion("1.0.0");
+    ObjectNode content = objectMapper.createObjectNode();
+    content.put("scenario_name", "probe");
+    content.putArray("scenario_injects").addObject().put("inject_title", "probe");
+    revision.setContent(content);
+
+    assertNoUpdateOnLoad("scenario_revisions", revision, ScenarioRevision.class);
   }
 
   // -- tables not active yet, probed ahead of their activation --

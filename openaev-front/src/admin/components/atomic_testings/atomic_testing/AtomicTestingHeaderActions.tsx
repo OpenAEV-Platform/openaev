@@ -1,5 +1,5 @@
 import { Button, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
+import { PlayArrowOutlined, SettingsOutlined, Stop, StopCircleOutlined, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
@@ -13,6 +13,7 @@ import {
   launchAtomicTesting,
   realignAtomicTestingExpectations,
   relaunchAtomicTesting,
+  stopAtomicTesting,
   updateAtomicTestingRecurrence,
 } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
@@ -51,6 +52,8 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   // Relaunching a drifted atomic testing without realigning replays the outdated
   // expectations forever - hence realign is opt-out (checked by default).
   const [realignOnRelaunch, setRealignOnRelaunch] = useState(true);
+  const [openStopDialog, setOpenStopDialog] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   // Expectation drift between the injector contract template and the inject
   // content - recomputed when the atomic testing is updated.
@@ -169,6 +172,25 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       // notifying); abort the relaunch and let them retry.
     } finally {
       handleCanLaunch();
+    }
+  };
+
+  // A queued, executing or pending atomic testing can be stopped by whoever may
+  // launch it: the backend withdraws the agent jobs and ends it in error.
+  const isRunning = ['QUEUING', 'EXECUTING', 'PENDING'].includes(injectResultOverview.inject_status?.status_name ?? '');
+  const hasLaunchAbilityOnHeader = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT) || ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, injectResultOverview.inject_id);
+
+  const submitStop = async () => {
+    setOpenStopDialog(false);
+    setStopping(true);
+    try {
+      const result: { data: InjectResultOverviewOutput } = await stopAtomicTesting(injectResultOverview.inject_id);
+      setInjectResultOverview(result.data);
+    } catch {
+      // The API layer already notified the user (simplePostCall rethrows after
+      // notifying), for instance when the run ended meanwhile.
+    } finally {
+      setStopping(false);
     }
   };
 
@@ -305,8 +327,27 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         actions={['Export', 'Update', 'Duplicate', 'Delete']}
         onDelete={() => navigate('/admin/atomic_testings')}
       />
+      {hasLaunchAbilityOnHeader && isRunning && (
+        <Button type="button" variant="destructive" priority="secondary" startIcon={<StopCircleOutlined fontSize="small" />} onClick={() => setOpenStopDialog(true)} disabled={stopping} style={{ whiteSpace: 'nowrap' }}>
+          {t('Stop execution')}
+        </Button>
+      )}
       {hasAbility && getActionButton(injectResultOverview)}
       {getDialog(injectResultOverview)}
+      <Dialog open={openStopDialog} onClose={() => setOpenStopDialog(false)} slotProps={{ paper: { elevation: 1 } }}>
+        <DialogContent>
+          <DialogContentText>
+            {t('Do you want to stop this atomic testing: {title}?', { title: injectResultOverview.inject_title })}
+          </DialogContentText>
+          <Alert severity="warning" style={{ marginTop: theme.spacing(2) }}>
+            {t('Agents will not receive its pending jobs and it will end in error. Commands an agent already started are not interrupted.')}
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button type="button" priority="secondary" onClick={() => setOpenStopDialog(false)}>{t('Cancel')}</Button>
+          <Button type="button" variant="destructive" onClick={submitStop}>{t('Stop execution')}</Button>
+        </DialogActions>
+      </Dialog>
       <SchedulingDialog
         open={openScheduling}
         onClose={() => setOpenScheduling(false)}

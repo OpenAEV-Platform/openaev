@@ -42,13 +42,25 @@ public class CanonicalContent {
 
   private final DocumentService documentService;
 
+  /** How an attached file enters the canonical form. */
+  public enum Files {
+    /** By the hash of its content: the same file uploaded twice is the same. */
+    BY_HASH,
+    /** By its document, when its content cannot be read. */
+    BY_ID
+  }
+
   /**
    * The canonical form of an object, empty values left out.
    *
    * @throws UnreadableFileException when an attached file cannot be read
    */
   public ObjectNode tree(Object hashed) {
-    return (ObjectNode) withoutEmpty(object(hashed));
+    return tree(hashed, Files.BY_HASH);
+  }
+
+  public ObjectNode tree(Object hashed, Files files) {
+    return (ObjectNode) withoutEmpty(object(hashed, files));
   }
 
   /** The keys a class enters the canonical form under. */
@@ -56,40 +68,51 @@ public class CanonicalContent {
     return membersOf(type).stream().map(HashedMember::key).collect(Collectors.toSet());
   }
 
+  /** Per key a class enters the canonical form under, what a change of it makes of a version. */
+  public Map<String, Hashed.Change> changes(Class<?> type) {
+    return membersOf(type).stream()
+        .collect(Collectors.toMap(HashedMember::key, member -> member.hashed().change()));
+  }
+
   /** The SHA-256 of the RFC 8785 text of a canonical form. */
   public String hash(JsonNode tree) {
     return sha256(canonical(withoutEmpty(tree)));
+  }
+
+  private String fileEntry(Document document, Files files) {
+    return files == Files.BY_ID ? document.getId() : fileHash(document);
   }
 
   private String fileHash(Document document) {
     return documentService.contentHash(document).orElseThrow(UnreadableFileException::new);
   }
 
-  private ObjectNode object(Object source) {
+  private ObjectNode object(Object source, Files files) {
     Object value = Hibernate.unproxy(source);
     ObjectNode node = MAPPER.createObjectNode();
     for (HashedMember member : membersOf(value.getClass())) {
       Object memberValue = member.read(value);
       if (memberValue != null) {
-        node.set(member.key(), entry(member.hashed(), memberValue));
+        node.set(member.key(), entry(member.hashed(), memberValue, files));
       }
     }
     return node;
   }
 
-  private JsonNode entry(Hashed hashed, Object value) {
+  private JsonNode entry(Hashed hashed, Object value, Files files) {
     if (value instanceof Document document) {
-      return MAPPER.valueToTree(fileHash(document));
+      return MAPPER.valueToTree(fileEntry(document, files));
     }
     if (value instanceof FileReference file) {
-      return MAPPER.valueToTree(fileHash(documentOf(file.documentId())));
+      return MAPPER.valueToTree(
+          files == Files.BY_ID ? file.documentId() : fileHash(documentOf(file.documentId())));
     }
     return switch (hashed.order()) {
       case VALUE -> MAPPER.valueToTree(value);
       case SET ->
           value instanceof Map<?, ?> map ? sortedValuesByKey(map) : sortedValues(items(value));
-      case LIST -> objects(items(value));
-      case OBJECTS -> sortedObjects(items(value));
+      case LIST -> objects(items(value), files);
+      case OBJECTS -> sortedObjects(items(value), files);
     };
   }
 
@@ -101,17 +124,17 @@ public class CanonicalContent {
     }
   }
 
-  private ArrayNode objects(Collection<?> items) {
+  private ArrayNode objects(Collection<?> items, Files files) {
     ArrayNode array = MAPPER.createArrayNode();
-    items.forEach(item -> array.add(object(item)));
+    items.forEach(item -> array.add(object(item, files)));
     return array;
   }
 
   // Sets of objects: sorted by their canonical form, so storage order never changes the hash.
-  private ArrayNode sortedObjects(Collection<?> items) {
+  private ArrayNode sortedObjects(Collection<?> items, Files files) {
     ArrayNode array = MAPPER.createArrayNode();
     items.stream()
-        .map(item -> withoutEmpty(object(item)))
+        .map(item -> withoutEmpty(object(item, files)))
         .sorted(Comparator.comparing(CanonicalContent::canonical))
         .forEach(array::add);
     return array;

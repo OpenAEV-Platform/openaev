@@ -3,10 +3,11 @@ import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
+import { type MarkingDefinitionHelper } from '../../actions/marking_definitions/marking-definition-helper';
+import { useHelper } from '../../store';
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
-import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
-import { collapseToHighestPerType, markingLabel } from '../../utils/markings';
+import { collapseToHighestPerType, markingLabel, sortMarkings } from '../../utils/markings';
 import MarkingChip from '../common/MarkingChip';
 import { useFormatter } from '../i18n';
 
@@ -19,16 +20,6 @@ interface Props {
   disabled?: boolean;
   required?: boolean;
 }
-
-// Most restrictive first within a type (TLP:RED before TLP:AMBER before ...) - same ordering as
-// GroupManageMarkings and ItemMarkings, so a marking reads the same way in every picker/display.
-const sortMarkings = (definitions: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
-  [...definitions].sort((a, b) => {
-    if (a.marking_definition_type !== b.marking_definition_type) {
-      return a.marking_definition_type.localeCompare(b.marking_definition_type);
-    }
-    return b.marking_definition_order - a.marking_definition_order;
-  });
 
 // This never creates a marking definition inline: definitions are managed from Settings > Marking
 // definitions, and are few enough (nine seeded TLP/PAP levels per tenant) that there is no product
@@ -50,7 +41,7 @@ const MarkingField: FunctionComponent<Props> = ({
   // assigned is guaranteed to already be within their clearance too: a row is only visible at all
   // when its markings are a subset of the viewer's own, so there is no case here where the current
   // value would fall outside this same filtered set.
-  const definitions = useMarkingDefinitions({ assignableOnly: true });
+  const { definitions } = useHelper((helper: MarkingDefinitionHelper) => ({ definitions: helper.getMarkingDefinitionsMap() }));
 
   const options = useMemo(() => sortMarkings(Object.values(definitions)), [definitions]);
 

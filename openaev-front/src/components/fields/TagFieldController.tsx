@@ -9,9 +9,11 @@ interface Props {
   style?: CSSProperties;
   disabled?: boolean;
   required?: boolean;
+  /** Help line under the field, always visible; an error message takes its place. */
+  helperText?: string;
 }
 
-const TagFieldController = ({ name, label, style = {}, required = false, disabled = false }: Props) => {
+const TagFieldController = ({ name, label, style = {}, required = false, disabled = false, helperText }: Props) => {
   const { control } = useFormContext();
 
   return (
@@ -27,6 +29,7 @@ const TagFieldController = ({ name, label, style = {}, required = false, disable
           style={style}
           disabled={disabled}
           required={required}
+          helperText={helperText}
         />
       )}
     />

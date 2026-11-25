@@ -55,7 +55,7 @@ const injectContextForExercise = (exercise: Exercise) => {
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
       return bulkUpdateInjectForSimulation(exercise.exercise_id, param).then((result: { data: Inject[] }) => result?.data);
     },
-    onUpdateInject(injectId: Inject['inject_id'], inject: Inject): Promise<{
+    onUpdateInject(injectId: Inject['inject_id'], inject: Inject | InjectInput): Promise<{
       result: string;
       entities: { injects: Record<string, InjectStore> };
     }> {
@@ -79,8 +79,8 @@ const injectContextForExercise = (exercise: Exercise) => {
     }> {
       return dispatch(injectDone(exercise.exercise_id, injectId));
     },
-    onDeleteInject(injectId: Inject['inject_id'], keepFindings = false): Promise<void> {
-      return dispatch(deleteInjectForExercise(exercise.exercise_id, injectId, keepFindings));
+    onDeleteInject(injectId: Inject['inject_id']): Promise<void> {
+      return dispatch(deleteInjectForExercise(exercise.exercise_id, injectId));
     },
     onImportInjectFromJson(file: File): Promise<void> {
       return importInjectsForSimulation(exercise.exercise_id, file).then(response => new Promise((resolve, _reject) => {

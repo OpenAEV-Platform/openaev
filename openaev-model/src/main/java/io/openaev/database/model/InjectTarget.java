@@ -58,6 +58,9 @@ public abstract class InjectTarget {
   @JsonProperty("target_category")
   private String targetCategory;
 
+  @JsonProperty("target_markings")
+  private Set<String> markings;
+
   @JsonProperty("target_detection_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
 

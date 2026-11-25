@@ -148,7 +148,7 @@ export type InjectContextType = {
     entities: { injects: Record<string, InjectStore> };
   }>;
   onBulkUpdateInject: (param: InjectBulkUpdateInputs) => Promise<Inject[] | void>;
-  onUpdateInject: (injectId: Inject['inject_id'], inject: Inject) => Promise<{
+  onUpdateInject: (injectId: Inject['inject_id'], inject: Inject | InjectInput) => Promise<{
     result: string;
     entities: { injects: Record<string, InjectStore> };
   }>;
@@ -164,7 +164,7 @@ export type InjectContextType = {
     result: string;
     entities: { injects: Record<string, InjectStore> };
   }>;
-  onDeleteInject: (injectId: Inject['inject_id'], keepFindings?: boolean) => Promise<void>;
+  onDeleteInject: (injectId: Inject['inject_id']) => Promise<void>;
   onImportInjectFromJson?: (file: File) => Promise<void>;
   onStoreXlsFile?: (file: File) => Promise<ImportPostSummary>;
   onImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
@@ -353,7 +353,7 @@ export const InjectContext = createContext<InjectContextType>({
   onBulkUpdateInject(_param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
     return Promise.resolve([]);
   },
-  onUpdateInject(_injectId: Inject['inject_id'], _inject: Inject): Promise<{
+  onUpdateInject(_injectId: Inject['inject_id'], _inject: Inject | InjectInput): Promise<{
     result: string;
     entities: { injects: Record<string, InjectStore> };
   }> {

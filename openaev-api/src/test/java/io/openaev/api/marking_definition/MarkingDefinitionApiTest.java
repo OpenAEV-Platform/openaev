@@ -328,6 +328,32 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, saved.getId()).with(csrf()))
           .andExpect(status().is4xxClientError());
     }
+
+    @Test
+    @DisplayName("given_definitionGrantedToCallersGroup_should_deleteAndRevokeGrant")
+    void given_definitionGrantedToCallersGroup_should_deleteAndRevokeGrant() throws Exception {
+      // Arrange - the caller's group holds the definition, so the group sits in the session
+      // through the caller when the delete is flushed.
+      MarkingDefinition granted =
+          createPersistedMarkingDefinition(
+              Tenant.DEFAULT_TENANT_UUID, "TLP", uniqueDefinition(), "#00AA00", 61, Instant.now());
+      Group group = TenantGroupFixture.getGroup("marking-delete-" + uniqueDefinition());
+      group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+      group.getMarkings().add(granted);
+      tenantGroupComposer.forGroup(group).persist();
+      entityManager.flush();
+
+      // Act
+      mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, granted.getId()).with(csrf()))
+          .andExpect(status().isNoContent());
+      // The test transaction never commits: flush to run what the commit would.
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(repository.findById(granted.getId())).isEmpty();
+      assertThat(entityManager.find(Group.class, group.getId()).getMarkings()).isEmpty();
+    }
   }
 
   @Nested

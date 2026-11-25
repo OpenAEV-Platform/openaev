@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
@@ -333,5 +334,33 @@ public class NotificationTriggerApiTest extends IntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
+  }
+
+  @Test
+  @WithMockUser(autoJoinDefaultTenant = true)
+  @DisplayName("A user with no access to findings cannot watch findings")
+  void restrictedUserCannotWatchATypeItCannotSearch() throws Exception {
+    createLive(ResourceType.FINDING, NotificationTriggerEventType.CREATE)
+        .andExpect(status().isForbidden());
+    assertEquals(0, notificationTriggerRepository.count());
+  }
+
+  @Test
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_FINDINGS},
+      autoJoinDefaultTenant = true)
+  @DisplayName("A user who can search findings can watch findings")
+  void userWithSearchCanWatchTheType() throws Exception {
+    createLive(ResourceType.FINDING, NotificationTriggerEventType.CREATE)
+        .andExpect(status().is2xxSuccessful());
+  }
+
+  @Test
+  @WithMockUser(autoJoinDefaultTenant = true)
+  @DisplayName(
+      "A restricted user can watch scenarios: what it receives is filtered per scenario it reads")
+  void restrictedUserCanWatchAGrantManagedType() throws Exception {
+    createLive(ResourceType.SCENARIO, NotificationTriggerEventType.CREATE)
+        .andExpect(status().is2xxSuccessful());
   }
 }

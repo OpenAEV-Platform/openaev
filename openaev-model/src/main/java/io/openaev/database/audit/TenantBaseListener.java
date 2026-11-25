@@ -25,6 +25,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class TenantBaseListener<T extends TenantBase> {
 
+  /**
+   * The terminal activation value: every tenant table, dual-scope ones included, but the
+   * self-isolated ones (see {@code TenantTables#ALL_STRICT}). Dual-scope entities do not use this
+   * listener, and the only self-isolated entity that does is never persisted through JPA, so under
+   * {@code *} every entity this listener sees is active.
+   */
   private static final String ALL_STRICT = "*";
 
   private final Set<String> activeTables;

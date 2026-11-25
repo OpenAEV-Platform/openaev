@@ -1,28 +1,47 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { fetchThreatArsenalAction } from '../../../../actions/threat_arsenals/threatArsenal-actions';
+import { fetchThreatArsenalAction, fetchThreatArsenalActionOfPayload } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
-import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '../../../../utils/api-types';
+import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
+import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../../utils/api-types';
 
-type OpenedTab = 'versions' | undefined;
+// 'move' opens the Versions tab ready to move the injects left on older versions.
+export type OpenedTab = 'versions' | 'move';
 
-/** The action whose drawer is open and its tab; a link (?action=<id>&tab=versions) opens it once the list shows it. */
+export const versionsTabLink = (actionId: string, tab: OpenedTab = 'versions') => `${THREAT_ARSENAL_BASE_URL}?action=${encodeURIComponent(actionId)}&tab=versions${tab === 'move' ? '&focus=move' : ''}`;
+
+/**
+ * The action whose drawer is open, and the tab it opens on. A link to an action
+ * (?action=<id>&tab=versions[&focus=move], or ?payload=<id>) searches it by name, then opens it once the list shows it.
+ */
 const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: string) => void) => {
   const { tPick } = useFormatter();
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
-  const [openedTab, setOpenedTab] = useState<OpenedTab>(undefined);
+  const [openedTab, setOpenedTab] = useState<OpenedTab | undefined>(undefined);
 
   const [searchParams] = useSearchParams();
   const linkedActionId = searchParams.get('action');
-  const linkedTab: OpenedTab = searchParams.get('tab') === 'versions' ? 'versions' : undefined;
+  const linkedPayloadId = searchParams.get('payload');
+  const linkedFocus: OpenedTab = searchParams.get('focus') === 'move' ? 'move' : 'versions';
+  const linkedTab = searchParams.get('tab') === 'versions' ? linkedFocus : undefined;
+  // A state, not a ref: an action already listed when the link arrives opens at once.
   const [toOpen, setToOpen] = useState<string | null>(null);
 
+  const openLinked = (actionId: string) => {
+    setToOpen(actionId);
+    fetchThreatArsenalAction(actionId).then(({ data }: { data: ThreatArsenalActionFullOutput }) => searchByName(tPick(data.action_labels)));
+  };
+
   useEffect(() => {
-    if (!linkedActionId) return;
-    setToOpen(linkedActionId);
-    fetchThreatArsenalAction(linkedActionId).then(({ data }: { data: ThreatArsenalActionFullOutput }) => searchByName(tPick(data.action_labels)));
+    if (linkedActionId) openLinked(linkedActionId);
   }, [linkedActionId]);
+
+  useEffect(() => {
+    if (linkedPayloadId) {
+      fetchThreatArsenalActionOfPayload(linkedPayloadId).then(({ data }: { data: ThreatArsenalActionIdOutput }) => openLinked(data.action_id));
+    }
+  }, [linkedPayloadId]);
 
   useEffect(() => {
     const linked = actions.find(action => action.injector_contract_id === toOpen);
@@ -37,7 +56,7 @@ const useOpenedAction = (actions: ThreatArsenalAction[], searchByName: (name: st
     setOpenedTab(tab);
     setOpenedAction(action);
   };
-  const showVersions = (action: ThreatArsenalAction) => openAction(action, 'versions');
+  const showVersions = (action: ThreatArsenalAction, tab: OpenedTab = 'versions') => openAction(action, tab);
   const closeAction = () => {
     setOpenedAction(null);
     setOpenedTab(undefined);

@@ -387,6 +387,22 @@ public interface StepRepository extends JpaRepository<Step, String> {
       @Param("injectorContractId") String injectorContractId,
       @Param("tenantIds") Collection<String> tenantIds);
 
+  /** The injector contract a step template runs, from either shape of its JSON data. */
+  String STEP_CONTRACT_ID =
+      """
+      (CASE jsonb_typeof(s.step_data -> 'inject_injector_contract')
+        WHEN 'object' THEN s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id'
+        WHEN 'string' THEN s.step_data ->> 'inject_injector_contract'
+      END)""";
+
+  /** The step templates of the tenant's scenario logic maps: simulations keep what they ran. */
+  String SCENARIO_STEP_TEMPLATES =
+      """
+      FROM steps s
+      JOIN workflows w ON w.workflow_id = s.step_workflow_id
+      JOIN scenarios sc ON sc.scenario_id = w.workflow_scenario_id
+      WHERE s.step_status = 'TEMPLATE' AND s.step_template_id IS NULL AND sc.tenant_id = :tenantId""";
+
   /**
    * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code
    * step_data} references any of the given injector contract ids.
@@ -400,13 +416,12 @@ public interface StepRepository extends JpaRepository<Step, String> {
    *
    * <p>Tenant scoping is mandatory here: {@code InjectorContract} has a composite {@code (id,
    * tenant_id)} key and the default contracts are provisioned id-for-id into every tenant, so the
-   * same contract id string legitimately exists in several tenants at once. Native SQL bypasses the
-   * Hibernate {@code tenantFilter}, so the tenant is matched explicitly. It is resolved through the
-   * owning workflow's scenario or simulation ({@code COALESCE} - a workflow is attached to exactly
-   * one of the two), which gives the same value as the step's own {@code tenant_id}, since that
-   * column is set from the owner when the row is written. A workflow attached to neither is
-   * unreachable from any tenant UI and is deliberately left alone rather than risk sweeping another
-   * tenant's graph.
+   * same contract id string legitimately exists in several tenants at once. The tenant is matched
+   * explicitly in the SQL. It is resolved through the owning workflow's scenario or simulation
+   * ({@code COALESCE} - a workflow is attached to exactly one of the two), which gives the same
+   * value as the step's own {@code tenant_id}, since that column is set from the owner when the row
+   * is written. A workflow attached to neither is unreachable from any tenant UI and is
+   * deliberately left alone rather than risk sweeping another tenant's graph.
    *
    * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
    * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code
@@ -428,18 +443,26 @@ public interface StepRepository extends JpaRepository<Step, String> {
         WHERE s.step_status = 'TEMPLATE'
           AND s.step_template_id IS NULL
           AND COALESCE(sc.tenant_id, e.tenant_id) = :tenantId
-          AND (
-            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
-              AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' IN (:injectorContractIds))
-            OR
-            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
-              AND s.step_data ->> 'inject_injector_contract' IN (:injectorContractIds))
-          )
-        """,
+          AND \s"""
+              + STEP_CONTRACT_ID
+              + " IN (:injectorContractIds)",
       nativeQuery = true)
   List<Step> findTemplateStepsByInjectorContractIds(
       @Param("injectorContractIds") Collection<String> injectorContractIds,
       @Param("tenantId") String tenantId);
+
+  /** The scenario step templates running this injector contract. */
+  // Native: the contract is read from the step's JSON data; a read, no session side effect lost.
+  @Query(
+      value =
+          "SELECT s.* "
+              + SCENARIO_STEP_TEMPLATES
+              + " AND "
+              + STEP_CONTRACT_ID
+              + " = :injectorContractId",
+      nativeQuery = true)
+  List<Step> findScenarioTemplatesByTenantIdAndInjectorContractId(
+      @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
 
   /** The steps among the given ids that belong to the given tenant. */
   @NotNull

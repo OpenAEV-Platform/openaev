@@ -8,9 +8,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -22,8 +21,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,16 +42,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("workflow_scope_rules and scope_variables refuse another tenant's row on a workflow")
-class WorkflowConfigurationChildRowHttpIsolationTest extends IntegrationTest {
+class WorkflowConfigurationChildRowHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String WORKFLOW_CONFIGURATION_URI =
       TENANT_WORKFLOW_URI + "/{workflowId}/configuration";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 

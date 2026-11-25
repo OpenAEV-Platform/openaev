@@ -11,6 +11,7 @@ import { searchDistinctFindings } from '../../../../actions/findings/finding-act
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
+import markingsColumn from '../../../../components/common/list/markingsColumn';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -32,10 +33,14 @@ import { useHelper } from '../../../../store';
 import { type AssetOutput, type Filter, type InjectResultOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
+import EntityGraph from '../../graph/EntityGraph';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import ExpectationList from '../ExpectationList';
@@ -46,12 +51,13 @@ import useExpectationPosture from '../useExpectationPosture';
 import AssetGroupPopover from './AssetGroupPopover';
 import computeRuleValues from './assetGroupRules';
 
-const inlineStyles: Record<string, CSSProperties> = {
-  asset_name: { width: '40%' },
+const columnStyles = (markingEnabled: boolean): Record<string, CSSProperties> => ({
+  asset_name: { width: markingEnabled ? '30%' : '40%' },
   asset_type: { width: '20%' },
-  asset_criticality: { width: '20%' },
-  asset_tags: { width: '20%' },
-};
+  asset_criticality: { width: markingEnabled ? '15%' : '20%' },
+  asset_markings: { width: '20%' },
+  asset_tags: { width: markingEnabled ? '15%' : '20%' },
+});
 
 // Adds a scoped filter to a search input without mutating the caller's group.
 const withFilter = (input: SearchPaginationInput, key: string, values: string[]): SearchPaginationInput => {
@@ -73,6 +79,8 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 
 const AssetGroupDetail = () => {
   const { t } = useFormatter();
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const inlineStyles = columnStyles(markingEnabled);
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -97,7 +105,9 @@ const AssetGroupDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/asset_groups/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
+  // The Graph tab belongs to the exploration graph preview feature (off by default).
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ['overview', 'graph', 'statistics'] : ['overview', 'statistics'], 'overview');
 
   // Injects played: the same scoped search as the hero count above, but
   // server-paginated for the full list section below.
@@ -149,6 +159,7 @@ const AssetGroupDetail = () => {
       isSortable: false,
       value: (asset: AssetOutput) => <ItemCriticality criticality={asset.asset_criticality} />,
     },
+    ...(markingEnabled ? [markingsColumn('asset_markings', (asset: AssetOutput) => asset.asset_markings)] : []),
     {
       field: 'asset_tags',
       label: 'Tags',
@@ -195,6 +206,7 @@ const AssetGroupDetail = () => {
         title={assetGroup.asset_group_name}
         action={(
           <>
+            <ExploreInGraphButton type="ASSET_GROUP" entityId={assetGroupId} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
             <EntityReportsPanel
@@ -236,6 +248,12 @@ const AssetGroupDetail = () => {
             key: 'overview',
             label: t('Overview'),
           },
+          ...(graphEnabled
+            ? [{
+                key: 'graph',
+                label: t('Graph'),
+              }]
+            : []),
           {
             key: 'statistics',
             label: t('Statistics'),
@@ -244,6 +262,8 @@ const AssetGroupDetail = () => {
         currentTab={currentTab}
         onChange={handleChangeTab}
       />
+
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="ASSET_GROUP" entityId={assetGroupId} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same

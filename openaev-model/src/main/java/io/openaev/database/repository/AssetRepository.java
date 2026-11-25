@@ -22,10 +22,10 @@ public interface AssetRepository
     extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does NOT apply to a plain
-   * {@code findById} (primary-key loads bypass entity filters), so a user-supplied id could load
-   * another tenant's asset. Constraining on {@code tenant_id} keeps cross-tenant reads out - used
-   * when snapshotting a scope rule's asset display name.
+   * Tenant-scoped primary-key lookup. A plain {@code findById} carries no tenant predicate on a
+   * table outside {@code active-tables}, so a user-supplied id loads another tenant's asset.
+   * Constraining on {@code tenant_id} excludes cross-tenant reads. Used when snapshotting a scope
+   * rule's asset display name.
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
@@ -39,6 +39,13 @@ public interface AssetRepository
     Assert.notNull(ids, "Ids must not be null");
     return findAllByIdInAndTenantId(ids, tenantId);
   }
+
+  /**
+   * Hostname lookup scoped by the transaction alone (the statement inspector restricts the rows to
+   * the request's tenant scope and markings). Hostnames are stored lower-case, so callers pass
+   * lower-case keys. Used by the XTM counterpart lookup another product runs on our assets.
+   */
+  List<Asset> findAllByHostnameIn(Collection<String> hostnames);
 
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
@@ -167,6 +174,22 @@ public interface AssetRepository
   List<Object[]> assetsByInjectIds(Set<String> injectIds);
 
   List<Asset> findByTenantId(String tenantId);
+
+  /**
+   * Freshness: the assets of a tenant whose last observation crossed the stale threshold inside a
+   * window, i.e. last seen in {@code [from, to)} where {@code to} is now minus the threshold. Each
+   * one turned STALE during the window. An asset never observed has no verdict; security platforms
+   * are sources, not targets, and are left out.
+   */
+  @Query(
+      "SELECT a FROM Asset a WHERE a.tenant.id = :tenantId AND a.type <> 'SecurityPlatform'"
+          + " AND a.lastSeen IS NOT NULL AND a.lastSeen >= :from AND a.lastSeen < :to"
+          + " ORDER BY a.lastSeen, a.id")
+  List<Asset> findAssetsLastSeenBetween(
+      @Param("tenantId") String tenantId,
+      @Param("from") Instant from,
+      @Param("to") Instant to,
+      Pageable pageable);
 
   /**
    * Business criticality, display name and seen IP for a set of asset ids, as {@code [assetId,

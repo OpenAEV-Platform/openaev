@@ -129,7 +129,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
-  @Autowired private io.openaev.service.finding.FindingDetachService findingDetachService;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
@@ -189,10 +188,8 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
         fileService,
         healthCheckUtils,
         eventPublisher,
-        attackPathExecutionService,
         autonomousRunRepository,
-        permissionServiceProvider,
-        findingDetachService);
+        permissionServiceProvider);
   }
 
   @AfterAll

@@ -3,6 +3,7 @@ package io.openaev.database.model.catalog;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.Auditable;
 import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
@@ -47,6 +48,7 @@ public abstract class CatalogItem implements TenantBase, Auditable {
   /** Stable id of the content in its repository, the same across versions. */
   @Column(name = "catalog_item_external_id", updatable = false)
   @JsonProperty("catalog_item_external_id")
+  @Queryable(filterable = true)
   @NotBlank
   private String externalId;
 
@@ -63,27 +65,36 @@ public abstract class CatalogItem implements TenantBase, Auditable {
   @NotNull
   private CatalogItemStatus status;
 
+  /** Whether this is the version the catalogue offers of the item: its latest one not withdrawn. */
+  @Column(name = "catalog_item_latest_offered")
+  @JsonProperty("catalog_item_latest_offered")
+  private boolean latestOffered;
+
   // -- DESCRIPTION --
 
   /** Name shown in the catalogue. */
   @Column(name = "catalog_item_name")
   @JsonProperty("catalog_item_name")
+  @Queryable(searchable = true, sortable = true)
   private String name;
 
   /** Description shown in the catalogue. */
   @Column(name = "catalog_item_description")
   @JsonProperty("catalog_item_description")
+  @Queryable(searchable = true)
   private String description;
 
   /** Who wrote the content, e.g. Filigran. */
   @Column(name = "catalog_item_author")
   @JsonProperty("catalog_item_author")
+  @Queryable(filterable = true)
   private String author;
 
   /** Platforms the content runs on, e.g. Windows, Linux. */
   @Type(StringArrayType.class)
   @Column(name = "catalog_item_platforms", columnDefinition = "text[]")
   @JsonProperty("catalog_item_platforms")
+  @Queryable(filterable = true)
   private String[] platforms = new String[0];
 
   /** What changed in this version. */
@@ -116,6 +127,7 @@ public abstract class CatalogItem implements TenantBase, Auditable {
   /** When Filigran published this version. */
   @Column(name = "catalog_item_published_at")
   @JsonProperty("catalog_item_published_at")
+  @Queryable(sortable = true)
   private Instant publishedAt;
 
   // -- AUDIT --

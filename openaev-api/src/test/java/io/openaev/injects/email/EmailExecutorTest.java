@@ -109,6 +109,8 @@ public class EmailExecutorTest extends IntegrationTest {
     ExecutableInject executableInject =
         new ExecutableInject(true, true, inject, userInjectContexts);
     Execution execution = new Execution(executableInject.isRuntime());
+    // Rows committed before the test (another tenant, an earlier run) are not this call's doing.
+    long expectationsBefore = injectExpectationRepository.count();
 
     // -- EXECUTE --
     builtinConnectorRegistration.register(
@@ -119,7 +121,7 @@ public class EmailExecutorTest extends IntegrationTest {
 
     // -- ASSERT --
     // No BaseInjectExpectation should be created.
-    assertEquals(Collections.emptyList(), injectExpectationRepository.findAll());
+    assertEquals(expectationsBefore, injectExpectationRepository.count());
   }
 
   @Test

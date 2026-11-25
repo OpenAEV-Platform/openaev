@@ -129,7 +129,8 @@ public class InjectExecutionResultService {
                                 block.getContent(),
                                 arguments,
                                 injectorContractFields,
-                                inject.getContent());
+                                inject.getContent(),
+                                inject.getTenant().getId());
                         List<String> resolvedCleanup =
                             block.getCleanupCommand() == null
                                 ? null
@@ -140,7 +141,8 @@ public class InjectExecutionResultService {
                                                 cmd,
                                                 arguments,
                                                 injectorContractFields,
-                                                inject.getContent()))
+                                                inject.getContent(),
+                                                inject.getTenant().getId()))
                                     .toList();
                         return new PayloadCommandBlock(
                             block.getExecutor(), resolvedContent, resolvedCleanup);

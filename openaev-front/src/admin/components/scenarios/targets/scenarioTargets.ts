@@ -1,4 +1,4 @@
-import { type ScenarioTargetsInput } from '../../../../utils/api-types';
+import { type InjectTargetsOutput, type ScenarioTargetsInput } from '../../../../utils/api-types';
 import { type Option } from '../../../../utils/Option';
 
 export interface ScenarioTargets {
@@ -8,6 +8,8 @@ export interface ScenarioTargets {
   manual: string;
 }
 
+export type TargetKind = InjectTargetsOutput['inject_target_kinds'][number];
+
 export const NO_TARGETS: ScenarioTargets = {
   assets: [],
   assetGroups: [],
@@ -16,6 +18,17 @@ export const NO_TARGETS: ScenarioTargets = {
 };
 
 const manualTargets = (manual: string) => manual.split(/[\s,;]+/).filter(target => target.length > 0);
+
+const IS_CHOSEN: Record<TargetKind, (targets: ScenarioTargets) => boolean> = {
+  ASSETS: targets => targets.assets.length > 0,
+  ASSET_GROUPS: targets => targets.assetGroups.length > 0,
+  TEAMS: targets => targets.teams.length > 0,
+  HOSTS: targets => manualTargets(targets.manual).length > 0,
+};
+
+// As the server adds them: an inject gets a target when one of the kinds it takes is chosen.
+export const isTargetedWith = (inject: InjectTargetsOutput, targets: ScenarioTargets) => inject.inject_targeted
+  || inject.inject_target_kinds.some(kind => IS_CHOSEN[kind](targets));
 
 export const toTargetsInput = (targets: ScenarioTargets): ScenarioTargetsInput => ({
   asset_ids: targets.assets.map(option => option.id),

@@ -10,6 +10,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { searchPlayerByIdAsOption, searchPlayersAsOption } from '../../../../actions/users/User';
+import SearchAutocompleteField from '../../../../components/fields/SearchAutocompleteField';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
@@ -17,7 +18,6 @@ import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type Option } from '../../../../utils/Option';
 import { REPORTING_FORMATS, REPORTING_SCHEDULE_PERIODS, SCHEDULE_PERIOD_LABELS, WEEKDAY_LABELS } from '../ReportingFormUtils';
-import ReportingAutocompleteField from './ReportingAutocompleteField';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // The form stores the time of day as an HH:mm string, not a date.
@@ -153,7 +153,7 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
         control={control}
         name="schedule_recipient_users"
         render={({ field }) => (
-          <ReportingAutocompleteField
+          <SearchAutocompleteField
             multiple
             label={t('Recipient users')}
             value={field.value ?? []}

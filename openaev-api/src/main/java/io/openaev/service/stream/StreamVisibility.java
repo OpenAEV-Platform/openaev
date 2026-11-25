@@ -3,6 +3,7 @@ package io.openaev.service.stream;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -72,6 +73,24 @@ public final class StreamVisibility {
       return true;
     }
     return rule != null && rowVisible(rule.row(), payload, clearance);
+  }
+
+  /**
+   * Whether the row is hidden only because its parent row no longer exists: deleted with it, like
+   * the agents of a deleted endpoint. The parent's markings were read, and the parent was not
+   * found.
+   */
+  public boolean parentDeleted() {
+    if (isUnfiltered() || rule == null || rule.row() == null) {
+      return false;
+    }
+    RowRule row = rule.row();
+    if (row.parentProperty() == null || row.about()) {
+      return false;
+    }
+    JsonNode parent = payload.path(row.parentProperty());
+    Map<String, Set<String>> read = markingsByTable.get(row.parentTable());
+    return parent.isTextual() && read != null && !read.containsKey(parent.asText());
   }
 
   /** Whether the payload lists or embeds rows to remove for a restricted reader. */
@@ -231,16 +250,27 @@ public final class StreamVisibility {
   private static List<JsonNode> elementsAt(JsonNode root, String path) {
     List<JsonNode> elements = new ArrayList<>();
     for (ObjectNode holder : holdersOf(root, path)) {
-      holder.path(lastStep(path)).forEach(elements::add);
+      JsonNode value = holder.path(lastStep(path));
+      if (value.isArray()) {
+        value.forEach(elements::add);
+      } else if (value.isObject() || value.isTextual()) {
+        elements.add(value);
+      }
     }
     return elements;
   }
 
-  /** Keeps, in every array the path reaches, only the elements {@code visible} accepts. */
+  /**
+   * Keeps, in every array the path reaches, only the elements {@code visible} accepts; a single
+   * object or id it does not accept becomes null.
+   */
   private static void keepOnly(ObjectNode root, String path, Predicate<JsonNode> visible) {
     String property = lastStep(path);
     for (ObjectNode holder : holdersOf(root, path)) {
-      if (holder.get(property) instanceof ArrayNode elements) {
+      JsonNode value = holder.get(property);
+      if ((value instanceof ObjectNode || value instanceof TextNode) && !visible.test(value)) {
+        holder.putNull(property);
+      } else if (value instanceof ArrayNode elements) {
         ArrayNode kept = holder.putArray(property);
         elements.forEach(
             element -> {

@@ -122,7 +122,8 @@ class InjectStatusServiceTest {
               Optional.empty(),
               eventPublisher,
               objectMapper,
-              entityManager);
+              entityManager,
+              mock(io.openaev.service.finding.FindingRetestSettlement.class));
 
       // Two cleared agents are expected, the restricted one got its not-targeted trace at launch
       inject = new Inject();
@@ -315,7 +316,8 @@ class InjectStatusServiceTest {
                 Optional.of(auditLogger),
                 eventPublisher,
                 objectMapper,
-                entityManager);
+                entityManager,
+                mock(io.openaev.service.finding.FindingRetestSettlement.class));
       }
 
       @Test
@@ -646,7 +648,8 @@ class InjectStatusServiceTest {
               Optional.of(auditLogger),
               eventPublisher,
               objectMapper,
-              entityManager);
+              entityManager,
+              mock(io.openaev.service.finding.FindingRetestSettlement.class));
     }
 
     private Agent agent(String id) {

@@ -44,7 +44,7 @@ public class AttackPathAccessControl {
    */
   public void assertCanReadSimulation(TxCtx ctx, String simulationId) {
     User user = userService.currentUser();
-    if (!permissionService.holdsInScope(ctx, () -> canRead(user, simulationId))) {
+    if (!permissionService.holdsInScope(ctx, user, caller -> canRead(caller, simulationId))) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied on simulation");
     }
   }

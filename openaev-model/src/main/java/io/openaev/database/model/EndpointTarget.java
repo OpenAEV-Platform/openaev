@@ -10,10 +10,12 @@ import org.apache.commons.lang3.NotImplementedException;
 
 @Data
 public class EndpointTarget extends InjectTarget {
-  public EndpointTarget(String id, String name, Set<String> tags, String subType) {
+  public EndpointTarget(
+      String id, String name, Set<String> tags, Set<String> markings, String subType) {
     this.setId(id);
     this.setName(name);
     this.setTags(tags);
+    this.setMarkings(markings);
     this.setTargetType("ASSETS");
     this.subType = subType;
   }

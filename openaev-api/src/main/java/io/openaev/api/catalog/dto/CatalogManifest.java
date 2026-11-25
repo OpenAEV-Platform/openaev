@@ -126,6 +126,7 @@ public record CatalogManifest(
       @JsonProperty("sha256") String sha256,
       @JsonProperty("openaev_id") String openaevId,
       @JsonProperty("status") String status,
+      @JsonProperty("changelog") String changelog,
       @JsonProperty("file") VersionFile file) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
