@@ -20,13 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
  * nothing. The test transaction rolls back what it touches.
  */
 @Transactional
-@DisplayName("Migration V6_20261124090000000: reindex assets with classification fields")
+@DisplayName("Migration V6_20261125170000000: reindex assets with classification fields")
 class ReindexAssetsWithClassificationFieldsMigrationTest extends IntegrationTest {
 
   private static final String ASSET_MODEL = "asset";
   private static final String OTHER_MODEL = "asset-classification-test-model";
 
-  @Autowired private V6_20261124090000000__Reindex_assets_with_classification_fields migration;
+  @Autowired private V6_20261125170000000__Reindex_assets_with_classification_fields migration;
 
   @Test
   @DisplayName("Given an asset cursor should drop it and keep the others, a rerun is a no-op")

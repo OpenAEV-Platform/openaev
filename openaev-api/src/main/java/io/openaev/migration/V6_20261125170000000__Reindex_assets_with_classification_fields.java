@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * (targeted DELETE on a tiny bookkeeping table).
  */
 @Component
-public class V6_20261124090000000__Reindex_assets_with_classification_fields
+public class V6_20261125170000000__Reindex_assets_with_classification_fields
     extends BaseJavaMigration {
 
   @Override
