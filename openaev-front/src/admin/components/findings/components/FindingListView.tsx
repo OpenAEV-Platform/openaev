@@ -132,7 +132,7 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
       field: 'finding_sources',
       label: 'Sources',
       isSortable: false,
-      value: (finding: AggregatedFindingOutput) => <FindingSource sources={finding.finding_sources?.sort()} />
+      value: (finding: AggregatedFindingOutput) => <FindingSource sources={finding.finding_sources?.sort((a, b) => a.injector_name.localeCompare(b.injector_name))} />,
     },
     {
       field: 'finding_created_at',

@@ -311,7 +311,10 @@ public class Finding implements TenantBase {
   }
 
   @JsonProperty("finding_sources")
-  @Queryable(searchable = true, filterable = true, dynamicValues = true, path = "occurrences.inject.injector.id")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "occurrences.inject.injector.id")
   public List<Injector> getInjectors() {
     return getInjects().stream()
         .map(Inject::getInjector)

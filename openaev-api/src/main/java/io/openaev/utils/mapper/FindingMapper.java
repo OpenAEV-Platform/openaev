@@ -11,13 +11,12 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TargetType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
 @Component
