@@ -549,6 +549,119 @@ class NewsFeedItemServiceTest {
   }
 
   @Nested
+  @DisplayName("Old items cleanup")
+  class OldItemsCleanup {
+
+    private static final Instant CUTOFF = Instant.parse("2026-05-26T00:00:00Z");
+
+    /** The old rows, found by keyset chunks of {@link #USER_CHUNK_SIZE}. */
+    private void givenOldRows(int count) {
+      List<String> ids = IntStream.range(0, count).mapToObj(i -> "row-%05d".formatted(i)).toList();
+      when(newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+              eq(CUTOFF), eq("BLOG_POST"), anyString(), any(Pageable.class)))
+          .thenAnswer(
+              invocation -> {
+                String afterId = invocation.getArgument(2);
+                return ids.stream()
+                    .filter(id -> id.compareTo(afterId) > 0)
+                    .limit(NewsFeedItemService.USER_CHUNK_SIZE)
+                    .toList();
+              });
+      when(newsFeedItemRepository.findAllWithUserByIdIn(anyCollection()))
+          .thenAnswer(
+              invocation ->
+                  invocation.<Collection<String>>getArgument(0).stream()
+                      .map(id -> row(id, "hub-" + id))
+                      .toList());
+    }
+
+    @Test
+    @DisplayName("Given old rows, should delete them through the session and count them")
+    void given_oldRows_should_deleteThemThroughTheSession() {
+      // Arrange
+      givenOldRows(2);
+
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert: deleted through the session (listener chain), never in bulk
+      assertThat(deleted).isEqualTo(2);
+      assertThat(deletedBatches(1).getFirst()).extracting(NewsFeedItem::getId).hasSize(2);
+      verify(newsFeedItemRepository).flush();
+      verify(newsFeedItemRepository, never()).deleteAllInBatch(any());
+      verify(newsFeedItemRepository, never()).deleteAllByIdInBatch(any());
+      verifyNoInteractions(userService);
+    }
+
+    @Test
+    @DisplayName("Given no old row, should delete nothing")
+    void given_noOldRow_should_deleteNothing() {
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert
+      assertThat(deleted).isZero();
+      verify(newsFeedItemRepository, never()).deleteAll(anyCollection());
+      verify(newsFeedItemRepository, never()).findAllWithUserByIdIn(anyCollection());
+    }
+
+    @Test
+    @DisplayName("Given more rows than a chunk, should delete them by keyset chunk")
+    void given_moreRowsThanAChunk_should_deleteByChunk() {
+      // Arrange
+      givenOldRows(NewsFeedItemService.USER_CHUNK_SIZE + 1);
+
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert
+      assertThat(deleted).isEqualTo(NewsFeedItemService.USER_CHUNK_SIZE + 1);
+      assertThat(deletedBatches(2))
+          .extracting(List::size)
+          .containsExactly(NewsFeedItemService.USER_CHUNK_SIZE, 1);
+    }
+
+    @Test
+    @DisplayName("Given a chunk that fails, should skip it and still delete the next chunk")
+    void given_failingChunk_should_stillDeleteNextChunk() {
+      // Arrange
+      givenOldRows(NewsFeedItemService.USER_CHUNK_SIZE + 1);
+      doThrow(new IllegalStateException("boom"))
+          .doNothing()
+          .when(newsFeedItemRepository)
+          .deleteAll(anyCollection());
+
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert: the failed chunk is not counted, the next one is read after its last id
+      assertThat(deleted).isEqualTo(1);
+      assertThat(deletedBatches(2))
+          .extracting(List::size)
+          .containsExactly(NewsFeedItemService.USER_CHUNK_SIZE, 1);
+    }
+
+    @Test
+    @DisplayName("Given rows deleted concurrently, should retry the chunk once")
+    void given_rowsDeletedConcurrently_should_retryTheChunkOnce() {
+      // Arrange
+      givenOldRows(1);
+      doThrow(new OptimisticLockingFailureException("already deleted"))
+          .doNothing()
+          .when(newsFeedItemRepository)
+          .deleteAll(anyCollection());
+
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert: the retry reads the rows again
+      assertThat(deleted).isEqualTo(1);
+      deletedBatches(2);
+      verify(newsFeedItemRepository, times(2)).findAllWithUserByIdIn(anyCollection());
+    }
+  }
+
+  @Nested
   @DisplayName("Changed items")
   class ChangedItems {
 

@@ -16,6 +16,7 @@ import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -251,15 +253,7 @@ public class NewsFeedItemService {
     int deleted = 0;
     for (String hubItemId : withRows(hubItemIds)) {
       try {
-        deleted +=
-            forEachChunkOfRows(
-                hubItemId,
-                rows -> {
-                  newsFeedItemRepository.deleteAll(rows);
-                  // Flushed here, not at commit, so that a failure surfaces to the retry.
-                  newsFeedItemRepository.flush();
-                  return rows.size();
-                });
+        deleted += forEachChunkOfRows(hubItemId, this::deleteRows);
       } catch (Exception e) {
         log.error("Could not delete the news feed item {}: {}", hubItemId, e.getMessage(), e);
       }
@@ -367,27 +361,44 @@ public class NewsFeedItemService {
     return changed;
   }
 
+  private int deleteRows(List<NewsFeedItem> rows) {
+    newsFeedItemRepository.deleteAll(rows);
+    // Flushed here, not at commit, so that a failure surfaces to the retry.
+    newsFeedItemRepository.flush();
+    return rows.size();
+  }
+
+  private int forEachChunkOfRows(String hubItemId, ToIntFunction<List<NewsFeedItem>> action) {
+    return forEachChunk(
+        afterId ->
+            newsFeedItemRepository.findIdsByHubItemIdAfter(
+                hubItemId, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
+        "the news feed item " + hubItemId,
+        action);
+  }
+
   /**
-   * Runs {@code action} on the rows of a Hub item, whoever owns them, {@link #USER_CHUNK_SIZE} rows
+   * Runs {@code action} on the rows whose ids {@code idsAfter} pages, {@link #USER_CHUNK_SIZE} rows
    * at a time and each chunk in its own transaction. The ids are paged by keyset so a chunk that
    * fails is logged and skipped without losing the position, and the rows deleted by the previous
    * chunks do not shift the next one.
    *
+   * @param idsAfter the ids of at most {@link #USER_CHUNK_SIZE} rows after the given id, in id
+   *     order
+   * @param rows what the rows are, for the log of a failing chunk
    * @param action handles the rows of one chunk and returns how many it changed
    * @return how many rows the actions changed
    */
-  private int forEachChunkOfRows(String hubItemId, ToIntFunction<List<NewsFeedItem>> action) {
+  private int forEachChunk(
+      Function<String, List<String>> idsAfter,
+      String rows,
+      ToIntFunction<List<NewsFeedItem>> action) {
     int handled = 0;
     String afterId = "";
     List<String> ids;
     do {
       String cursor = afterId;
-      ids =
-          tenantTx.execute(
-              TxCtx.allTenants(),
-              () ->
-                  newsFeedItemRepository.findIdsByHubItemIdAfter(
-                      hubItemId, cursor, PageRequest.ofSize(USER_CHUNK_SIZE)));
+      ids = tenantTx.execute(TxCtx.allTenants(), () -> idsAfter.apply(cursor));
       if (ids.isEmpty()) {
         break;
       }
@@ -403,15 +414,34 @@ public class NewsFeedItemService {
                             action.applyAsInt(
                                 newsFeedItemRepository.findAllWithUserByIdIn(chunkIds))));
       } catch (Exception e) {
-        log.error(
-            "Could not handle {} rows of the news feed item {}: {}",
-            chunkIds.size(),
-            hubItemId,
-            e.getMessage(),
-            e);
+        log.error("Could not handle {} rows of {}: {}", chunkIds.size(), rows, e.getMessage(), e);
       }
     } while (ids.size() == USER_CHUNK_SIZE);
     return handled;
+  }
+
+  // -- DELETE --
+
+  /**
+   * Deletes the rows created before the cutoff, whoever owns them, except those of blog posts: the
+   * creation date of a blog post is its publication date, which can be older than the cutoff while
+   * the post is still live, and only the Hub removes blog posts (see {@link
+   * #applyProvisionedItems}). Every other row is cleaned, whatever its type, including the types
+   * this version no longer knows.
+   *
+   * <p>The rows are deleted through the session, {@link #USER_CHUNK_SIZE} at a time and each chunk
+   * in its own transaction, as the rows of a deleted Hub item: a failing chunk is logged and the
+   * others are still deleted.
+   *
+   * @return how many rows were deleted
+   */
+  public int cleanOldItems(@NotNull final Instant cutoff) {
+    return forEachChunk(
+        afterId ->
+            newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+                cutoff, BLOG_POST_TYPE, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
+        "the news feed items created before " + cutoff,
+        this::deleteRows);
   }
 
   // -- CREATE --

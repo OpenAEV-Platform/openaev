@@ -7,6 +7,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.openaev.xtmhub.XtmHubService;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,6 +94,58 @@ class XtmHubCollectorTest {
     // Assert
     verify(taskScheduler).scheduleAtFixedRate(any(Runnable.class), eq(defaultInterval));
     verify(taskScheduler).scheduleWithFixedDelay(any(Runnable.class), eq(defaultInterval));
+  }
+
+  @Test
+  @DisplayName("Given an invalid cleanup retention, should warn and schedule as usual")
+  void given_invalidCleanupRetention_should_warn() {
+    // Arrange
+    config.setEnable(true);
+    config.setNewsFeedCleanupIntervalValue("abc");
+    config.setNewsFeedCleanupIntervalUnit("fortnights");
+    Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    collectorLogger.addAppender(logs);
+    try {
+      // Act
+      collector.init();
+
+      // Assert
+      assertThat(logs.list)
+          .filteredOn(event -> event.getLevel() == Level.WARN)
+          .extracting(ILoggingEvent::getFormattedMessage)
+          .containsExactly(
+              "Invalid openaev.xtm.hub.collector.news-feed-cleanup-interval-value abc or"
+                  + " news-feed-cleanup-interval-unit fortnights, using 180 days");
+      verify(taskScheduler).scheduleWithFixedDelay(any(Runnable.class), any(Duration.class));
+    } finally {
+      collectorLogger.detachAppender(logs);
+      logs.stop();
+    }
+  }
+
+  @Test
+  @DisplayName("Given a valid cleanup retention, should not warn")
+  void given_validCleanupRetention_should_notWarn() {
+    // Arrange
+    config.setEnable(true);
+    config.setNewsFeedCleanupIntervalValue("6");
+    config.setNewsFeedCleanupIntervalUnit("months");
+    Logger collectorLogger = (Logger) LoggerFactory.getLogger(XtmHubCollector.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    collectorLogger.addAppender(logs);
+    try {
+      // Act
+      collector.init();
+
+      // Assert
+      assertThat(logs.list).filteredOn(event -> event.getLevel() == Level.WARN).isEmpty();
+    } finally {
+      collectorLogger.detachAppender(logs);
+      logs.stop();
+    }
   }
 
   @Test

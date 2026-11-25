@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.raw.RawNewsFeedItemKey;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +40,22 @@ public interface NewsFeedItemRepository
           + " where n.hubItemId = :hubItemId and n.id > :afterId order by n.id")
   List<String> findIdsByHubItemIdAfter(
       @Param("hubItemId") String hubItemId, @Param("afterId") String afterId, Pageable pageable);
+
+  /**
+   * The ids of the rows created before the cutoff whose stored type is not the excluded one, after
+   * the given id and in id order: a keyset page, as {@link #findIdsByHubItemIdAfter}. The type is
+   * compared as stored, so rows of a type this version no longer knows match. No index serves it:
+   * the table only holds the items the Hub published, and it is read once per sync run.
+   */
+  @Query(
+      "select n.id from NewsFeedItem n"
+          + " where n.creationDate < :cutoff and n.type <> :excludedType and n.id > :afterId"
+          + " order by n.id")
+  List<String> findIdsCreatedBeforeExcludingTypeAfter(
+      @Param("cutoff") Instant cutoff,
+      @Param("excludedType") String excludedType,
+      @Param("afterId") String afterId,
+      Pageable pageable);
 
   /**
    * Which of the given Hub items at least one user holds. Served by the Hub item index.

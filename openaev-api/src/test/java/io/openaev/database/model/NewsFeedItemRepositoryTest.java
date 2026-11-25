@@ -10,9 +10,11 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
@@ -249,6 +251,81 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       assertThat(withJoinFetch)
           .as("the users come with the rows instead of in statements of their own")
           .isLessThan(withoutJoinFetch);
+    }
+  }
+
+  @Nested
+  @DisplayName("Old items")
+  class OldItems {
+
+    private static final Instant CUTOFF = Instant.parse("2026-06-01T00:00:00Z");
+    private static final Instant OLD = Instant.parse("2025-12-01T00:00:00Z");
+    private static final String BLOG_POST = NewsFeedType.BLOG_POST.name();
+
+    private NewsFeedItem saveCreatedAt(NewsFeedItem item, Instant creationDate) {
+      item.setCreationDate(creationDate);
+      return newsFeedItemRepository.save(item);
+    }
+
+    @Test
+    @DisplayName("Given old and recent rows of every kind, should page only the old non blog posts")
+    void given_oldAndRecentRows_should_pageOnlyOldRowsThatAreNotBlogPosts() {
+      // Arrange
+      User user = createUser();
+      NewsFeedItem oldResource =
+          saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-old"), OLD);
+      NewsFeedItem oldLegacyType =
+          saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-legacy"), OLD);
+      saveCreatedAt(
+          NewsFeedItemFixture.createNewsFeedItem(user, "hub-recent"), CUTOFF.plusSeconds(1));
+      saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-at-cutoff"), CUTOFF);
+      saveCreatedAt(NewsFeedItemFixture.createBlogPost(user, "hub-old-blog"), OLD);
+      entityManager.flush();
+      entityManager
+          .createNativeQuery(
+              "update news_feed_items set news_feed_item_type = 'RESOURCE_OBSOLETE'"
+                  + " where news_feed_item_id = :id")
+          .setParameter("id", oldLegacyType.getId())
+          .executeUpdate();
+      entityManager.clear();
+
+      // Act
+      List<String> ids =
+          newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+              CUTOFF, BLOG_POST, "", PageRequest.ofSize(10));
+
+      // Assert: strictly before the cutoff, whatever the type but the blog post, in id order
+      assertThat(ids)
+          .containsExactlyElementsOf(
+              Stream.of(oldResource.getId(), oldLegacyType.getId()).sorted().toList());
+    }
+
+    @Test
+    @DisplayName("Given more old rows than a page, should page them by keyset")
+    void given_moreOldRowsThanAPage_should_pageThemByKeyset() {
+      // Arrange
+      User user = createUser();
+      List<String> ids =
+          IntStream.range(0, 3)
+              .mapToObj(
+                  i ->
+                      saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-" + i), OLD)
+                          .getId())
+              .sorted()
+              .toList();
+      entityManager.flush();
+
+      // Act
+      List<String> firstPage =
+          newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+              CUTOFF, BLOG_POST, "", PageRequest.ofSize(2));
+      List<String> secondPage =
+          newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+              CUTOFF, BLOG_POST, firstPage.getLast(), PageRequest.ofSize(2));
+
+      // Assert
+      assertThat(firstPage).containsExactly(ids.get(0), ids.get(1));
+      assertThat(secondPage).containsExactly(ids.get(2));
     }
   }
 

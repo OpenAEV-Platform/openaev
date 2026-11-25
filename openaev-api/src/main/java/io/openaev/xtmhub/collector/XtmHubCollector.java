@@ -36,6 +36,16 @@ public class XtmHubCollector {
               "news-feed-interval",
               this.config.getNewsFeedInterval(),
               this.config.getEffectiveNewsFeedInterval()));
+
+      if (!this.config.isNewsFeedCleanupIntervalValid()) {
+        log.warn(
+            "Invalid openaev.xtm.hub.collector.news-feed-cleanup-interval-value {} or"
+                + " news-feed-cleanup-interval-unit {}, using {} {}",
+            this.config.getNewsFeedCleanupIntervalValue(),
+            this.config.getNewsFeedCleanupIntervalUnit(),
+            XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_VALUE,
+            XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_UNIT);
+      }
     }
   }
 
