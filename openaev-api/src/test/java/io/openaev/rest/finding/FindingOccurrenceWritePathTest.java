@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
@@ -50,6 +51,7 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
   private String injectId;
   private String assetId;
   @Autowired private InjectService injectService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @BeforeEach
   void seedAnInjectSentOnAKnownDate() {
@@ -157,7 +159,7 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
       List<Finding> saved =
           findingService.recordFindingsByInject(
               TxCtx.forTenant(tenantId),
-              injectService.inject(injectId),
+              injectOfItsTenant(),
               List.of(
                   new DetectedFinding(
                       first.getType(),
@@ -190,7 +192,7 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
       List<Finding> saved =
           findingService.recordFindingsByInject(
               TxCtx.forTenant(tenantId),
-              injectService.inject(injectId),
+              injectOfItsTenant(),
               List.of(
                   new DetectedFinding(
                       first.getType(),
@@ -237,6 +239,12 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
         String.class,
         tenantId,
         value);
+  }
+
+  // The inject as the injector and phishing callers hold it: loaded in its own tenant's scope, with
+  // its status, since the finding is written in that tenant by a caller that has no request scope
+  private Inject injectOfItsTenant() {
+    return tenantTx.execute(TxCtx.forTenant(tenantId), () -> injectService.inject(injectId));
   }
 
   // The inject as the agent path holds it: loaded by the caller, with its status
