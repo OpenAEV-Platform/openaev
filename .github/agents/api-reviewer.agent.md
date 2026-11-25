@@ -38,7 +38,6 @@ Escalate to **Opus 4.6** if the PR introduces breaking changes or significant AP
 | 🟠 **HIGH** | New controller in `io.openaev.rest`: [backend › Package Rule](../instructions/backend.instructions.md) | `issue (blocking):` — must be in `io.openaev.api` |
 | 🟠 **HIGH** | Missing `@Operation` / `@ApiResponse`: [api › OpenAPI](../instructions/api.instructions.md#openapi) | `issue (blocking):` — undocumented API |
 | 🟡 **MEDIUM** | HTTP status codes: [backend › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi) | `suggestion (non-blocking):` — API contract inconsistency |
-| 🟡 **MEDIUM** | Output field removed or renamed: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `suggestion (non-blocking):` — flag for consumer impact |
 | 🟡 **MEDIUM** | Missing `@JsonProperty`: [backend › API DTOs](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources) | `suggestion (non-blocking):` — contract ambiguity |
 | 🟡 **MEDIUM** | Outputs not minimal or shared by kinds, JSON names: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `suggestion (non-blocking):` |
 | 🟢 **LOW** | Summary or description too long: [api › OpenAPI](../instructions/api.instructions.md#openapi) | `note:` — documentation quality |
@@ -73,7 +72,7 @@ Flag every breaking change as 🔴 CRITICAL with explicit impact description.
 
 For every new or modified controller method:
 - ☐ [backend › Layering](../instructions/backend.instructions.md#layering), [backend › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi), [security › @AccessControl](../instructions/security.instructions.md#accesscontrol-aop-aspect)
-- ☐ Uses `ResponseEntity<T>` with explicit status code
+- ☐ [api › Responses](../instructions/api.instructions.md#responses)
 
 ### Step 4 — Check Input DTOs
 

@@ -9,7 +9,7 @@ Rules are defined in dedicated instruction files — refer to them for the full 
 
 > Full rules: [security.instructions.md](security.instructions.md)
 
-Key checks: `@AccessControl` on every endpoint, native `@Query` with `WHERE tenant_id`, no `tenant_id` in responses, no hardcoded secrets, no raw error messages to clients.
+Key checks: `@AccessControl` on every endpoint, native `@Query` safe for tenant isolation (multi-tenancy rules 1–2), no `tenant_id` in responses, no hardcoded secrets, no raw error messages to clients.
 
 ## Performance
 
@@ -28,7 +28,7 @@ Key checks: layering (Controller → Service → Repository, never skip), JPA en
 > Full rules: [multi-tenancy.instructions.md](multi-tenancy.instructions.md)
 > Review skill: [review-multi-tenancy](../../.claude/skills/review-multi-tenancy/SKILL.md)
 
-Key checks: tenant-scoped entities extend `TenantBase` and declare no Hibernate `@Filter`, entrypoints reaching an active table carry a `TxCtx`, writes name their tenant explicitly, tenant resolved in API layer and passed as argument to services (services never call `TenantContext` directly), native `@Query` has `WHERE tenant_id`, no `tenant_id` in API responses (`@JsonIgnore`), unique constraints are composite `(field, tenant_id)`, background jobs set `TenantContext` + pass tenant as arg, caches include tenant key. **Dual-scope entities** (Settings, User, Role, Group): implement `DualScopeBase`, nullable `tenant_id`, repository extends `DualScopeRepository`, two services (`PlatformXxxService` / `TenantXxxService`), two APIs, no unscoped `findAll()`.
+Key checks: tenant-scoped entities extend `TenantBase` and declare no Hibernate `@Filter`, entrypoints reaching an active table carry a `TxCtx`, writes name their tenant explicitly, tenant resolved in API layer and passed as argument to services (services never call `TenantContext` directly), native `@Query`: `WHERE tenant_id` on a self-isolated table, a shape the inspector accepts elsewhere, no `tenant_id` in API responses (`@JsonIgnore`), unique constraints are composite `(field, tenant_id)`, background jobs write through `TenantScopedJobRunner` + pass tenant as arg, caches include tenant key. **Dual-scope entities** (Settings, User, Role, Group): implement `DualScopeBase`, nullable `tenant_id`, repository extends `DualScopeRepository`, two services (`PlatformXxxService` / `TenantXxxService`), two APIs, no unscoped `findAll()`.
 
 ## Test Quality
 

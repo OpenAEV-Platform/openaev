@@ -16,7 +16,7 @@ break tenant isolation, or cause downtime. Catch these issues before they ship.
 
 Always load:
 1. **Read `AGENTS.md`** — architecture overview, module structure, Shared Severity Rubric, Shared Exceptions
-2. **Read `.github/copilot-instructions.md`** — migration naming and versioning rules
+2. **Read `.github/copilot-instructions.md`** — build and conventions index
 3. **Read `.github/instructions/migration.instructions.md`** — class structure, critical rules, anti-patterns
 
 Load conditionally based on the diff:
@@ -58,7 +58,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 Follow `.claude/skills/review-migration/SKILL.md` step-by-step for all bash commands.
 
 The SKILL covers:
-1. **Naming format & uniqueness** — `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`, timestamp block present, unique filename, no existing migration modified
+1. **Naming & uniqueness** — [migration › Naming Convention](../instructions/migration.instructions.md#naming-convention), unique filename, no existing migration modified
 2. **Class structure** — [migration › Migration Class Structure](../instructions/migration.instructions.md#migration-class-structure)
 3. **Idempotency** — [migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 1
 4. **Tenant isolation** — [database › Schema Naming](../instructions/database.instructions.md#schema-naming), [database › Business Keys & Unique Constraints](../instructions/database.instructions.md#business-keys--unique-constraints)

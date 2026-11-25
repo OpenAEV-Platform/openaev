@@ -60,8 +60,8 @@ under-scopes an unrelated read.
 
 ## Critical Rules
 
-1. Native `@Query` or JPQL on a table **outside `active-tables`** has no ambient read isolation → always add `WHERE tenant_id = :tenantId`
-2. Native query on a **v2-active** table → the FROM/JOIN shape must already be accepted by `TenantStatementInspector` (see table above)
+1. Native `@Query` or JPQL on a **self-isolated table** (`TenantTables.SELF_ISOLATED_TABLES`) has no ambient read isolation → always add `WHERE tenant_id = :tenantId`
+2. Native query on any other tenant table → no `WHERE tenant_id` needed, but the FROM/JOIN shape must already be accepted by `TenantStatementInspector` (see table above)
 3. Every entrypoint whose call graph reaches a **v2-active** table must declare a `TxCtx` parameter — its absence is a silent empty-result regression, not a build/runtime error
 4. Never declare a Hibernate `@Filter` or call `enableFilter` / `disableFilter` / `getEnabledFilter`: `TenantFilterRemovedArchTest` fails the build
 5. Never return `tenant_id` in API responses → `@JsonIgnore` on tenant relation
@@ -97,12 +97,7 @@ consumer, an `@Async` task or a `parallelStream` worker, so a background entry p
 itself:
 
 ```java
-TenantContext.setCurrentTenant(tenantId);   // ambient tenant read by TenantBaseListener on insert
-try {
-  tenantTx.execute(TxCtx.forTenant(tenantId), work);  // v2: transaction GUC -> inspector
-} finally {
-  TenantContext.clearCurrentTenant();       // restore the previous value on a shared pool
-}
+tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // both scopes, previous value restored
 ```
 
 Setting only the v2 primitive is **not** enough, and it fails silently: `TenantBaseListener` stamps
@@ -136,7 +131,7 @@ stamped by the listener runs the write through `TenantScopedJobRunner`.
 
 | ❌ Don't | ✅ Do |
 |----------|-------|
-| Native query without `WHERE tenant_id` | Add explicit tenant clause |
+| Native query on a self-isolated table without `WHERE tenant_id` | Add explicit tenant clause (rule 1) |
 | `@Column(unique = true)` on tenant-scoped field | Composite `UNIQUE (field, tenant_id)` |
 | Single service for dual-scope entity | Split `PlatformXxxService` / `TenantXxxService` |
 | `tenant_id` in API response | `@JsonIgnore` on tenant relation |

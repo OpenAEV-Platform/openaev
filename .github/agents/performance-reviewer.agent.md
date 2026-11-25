@@ -31,7 +31,7 @@ Escalate to **Opus 4.6** for reviews involving complex query optimization or arc
 |---|---|---|
 | 🔴 **CRITICAL** | Unbounded `findAll()` on a large table ([Anti-Patterns](../instructions/performance.instructions.md#anti-patterns-to-avoid)), N+1 in hot path (>10 queries per request, [N+1 Queries](../instructions/performance.instructions.md#n1-queries)), memory leak ([Collections & Streams](../instructions/performance.instructions.md#collections--streams)) | `issue (blocking):` — PR must not merge |
 | 🟠 **HIGH** | N+1 query (3-10 extra queries), missing pagination on list endpoint ([Pagination](../instructions/performance.instructions.md#pagination)), `EAGER` on unbounded collection ([Fetch Strategy](../instructions/performance.instructions.md#fetch-strategy)) | `issue (blocking):` — must fix before merge |
-| 🟡 **MEDIUM** | Missing `readOnly = true` ([N+1 Queries](../instructions/performance.instructions.md#n1-queries)), `findById` loop (≤3 iterations), missing index on filtered column ([Queries](../instructions/performance.instructions.md#queries)) | `suggestion (non-blocking):` — should fix |
+| 🟡 **MEDIUM** | Missing `readOnly = true` ([N+1 Queries](../instructions/performance.instructions.md#n1-queries)), missing index on filtered column ([Queries](../instructions/performance.instructions.md#queries)) | `suggestion (non-blocking):` — should fix |
 | 🟢 **LOW** | Could use projection instead of full entity ([Queries](../instructions/performance.instructions.md#queries)), minor optimization opportunity | `suggestion (non-blocking):` — nice to have |
 
 ## Quantitative Thresholds

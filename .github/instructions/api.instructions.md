@@ -22,6 +22,12 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 - Inputs hold plain values and ids, never a JPA entity
 - An id list in an output is annotated `@ArraySchema(schema = @Schema(type = "string"))`
 
+## Responses
+
+- A controller method returns the output directly; a status other than 200 goes in `@ResponseStatus`
+  (`CREATED`, `NO_CONTENT`)
+- `ResponseEntity` only when the status or headers depend on the request
+
 ## Pagination
 
 - Search endpoints return `Page<T>`, never `List<T>`

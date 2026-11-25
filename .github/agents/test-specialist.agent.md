@@ -64,9 +64,7 @@ For every feature, ensure coverage of:
 
 ## Test Structure Conventions
 
-- Backend: [testing › Integration Tests (API)](../instructions/testing.instructions.md#integration-tests-api), [Fixtures](../instructions/testing.instructions.md#fixtures), [Composers](../instructions/testing.instructions.md#composers)
-- AAA comments: `// -- ARRANGE --`, `// -- ACT --`, `// -- ASSERT --` (or `// -- ACT & ASSERT --`)
-- `@BeforeAll` / `@AfterAll` with `composer.reset()` for cleanup
+- Backend: [testing › Integration Tests (API)](../instructions/testing.instructions.md#integration-tests-api) (AAA comments), [Fixtures](../instructions/testing.instructions.md#fixtures), [Composers](../instructions/testing.instructions.md#composers) (reset)
 - E2E: [testing › Frontend E2E Tests (Playwright)](../instructions/testing.instructions.md#frontend-e2e-tests-playwright)
 
 ## Coverage Requirements
