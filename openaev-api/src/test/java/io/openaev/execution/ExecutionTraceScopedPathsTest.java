@@ -468,8 +468,7 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
 
       // Assert
       assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
-      assertThat(statusTraceMessages(scopeA, tenantA))
-          .containsExactly("Distributing inject to 1 agent(s) across 1 endpoint(s)");
+      assertThat(statusTraceMessages(scopeA, tenantA)).containsExactly("Distributing inject");
       assertThat(statusTraceMessages(scopeB, tenantA)).isEmpty();
     }
   }

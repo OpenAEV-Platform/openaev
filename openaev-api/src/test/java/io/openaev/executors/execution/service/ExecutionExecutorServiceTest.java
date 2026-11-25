@@ -382,9 +382,7 @@ public class ExecutionExecutorServiceTest {
     assertThat(executionTrace.getValue().getIdentifiers()).isEmpty();
     assertEquals(ExecutionTraceStatus.INFO, executionTrace.getValue().getStatus());
     assertEquals(ExecutionTraceAction.START, executionTrace.getValue().getAction());
-    assertEquals(
-        "Distributing inject to 1 agent(s) across 1 endpoint(s)",
-        executionTrace.getValue().getMessage());
+    assertEquals("Distributing inject", executionTrace.getValue().getMessage());
   }
 
   @Test
