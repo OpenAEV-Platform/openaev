@@ -201,30 +201,7 @@ public class BaseInjectExpectation implements Base, Cloneable {
 
   @JsonProperty("inject_expectation_status")
   public EXPECTATION_STATUS getResponse() {
-    EXPECTATION_STATUS status = computeStatus(this.getScore(), this.getExpectedScore());
-    // Expired without any proof that the inject ran on the target: neither a success nor a
-    // failure, and no longer waiting for an answer
-    if (status == EXPECTATION_STATUS.PENDING && isNotExecuted()) {
-      return EXPECTATION_STATUS.UNKNOWN;
-    }
-    return status;
-  }
-
-  /**
-   * Result label of an expectation the expiration manager closed without any proof that the inject
-   * ran on its target (no execution trace, no answer): its outcome is unknown, it carries no score.
-   */
-  public static final String NOT_EXECUTED_RESULT = "Not executed";
-
-  /**
-   * {@code true} when the expectation was closed as {@link #NOT_EXECUTED_RESULT}: it has no score
-   * and is neither pending nor concluded. A later real answer scores it and clears this state.
-   */
-  @JsonIgnore
-  public boolean isNotExecuted() {
-    return this.score == null
-        && this.results != null
-        && this.results.stream().anyMatch(r -> NOT_EXECUTED_RESULT.equals(r.getResult()));
+    return computeStatus(this.getScore(), this.getExpectedScore());
   }
 
   @Setter
