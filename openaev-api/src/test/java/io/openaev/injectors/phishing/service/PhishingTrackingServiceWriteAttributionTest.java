@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
@@ -50,6 +52,7 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Nested
   @DisplayName("createResult with the inject in a non-default tenant")
@@ -77,8 +80,16 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
       if (inject != null && injectRepository.existsById(inject.getId())) {
         injectRepository.deleteById(inject.getId());
       }
-      if (user != null && userRepository.existsById(user.getId())) {
-        userRepository.deleteById(user.getId());
+      if (user != null) {
+        // Removing a user serializes its teams, tags and organization for the stream event, which
+        // are active tables: the removal runs in the scope of every tenant.
+        tenantTx.execute(
+            TxCtx.allTenants(),
+            () -> {
+              if (userRepository.existsById(user.getId())) {
+                userRepository.deleteById(user.getId());
+              }
+            });
       }
       TenantContext.clearCurrentTenant();
     }

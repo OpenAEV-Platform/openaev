@@ -136,8 +136,16 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
    * left dangling regardless of which delete runs first.
    */
   private void cleanup(User user, Inject inject, PhishingLandingPage landingPage, Step step) {
-    if (user != null && userRepository.existsById(user.getId())) {
-      userRepository.deleteById(user.getId());
+    if (user != null) {
+      // Removing a user serializes its teams, tags and organization for the stream event, which
+      // are active tables: the removal runs in the scope of every tenant.
+      tenantTx.execute(
+          TxCtx.allTenants(),
+          () -> {
+            if (userRepository.existsById(user.getId())) {
+              userRepository.deleteById(user.getId());
+            }
+          });
     }
     if (inject != null) {
       deleteInject(inject.getId());

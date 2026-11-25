@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
@@ -109,6 +110,7 @@ class PhishingResultTenantScopeTest extends IntegrationTest {
     }
 
     @Test
+    @ExpectsEmptyScopeReads("the token lookup with no scope is the subject: it answers nothing")
     @DisplayName("with no scope at all: even the token's own tenant resolves to nothing")
     void given_noScopeSet_should_failClosedOnItsOwnToken() {
       // Act & Assert - the control for the test above, on a different line than the active-tables
