@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.utils.ExecutionTraceUtils.completeTraces;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
@@ -44,7 +45,16 @@ public class InjectVisibleStatusService {
     if (!streamClearanceService.isFiltering()) {
       return status.getName();
     }
-    return InjectStatusUtils.visibleStatus(status);
+    return InjectStatusUtils.visibleStatus(
+        status.getName(),
+        status.getExpectedAgentCount(),
+        completeTraces(status.getTraces())
+            .map(
+                trace ->
+                    new CompleteTrace(
+                        trace.getStatus(),
+                        trace.getAgent() == null ? null : trace.getAgent().getId()))
+            .toList());
   }
 
   /**

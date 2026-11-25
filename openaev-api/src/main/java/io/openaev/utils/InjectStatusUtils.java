@@ -1,11 +1,8 @@
 package io.openaev.utils;
 
-import static io.openaev.utils.ExecutionTraceUtils.completeTraces;
-
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceStatus;
-import io.openaev.database.model.InjectStatus;
 import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
@@ -107,22 +104,5 @@ public class InjectStatusUtils {
       return ExecutionStatus.NOT_VISIBLE;
     }
     return computeStatusFromTraceStatuses(visibleStatuses);
-  }
-
-  /**
-   * {@link #visibleStatus(ExecutionStatus, Integer, List)} of a status whose traces were loaded in
-   * the reader's transaction, so without the traces their clearance hides.
-   */
-  public static ExecutionStatus visibleStatus(InjectStatus status) {
-    return visibleStatus(
-        status.getName(),
-        status.getExpectedAgentCount(),
-        completeTraces(status.getTraces())
-            .map(
-                trace ->
-                    new CompleteTrace(
-                        trace.getStatus(),
-                        trace.getAgent() == null ? null : trace.getAgent().getId()))
-            .toList());
   }
 }

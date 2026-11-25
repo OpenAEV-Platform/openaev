@@ -4793,7 +4793,11 @@ class TenantActiveTableAccessArchTest {
               io.openaev.execution.ExecutionExecutorService.class,
               ExecutorService.class,
               // Retention: each batch deletes under TxCtx.allTenants() through the primitive:
-              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class)
+              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class,
+              // The reader's inject status: one read of the COMPLETE traces of a page of injects,
+              // in the scoped transaction of the TxCtx-carrying inject search and attack path
+              // endpoints, whose marking scope also hides the traces above the reader's clearance:
+              io.openaev.service.InjectVisibleStatusService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.ExecutionTraceRepository.class)
@@ -4841,7 +4845,10 @@ class TenantActiveTableAccessArchTest {
               // transaction of the inject's own tenant - the same transaction
               // execution_traces_repository_access_is_reviewed already trusts for
               // ExecutionExecutorService/ExecutorService's trace writes:
-              AgentUtils.class)
+              AgentUtils.class,
+              // The reader's status of one inject, from the traces of a status the inject and
+              // execution-log endpoints loaded in their TxCtx-carrying scoped transaction:
+              io.openaev.service.InjectVisibleStatusService.class)
           .should(callOrReferenceMethod(InjectStatus.class, "getTraces"))
           .because(
               "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"
