@@ -9,19 +9,16 @@ interface Props {
   sidebar: ReactNode;
   toolbar: ReactNode;
   children: ReactNode;
-  mainBoxStyle?: React.CSSProperties;
-  childrenBoxStyle?: React.CSSProperties;
 }
 
 // Marketplace page body: optional hero, then facets on the left and toolbar + results on the right.
-const MarketplaceBrowser: FunctionComponent<Props> = ({ hero, tabs, sidebar, toolbar, children, mainBoxStyle, childrenBoxStyle }) => {
+const MarketplaceBrowser: FunctionComponent<Props> = ({ hero, tabs, sidebar, toolbar, children }) => {
   const theme = useTheme();
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
       gap: theme.spacing(3),
-      ...mainBoxStyle
     }}
     >
       {hero}
@@ -39,7 +36,6 @@ const MarketplaceBrowser: FunctionComponent<Props> = ({ hero, tabs, sidebar, too
           display: 'flex',
           flexDirection: 'column',
           gap: theme.spacing(2),
-          ...childrenBoxStyle
         }}
         >
           {/* The column gap is the only space under the toolbar, as on Integrations: child selectors need sx. */}

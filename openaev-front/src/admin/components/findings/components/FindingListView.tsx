@@ -17,6 +17,8 @@ import { OpenCrqRowMark } from '../../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
 import ContractOutputElementType from '../ContractOutputElementType';
+import markingsColumn from "../../../../components/common/list/markingsColumn";
+import {isFeatureEnabled} from "../../../../utils/utils";
 
 interface Props {
   loading: boolean;
@@ -28,7 +30,8 @@ interface Props {
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
-  finding_assets: { width: '32%' },
+  finding_assets: { width: '20%' },
+  finding_markings: { width: '12%' },
   finding_created_at: { width: '14%' },
   finding_updated_at: { width: '14%' },
 });
@@ -36,6 +39,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
 const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [] }: Props) => {
   const { t, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
+  const markingEnabled = isFeatureEnabled('MARKING');
 
   const headers = [
     {
@@ -121,6 +125,9 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
         />
       ),
     },
+      ...(markingEnabled
+          ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+          : []),
     {
       field: 'finding_created_at',
       label: 'First seen',

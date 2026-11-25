@@ -79,8 +79,6 @@ const Findings = () => {
             />
           )}
           toolbar={<></>}
-          mainBoxStyle={{ gap: 2 }}
-          childrenBoxStyle={{ gap: 0 }}
         >
           <>
             <PaginationComponentV2
