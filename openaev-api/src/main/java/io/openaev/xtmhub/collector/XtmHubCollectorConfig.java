@@ -36,10 +36,8 @@ public class XtmHubCollectorConfig {
   private Integer newsFeedInterval;
 
   public static final int DEFAULT_NEWS_FEED_CLEANUP_VALUE = 180;
-  public static final ChronoUnit DEFAULT_NEWS_FEED_CLEANUP_UNIT = ChronoUnit.DAYS;
-
-  private static final CleanupRetention DEFAULT_NEWS_FEED_CLEANUP_RETENTION =
-      new CleanupRetention(DEFAULT_NEWS_FEED_CLEANUP_VALUE, DEFAULT_NEWS_FEED_CLEANUP_UNIT);
+  // a key of NEWS_FEED_CLEANUP_UNITS, also what the startup warning shows
+  public static final String DEFAULT_NEWS_FEED_CLEANUP_UNIT = "days";
 
   private static final Map<String, ChronoUnit> NEWS_FEED_CLEANUP_UNITS =
       Map.of(
@@ -50,6 +48,11 @@ public class XtmHubCollectorConfig {
           "weeks", ChronoUnit.WEEKS,
           "months", ChronoUnit.MONTHS,
           "years", ChronoUnit.YEARS);
+
+  private static final CleanupRetention DEFAULT_NEWS_FEED_CLEANUP_RETENTION =
+      new CleanupRetention(
+          DEFAULT_NEWS_FEED_CLEANUP_VALUE,
+          NEWS_FEED_CLEANUP_UNITS.get(DEFAULT_NEWS_FEED_CLEANUP_UNIT));
 
   // age after which a news feed item is cleaned up, with the unit of the value (seconds, minutes,
   // hours, days, weeks, months or years), default to 180 days. Read as text so that an invalid
@@ -78,14 +81,6 @@ public class XtmHubCollectorConfig {
    */
   public boolean isNewsFeedCleanupIntervalValid() {
     return configuredRetention().isPresent();
-  }
-
-  public int getEffectiveNewsFeedCleanupIntervalValue() {
-    return effectiveRetention().value();
-  }
-
-  public ChronoUnit getEffectiveNewsFeedCleanupIntervalUnit() {
-    return effectiveRetention().unit();
   }
 
   /**

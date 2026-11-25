@@ -3,7 +3,6 @@ package io.openaev.xtmhub.collector;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -74,8 +73,6 @@ class XtmHubCollectorConfigTest {
 
     // Assert: both fall back together, a valid half does not survive an invalid one
     assertThat(config.isNewsFeedCleanupIntervalValid()).isFalse();
-    assertThat(config.getEffectiveNewsFeedCleanupIntervalValue()).isEqualTo(180);
-    assertThat(config.getEffectiveNewsFeedCleanupIntervalUnit()).isEqualTo(ChronoUnit.DAYS);
     assertThat(cutoff).isEqualTo(Instant.parse("2027-10-03T10:15:30Z"));
   }
 
@@ -99,9 +96,13 @@ class XtmHubCollectorConfigTest {
     // Arrange
     XtmHubCollectorConfig config = new XtmHubCollectorConfig();
 
-    // Act & Assert
-    assertThat(config.getEffectiveNewsFeedCleanupIntervalValue())
-        .isEqualTo(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_VALUE);
-    assertThat(config.getEffectiveNewsFeedCleanupIntervalUnit()).isEqualTo(ChronoUnit.DAYS);
+    // Act
+    Instant cutoff = config.newsFeedCleanupCutoff(NOW);
+
+    // Assert
+    assertThat(config.isNewsFeedCleanupIntervalValid()).isFalse();
+    assertThat(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_VALUE).isEqualTo(180);
+    assertThat(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_UNIT).isEqualTo("days");
+    assertThat(cutoff).isEqualTo(Instant.parse("2027-10-03T10:15:30Z"));
   }
 }

@@ -3,7 +3,6 @@ package io.openaev.xtmhub.collector;
 import io.openaev.xtmhub.XtmHubService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
-import java.util.Locale;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +44,7 @@ public class XtmHubCollector {
             this.config.getNewsFeedCleanupIntervalValue(),
             this.config.getNewsFeedCleanupIntervalUnit(),
             XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_VALUE,
-            XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_UNIT.name().toLowerCase(Locale.ROOT));
+            XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_UNIT);
       }
     }
   }
