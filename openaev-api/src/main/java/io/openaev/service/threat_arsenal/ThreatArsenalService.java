@@ -201,18 +201,19 @@ public class ThreatArsenalService {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     Specification<InjectorContract> scope = versionScope(filtered);
-    // Payload drafts: the Draft row counts the actions with a draft, among the same results.
-    Map<String, Long> approvals =
-        new LinkedHashMap<>(injectorContractService.getApprovalStatusCounts(filtered, scope));
-    approvals.put(
+    // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
+    Map<String, Long> statuses =
+        new LinkedHashMap<>(injectorContractService.getStatusCounts(filtered));
+    // Payload drafts: the Draft row of the Status facet counts the actions with a draft, among the
+    // same results.
+    statuses.put(
         DRAFT_APPROVAL_VALUE,
         injectorContractService.countWithin(
             filtered, scope.and(InjectorContractSpecification.withPayloadDraft())));
-    // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered, scope),
-        injectorContractService.getStatusCounts(filtered),
-        approvals);
+        statuses,
+        injectorContractService.getApprovalStatusCounts(filtered, scope));
   }
 
   /**
@@ -724,32 +725,50 @@ public class ThreatArsenalService {
   }
 
   /**
-   * Payload drafts: the Draft value of the Approval filter is not a version status. When it is
-   * ticked, the filter is replaced by "one of the other ticked statuses, or a payload with a
-   * draft". Removes that filter from the filters it reads.
+   * Payload drafts: Draft is a value of the Status filter, not a payload status. When it is ticked,
+   * the filter is replaced by "one of the other ticked statuses, or a payload with a draft". Views
+   * saved while Draft was a value of the Approval filter are read the same way on that filter.
+   * Removes the filters it replaces from the filters it reads.
    */
   private Specification<InjectorContract> draftScope(SearchPaginationInput input) {
     Filters.FilterGroup group = input.getFilterGroup();
     if (group == null) {
       return Specification.unrestricted();
     }
-    Optional<Filters.Filter> approval =
-        group
-            .findByKey(APPROVAL_FILTER_KEY)
-            .filter(f -> f.getOperator() == Filters.FilterOperator.eq)
-            .filter(f -> f.getValues() != null && f.getValues().contains(DRAFT_APPROVAL_VALUE));
-    if (approval.isEmpty()) {
-      return Specification.unrestricted();
+    Specification<InjectorContract> scope = Specification.unrestricted();
+    Optional<List<String>> status = draftValues(group, PAYLOAD_STATUS_FILTER_KEY);
+    if (status.isPresent()) {
+      scope =
+          scope.and(
+              InjectorContractSpecification.withPayloadStatusOrDraft(
+                  enumValues(status.get(), Payload.PAYLOAD_STATUS.class)));
     }
-    group.removeByKey(APPROVAL_FILTER_KEY);
-    List<Payload.PAYLOAD_APPROVAL_STATUS> statuses =
-        approval.get().getValues().stream()
-            .flatMap(
-                v ->
-                    Arrays.stream(Payload.PAYLOAD_APPROVAL_STATUS.values())
-                        .filter(s -> s.name().equals(v)))
-            .toList();
-    return InjectorContractSpecification.withApprovalStatusOrDraft(statuses);
+    Optional<List<String>> approval = draftValues(group, APPROVAL_FILTER_KEY);
+    if (approval.isPresent()) {
+      scope =
+          scope.and(
+              InjectorContractSpecification.withApprovalStatusOrDraft(
+                  enumValues(approval.get(), Payload.PAYLOAD_APPROVAL_STATUS.class)));
+    }
+    return scope;
+  }
+
+  /** The values of the {@code key} filter when Draft is one of them; that filter is removed. */
+  private static Optional<List<String>> draftValues(Filters.FilterGroup group, String key) {
+    Optional<List<String>> values =
+        group
+            .findByKey(key)
+            .filter(f -> f.getOperator() == Filters.FilterOperator.eq)
+            .map(Filters.Filter::getValues)
+            .filter(v -> v != null && v.contains(DRAFT_APPROVAL_VALUE));
+    values.ifPresent(v -> group.removeByKey(key));
+    return values;
+  }
+
+  private static <E extends Enum<E>> List<E> enumValues(List<String> values, Class<E> type) {
+    return Arrays.stream(type.getEnumConstants())
+        .filter(constant -> values.contains(constant.name()))
+        .toList();
   }
 
   private Specification<InjectorContract> versionsOnly(

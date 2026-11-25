@@ -133,7 +133,7 @@ A new version never changes what already runs: each Inject keeps the version it 
 * **Saved by an author without *Approve content*.** The new version is **Pending**. The author is told that Injects keep running their current version until an approver approves it; nobody is asked to move them yet.
 * **Approved by an approver.** When the approved version replaces an approved version still used by Injects, the approver is asked: *N scenario injects, atomic tests or chained steps use vX. Move them to vY*, checked by default. Only the Injects and chained steps the approver can edit move; the others stay on their version and are reported. Unchecked, every Inject stays where it is.
 * **Saved by an approver.** The version is approved at once, so the person saving it gets the same question.
-* **Rejected or superseded.** The Injects stay on their version. The author of a superseded version is told.
+* **Rejected or superseded.** The Injects stay on their version. A superseded version shows as *Superseded* in the *History* tab.
 * **Moving later.** From the *Versions* tab, anyone who can edit an Inject can move it to another **approved** version. A version that is not approved cannot be a target.
 * **Picking an Action.** Pickers and automatic selection offer each Action in its latest **approved** version, so a newer version waiting for approval does not hide the one that can run.
 
@@ -246,8 +246,8 @@ v1.0.2*, *Published from a draft*), or when a rejected version is fixed and sent
 v1.0.0* on a version published from a draft. A card and a list row show a *Draft* chip while the Action has a draft.
 
 To find drafts, **My changes** lists the drafts you saved, new Actions included, in a *Drafts* group above the others,
-and the **Approval** filter of the Active tab has a *Draft* value that keeps the Actions with a draft (a custom view can
-keep it).
+and the **Status** filter of the Active tab has a *Draft* value that keeps the Actions with a draft (a custom view can
+keep it). The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
 
 ## Delete an Action
 

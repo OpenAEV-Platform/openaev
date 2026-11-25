@@ -70,8 +70,9 @@ public class InjectorContractSpecification {
   }
 
   /**
-   * Payload drafts (Threat Arsenal Approval filter): contracts whose payload version has one of
-   * {@code statuses}, or whose payload has a draft. With no status, only the ones with a draft.
+   * Payload drafts, in views saved while Draft was a value of the Approval filter: contracts whose
+   * payload version has one of {@code statuses}, or whose payload has a draft. With no status, only
+   * the ones with a draft.
    */
   public static Specification<InjectorContract> withApprovalStatusOrDraft(
       Collection<Payload.PAYLOAD_APPROVAL_STATUS> statuses) {
@@ -84,7 +85,20 @@ public class InjectorContractSpecification {
     };
   }
 
-  /** Contracts whose payload has a draft (the Draft count of the Approval facet). */
+  /**
+   * Payload drafts (Threat Arsenal Status filter): contracts whose payload has one of {@code
+   * statuses}, or whose payload has a draft. With no status, only the ones with a draft.
+   */
+  public static Specification<InjectorContract> withPayloadStatusOrDraft(
+      Collection<Payload.PAYLOAD_STATUS> statuses) {
+    return (root, query, cb) -> {
+      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
+      Predicate hasDraft = cb.exists(draftOf(query, cb, payload));
+      return statuses.isEmpty() ? hasDraft : cb.or(payload.get("status").in(statuses), hasDraft);
+    };
+  }
+
+  /** Contracts whose payload has a draft (the Draft count of the Status facet). */
   public static Specification<InjectorContract> withPayloadDraft() {
     return withApprovalStatusOrDraft(List.of());
   }

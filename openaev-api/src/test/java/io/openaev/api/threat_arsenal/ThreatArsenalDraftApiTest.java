@@ -548,8 +548,16 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
   }
 
   private SearchPaginationInput approvalFilter(String... values) {
+    return filterOn("action_payload_approval_status", values);
+  }
+
+  private SearchPaginationInput statusFilter(String... values) {
+    return filterOn("action_payload_status", values);
+  }
+
+  private SearchPaginationInput filterOn(String key, String... values) {
     Filters.Filter filter = new Filters.Filter();
-    filter.setKey("action_payload_approval_status");
+    filter.setKey(key);
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setMode(Filters.FilterMode.or);
     filter.setValues(List.of(values));
@@ -904,9 +912,29 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given the Draft value of the Approval filter, should list only the actions with a draft,"
-            + " or with one of the other ticked statuses, and count them")
-    void given_draftFilter_should_listActionsWithDraft() throws Exception {
+        "given the Draft value of the Status filter, should list only the actions with a draft,"
+            + " or with one of the other ticked statuses")
+    void given_draftStatusFilter_should_listActionsWithDraft() throws Exception {
+      // Arrange
+      String withDraft = createAction(approver);
+      createDraft(author, withDraft, "echo draft");
+      String withoutDraft = createAction(approver);
+      String status = JsonPath.read(detail(withoutDraft), "$.action_status");
+
+      // Act
+      List<String> drafts = searchIds(statusFilter("DRAFT"));
+      List<String> draftsOrStatus = searchIds(statusFilter(status, "DRAFT"));
+
+      // Assert
+      assertThat(drafts).contains(withDraft).doesNotContain(withoutDraft);
+      assertThat(draftsOrStatus).contains(withDraft, withoutDraft);
+    }
+
+    @Test
+    @DisplayName(
+        "given a view saved with Draft in the Approval filter, should still list the actions with"
+            + " a draft, or with one of the other ticked statuses")
+    void given_draftApprovalFilter_should_listActionsWithDraft() throws Exception {
       // Arrange
       String withDraft = createAction(approver);
       createDraft(author, withDraft, "echo draft");
@@ -920,6 +948,18 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
       // Assert
       assertThat(drafts).contains(withDraft).doesNotContain(approvedOnly, pending);
       assertThat(draftsOrPending).contains(withDraft, pending).doesNotContain(approvedOnly);
+    }
+
+    @Test
+    @DisplayName(
+        "given an action with a draft, should count it under the Status facet, not the Approval"
+            + " facet")
+    void given_actionWithDraft_should_countDraftUnderStatus() throws Exception {
+      // Arrange
+      String withDraft = createAction(approver);
+      createDraft(author, withDraft, "echo draft");
+
+      // Act
       String counts =
           body(
               mvc.perform(
@@ -928,8 +968,12 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
                           .contentType(MediaType.APPLICATION_JSON)
                           .content(asJsonString(PaginationFixture.getDefault().build())))
                   .andExpect(status().isOk()));
-      assertThat(((Number) JsonPath.read(counts, "$.approvals.DRAFT")).longValue())
+
+      // Assert
+      assertThat(((Number) JsonPath.read(counts, "$.statuses.DRAFT")).longValue())
           .isGreaterThanOrEqualTo(1);
+      assertThat((Map<String, Object>) JsonPath.read(counts, "$.approvals"))
+          .doesNotContainKey("DRAFT");
     }
   }
 }

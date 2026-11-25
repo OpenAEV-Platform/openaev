@@ -5,10 +5,11 @@ import { type PayloadApprovalOutput, type ThreatArsenalActionUsageOutput } from 
 export type ApprovalStatus = NonNullable<PayloadApprovalOutput['approval_status']>;
 export type ApprovalOrigin = NonNullable<PayloadApprovalOutput['approval_origin']>;
 
-export const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'SUPERSEDED'];
+/** The values of the Approval filter. A superseded version is never the one listed, so it is not one. */
+export const APPROVAL_FILTER_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
-/** Payload drafts: a value of the Approval filter that is not a version status (actions with a draft). */
-export const DRAFT_APPROVAL_VALUE = 'DRAFT';
+/** Payload drafts: a value of the Status filter that is not a payload status (actions with a draft). */
+export const DRAFT_STATUS_VALUE = 'DRAFT';
 
 // Same ladder as the other status chips: orange "medium" for what needs attention, green "low"
 // when it can be used, red "critical" when it is blocked.
