@@ -25,13 +25,8 @@ import RolePopover from '../roles/RolePopover';
 import RoleScopeProvider from '../roles/RoleScopeProvider';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
+import capabilityLabel from './capabilityLabel';
 import { SecurityDetailNotFound } from './SecurityDetailNotFound';
-
-// Turns MANAGE_ASSESSMENT into "Manage assessment" for display.
-const humanizeCapability = (capability: string): string => {
-  const lowered = capability.replace(/_/g, ' ').toLowerCase();
-  return lowered.charAt(0).toUpperCase() + lowered.slice(1);
-};
 
 // Renders the capability tree top-down, indenting each level, and keeping only
 // branches that lead to a granted capability (same read-only philosophy as
@@ -41,9 +36,10 @@ const renderCapabilityNodes = (
   nodes: CapabilityOutput[],
   granted: Set<string>,
   depth: number,
+  label: (capability: string) => string,
 ): ReactElement[] => nodes.flatMap((node) => {
   const isGranted = granted.has(node.capability_value);
-  const children = renderCapabilityNodes(node.capability_children ?? [], granted, depth + 1);
+  const children = renderCapabilityNodes(node.capability_children ?? [], granted, depth + 1, label);
   if (!isGranted && children.length === 0) {
     return [];
   }
@@ -64,7 +60,7 @@ const renderCapabilityNodes = (
         color: isGranted ? 'primary.main' : 'text.secondary',
       }}
       />
-      <Typography variant="body2">{humanizeCapability(node.capability_value)}</Typography>
+      <Typography variant="body2">{label(node.capability_value)}</Typography>
     </Box>,
     ...children,
   ];
@@ -199,7 +195,7 @@ const RoleDetail = () => {
               <Section title={t('Capabilities')}>
                 {capabilities.length === 0
                   ? <Empty message={t('No capability granted by this role.')} />
-                  : <div>{renderCapabilityNodes(capabilityTree, grantedSet, 0)}</div>}
+                  : <div>{renderCapabilityNodes(capabilityTree, grantedSet, 0, capability => capabilityLabel(t, capability))}</div>}
               </Section>
 
               <Section title={t('Groups using this role')}>
