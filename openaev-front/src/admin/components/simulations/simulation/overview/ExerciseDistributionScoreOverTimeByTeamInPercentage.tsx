@@ -33,7 +33,7 @@ const ExerciseDistributionScoreOverTimeByTeamInPercentage: FunctionComponent<Pro
     (expectationsList: InjectExpectationOutput[]) => expectationsList.filter(
       (n: InjectExpectationOutput) => n?.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null,
     ),
-    (list: InjectExpectationOutput[]) => Object.groupBy(list, R.prop('inject_expectation_team')),
+    (list: InjectExpectationOutput[]) => Object.groupBy(list, item => String(item.inject_expectation_team)),
     Object.entries,
     (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;

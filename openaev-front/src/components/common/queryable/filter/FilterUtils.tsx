@@ -1,8 +1,8 @@
 import qs from 'qs';
-import * as R from 'ramda';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type Filter, type FilterGroup, type PropertySchemaDTO, type RelatedEntityOutput } from '../../../../utils/api-types';
+import { isEmpty } from '../../../../utils/object';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { buildSearchPagination } from '../QueryableUtils';
 
@@ -40,10 +40,10 @@ export const isExistingFilter = (filterGroup: FilterGroup, key: string) => {
 };
 
 export const isEmptyFilter = (filterGroup: FilterGroup, key: string) => {
-  if (R.isEmpty(filterGroup.filters)) {
+  if (isEmpty(filterGroup.filters)) {
     return true;
   }
-  return !filterGroup.filters?.find(f => f.key === key) || R.isEmpty(filterGroup.filters?.find(f => f.key === key)?.values);
+  return !filterGroup.filters?.find(f => f.key === key) || isEmpty(filterGroup.filters?.find(f => f.key === key)?.values);
 };
 
 export const craftedDocumentFilter = (item: RelatedEntityOutput, keyFilter: string, key: string) => {

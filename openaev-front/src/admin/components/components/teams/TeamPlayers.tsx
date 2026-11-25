@@ -17,6 +17,7 @@ import { useHelper } from '../../../../store';
 import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { isEmpty } from '../../../../utils/object';
 import { type Option } from '../../../../utils/Option';
 import { ascendBy, descendBy } from '../../../../utils/Sorting';
 import { TeamContext } from '../../common/Context';
@@ -232,7 +233,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
     <Drawer
       open
       handleClose={handleClose}
-      title={R.propOr('-', 'team_name', team)}
+      title={team?.team_name ?? '-'}
     >
       <>
         <Box
@@ -360,8 +361,8 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                       className={classes.bodyItem}
                       style={inlineStyles.user_options}
                     >
-                      {R.isNil(user.user_email)
-                        || R.isEmpty(user.user_email) ? (
+                      {user.user_email === null || user.user_email === undefined
+                        || isEmpty(user.user_email) ? (
                             <EmailOutlined
                               color="warning"
                               fontSize="small"
@@ -374,8 +375,8 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                               className={classes.icon}
                             />
                           )}
-                      {R.isNil(user.user_pgp_key)
-                        || R.isEmpty(user.user_pgp_key) ? (
+                      {user.user_pgp_key === null || user.user_pgp_key === undefined
+                        || isEmpty(user.user_pgp_key) ? (
                             <KeyOutlined
                               color="warning"
                               fontSize="small"
@@ -388,8 +389,8 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                               className={classes.icon}
                             />
                           )}
-                      {R.isNil(user.user_phone)
-                        || R.isEmpty(user.user_phone) ? (
+                      {user.user_phone === null || user.user_phone === undefined
+                        || isEmpty(user.user_phone) ? (
                             <SmartphoneOutlined
                               color="warning"
                               fontSize="small"

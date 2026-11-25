@@ -30,7 +30,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
-import { omit } from '../../../../../utils/object';
+import { isEmpty, omit } from '../../../../../utils/object';
 import { ascendBy, descendBy } from '../../../../../utils/Sorting';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
@@ -442,7 +442,7 @@ class QuickInjectComponent extends Component {
         )
         .forEach((field) => {
           const value = values[field.key];
-          if (field.mandatory && R.isEmpty(value)) {
+          if (field.mandatory && isEmpty(value)) {
             errors[field.key] = t('This field is required.');
           }
         });
