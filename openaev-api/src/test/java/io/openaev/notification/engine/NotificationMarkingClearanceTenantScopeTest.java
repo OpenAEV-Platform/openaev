@@ -159,7 +159,12 @@ class NotificationMarkingClearanceTenantScopeTest extends IntegrationTest {
     for (String userId : List.of(clearedUserId, restrictedUserId)) {
       jdbc.update(
           "INSERT INTO users_groups (group_id, user_id) VALUES (?, ?)", capabilityGroupId, userId);
-      tenantRepository.addUserToTenant(userId, tenantId);
+      // Not tenantRepository.addUserToTenant(): that @Modifying query needs an already-open
+      // transaction, which this test deliberately never has (see the class javadoc).
+      jdbc.update(
+          "INSERT INTO users_tenants (user_id, tenant_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+          userId,
+          tenantId);
     }
     jdbc.update(
         "INSERT INTO users_groups (group_id, user_id) VALUES (?, ?)",
