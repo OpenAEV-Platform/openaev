@@ -47,6 +47,7 @@ const FindingSource = ({ sources }: Props) => {
             flexDirection: 'row',
             gap: 1,
         }}>
+            {!displayedSources?.length && !remainingSources?.length && "-"}
             {displayedSources?.map(source =>
                 <Tooltip key={source.injector_id}>
                     <TooltipTrigger asChild>
