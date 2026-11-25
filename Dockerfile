@@ -1,4 +1,5 @@
-# Set by BuildKit to the target platform's architecture (amd64, arm64); selects the tini stage.
+# Set by BuildKit to the target platform's architecture (amd64, arm64); selects the tini and
+# runtime base stages.
 ARG TARGETARCH
 
 # tini comes from its release as a static binary, checksum-pinned, so the app stage takes it
@@ -41,7 +42,13 @@ COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
-FROM eclipse-temurin:21.0.13.1_2-jre-noble@sha256:897ec01ae1350622de0d5393a48a4ffffee8fe1609f248f4389578b919eaf9f5 AS app
+# Runtime base per architecture: eclipse-temurin 21.0.13.1_2-jre-noble has no arm64 image yet
+# (adoptium/containers#1146), so arm64 stays on 21.0.13_9 meanwhile.
+# TODO: once the arm64 image of 21.0.13.1_2 is published, go back to a single FROM for app.
+FROM eclipse-temurin:21.0.13.1_2-jre-noble@sha256:897ec01ae1350622de0d5393a48a4ffffee8fe1609f248f4389578b919eaf9f5 AS app-base-amd64
+FROM eclipse-temurin:21.0.13_9-jre-noble@sha256:b4f9d2a0bc273417cf5219b7b832bbf0493ed500b7b57d5001d9f83374659060 AS app-base-arm64
+
+FROM app-base-${TARGETARCH} AS app
 
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
