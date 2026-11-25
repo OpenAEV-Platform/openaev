@@ -64,3 +64,6 @@ Key checks: no `${{ }}` expression inside a `run:` script or a `github-script` `
 - Add `(blocking)` or `(non-blocking)` decoration
 - Be specific, actionable, explain the "why"
 - When flagging a rule violation, mention which instruction file defines the rule
+- Say what goes wrong for the user, with the concrete case ("a late report adds a second COMPLETE trace")
+- Point to existing code to follow (class or file) and ask whether the same fix is needed where the same pattern repeats
+- A few points per PR, most important first; phrase non-blocking points as questions ("Could we ...?")

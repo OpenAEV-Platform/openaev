@@ -45,6 +45,7 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Component size** | Single component file >300 lines → suggest splitting | 🟡 MEDIUM |
 | **`any` type usage** | Any `any` in new code (not pre-existing) | 🟡 MEDIUM |
 | **Missing `t()`** | Any user-facing string literal not wrapped in `t()` | 🟡 MEDIUM |
+| **New word for an existing term** | A translation that does not reuse the product's term (the same as OpenCTI: "marquage", not "balisage") | 🟡 MEDIUM |
 | **New MUI import replaced by the library** | A symbol listed in `fds-migration/mui-regression-policy.generated.json` (`enforced`) newly imported from `@mui/*` without a `fds:keep-mui <reason>` comment | 🟠 HIGH |
 | **JS colour helper on a token** | `alpha()` / `darken()` / `lighten()` on a value that can be `var(--…)` or comes from `computeStatusStyle` / `getStatusColor` / `criticalityColor` — use `tint()` | 🔴 CRITICAL |
 | **Navigation by click handler** | Button, chip or card navigating through `onClick={navigate}` instead of wrapping a real `Link` / `<a>` (`asChild`) | 🟠 HIGH |

@@ -108,6 +108,7 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | 🔴 **CRITICAL** | Background job / queue consumer / async task reading or writing tenant rows without `TenantContext.setCurrentTenant()`, when it persists any `TenantBase` entity or touches a v1/not-yet-v2 code path (even when it sets `TxCtx`) | `issue (blocking):` — silently resolves the DEFAULT tenant via `TenantBaseListener`, see `multi-tenancy.instructions.md` > Background Threads Carry Both Scopes |
 | 🟡 **MEDIUM** | Background job already converted to `TenantScopedTransaction`, read-only, every touched table v2-active, no legacy path reached, but still calls `TenantContext.setCurrentTenant()` | `suggestion (non-blocking):` — dead v1 call, safe to remove; confirm the read-only/all-v2-active/no-legacy-path conditions before suggesting removal, a false positive here reintroduces the DEFAULT_TENANT_UUID attribution bug |
 | 🟠 **HIGH** | `TenantContext.setCurrentTenant()` on a pooled thread without a `finally` restore | `issue (blocking):` — leaks the scope into the next task on that thread |
+| 🟡 **MEDIUM** | New or touched method or derived query where the tenant (`TxCtx` or `tenantId`) is not first (`findAllByContentHashAndTenantId`) | `suggestion (non-blocking):` — the tenant scopes everything else |
 | 🟡 **MEDIUM** | Cache key without `tenant_id` | `suggestion (non-blocking):` — cross-tenant cache poisoning risk |
 | 🟢 **LOW** | Entity could be tenant-scoped but isn't yet (tech debt tracking) | `note:` — informational |
 
