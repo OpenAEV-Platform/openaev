@@ -46,7 +46,13 @@ public class ContentHistory implements TenantBase, Auditable {
     // whose details say it came from a draft.
     DRAFT_CREATE,
     DRAFT_DISCARD,
-    REWORK
+    REWORK,
+    // Payload approval decisions: never stored as content history rows. The History of an action
+    // reads them from the approval history of its versions (payload_approvals).
+    APPROVE,
+    REJECT,
+    REOPEN,
+    SUPERSEDE
   }
 
   @Id

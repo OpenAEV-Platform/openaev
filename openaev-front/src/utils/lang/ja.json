@@ -408,6 +408,8 @@
   "Applying a template will add all its categories and questions to this simulation.": "テンプレートを適用すると、そのすべてのカテゴリと質問がこのシミュレーションに追加されます。",
   "APPROVE_THREAT_ARSENALS": "コンテンツの承認",
   "Approved": "承認済み",
+  "Moved to pending approval": "承認待ちに戻しました",
+  "Auto-approved": "自動承認",
   "Architecture": "アーキテクチャ",
   "Are you sure you want to delete this element?": "この要素を削除してもよろしいですか？",
   "Argument {key}": "引数 {key}",

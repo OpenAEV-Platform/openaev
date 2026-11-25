@@ -18,6 +18,7 @@ import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.SemanticVersion;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -263,6 +264,13 @@ public class PayloadApprovalService {
   /** The approval history of a version, newest first. */
   public List<PayloadApproval> history(@NotNull final String payloadId) {
     return payloadApprovalRepository.findByPayloadIdOrderByCreatedAtDesc(payloadId);
+  }
+
+  /** The approval histories of several versions (an action's History), in one query. */
+  public List<PayloadApproval> historyOf(@NotNull final Collection<String> payloadIds) {
+    return payloadIds.isEmpty()
+        ? List.of()
+        : payloadApprovalRepository.findByPayloadIdIn(payloadIds);
   }
 
   /** The latest entry of the approval history of a version. */

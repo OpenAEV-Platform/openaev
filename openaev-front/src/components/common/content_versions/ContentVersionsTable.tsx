@@ -30,6 +30,8 @@ interface HistoryDetails {
   // Payload drafts: an update published from a draft, a draft that fixes a rejected version.
   draft?: boolean;
   rework?: boolean;
+  // Payload approval: the comment of an approval or of a move back to pending.
+  comment?: string;
 }
 
 const HISTORY_PER_PAGE = 10;
@@ -124,6 +126,11 @@ export const ContentVersionsTable: FunctionComponent<VersionsProps> = ({ rows, u
 const HISTORY_ACTION_LABELS: Record<string, string> = {
   INSTALL: 'Installed',
   UPDATE: 'Updated',
+  // Payload approval decisions, read from the approval history of each version.
+  APPROVE: 'Approved',
+  REJECT: 'Rejected',
+  REOPEN: 'Moved to pending approval',
+  SUPERSEDE: 'Superseded',
   ROLLBACK: 'Rolled back',
   DUPLICATE: 'Duplicated',
   VERSION_CHANGE: 'Version changed',
@@ -244,6 +251,9 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
     if (entry.content_history_action === 'DRAFT_CREATE' && historyDetails(entry)?.rework) {
       return t('Moved back to draft');
     }
+    if (entry.content_history_action === 'APPROVE' && entry.content_history_automatic) {
+      return t('Auto-approved');
+    }
     return t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
   };
   const twoLines = (first: ReactNode, second: ReactNode) => (
@@ -293,7 +303,16 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
     if (details?.reason) {
       parts.push(`${t('Reason')}: ${details.reason}`);
     }
+    if (details?.comment) {
+      parts.push(`${t('Comment')}: ${details.comment}`);
+    }
     return parts.length > 0 ? parts.join(' · ') : '-';
+  };
+  // Who did it: the user, else the platform (Filigran for content approved on arrival from its catalogue).
+  const userOf = (entry: ContentHistoryOutput) => {
+    if (entry.content_history_user) return entry.content_history_user;
+    if (!entry.content_history_automatic) return '-';
+    return historyDetails(entry)?.source === 'catalog' ? t('Filigran') : t('Platform');
   };
   return (
     <>
@@ -342,7 +361,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
                         : <Text variant="content-compact-bold">{actionLine(entry)}</Text>}
                     </TableCell>
                     <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
-                    <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
+                    <TableCell>{userOf(entry)}</TableCell>
                     <TableCell>
                       {entry.content_history_created_at
                         ? (
