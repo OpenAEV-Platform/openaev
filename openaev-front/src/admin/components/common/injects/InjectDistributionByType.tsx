@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseInjects } from '../../../../actions/Inject';
@@ -9,7 +8,7 @@ import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import Chart from '../../../../components/Chart';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Exercise, type InjectExpectationOutput } from '../../../../utils/api-types';
+import { type Exercise } from '../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -31,19 +30,13 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchExerciseInjects(exerciseId));
   });
 
-  const injectsByType = R.pipe(
-    (injectsList: InjectStore[]) => injectsList.filter((n: InjectStore) => n.inject_sent_at !== null),
-    (list: InjectStore[]) => Object.groupBy(list, item => String(item.inject_type)),
-    Object.entries,
-    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => ({
-      inject_type: n[0],
-      number: n[1].length,
-    })),
-    (items: Array<{
-      inject_type: string;
-      number: number;
-    }>) => items.toSorted(descendBy('number')),
-  )(injects);
+  const sentInjects = injects.filter((n: InjectStore) => n.inject_sent_at !== null);
+  const sentInjectsByType = Object.groupBy(sentInjects, (item: InjectStore) => String(item.inject_type));
+  const injectsByTypeCount = Object.entries(sentInjectsByType).map((n: [string, InjectStore[] | undefined]) => ({
+    inject_type: n[0],
+    number: n[1]!.length,
+  }));
+  const injectsByType = injectsByTypeCount.toSorted(descendBy('number')) as Array<InjectStore & { number: number }>;
   const injectsByInjectorContractData = [
     {
       name: t('Number of injects'),

@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
@@ -28,23 +27,20 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
     teamsMap: helper.getTeamsMap(),
   }));
 
-  const teamsByPercentScore = R.pipe(
-    (expectationsList: InjectExpectationOutput[]) => expectationsList.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null),
-    (list: InjectExpectationOutput[]) => Object.groupBy(list, (n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
-    Object.entries,
+  const teamExpectations = injectExpectations.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null);
+  const expectationsByTeam = Object.groupBy(teamExpectations, (n: InjectExpectationOutput) => n.inject_expectation_team ?? '');
+  const evaluatedTeams = Object.entries(expectationsByTeam).filter(
     // A team shows up once at least one of its expectations has been evaluated
-    (pairs: [string, InjectExpectationOutput[]][]) => pairs.filter(
-      ([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null),
-    ),
-    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
-      const reachedScore = expectations.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
-      const expectedScore = expectations.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
-      return {
-        ...teamsMap[teamId],
-        team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),
-      };
-    }),
-  )(injectExpectations);
+    ([, expectations]: [string, InjectExpectationOutput[] | undefined]) => expectations!.some(e => e.inject_expectation_score != null),
+  );
+  const teamsByPercentScore = evaluatedTeams.map(([teamId, expectations]: [string, InjectExpectationOutput[] | undefined]) => {
+    const reachedScore = expectations!.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
+    const expectedScore = expectations!.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
+    return {
+      ...teamsMap[teamId],
+      team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),
+    };
+  });
 
   const teamsColors = computeTeamsColors(teams, theme);
   const sortedTeamsByPercentScore = (teamsByPercentScore || []).toSorted(descendBy('team_total_percent_score')).slice(0, 10);

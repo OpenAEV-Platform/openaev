@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
@@ -42,13 +41,11 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
       (n: Communication) => n.communication_users!.map((u: string) => usersMap[u]),
     ),
   )];
-  const sortedUsersByCommunicationNumber = R.pipe(
-    (usersList: User[]) => usersList.map((n: User) => ({
-      ...n,
-      user_communications_number: communications.filter((c: Communication) => n && c.communication_users!.includes(n.user_id!)).length,
-    })),
-    (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')).slice(0, 10),
-  )(communicationsUsers);
+  const usersWithCommunicationNumber = (communicationsUsers as User[]).map((n: User) => ({
+    ...n,
+    user_communications_number: communications.filter((c: Communication) => n && c.communication_users!.includes(n.user_id!)).length,
+  }));
+  const sortedUsersByCommunicationNumber = usersWithCommunicationNumber.toSorted(descendBy('user_communications_number')).slice(0, 10);
   const totalMailsByUserData = [
     {
       name: t('Total mails'),
