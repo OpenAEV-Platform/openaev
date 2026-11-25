@@ -20,6 +20,7 @@ import com.azure.core.http.HttpClient;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AzureEnvironments;
@@ -375,6 +376,7 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
           "tenant B's stored secret must not resolve under tenant A's scope");
     }
 
+    @ExpectsEmptyScopeReads("the due read with no scope is the subject: no credential is due")
     @Test
     @DisplayName("with no scope at all: no credential is due, not even the caller's own")
     void given_noScopeSet_should_failClosedOnTheDueCredentialsRead() {

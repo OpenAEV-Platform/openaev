@@ -5,6 +5,7 @@ import io.openaev.integration.ManagerCreator;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.Query;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,22 @@ public class BuiltinConnectorRegistration {
     } catch (Exception e) {
       throw new RuntimeException(
           "Failed to register the built-in connector of " + factory.getClass().getSimpleName(), e);
+    } finally {
+      setScope(callerScope);
+    }
+  }
+
+  /**
+   * Runs a read of {@code tenantId}'s rows under its scope and puts back the caller's scope, so a
+   * fixture can look up what {@link #register} created on a bare thread, where every active table
+   * reads as empty.
+   */
+  @Transactional
+  public <T> T inScope(String tenantId, Supplier<T> read) {
+    String callerScope = currentScope();
+    setScope(tenantId);
+    try {
+      return read.get();
     } finally {
       setScope(callerScope);
     }

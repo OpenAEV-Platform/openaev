@@ -3,6 +3,7 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
@@ -168,8 +169,9 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("a scope-less sweep silently loses the attribution (the production incident shape)")
-  void given_collectorFilledExpectation_when_sweepIsNotScoped_should_loseAttribution() {
+  @ExpectsEmptyScopeReads("the sweep with no scope is the subject: it reads nothing")
+  @DisplayName("a scope-less sweep indexes nothing, not even the expectation (the incident shape)")
+  void given_collectorFilledExpectation_when_sweepIsNotScoped_should_indexNothing() {
     // Arrange with a scope so the composers can write the collector row...
     setScope(Tenant.DEFAULT_TENANT_UUID);
     SecurityPlatformComposer.Composer securityPlatform =
@@ -185,11 +187,13 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
     String expectationId = persistExpectationFilledByCollector(collector);
 
     // ...then drop the scope, as the engine sync sweep did before it carried allTenants():
-    // can_access_tenant is fail-closed, the collectors join reads empty, the document indexes
-    // with no security platform. This is the exact production incident shape.
+    // can_access_tenant is fail-closed on every table the document is built from, so the sweep
+    // reads no row at all and the expectation is not indexed.
     setScope("");
 
-    assertThat(fetchDoc(expectationId).getBase_security_platforms_side()).isEmpty();
+    assertThat(injectExpectationHandler.fetch(FROM, 5000))
+        .extracting(EsInjectExpectation::getBase_id)
+        .doesNotContain(expectationId);
   }
 
   @Test

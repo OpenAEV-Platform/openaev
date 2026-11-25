@@ -4,6 +4,7 @@ import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -144,24 +145,18 @@ class VulnerableEndpointIndexingAgentScopeTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given a scope-less sweep should index the document with no agent at all")
-  void given_scopeLessSweep_should_indexTheDocumentWithNoAgentAtAll() {
+  @ExpectsEmptyScopeReads("the sweep with no scope is the subject: it reads nothing")
+  @DisplayName("given a scope-less sweep should index no document for the endpoint")
+  void given_scopeLessSweep_should_indexNoDocumentForTheEndpoint() {
     // Arrange: no scope, which is what a background entry point that forgets one leaves behind.
-    // can_access_tenant is fail-closed, so the three sub-queries read nothing. This is the shape
-    // the collectors incident had, and the measurement that the predicate is really in the
-    // statement: with agents disarmed the arrays come back full here.
+    // can_access_tenant is fail-closed on every table the document is built from, so the sweep
+    // reads no row at all.
     setScope("");
 
-    // Act
-    EsVulnerableEndpoint document = fetchDocument();
-
-    // Assert: the document itself is still built (assets and findings are not armed here), only
-    // its agent denormalization is empty.
-    assertThat(document.getVulnerable_endpoint_id()).isEqualTo(endpointId);
-    assertThat(document.getBase_agents_side())
-        .as("with no scope the agent sub-queries must read nothing, not another tenant's rows")
-        .isEmpty();
-    assertThat(document.getVulnerable_endpoint_agents_privileges()).isNullOrEmpty();
+    // Act & Assert
+    assertThat(vulnerableEndpointHandler.fetch(FROM, 5000))
+        .extracting(EsVulnerableEndpoint::getVulnerable_endpoint_id)
+        .doesNotContain(endpointId);
   }
 
   // -- HELPERS --

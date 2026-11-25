@@ -298,8 +298,10 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       Injector injector =
           persistInjectorWithCommands(
               Map.of("run", "server=\\\"http://192.168.1.13:3001\\\""), Map.of());
-      dataPackService.registerDataPack(
-          dataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant()));
+      inScope(
+          () ->
+              dataPackService.registerDataPack(
+                  dataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant())));
 
       // Act
       MigrationProcessingResult result = processForCurrentTenant();

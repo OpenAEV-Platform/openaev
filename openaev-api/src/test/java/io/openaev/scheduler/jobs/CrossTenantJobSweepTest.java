@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Inject;
 import io.openaev.helper.InjectHelper;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -45,6 +46,7 @@ class CrossTenantJobSweepTest extends IntegrationTest {
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;
   @Autowired private ScenarioExecutionJob scenarioExecutionJob;
   @Autowired private InjectHelper injectHelper;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
   @Autowired private DataSource dataSource;
 
   private JdbcTemplate jdbc;
@@ -191,7 +193,10 @@ class CrossTenantJobSweepTest extends IntegrationTest {
 
       // Act
       List<Inject> pending =
-          onBareThread(() -> injectHelper.getAllPendingInjectsWithThresholdMinutes(10));
+          onBareThread(
+              () ->
+                  tenantScopedJobRunner.supplyAcrossTenants(
+                      () -> injectHelper.getAllPendingInjectsWithThresholdMinutes(10)));
 
       // Assert
       assertThat(pending).extracting(Inject::getId).contains(injectId);
