@@ -51,6 +51,11 @@ import org.springframework.stereotype.Component;
  *       index.
  * </ol>
  *
+ * <p>Pods of the older version write findings during a rolling update. A batch locks the old rows
+ * it reads, so a write of the older version on one of them waits for the batch and lands on a new
+ * old row, converted by a later batch. A batch that meets a concurrent delete of a row it links to,
+ * or a deadlock, is rolled back and read again (see {@link #commitBatch}).
+ *
  * <p>Every row taken is deleted, converted or not, so an interrupted run resumes from the rows
  * left, and a converted table is only read. No {@code VACUUM}: autovacuum reclaims the old rows.
  */
@@ -82,10 +87,14 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       READ_COLUMNS
           + " WHERE ctid >= ?::tid AND ctid < ?::tid AND finding_value_hash IS NULL"
           + " ORDER BY ctid LIMIT "
-          + BATCH_SIZE;
+          + BATCH_SIZE
+          + " FOR UPDATE";
 
   private static final String READ_ANY =
-      READ_COLUMNS + " WHERE finding_value_hash IS NULL ORDER BY finding_id LIMIT " + BATCH_SIZE;
+      READ_COLUMNS
+          + " WHERE finding_value_hash IS NULL ORDER BY finding_id LIMIT "
+          + BATCH_SIZE
+          + " FOR UPDATE";
 
   /**
    * The WAL not yet archived or replayed, in bytes. Inactive slots, and the archiver when {@code
@@ -114,6 +123,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   private final Long pagesPerRangeOverride;
   private final int pauseMillis;
   private final long walLagBoundBytes;
+  private final BatchRetry batchRetry;
   private final TimeOrderedIds ids = new TimeOrderedIds();
 
   public V6_20261117160000000__Convert_findings_to_identity() {
@@ -122,9 +132,15 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   V6_20261117160000000__Convert_findings_to_identity(
       Long pagesPerRangeOverride, int pauseMillis, long walLagBoundBytes) {
+    this(pagesPerRangeOverride, pauseMillis, walLagBoundBytes, BatchRetry.DEFAULT);
+  }
+
+  V6_20261117160000000__Convert_findings_to_identity(
+      Long pagesPerRangeOverride, int pauseMillis, long walLagBoundBytes, BatchRetry batchRetry) {
     this.pagesPerRangeOverride = pagesPerRangeOverride;
     this.pauseMillis = pauseMillis;
     this.walLagBoundBytes = walLagBoundBytes;
+    this.batchRetry = batchRetry;
   }
 
   /** {@link #UNKNOWN_DENSITY_PAGES_PER_RANGE} when the table has no statistics yet. */
@@ -193,10 +209,7 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
       WalGuard walGuard = new WalGuard(currentWalFile(connection));
       walk(connection, walGuard);
-      while (convertNextBatch(connection)) {
-        connection.commit();
-        pace(connection, walGuard);
-      }
+      drain(connection, walGuard);
 
       executeOutsideTransaction(
           connection, "DROP INDEX CONCURRENTLY IF EXISTS " + UNCONVERTED_INDEX);
@@ -329,11 +342,17 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
   private String giveUpMessage(int attempts, String failed, List<TableLock> locks) {
     String tables = String.join(", ", locks.stream().map(TableLock::table).toList());
     return ("Findings migration: gave up after %d attempts on \"%s\": another session holds a lock"
-            + " on %s, for example a pod of the older version. Stop the pods of the older version,"
-            + " remove the failed row of this migration with `flyway repair` on the schema history"
-            + " table `migrations`, or with `DELETE FROM migrations WHERE version = '%s' AND NOT"
-            + " success`, then start again: every step is safe to run again.")
-        .formatted(attempts, failed, tables, getVersion().getVersion());
+                + " on %s, for example a pod of the older version. ")
+            .formatted(attempts, failed, tables)
+        + repairHint();
+  }
+
+  private String repairHint() {
+    return ("Stop the pods of the older version, remove the failed row of this migration with"
+            + " `flyway repair` on the schema history table `migrations`, or with `DELETE FROM"
+            + " migrations WHERE version = '%s' AND NOT success`, then start again: every step is"
+            + " safe to run again.")
+        .formatted(getVersion().getVersion());
   }
 
   /**
@@ -381,8 +400,10 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         range.setString(1, tid(page));
         range.setString(2, tid(page + pagesPerRange));
         int batch;
-        while ((batch = convertBatch(connection, readBatch(connection, range))) > 0) {
-          connection.commit();
+        while ((batch =
+                commitBatch(
+                    connection, () -> convertBatch(connection, readBatch(connection, range))))
+            > 0) {
           taken += batch;
           pace(connection, walGuard);
         }
@@ -401,6 +422,75 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
         "findings: {} old row(s) taken in physical order, {} s",
         taken,
         Duration.ofNanos(System.nanoTime() - startedAt).toSeconds());
+  }
+
+  /** Converts the rows the walk misses, in id order, one committed batch at a time. */
+  void drain(Connection connection, WalGuard walGuard) throws SQLException {
+    while (commitBatch(connection, () -> convertNextBatch(connection) ? 1 : 0) > 0) {
+      pace(connection, walGuard);
+    }
+  }
+
+  /** How a batch that meets a concurrent write runs again. */
+  record BatchRetry(int attempts, Duration firstPause) {
+    static final BatchRetry DEFAULT = new BatchRetry(5, Duration.ofSeconds(1));
+  }
+
+  /**
+   * {@code foreign_key_violation}: a pod of the older version deleted a row the batch links to,
+   * such as an inject of a deleted simulation or an asset, after the batch read it. {@code
+   * deadlock_detected}: the batch and a concurrent write lock the same rows in another order.
+   */
+  private static final Set<String> BATCH_CONFLICTS = Set.of("23503", "40P01");
+
+  /** Reads and converts one batch, without committing. */
+  @FunctionalInterface
+  interface Batch {
+    int convert() throws SQLException;
+  }
+
+  /**
+   * Converts one batch and commits it. A conflict with a concurrent write rolls the batch back, and
+   * the batch is read again after a pause (see {@link #pauseAfter}): what it reads then reflects
+   * the write.
+   *
+   * @return the rows the batch took
+   * @throws SQLException the error of a batch that is not a conflict, or the conflict itself when
+   *     the rollback fails (the rollback failure is suppressed in it)
+   * @throws IllegalStateException after the last attempt, with the last conflict as its cause
+   */
+  int commitBatch(Connection connection, Batch batch) throws SQLException {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        int taken = batch.convert();
+        connection.commit();
+        return taken;
+      } catch (SQLException e) {
+        rollback(connection, e);
+        if (!BATCH_CONFLICTS.contains(e.getSQLState())) {
+          throw e;
+        }
+        if (attempt >= batchRetry.attempts()) {
+          throw new IllegalStateException(
+              ("Findings migration: gave up after %d attempts on a batch: each one met a"
+                          + " concurrent write (%s, %s), for example a pod of the older version"
+                          + " deleting a simulation. ")
+                      .formatted(attempt, e.getSQLState(), e.getMessage())
+                  + repairHint(),
+              e);
+        }
+        Duration pause =
+            pauseAfter(attempt, batchRetry.firstPause(), ThreadLocalRandom.current().nextDouble());
+        log.info(
+            "Findings migration: a batch met a concurrent write ({}), attempt {}/{}, reading it"
+                + " again in {} ms",
+            e.getSQLState(),
+            attempt,
+            batchRetry.attempts(),
+            pause.toMillis());
+        pauseBeforeRetry(pause);
+      }
+    }
   }
 
   /**
