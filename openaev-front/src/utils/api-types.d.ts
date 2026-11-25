@@ -12452,6 +12452,11 @@ export interface ScenarioBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface ScenarioCatalogStateOutput {
+  scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_revoked: boolean;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;

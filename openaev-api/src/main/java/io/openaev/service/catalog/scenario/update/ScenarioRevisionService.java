@@ -1,5 +1,7 @@
 package io.openaev.service.catalog.scenario.update;
 
+import static java.util.stream.Collectors.groupingBy;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
@@ -13,7 +15,9 @@ import io.openaev.service.UserService;
 import io.openaev.service.VariableService;
 import io.openaev.service.scenario.ScenarioService;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,9 +44,31 @@ public class ScenarioRevisionService {
   @Transactional(readOnly = true)
   public List<NumberedRevision> revisions(TxCtx ctx, String scenarioId) {
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
-    List<RevisionRow> newestFirst =
-        scenarioRevisionRepository.findRowsByTenantIdAndScenarioId(
-            scenario.getTenant().getId(), scenario.getId());
+    return numbered(
+        scenarioRevisionRepository.findRowsByTenantIdAndScenarioIdIn(
+            scenario.getTenant().getId(), List.of(scenario.getId())));
+  }
+
+  /**
+   * The newest revision of each scenario when an update kept it: that update can be rolled back.
+   */
+  @Transactional(readOnly = true)
+  public Map<String, NumberedRevision> lastUpdates(
+      String tenantId, Collection<String> scenarioIds) {
+    Map<String, NumberedRevision> lastUpdates = new HashMap<>();
+    scenarioRevisionRepository.findRowsByTenantIdAndScenarioIdIn(tenantId, scenarioIds).stream()
+        .collect(groupingBy(RevisionRow::getScenarioId))
+        .forEach(
+            (scenarioId, newestFirst) -> {
+              NumberedRevision newest = numbered(newestFirst).getFirst();
+              if (newest.revision().getReason() == ScenarioRevision.Reason.UPDATE) {
+                lastUpdates.put(scenarioId, newest);
+              }
+            });
+    return lastUpdates;
+  }
+
+  private static List<NumberedRevision> numbered(List<RevisionRow> newestFirst) {
     return IntStream.range(0, newestFirst.size())
         .mapToObj(index -> new NumberedRevision(newestFirst.size() - index, newestFirst.get(index)))
         .toList();

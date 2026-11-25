@@ -1,14 +1,13 @@
 import { Button, CardBanner } from '@filigran/design-system';
-import { type FunctionComponent, type MouseEvent, useEffect, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { DomainHelper } from '../../../../actions/domains/domain-helper';
-import { fetchScenarioRevisions } from '../../../../actions/scenarios/scenario-update-actions';
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Domain, type ScenarioRevisionOutput } from '../../../../utils/api-types';
+import { type Domain, type ScenarioCatalogStateOutput } from '../../../../utils/api-types';
 import { domainsOf } from '../../../../utils/domains/domainUtils';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -19,16 +18,16 @@ import { ScenarioTypeIcon } from '../scenario/ScenarioType';
 import ScenarioUpdateDialog from '../scenario/versions/ScenarioUpdateDialog';
 import { rollbackTarget, type ScenarioUpdateTarget, updateTarget } from '../scenario/versions/scenarioUpdateTargets';
 import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
-import useInstalledVersionRevoked from './useInstalledVersionRevoked';
 
 interface Props {
   scenario: ScenarioRow;
   // The newer Filigran version of an installed catalogue scenario, when there is one.
   newerVersion?: string;
+  catalogState?: ScenarioCatalogStateOutput;
   onDelete: (scenarioId: string) => void;
 }
 
-const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, onDelete }) => {
+const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalogState, onDelete }) => {
   const { t, nsd, fsd } = useFormatter();
   const navigate = useNavigate();
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
@@ -42,14 +41,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, onDele
   const canUpdate = catalog && canManage && !!installedVersion;
   const [target, setTarget] = useState<ScenarioUpdateTarget | null>(null);
 
-  // Right after an update, its rollback is one click away in the card's menu; it never clutters it otherwise.
-  const [lastUpdate, setLastUpdate] = useState<ScenarioRevisionOutput | null>(null);
-  useEffect(() => {
-    if (!canUpdate) return;
-    fetchScenarioRevisions(scenario.scenario_id)
-      .then(revisions => setLastUpdate(revisions[0]?.scenario_revision_reason === 'UPDATE' ? revisions[0] : null))
-      .catch(() => setLastUpdate(null));
-  }, [canUpdate, scenario.scenario_id, installedVersion]);
+  const lastUpdate = canUpdate ? catalogState?.scenario_catalog_state_last_update : undefined;
 
   // The card is a link: its banner action opens the update instead.
   const openUpdate = (event: MouseEvent<HTMLButtonElement>) => {
@@ -58,8 +50,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, onDele
     if (newerVersion && installedVersion) setTarget(updateTarget(scenario.scenario_id, newerVersion, installedVersion, t));
   };
   const updatable = canUpdate && !!newerVersion && newerVersion !== installedVersion;
-  // A revoked installed version warns as a revoked payload does, with the update as the way out.
-  const revoked = useInstalledVersionRevoked(scenario.scenario_id, updatable);
+  const revoked = !!catalogState?.scenario_catalog_state_revoked;
   const banner = updatable && (
     <CardBanner
       severity={revoked ? 'error' : 'info'}

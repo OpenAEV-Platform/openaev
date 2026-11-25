@@ -52,8 +52,11 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
+import io.openaev.database.model.catalog.CatalogItemStatus;
+import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.scenario.ScenarioRevision;
+import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -138,6 +141,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioRevisionRepository scenarioRevisionRepository;
+  @Autowired private CatalogItemRepository catalogItemRepository;
   @Autowired private CatalogScenarioUpdateService catalogScenarioUpdateService;
 
   @BeforeEach
@@ -364,6 +368,24 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     return buildAuthenticationToken(reader);
   }
 
+  private ResultActions catalogStates(String... scenarioIds) throws Exception {
+    return committed(
+        post(TENANT_SCENARIO_URI + "/catalog-states", DEFAULT_TENANT_UUID)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(Map.of("scenario_ids", List.of(scenarioIds)))));
+  }
+
+  private void revoke(String version) {
+    CatalogScenario item =
+        catalogItemRepository
+            .findVersion(CatalogScenario.class, SCENARIO_ID, version)
+            .orElseThrow();
+    item.setStatus(CatalogItemStatus.REVOKED);
+    catalogItemRepository.save(item);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
   private ResultActions revisions(Scenario scenario) throws Exception {
     return committed(
             get(
@@ -533,6 +555,53 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                   .value(contains(NEWER, INSTALLED, INSTALLED)))
           .andExpect(jsonPath("$[0].scenario_revision_user").isNotEmpty())
           .andExpect(jsonPath("$[0].scenario_revision_created_at").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("gives an updated scenario the update to roll back, and nothing to a local one")
+    void given_updatedScenario_should_giveItsLastUpdate() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      Scenario local = ScenarioFixture.getScenario();
+      local.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+      String localId = scenarioRepository.save(local).getId();
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId(), localId);
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.length()").value(1))
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(false))
+          .andExpect(
+              jsonPath(state + ".scenario_catalog_state_last_update.scenario_revision_number")
+                  .value(2))
+          .andExpect(
+              jsonPath(
+                      state
+                          + ".scenario_catalog_state_last_update.scenario_revision_catalog_version")
+                  .value(INSTALLED));
+    }
+
+    @Test
+    @DisplayName("says a scenario runs a revoked version, with no update to roll back")
+    void given_revokedInstalledVersion_should_sayRevoked() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      revoke(INSTALLED);
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId());
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(true))
+          .andExpect(jsonPath(state + ".scenario_catalog_state_last_update").isEmpty());
     }
   }
 

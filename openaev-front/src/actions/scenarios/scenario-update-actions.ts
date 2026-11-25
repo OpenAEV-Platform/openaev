@@ -1,5 +1,6 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import {
+  type ScenarioCatalogStateOutput,
   type ScenarioRevisionOutput,
   type ScenarioUpdateInput,
   type ScenarioUpdatePreviewOutput,
@@ -17,6 +18,9 @@ export const searchScenarioHistory = (scenarioId: string, input: SearchPaginatio
 
 export const fetchScenarioRevisions = (scenarioId: string): Promise<ScenarioRevisionOutput[]> => simpleCall(`${scenarioUri(scenarioId)}/revisions`)
   .then(({ data }: { data: ScenarioRevisionOutput[] }) => data);
+
+export const fetchScenarioCatalogStates = (scenarioIds: string[]): Promise<Record<string, ScenarioCatalogStateOutput>> => simplePostCall(`${SCENARIO_URI}/catalog-states`, { scenario_ids: scenarioIds })
+  .then(({ data }: { data: Record<string, ScenarioCatalogStateOutput> }) => data);
 
 const versionUri = (scenarioId: string, version: string) => `${scenarioUri(scenarioId)}/versions/${encodeURIComponent(version)}`;
 
