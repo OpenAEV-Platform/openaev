@@ -17,7 +17,7 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 - Migrate `.js`/`.jsx` → `.ts`/`.tsx` when touching files
 - TypeScript strict mode, annotate API responses with generated types
 - No `any` types, no `@ts-ignore` without explanatory comment
-- Props defined via explicit `interface Props` (not inline)
+- Props defined via explicit `interface Props` (not inline); no prop that no call site passes; over 8 props → split the component or use a context
 - Prefer a default export for a module's main component; helpers, constants and hooks modules may use named exports
 - Never export a mutable binding (`export let` / `export var`): export a `const`, or a getter/setter function (enforced by `custom-rules/no-mutable-exports`)
 - No Ramda: write native JavaScript (array methods, spread, optional chaining). Ramda is being removed; the files that still import it are listed in `legacyRamdaFiles` in `eslint.config.js`. Never add a file to that list: a cleaned file leaves it
@@ -40,7 +40,7 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 
 ### Colours & tokens
 
-- Colours come from the theme (`theme.palette.*`, wired to the token bridge) or from library tokens (`var(--…)`) — no hardcoded `#hex` / `rgba()`
+- Colours come from the theme (`theme.palette.*`, wired to the token bridge) or from library tokens (`var(--…)`) — no hardcoded `#hex` / `rgba()`. Spacing, radius and typography too (a fixed `width` is fine)
 - **Never `alpha()` / `darken()` / `lighten()` on a value that may be a token** — MUI parses it in JS and throws on `var(--…)`, crashing the component. Use `tint(colour, percent)` from `utils/tint.ts` (CSS `color-mix`). `alpha()` stays fine on a value that is a hex by construction (theme palette entry, user branding colour). Guarded by `__tests__/utils/tokenColoursNotInAlpha.test.ts`
 - Token names: write to the per-layer **base** (`--token-layer-N`), read the **alias** (`--token`, scoped by `.layer-N`), never a diluted `-transparency-NN` variant. An unresolvable `var()` invalidates the whole declaration silently
 - Floating surfaces hosting forms (drawers, dialogs) use `fdsLayerClass(SURFACE_LAYER)` + `layerInputVars` from `utils/fdsLayer.ts` so library inputs stay visible on their background
@@ -70,6 +70,7 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 - Atomic form fields: `TextFieldController`, `SelectFieldController`, etc. (they render the library fields — `TextFieldFds` binds `Input` / `Textarea`)
 - Field `name` = JSON property name from API
 - A form hosting a `required` library field sets `noValidate` — the library sets the native `required` attribute, and without it the browser blocks submit before the Zod message shows
+- A form in a `Drawer` submits through `handleSubmitWithoutPropagation`
 - Library field labels only (`SelectLabel`, `ComboboxLabel`) — never a MUI `InputLabel` next to a library field. `Select` renders no wrapper: put label + trigger in a column container when the parent is a row/grid
 
 ## Permissions (CASL)
@@ -82,6 +83,7 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 
 ## i18n
 
+- Every user-facing string goes through `t()`
 - Call `t()` as early as possible — pass translated strings, not raw keys
 - Null-check backend strings before `t()` (crashes on null/undefined)
 - Keys = English text: `t('Tenant name')`
@@ -89,6 +91,7 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 
 ## Data Loading & State
 
-- **Paginated lists** (new pattern): `useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`
+- **Paginated lists** (new pattern): `useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`; an API list that can exceed 50 items is paginated
+- A `useEffect` that fetches data has a complete dependency array
 - **Feature hook**: `use{Feature}s.ts` with `useState` + `useCallback` for local state (add/update/remove)
 - **Actions**: simple API calls in `actions/{feature}/{feature}-actions.ts` using `simpleCall` / `simplePostCall`
