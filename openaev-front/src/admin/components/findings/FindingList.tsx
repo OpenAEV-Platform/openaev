@@ -7,7 +7,7 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { type AggregatedFindingOutput, type SearchPaginationInput } from '../../../utils/api-types';
-import FindingListView from "./components/FindingListView";
+import FindingListView from './components/FindingListView';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -77,10 +77,10 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         disablePagination={compact}
       />
       <FindingListView
-          loading={loading}
-          findings={findings}
-          queryableHelpers={queryableHelpers}
-          hiddenFields={hiddenFields}
+        loading={loading}
+        findings={findings}
+        queryableHelpers={queryableHelpers}
+        hiddenFields={hiddenFields}
       />
       {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
           explicitly (with the total) so the list never reads as "this inject has N findings". */}

@@ -32,19 +32,19 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
     [searchPaginationInput.filterGroup],
   );
 
-    const findingTypeValues = useMemo(
-        () => filters.find((f: Filter) => f.key === TYPE_FILTER_KEY)?.values ?? [],
-        [filters],
-    );
-    const assetValues = useMemo(
-        () => {
-            const selectedOptionIds = filters.find((f: Filter) => f.key === ASSET_FILTER_KEY)?.values ?? [];
-            return assetOptions
-                .filter(option => option.id && selectedOptionIds.includes(option.id))
-                .map(option => option.label!);
-        },
-        [filters],
-    );
+  const findingTypeValues = useMemo(
+    () => filters.find((f: Filter) => f.key === TYPE_FILTER_KEY)?.values ?? [],
+    [filters],
+  );
+  const assetValues = useMemo(
+    () => {
+      const selectedOptionIds = filters.find((f: Filter) => f.key === ASSET_FILTER_KEY)?.values ?? [];
+      return assetOptions
+        .filter(option => option.id && selectedOptionIds.includes(option.id))
+        .map(option => option.label!);
+    },
+    [filters],
+  );
 
   const sections: FacetSection[] = useMemo(() => {
     const findingTypeRows = buildFindingTypeRows({

@@ -1,5 +1,14 @@
-import { CSSProperties } from "react";
-import { QueryableHelpers } from "../../../../components/common/queryable/QueryableHelpers";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Binoculars } from 'mdi-material-ui';
+import { type CSSProperties } from 'react';
+import { Link } from 'react-router';
+
+import markingsColumn from '../../../../components/common/list/markingsColumn';
+import { type QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
+import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
+import Empty from '../../../../components/Empty';
 import { FDS } from '../../../../components/fds-tokens.generated';
 import FindingIcon from '../../../../components/FindingIcon';
 import { useFormatter } from '../../../../components/i18n';
@@ -10,14 +19,7 @@ import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import ContractOutputElementType from '../ContractOutputElementType';
-import useBodyItemsStyles from "../../../../components/common/queryable/style/style";
-import {Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText} from "@mui/material";
-import {Tooltip, TooltipContent, TooltipTrigger } from "@filigran/design-system";
-import markingsColumn from "../../../../components/common/list/markingsColumn";
-import SortHeadersComponentV2 from "../../../../components/common/queryable/sort/SortHeadersComponentV2";
-import {Binoculars} from "mdi-material-ui";
-import {Link} from "react-router";
-import Empty from "../../../../components/Empty";
+import FindingSource from './FindingSource';
 
 interface Props {
   loading: boolean;
@@ -29,9 +31,9 @@ interface Props {
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
-  finding_assets: { width: '20%' },
+  finding_assets: { width: '15%' },
   finding_markings: { width: '12%' },
-  finding_sources: { width: '8%' },
+  finding_sources: { width: '13%' },
   finding_created_at: { width: '10%' },
   finding_updated_at: { width: '10%' },
 });
