@@ -35,6 +35,27 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 
 - Use skill: [add-tenant-isolation-test](../../.claude/skills/add-test/TENANT_ISOLATION.md)
 
+### Unscoped Reads and Wrong-Tenant Writes (PR Gate)
+
+Every API shard of the pull request CI runs with `-Dopenaev.failclosed.detector=on
+-Dopenaev.writeattr.detector=on`: a test fails when production code reads an active tenant table with
+an empty scope (zero rows in production), or writes a `tenant_id` outside the request or job scope.
+The failure names the site, its tables and the thread that ran the statement. Clear it in this order:
+
+- Scope the test: seed fixtures inside `TenantScopedTransaction` with their tenant, and give the caller
+  a membership (`TenantIsolationTestHelper`).
+- `@ExpectsEmptyScopeReads("reason")` (`io.openaev.config`) only on a test whose subject is the empty
+  answer of a caller or a path with no scope: it turns the fail-closed gate off for the whole test.
+- `@WaivesUnscopedReads(value = "reason", reads = {"io.openaev.Foo.bar tables=t1,t2"})` on a test that
+  asserts a positive outcome and cannot avoid the reads it names (a member of no tenant, a route that
+  names no tenant). It waives those sites, for those tables, for that test only; an entry without
+  `tables=` is refused.
+- Each test carrying either annotation has its line in `test-scoped-read-waivers.txt`, whose size
+  `TestScopedReadWaiversArchTest` freezes: a new annotation adds a line and raises `SIZE`.
+- `failclosed-baseline.txt` and `writeattr-baseline.txt` waive a site for every test: the last resort,
+  for a production read or write that is safe by design, with a comment giving the reason and the test
+  that pins it.
+
 ## Integration Tests (Service)
 
 - Extend `IntegrationTest` (same base as API tests)
