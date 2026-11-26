@@ -129,7 +129,11 @@ public class SecurityCoverageInjectService {
 
     // 8. Build injects from Artifacts. No platform-wide target by default (#9875).
     createInjectsByArtifacts(
-        ctx, scenario, securityCoverage.getArtifactsRefs(), Map.of(), contractForInjectPlaceholders);
+        ctx,
+        scenario,
+        securityCoverage.getArtifactsRefs(),
+        Map.of(),
+        contractForInjectPlaceholders);
 
     return injectRepository.findByScenarioId(scenario.getId());
   }

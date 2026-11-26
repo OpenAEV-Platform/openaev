@@ -61,8 +61,8 @@ public final class CoverageInjectSafety {
   }
 
   /**
-   * Sets the enabled flag of a generated inject: enabled only when its contract is read-only and
-   * it carries targets the coverage resolved.
+   * Sets the enabled flag of a generated inject: enabled only when its contract is read-only and it
+   * carries targets the coverage resolved.
    */
   public static Inject applyEnabled(Inject inject, InjectorContract contract, boolean hasTargets) {
     inject.setEnabled(hasTargets && isReadOnly(contract));
