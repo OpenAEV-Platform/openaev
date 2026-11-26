@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.cache.MarkingClearanceChangedEvent;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -988,6 +989,39 @@ public class StreamServiceTest {
     // Assert
     ObjectNode idOnly = jsonMapper.createObjectNode().put(event.getAttributeId(), RESOURCE_ID);
     assertEquals(idOnly, captureWireEvent(mockSink, jsonMapper).path("instance"));
+  }
+
+  // -- Clearance change --
+
+  @Test
+  public void given_clearanceChangedForAUser_should_signalOnlyThatUserWithNoContent()
+      throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    FluxSink<Object> otherSink = registerSecondConsumer(mock(User.class));
+
+    // Act
+    streamService.listenClearanceChange(MarkingClearanceChangedEvent.of(Set.of(USER_ID)));
+
+    // Assert
+    ArgumentCaptor<ServerSentEvent> captor = ArgumentCaptor.forClass(ServerSentEvent.class);
+    verify(mockSink).next(captor.capture());
+    assertEquals(StreamService.EVENT_TYPE_CLEARANCE_CHANGED, captor.getValue().event());
+    assertEquals(jsonMapper.createObjectNode(), jsonMapper.valueToTree(captor.getValue().data()));
+    verify(otherSink, never()).next(any());
+  }
+
+  @Test
+  public void given_everyClearanceChanged_should_signalEveryUser() throws Exception {
+    // Arrange
+    FluxSink<Object> otherSink = registerSecondConsumer(mock(User.class));
+
+    // Act
+    streamService.listenClearanceChange(MarkingClearanceChangedEvent.everyone());
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(otherSink).next(any());
   }
 
   @Test

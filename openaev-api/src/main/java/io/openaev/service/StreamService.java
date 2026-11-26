@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.cache.MarkingClearanceChangedEvent;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -53,6 +54,7 @@ public class StreamService {
   public static final String EVENT_TYPE_PING = "ping";
   public static final String EVENT_TYPE_BULK_OPERATION = "bulk-operation";
   public static final String EVENT_TYPE_ATTACK_PATH_VERSION = "attack-path-version";
+  public static final String EVENT_TYPE_CLEARANCE_CHANGED = "clearance-changed";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
@@ -652,6 +654,27 @@ public class StreamService {
             }
           } finally {
             TenantContext.clearCurrentTenant();
+          }
+        });
+  }
+
+  /**
+   * Tells the users whose marking clearance changed to re-read what they display: no row changed,
+   * so no entity event says it, while the API already filters with the new clearance. The payload
+   * is empty: it names no marking and no other user. After commit, so that the re-read sees the new
+   * clearance; also outside a transaction (a data pack's eviction).
+   */
+  @Async("streamExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void listenClearanceChange(MarkingClearanceChangedEvent event) {
+    ServerSentEvent<Map<String, Object>> message =
+        ServerSentEvent.<Map<String, Object>>builder(Map.of())
+            .event(EVENT_TYPE_CLEARANCE_CHANGED)
+            .build();
+    consumers.forEach(
+        (key, consumer) -> {
+          if (event.concerns(consumer.principal().getId())) {
+            consumer.fluxSink().next(message);
           }
         });
   }

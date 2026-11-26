@@ -56,6 +56,7 @@ const entityChangeHandlers = new Set<(change: EntityChange) => void>();
 const bulkOperationEndHandlers = new Set<(entity: string | undefined) => void>();
 const connectionOpenHandlers = new Set<(info: ConnectionOpenInfo) => void>();
 const connectionLostHandlers = new Set<() => void>();
+const clearanceChangeHandlers = new Set<() => void>();
 
 // Feature-scoped subscribers to named stream event types, keyed by type.
 const streamEventSubscribers = new Map<string, Set<(event: MessageEvent) => void>>();
@@ -301,6 +302,8 @@ const connect = (): void => {
   });
   client.addEventListener('message', handleMessage);
   client.addEventListener('bulk-operation', handleBulkOperation);
+  // No content: the server only says the user's marking clearance changed.
+  client.addEventListener('clearance-changed', () => emit(clearanceChangeHandlers, undefined));
   // Feature-scoped stream events (see subscribeStreamEvent): one dispatcher per type, re-attached
   // to every new connection, so a subscriber never has to know the connection was recycled.
   streamEventSubscribers.forEach((_handlers, type) => {
@@ -367,6 +370,13 @@ export const onStreamMessage = (handler: (message: StreamMessage) => void): (() 
 /** A bulk operation reached a terminal state; `entity` is its `bulk_operation_entity` when known. */
 export const onBulkOperationEnd = (handler: (entity: string | undefined) => void): (() => void) =>
   subscribeTo(bulkOperationEndHandlers, handler);
+
+/**
+ * The user's marking clearance changed: data read before may show rows they can no longer see, or
+ * miss rows they now can. No entity changed, so no entity change says it.
+ */
+export const onClearanceChange = (handler: () => void): (() => void) =>
+  subscribeTo(clearanceChangeHandlers, handler);
 
 /** The connection (re)opened. Anything received before may have been missed on a reconnection. */
 export const onConnectionOpen = (handler: (info: ConnectionOpenInfo) => void): (() => void) =>

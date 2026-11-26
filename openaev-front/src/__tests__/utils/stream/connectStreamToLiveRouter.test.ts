@@ -9,6 +9,7 @@ const stream = vi.hoisted(() => ({
   entityHandlers: new Set<(change: EntityChange) => void>(),
   bulkHandlers: new Set<(entity: string | undefined) => void>(),
   openHandlers: new Set<(info: ConnectionOpenInfo) => void>(),
+  clearanceHandlers: new Set<() => void>(),
 }));
 
 vi.mock('../../../utils/stream/streamClient', () => {
@@ -22,6 +23,7 @@ vi.mock('../../../utils/stream/streamClient', () => {
     onEntityChange: subscribe(stream.entityHandlers),
     onBulkOperationEnd: subscribe(stream.bulkHandlers),
     onConnectionOpen: subscribe(stream.openHandlers),
+    onClearanceChange: subscribe(stream.clearanceHandlers),
   };
 });
 
@@ -36,6 +38,7 @@ const createRouter = () => ({
 const emitChange = (change: EntityChange) => stream.entityHandlers.forEach(handler => handler(change));
 const emitBulkEnd = (entity: string | undefined) => stream.bulkHandlers.forEach(handler => handler(entity));
 const emitOpen = (first: boolean) => stream.openHandlers.forEach(handler => handler({ first }));
+const emitClearanceChange = () => stream.clearanceHandlers.forEach(handler => handler());
 
 describe('connectStreamToLiveRouter', () => {
   let router: ReturnType<typeof createRouter>;
@@ -44,6 +47,7 @@ describe('connectStreamToLiveRouter', () => {
     stream.entityHandlers.clear();
     stream.bulkHandlers.clear();
     stream.openHandlers.clear();
+    stream.clearanceHandlers.clear();
     router = createRouter();
   });
 
@@ -93,6 +97,18 @@ describe('connectStreamToLiveRouter', () => {
     expect(router.applyChanges).not.toHaveBeenCalled();
   });
 
+  it('given_aClearanceChange_should_resetEveryQuery', () => {
+    // Arrange
+    connectStreamToLiveRouter(router);
+
+    // Act
+    emitClearanceChange();
+
+    // Assert: read with the previous clearance, the data is dropped, not only refetched
+    expect(router.resetAll).toHaveBeenCalledTimes(1);
+    expect(router.invalidateAllLive).not.toHaveBeenCalled();
+  });
+
   it('given_theUnsubscribe_should_stopForwardingEveryEvent', () => {
     // Arrange
     const disconnect = connectStreamToLiveRouter(router);
@@ -106,10 +122,12 @@ describe('connectStreamToLiveRouter', () => {
     });
     emitBulkEnd('scenarios');
     emitOpen(false);
+    emitClearanceChange();
 
     // Assert
-    expect(stream.entityHandlers.size + stream.bulkHandlers.size + stream.openHandlers.size).toBe(0);
+    expect(stream.entityHandlers.size + stream.bulkHandlers.size + stream.openHandlers.size + stream.clearanceHandlers.size).toBe(0);
     expect(router.applyChanges).not.toHaveBeenCalled();
     expect(router.invalidateAllLive).not.toHaveBeenCalled();
+    expect(router.resetAll).not.toHaveBeenCalled();
   });
 });
