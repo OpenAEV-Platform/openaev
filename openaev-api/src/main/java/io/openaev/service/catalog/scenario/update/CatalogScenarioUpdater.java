@@ -45,6 +45,7 @@ public class CatalogScenarioUpdater {
       TxCtx ctx,
       String scenarioId,
       String version,
+      String previewedVersion,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
     InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
@@ -52,6 +53,7 @@ public class CatalogScenarioUpdater {
     catalogScenarioUpdateService.apply(
         ctx,
         toRelease(ctx, installed, released),
+        previewedVersion,
         catalogFileService.payloadFiles(released.payloads()),
         choices,
         edits);
@@ -67,10 +69,11 @@ public class CatalogScenarioUpdater {
       TxCtx ctx,
       String scenarioId,
       String revisionId,
+      String previewedVersion,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
     catalogScenarioUpdateService.apply(
-        ctx, toRevision(ctx, scenarioId, revisionId), Map.of(), choices, edits);
+        ctx, toRevision(ctx, scenarioId, revisionId), previewedVersion, Map.of(), choices, edits);
   }
 
   // -- STEPS --

@@ -9,6 +9,7 @@ import java.util.List;
  * injects that lose a dependency, and the changelog of each version it brings.
  */
 public record ScenarioUpdatePreviewOutput(
+    @JsonProperty("scenario_update_from_version") @NotNull String fromVersion,
     @JsonProperty("scenario_update_changes") @NotNull List<ScenarioChangeOutput> changes,
     @JsonProperty("scenario_update_payloads_to_install") @NotNull
         List<ScenarioPayloadVersionOutput> payloadsToInstall,

@@ -41,6 +41,7 @@ public class ScenarioUpdateMapper {
 
   public static ScenarioUpdatePreviewOutput toOutput(ScenarioPreview preview) {
     return new ScenarioUpdatePreviewOutput(
+        preview.fromVersion(),
         preview.merge().changes().stream().map(ScenarioUpdateMapper::toOutput).toList(),
         preview.payloads().toInstall().stream().map(ScenarioUpdateMapper::toOutput).toList(),
         preview.payloads().revoked().stream().map(ScenarioUpdateMapper::toOutput).toList(),

@@ -137,6 +137,7 @@ const change = (id: string, status: ScenarioChangeOutput['scenario_change_status
 const preview = (changes: ScenarioChangeOutput[]): ScenarioUpdatePreviewOutput => ({
   scenario_update_changelogs: [],
   scenario_update_changes: changes,
+  scenario_update_from_version: '1.0.0',
   scenario_update_payloads_to_install: [],
   scenario_update_revoked_payloads: [],
   scenario_update_lost_dependencies: [],
@@ -343,6 +344,7 @@ describe('ScenarioVersions', () => {
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {
         'inject:a/title': 'EDIT',
         'scenario/name': 'KEEP_MINE',
@@ -482,6 +484,7 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {
         'inject:a/title': 'TAKE_APPLIED',
         'scenario/name': 'TAKE_APPLIED',
@@ -506,6 +509,7 @@ describe('ScenarioVersions', () => {
     // Assert
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledTimes(1));
     expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-3/rollbacks`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {},
       scenario_update_edits: {},
     }, undefined, false);

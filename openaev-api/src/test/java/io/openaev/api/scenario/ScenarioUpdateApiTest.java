@@ -25,7 +25,6 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -43,7 +42,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependencyConditions.DependencyMode;
@@ -61,11 +59,7 @@ import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioRevisionRepository;
-import io.openaev.rest.exception.ConflictException;
 import io.openaev.service.VariableService;
-import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService;
-import io.openaev.service.catalog.scenario.update.InstalledScenario;
-import io.openaev.service.catalog.scenario.update.ScenarioUpdate;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -142,7 +136,6 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioRevisionRepository scenarioRevisionRepository;
   @Autowired private CatalogItemRepository catalogItemRepository;
-  @Autowired private CatalogScenarioUpdateService catalogScenarioUpdateService;
 
   @BeforeEach
   void publishAndInstall() throws Exception {
@@ -306,6 +299,16 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private MockHttpServletRequestBuilder updateRequest(
       Scenario scenario, String version, Map<String, String> choices, Map<String, String> edits)
       throws Exception {
+    return updateRequest(scenario, version, installedVersion(scenario), choices, edits);
+  }
+
+  private MockHttpServletRequestBuilder updateRequest(
+      Scenario scenario,
+      String version,
+      String previewedVersion,
+      Map<String, String> choices,
+      Map<String, String> edits)
+      throws Exception {
     return post(
             TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates",
             DEFAULT_TENANT_UUID,
@@ -314,7 +317,13 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(
             mapper.writeValueAsString(
-                Map.of("scenario_update_choices", choices, "scenario_update_edits", edits)));
+                Map.of(
+                    "scenario_update_from_version",
+                    previewedVersion,
+                    "scenario_update_choices",
+                    choices,
+                    "scenario_update_edits",
+                    edits)));
   }
 
   private ResultActions rollback(Scenario scenario, String revisionId) throws Exception {
@@ -330,14 +339,17 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         revisionId);
   }
 
-  private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId) {
+  private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId)
+      throws Exception {
     return post(
             TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks",
             DEFAULT_TENANT_UUID,
             scenario.getId(),
             revisionId)
         .contentType(MediaType.APPLICATION_JSON)
-        .content("{}");
+        .content(
+            mapper.writeValueAsString(
+                Map.of("scenario_update_from_version", installedVersion(scenario))));
   }
 
   // A revision of a scenario installed by hand, in the given tenant.
@@ -703,7 +715,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                           + "')].scenario_change_status")
                   .value("CONFLICT"));
       update(scenario, Map.of())
-          .andExpect(status().isBadRequest())
+          .andExpect(status().isConflict())
           .andExpect(jsonPath("$.message").value(CONFLICT_LEFT));
       update(scenario, Map.of(conflictId, "KEEP_MINE")).andExpect(status().isNoContent());
       assertThat(onlyInject(scenario).getTitle()).isEqualTo(MY_TITLE);
@@ -932,28 +944,21 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("refuses an update when the scenario moved to another version meanwhile")
-    void given_versionChangedMeanwhile_should_refuseTheUpdate() throws Exception {
+    @DisplayName("refuses an update when the scenario moved to another version since the preview")
+    void given_versionChangedSinceThePreview_should_refuseTheUpdate() throws Exception {
       // Arrange
       Scenario scenario = install();
-      ObjectNode empty = JsonNodeFactory.instance.objectNode();
-      ScenarioUpdate stale =
-          new ScenarioUpdate(
-              new InstalledScenario(
-                  scenario.getId(), DEFAULT_TENANT_UUID, SCENARIO_ID, SAME_CONTENT),
-              empty,
-              empty,
-              NEWER,
-              ScenarioRevision.Reason.UPDATE);
+      update(scenario, SAME_CONTENT, Map.of()).andExpect(status().isNoContent());
 
-      // Act & Assert
-      assertThatThrownBy(
-              () ->
-                  catalogScenarioUpdateService.apply(
-                      TxCtx.forTenant(DEFAULT_TENANT_UUID), stale, Map.of(), Map.of(), Map.of()))
-          .isInstanceOf(ConflictException.class)
-          .hasFieldOrPropertyWithValue("reason", CHANGED_MEANWHILE);
-      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+      // Act
+      ResultActions refused =
+          committed(updateRequest(scenario, NEWER, INSTALLED, Map.of(), Map.of()));
+
+      // Assert
+      refused
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(CHANGED_MEANWHILE));
+      assertThat(installedVersion(scenario)).isEqualTo(SAME_CONTENT);
     }
 
     @ParameterizedTest(name = "in another tenant: {0}")

@@ -122,7 +122,9 @@ public class ScenarioUpdateApi {
   @LogExecutionTime
   @Operation(
       summary = "Update a catalogue scenario to a version",
-      description = "Refused while a conflict has no side chosen. Keeps a revision first.")
+      description =
+          "Refused (409) when the scenario changed since the preview or a conflict has no side"
+              + " chosen. Keeps a revision first.")
   @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
@@ -135,13 +137,16 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String version,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogScenarioUpdater.update(ctx, scenarioId, version, input.choices(), input.edits());
+    catalogScenarioUpdater.update(
+        ctx, scenarioId, version, input.fromVersion(), input.choices(), input.edits());
   }
 
   @LogExecutionTime
   @Operation(
       summary = "Roll a catalogue scenario back to a revision",
-      description = "Refused while a conflict has no side chosen. Keeps a revision first.")
+      description =
+          "Refused (409) when the scenario changed since the preview or a conflict has no side"
+              + " chosen. Keeps a revision first.")
   @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
@@ -154,6 +159,7 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String revisionId,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogScenarioUpdater.rollback(ctx, scenarioId, revisionId, input.choices(), input.edits());
+    catalogScenarioUpdater.rollback(
+        ctx, scenarioId, revisionId, input.fromVersion(), input.choices(), input.edits());
   }
 }

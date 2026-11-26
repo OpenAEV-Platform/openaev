@@ -51,7 +51,7 @@ public class CatalogScenarioUpdateService {
   /** What the content changes, and its conflicts, none of them chosen yet. */
   @Transactional(readOnly = true)
   public ScenarioPreview preview(TxCtx ctx, ScenarioUpdate update) {
-    Scenario scenario = unchanged(ctx, update);
+    Scenario scenario = unchanged(ctx, update, update.installed().version());
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(
             update.base(),
@@ -59,6 +59,7 @@ public class CatalogScenarioUpdateService {
             scenarioRevisionService.content(scenario, trackedInjects(scenario)),
             Map.of());
     return new ScenarioPreview(
+        update.installed().version(),
         merge,
         scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()),
         notes(update));
@@ -83,6 +84,7 @@ public class CatalogScenarioUpdateService {
   public void apply(
       TxCtx ctx,
       ScenarioUpdate update,
+      String previewedVersion,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
@@ -90,13 +92,13 @@ public class CatalogScenarioUpdateService {
         (released, file) ->
             catalogPayloadService.installIfMissing(
                 ctx, update.installed().tenantId(), released, file, ContentChange.Mode.MANUAL));
-    Scenario scenario = unchanged(ctx, update);
+    Scenario scenario = unchanged(ctx, update, previewedVersion);
     Collection<Inject> injects = trackedInjects(scenario);
     ObjectNode local = scenarioRevisionService.content(scenario, injects);
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(update.base(), update.applied(), local, choices, edits);
     if (!merge.resolved()) {
-      throw new BadRequestException(CONFLICT_LEFT);
+      throw new ConflictException(CONFLICT_LEFT);
     }
     scenarioRevisionService.keep(scenario, update.reason(), local);
     writer.write(scenario, injects, merge.merged());
@@ -106,10 +108,11 @@ public class CatalogScenarioUpdateService {
 
   // -- STEPS --
 
-  // The base was read for the version installed when the update started.
-  private Scenario unchanged(TxCtx ctx, ScenarioUpdate update) {
+  // The base and the preview were read for this version: the scenario must still run it.
+  private Scenario unchanged(TxCtx ctx, ScenarioUpdate update, String version) {
     Scenario scenario = scenarioService.scenario(ctx, update.installed().scenarioId());
-    if (!Objects.equals(scenario.getCatalogVersion(), update.installed().version())) {
+    if (!Objects.equals(scenario.getCatalogVersion(), update.installed().version())
+        || !Objects.equals(scenario.getCatalogVersion(), version)) {
       throw new ConflictException(CHANGED_MEANWHILE);
     }
     return scenario;

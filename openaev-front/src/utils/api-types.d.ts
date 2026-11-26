@@ -12714,11 +12714,13 @@ export interface ScenarioUpdateInput {
     "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
   >;
   scenario_update_edits?: Record<string, string>;
+  scenario_update_from_version: string;
 }
 
 export interface ScenarioUpdatePreviewOutput {
   scenario_update_changelogs: ScenarioChangelogOutput[];
   scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_from_version: string;
   scenario_update_lost_dependencies: string[];
   scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
   scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];

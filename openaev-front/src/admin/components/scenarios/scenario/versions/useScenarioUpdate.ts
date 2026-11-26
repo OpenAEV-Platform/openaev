@@ -76,9 +76,11 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   }));
 
   const apply = () => {
+    if (preview === null) return;
     setApplying(true);
     setApplyError(null);
     target.apply({
+      scenario_update_from_version: preview.scenario_update_from_version,
       scenario_update_choices: choices,
       scenario_update_edits: Object.fromEntries(Object.entries(edits).filter(([changeId]) => choices[changeId] === 'EDIT')),
     })
