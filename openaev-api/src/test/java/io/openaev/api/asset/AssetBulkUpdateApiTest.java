@@ -127,6 +127,48 @@ class AssetBulkUpdateApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("given only asset_internet_facing, should set then reset the flag on every asset")
+  void given_onlyInternetFacing_should_setFlagOnEveryAsset() throws Exception {
+    AssetBulkUpdateInput input = new AssetBulkUpdateInput();
+    input.setAssetIdsToProcess(List.of(first.getId(), second.getId(), other.getId()));
+    input.setInternetFacing(true);
+
+    bulkUpdate(input).andExpect(status().is2xxSuccessful());
+
+    for (Endpoint updated : reload(first, second, other)) {
+      assertEquals(Boolean.TRUE, updated.getInternetFacing());
+      // only the flag was given: the classification is left as it was
+      assertEquals(AssetCategory.HOST, updated.getCategory());
+      assertEquals(AssetSubCategory.SERVER, updated.getSubcategory());
+    }
+
+    input.setInternetFacing(false);
+    bulkUpdate(input).andExpect(status().is2xxSuccessful());
+
+    for (Endpoint updated : reload(first, second, other)) {
+      assertEquals(Boolean.FALSE, updated.getInternetFacing());
+    }
+  }
+
+  @Test
+  @DisplayName("given no asset_internet_facing, should leave the flag unchanged")
+  void given_noInternetFacing_should_leaveFlagUnchanged() throws Exception {
+    AssetBulkUpdateInput setFlag = new AssetBulkUpdateInput();
+    setFlag.setAssetIdsToProcess(List.of(first.getId()));
+    setFlag.setInternetFacing(true);
+    bulkUpdate(setFlag).andExpect(status().is2xxSuccessful());
+
+    AssetBulkUpdateInput input = new AssetBulkUpdateInput();
+    input.setAssetIdsToProcess(List.of(first.getId(), second.getId()));
+    input.setCriticality(AssetCriticality.LOW);
+    bulkUpdate(input).andExpect(status().is2xxSuccessful());
+
+    List<Endpoint> updated = reload(first, second);
+    assertEquals(Boolean.TRUE, updated.get(0).getInternetFacing());
+    assertNull(updated.get(1).getInternetFacing());
+  }
+
+  @Test
   @DisplayName("given a subcategory of another category, should refuse with 400 and write nothing")
   void given_mismatchedSubcategory_should_badRequest() throws Exception {
     AssetBulkUpdateInput input = new AssetBulkUpdateInput();
