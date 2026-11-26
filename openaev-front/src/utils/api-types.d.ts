@@ -195,15 +195,25 @@ export interface AggregatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -234,7 +244,7 @@ export interface AggregatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -943,9 +953,6 @@ export interface AssetLinkInput {
 export interface AssetLinkOutput {
   /** @format date-time */
   asset_link_created_at?: string;
-  /** @format date-time */
-  asset_link_last_seen_at?: string;
-  asset_link_origin?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
   asset_link_source_id?: string;
   asset_link_source_name?: string;
   asset_link_source_type?: string;
@@ -1144,27 +1151,6 @@ export interface AssetOutput {
     | "Unknown";
   /** Whether the asset belongs to the asset group statically or dynamically */
   is_static?: boolean;
-}
-
-export interface AssetOwnerInput {
-  asset_owner_role: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
-}
-
-export interface AssetOwnerOutput {
-  asset_id?: string;
-  asset_name?: string;
-  /** @format date-time */
-  asset_owner_created_at?: string;
-  asset_owner_id?: string;
-  asset_owner_kind?: string;
-  asset_owner_name?: string;
-  asset_owner_role?: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
 }
 
 /** Frozen asset composing a launched simulation's scope rule (display only). */
@@ -3474,6 +3460,8 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
+  /** Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent when the engine does not report it */
+  connector_instance_image_digest?: string;
   /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
@@ -3512,6 +3500,8 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Digest of the image the container runs (algo:hex), as last reported by the composer; absent when unknown */
+  connector_instance_image_digest?: string;
   /** Whether the container is in a reboot loop */
   connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
@@ -3535,6 +3525,7 @@ export interface ConnectorInstancePersisted {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  connector_instance_image_digest?: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];
@@ -5535,15 +5526,19 @@ export interface EntitiesPaginationInput {
 
 export interface EsAsset {
   asset_category?: string;
+  asset_criticality?: string;
   asset_description?: string;
   asset_external_reference?: string;
   asset_hostname?: string;
+  asset_internet_facing?: boolean;
   /** @uniqueItems true */
   asset_ips?: string[];
   /** @uniqueItems true */
   asset_mac_addresses?: string[];
   asset_name?: string;
   asset_seen_ip?: string;
+  asset_subcategory?: string;
+  asset_url?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -6634,6 +6629,8 @@ export interface Filter {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -6657,7 +6654,7 @@ export interface FindingOutput {
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
-   * First time the finding was seen
+   * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
@@ -6667,12 +6664,22 @@ export interface FindingOutput {
    */
   finding_field: string;
   /**
+   * First time the finding was detected; the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
   /** Inject that produced the finding */
   finding_inject_id?: string;
+  /**
+   * Last time the finding was detected; the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * When a re-test last ended on the finding
    * @format date-time
@@ -6727,7 +6734,7 @@ export interface FindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written. Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -6762,11 +6769,6 @@ export interface FindingRetestOutput {
 }
 
 export interface FindingSummaryOutput {
-  /**
-   * Number of distinct impacted asset groups across all occurrences
-   * @format int64
-   */
-  finding_asset_groups_count?: number;
   /**
    * Number of distinct impacted assets across all occurrences
    * @format int64
@@ -6930,8 +6932,6 @@ export interface GraphEdgeOutput {
     | "IN_TEAM"
     | "TEAM_OF"
     | "LINKED_TO"
-    | "OWNED_BY"
-    | "MANAGED_BY"
     | "ATTACK_STEP";
 }
 
@@ -8436,6 +8436,8 @@ export interface InstalledInjector {
 }
 
 export interface Internal {
+  draft_id?: string;
+  trigger?: string;
   /** @minLength 1 */
   work_id: string;
 }
@@ -11592,6 +11594,8 @@ export interface PropertySchemaDTO {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -11846,10 +11850,15 @@ export interface RelatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -11857,6 +11866,11 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
@@ -11896,7 +11910,7 @@ export interface RelatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -12438,6 +12452,11 @@ export interface ScenarioBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface ScenarioCatalogStateOutput {
+  scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_revoked: boolean;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
@@ -12695,11 +12714,14 @@ export interface ScenarioUpdateInput {
     "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
   >;
   scenario_update_edits?: Record<string, string>;
+  /** @minLength 1 */
+  scenario_update_from_version: string;
 }
 
 export interface ScenarioUpdatePreviewOutput {
   scenario_update_changelogs: ScenarioChangelogOutput[];
   scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_from_version: string;
   scenario_update_lost_dependencies: string[];
   scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
   scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
@@ -12722,7 +12744,7 @@ export interface ScenarioVersionOutput {
   scenario_version_latest: boolean;
   /** @format date-time */
   scenario_version_published_at?: string;
-  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED" | "UNLISTED";
 }
 
 export interface ScenarioVersionsOutput {
