@@ -1,7 +1,6 @@
 import { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { FORM_ERROR } from 'final-form';
 import { type Schema } from 'normalizr';
-import * as R from 'ramda';
 import { type ErrorInfo } from 'react';
 import { createIntl, createIntlCache } from 'react-intl';
 import { type Dispatch } from 'redux';
@@ -21,23 +20,19 @@ const cache = createIntlCache();
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
 
 const buildError = (data: AxiosError) => {
-  const errorsExtractor = R.pipe(
-    (source: { errors?: { children?: object } } | null | undefined) => source?.errors?.children ?? {},
-    Object.entries,
-    (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
-      const extractErrorsPipe = R.pipe(
-        (child: { errors?: unknown[] } | null | undefined) => child?.errors ?? [],
-        (errors: unknown[]) => errors[0],
-      );
-      return [elem[0], extractErrorsPipe(elem[1])];
-    }),
-    Object.fromEntries,
-    (errors: Record<string, unknown>) => ({
-      ...errors,
-      [FORM_ERROR]: data.message,
-    }),
-  );
-  return errorsExtractor(data);
+  const source = data as { errors?: { children?: object } } | null | undefined;
+  const children = source?.errors?.children ?? {};
+  const pairs: [string, unknown][] = Object.entries(children);
+  const extractedErrors = pairs.map((elem: [string, unknown]) => {
+    const child = elem[1] as { errors?: unknown[] } | null | undefined;
+    const errors = child?.errors ?? [];
+    return [elem[0], errors[0]];
+  });
+  const errors: Record<string, unknown> = Object.fromEntries(extractedErrors);
+  return {
+    ...errors,
+    [FORM_ERROR]: data.message,
+  };
 };
 
 const notifySuccess = (message: string) => {

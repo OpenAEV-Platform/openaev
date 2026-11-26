@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { type InjectStore } from '../../../../../actions/injects/Inject';
@@ -31,43 +30,34 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
   }));
 
   let cumulation = 0;
-  const injectsTypesScores = R.pipe(
-    // One series per injector contract, technical injects included (#8396).
-    (expectationsList: InjectExpectationOutput[]) => expectationsList.filter(n => isTopLevelScoredExpectation(n)),
-    (expectationsList: Array<InjectExpectationOutput & { inject_expectation_inject: string }>) => expectationsList.map(n => ({
-      ...n,
-      inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
+  // One series per injector contract, technical injects included (#8396).
+  const topLevelExpectations = injectExpectations.filter(n => isTopLevelScoredExpectation(n));
+  const expectationsWithInject = topLevelExpectations.map(n => ({
+    ...n,
+    inject_expectation_inject: injectsMap[n.inject_expectation_inject as string] || {},
+  }));
+  const expectationsByContract = Object.groupBy(expectationsWithInject, injectorContractKey);
+  const cumulatedScoresByContract = Object.entries(expectationsByContract).map((n) => {
+    cumulation = 0;
+    return [
+      n[0],
+      n[1]!.toSorted(ascendBy('inject_expectation_updated_at')).map((i) => {
+        cumulation += i.inject_expectation_score ?? 0;
+        return {
+          ...i,
+          inject_expectation_cumulated_score: cumulation,
+        };
+      }),
+    ] as const;
+  });
+  const injectsTypesScores = cumulatedScoresByContract.map(n => ({
+    name: tPick(n[1][0].inject_expectation_inject.inject_injector_contract?.injector_contract_labels),
+    color: n[1][0].inject_expectation_inject.inject_injector_contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
+    data: n[1].map(i => ({
+      x: i.inject_expectation_updated_at,
+      y: i.inject_expectation_cumulated_score,
     })),
-    (list: Array<Omit<InjectExpectationOutput, 'inject_expectation_inject'> & { inject_expectation_inject: InjectStore }>) => Object.groupBy(list, injectorContractKey),
-    Object.entries,
-    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
-      cumulation = 0;
-      return [
-        n[0],
-        n[1].toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
-          cumulation += i.inject_expectation_score ?? 0;
-          return {
-            ...i,
-            inject_expectation_cumulated_score: cumulation,
-          };
-        }),
-      ];
-    }),
-    (pairs: [string, Array<InjectExpectationOutput & {
-      inject_expectation_cumulated_score: number;
-      inject_expectation_inject: InjectStore;
-    }>][]) => pairs.map((n: [string, Array<InjectExpectationOutput & {
-      inject_expectation_cumulated_score: number;
-      inject_expectation_inject: InjectStore;
-    }>]) => ({
-      name: tPick(n[1][0].inject_expectation_inject.inject_injector_contract?.injector_contract_labels),
-      color: n[1][0].inject_expectation_inject.inject_injector_contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
-      data: n[1].map((i: InjectExpectationOutput & { inject_expectation_cumulated_score: number }) => ({
-        x: i.inject_expectation_updated_at,
-        y: i.inject_expectation_cumulated_score,
-      })),
-    })),
-  )(injectExpectations);
+  }));
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.

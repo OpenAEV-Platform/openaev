@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
@@ -32,29 +31,27 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
 
   let cumulation = 0;
   const teamsColors = getTeamsColors(teams);
-  const teamsCommunications = R.pipe(
-    (teamsList: Team[]) => teamsList.map((n: Team) => {
-      cumulation = 0;
-      return {
-        ...n,
-        team_communications: (n.team_communications || []).toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
-          cumulation += 1;
-          return {
-            ...i,
-            communication_cumulated_number: cumulation,
-          };
-        }),
-      };
-    }),
-    (teamsList: Array<Team & { team_communications: Array<Communication & { communication_cumulated_number: number }> }>) => teamsList.map(a => ({
-      name: a.team_name,
-      color: teamsColors[a.team_id],
-      data: a.team_communications?.map((c: Communication & { communication_cumulated_number: number }) => ({
-        x: c.communication_received_at,
-        y: c.communication_cumulated_number,
-      })),
+  const teamsWithCumulatedCommunications = (teams as Team[]).map((n: Team) => {
+    cumulation = 0;
+    return {
+      ...n,
+      team_communications: (n.team_communications || []).toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
+        cumulation += 1;
+        return {
+          ...i,
+          communication_cumulated_number: cumulation,
+        };
+      }),
+    };
+  });
+  const teamsCommunications = teamsWithCumulatedCommunications.map(a => ({
+    name: a.team_name,
+    color: teamsColors[a.team_id],
+    data: a.team_communications?.map((c: Communication & { communication_cumulated_number: number }) => ({
+      x: c.communication_received_at,
+      y: c.communication_cumulated_number,
     })),
-  )(teams);
+  }));
 
   // Teams may exist before any mail is sent: only render the real chart once
   // at least one series has actual points, otherwise preview sample data.
