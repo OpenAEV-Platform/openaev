@@ -33,11 +33,11 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import { type ChallengeHelper } from '../../../../actions/helper';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import {
-  createRunningExerciseFromScenario,
   dismissScenarioExpectationsDrift,
   fetchScenario,
   fetchScenarioExpectationsDrift,
   fetchScenarioTeams,
+  launchScenario,
   realignScenarioExpectations,
   searchScenarioHealthcheks,
   updateScenarioRecurrence,
@@ -51,16 +51,15 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
-import { SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import {
   type Article,
   type Challenge,
-  type Exercise,
   type ExpectationsDriftOutput,
   type HealthCheck,
   type Inject,
   type Scenario,
+  type ScenarioOutput,
   type Team,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -72,6 +71,7 @@ import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
 import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
@@ -85,9 +85,14 @@ import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
+import ExploreInGraphButton from '../../graph/ExploreInGraphButton';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import ScenarioLaunchReadiness from '../launch/ScenarioLaunchReadiness';
+import useLaunchCheck from '../launch/useLaunchCheck';
+import useOpenLaunchedSimulation from '../launch/useOpenLaunchedSimulation';
+import useScenarioLaunch from '../launch/useScenarioLaunch';
 import {
   SCENARIO_CONFIGURATION_QUERY_PARAM,
   SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE,
@@ -95,6 +100,7 @@ import {
 } from '../ScenarioConfigurationTab';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
+import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED } from './ScenarioType';
 
 interface ScenarioHeaderProps {
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
@@ -122,6 +128,7 @@ const ScenarioHeader = ({
   const { t, locale, fld } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
   const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
@@ -165,7 +172,8 @@ const ScenarioHeader = ({
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario, challenges, injects, teams, articles }: {
-    scenario: Scenario;
+    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user, catalogue version).
+    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user' | 'scenario_version'>;
     challenges: Challenge[];
     injects: Inject[];
     teams: Team[];
@@ -193,6 +201,17 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  const scheduledBy = scenario.scenario_scheduled_by_user;
+  const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
+  // The resolved user only comes with GET /scenarios/{id}, while the bare id is kept fresh by the
+  // entity the recurrence endpoint returns and the SSE stream pushes: refetch when they disagree,
+  // so the chip follows a reschedule made here or from another browser.
+  const scheduledById = scenario.scenario_scheduled_by;
+  useEffect(() => {
+    if (scheduledById && scheduledById !== scenario.scenario_scheduled_by_user?.user_id) {
+      dispatch(fetchScenario(scenarioId));
+    }
+  }, [dispatch, scenarioId, scheduledById, scenario.scenario_scheduled_by_user?.user_id]);
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -460,8 +479,19 @@ const ScenarioHeader = ({
     }));
   };
 
-  // Normal launch: a plain, operator-driven simulation from the scenario. Opens the confirm dialog.
-  const handleLaunchNormal = () => setOpenInstantiateSimulationAndStart(true);
+  // Normal launch: through the launch check with the catalogue preview, else after a confirm dialog.
+  const scenarioType = isScenarioChaining ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
+  const isCatalogEnabled = isFeatureEnabled('CATALOG');
+  // One launch check for the header's button and the drawer it opens.
+  const launchCheck = useLaunchCheck(isCatalogEnabled ? scenarioId : null);
+  const { launch, launchDrawer } = useScenarioLaunch(onAutonomousRunCleared, launchCheck);
+  const handleLaunchNormal = () => (isCatalogEnabled
+    ? launch({
+        scenarioId,
+        name: scenario.scenario_name,
+        type: scenarioType,
+      })
+    : setOpenInstantiateSimulationAndStart(true));
 
   // AI builder - Save: persist the configuration on the scenario WITHOUT starting anything. The
   // scenario stays a normal, editable chained scenario; the operator can build or launch it later
@@ -727,6 +757,7 @@ const ScenarioHeader = ({
             <>
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} />
               <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
+              {isFeatureEnabled('CATALOG') && scenario.scenario_version && <Chip label={`v${scenario.scenario_version}`} />}
               {/* While a run owns the scenario, surface its status right next to severity/category -
                   the same chip a simulation shows - so the AI lifecycle reads at a glance. */}
               {autonomousRun && (
@@ -738,20 +769,33 @@ const ScenarioHeader = ({
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
+              {scheduledByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${t('Scheduled by')} ${scheduledByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
           // design file draws them (Figma 7929:13294). Each self-hides when healthy.
-          bodyAction={canManage && (
+          bodyAction={(canManage || canLaunch) && (
             <>
-              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
-              <ExpectationsDriftIndicator
-                drift={expectationsDrift}
-                variant="scenario"
-                onRealign={onRealignExpectations}
-                onDismiss={onDismissExpectations}
-                placement="warning"
-              />
+              {/* With the launch check, one control says what it finds (targets, integrations, revoked
+                  versions and the healthchecks) and opens it; without it, the healthchecks as before. */}
+              {isCatalogEnabled
+                ? <ScenarioLaunchReadiness launchCheck={launchCheck.launchCheck} onOpen={handleLaunchNormal} />
+                : canManage && <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />}
+              {canManage && (
+                <ExpectationsDriftIndicator
+                  drift={expectationsDrift}
+                  variant="scenario"
+                  onRealign={onRealignExpectations}
+                  onDismiss={onDismissExpectations}
+                  placement="warning"
+                />
+              )}
             </>
           )}
           action={(
@@ -787,6 +831,7 @@ const ScenarioHeader = ({
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
+              <ExploreInGraphButton type="SCENARIO" entityId={scenarioId} />
               {/* Entity-scoped reports - self-hides without the reporting
                   access capability. */}
               <EntityReportsPanel
@@ -1034,21 +1079,13 @@ const ScenarioHeader = ({
             type="button"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
-              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+              const { simulation_id } = await launchScenario(scenarioId);
               // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
               // lookup now 404s), so forget the latched run: the overview reverts to the manual view
               // instead of keeping the stale AI plan outcome + status chip until a full page reload.
               onAutonomousRunCleared?.();
-              // A manual launch jumps into the simulation that was just created: a chained scenario
-              // lands on the simulation's Attack path tab (the live execution view), a time-based
-              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
-              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
-              } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
-              }
-              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+              // Only the autonomous launch stays on the scenario: see handleAiLaunch.
+              openLaunchedSimulation(simulation_id, scenarioType);
             }}
           >
             {t('Confirm')}
@@ -1099,6 +1136,7 @@ const ScenarioHeader = ({
         onSave={aiDrawerIntent === 'build' ? handleAiSave : undefined}
         onLaunch={aiDrawerIntent === 'build' ? handleAiBuild : handleAiLaunch}
       />
+      {launchDrawer}
     </>
   );
 };

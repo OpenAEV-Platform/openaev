@@ -30,6 +30,8 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
+import { omit } from '../../../../../utils/object';
+import { ascendBy, descendBy } from '../../../../../utils/Sorting';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
@@ -280,7 +282,12 @@ class QuickInjectComponent extends Component {
   }
 
   selectTupleFieldType(name, type) {
-    this.setState({ tupleFieldTypes: R.assoc(name, type, this.state.tupleFieldTypes) });
+    this.setState({
+      tupleFieldTypes: {
+        ...this.state.tupleFieldTypes,
+        [name]: type,
+      },
+    });
   }
 
   teamsReverseBy(field) {
@@ -387,7 +394,7 @@ class QuickInjectComponent extends Component {
                 value: `${field.tupleFilePrefix}${data[field.key].value}`,
               };
             } else {
-              finalData[field.key] = R.dissoc('type', data[field.key]);
+              finalData[field.key] = omit(data[field.key], ['type']);
             }
           } else {
             finalData[field.key] = data[field.key].map((pair) => {
@@ -397,7 +404,7 @@ class QuickInjectComponent extends Component {
                   value: `${field.tupleFilePrefix}${pair.value}`,
                 };
               }
-              return R.dissoc('type', pair);
+              return omit(pair, ['type']);
             });
           }
         } else {
@@ -734,7 +741,7 @@ class QuickInjectComponent extends Component {
       .filter(f => !builtInFields.includes(f.key) && !f.expectation)
       .forEach((field) => {
         if (field.cardinality && field.cardinality === '1') {
-          let defaultValue = R.head(field.defaultValue);
+          let defaultValue = field.defaultValue[0];
           if (
             field.type === 'textarea'
             && field.richText
@@ -789,11 +796,7 @@ class QuickInjectComponent extends Component {
     const teams = teamsIds
       .map(a => teamsMap[a])
       .filter(a => a !== undefined);
-    const sortTeams = R.sortWith(
-      teamsOrderAsc
-        ? [R.ascend(R.prop(teamsSortBy))]
-        : [R.descend(R.prop(teamsSortBy))],
-    );
+    const sortTeams = items => items.toSorted(teamsOrderAsc ? ascendBy(teamsSortBy) : descendBy(teamsSortBy));
     const sortedTeams = sortTeams(teams);
     const hasTeams = injectorContract.fields
       .map(f => f.key)
@@ -808,11 +811,7 @@ class QuickInjectComponent extends Component {
         : undefined))
       .filter(d => d !== undefined);
     const attachedDocs = docs.filter(n => n.document_attached);
-    const sortDocuments = R.sortWith(
-      documentsOrderAsc
-        ? [R.ascend(R.prop(documentsSortBy))]
-        : [R.descend(R.prop(documentsSortBy))],
-    );
+    const sortDocuments = items => items.toSorted(documentsOrderAsc ? ascendBy(documentsSortBy) : descendBy(documentsSortBy));
     const sortedDocuments = sortDocuments(docs);
     const hasAttachments = injectorContract.fields
       .map(f => f.key)
@@ -836,7 +835,7 @@ class QuickInjectComponent extends Component {
       .forEach((field) => {
         if (!initialValues[field.key]) {
           if (field.cardinality && field.cardinality === '1') {
-            initialValues[field.key] = R.head(field.defaultValue);
+            initialValues[field.key] = field.defaultValue[0];
           } else {
             initialValues[field.key] = field.defaultValue;
           }
@@ -871,11 +870,10 @@ class QuickInjectComponent extends Component {
                 ),
               };
             } else {
-              initialValues[field.key] = R.assoc(
-                'type',
-                'text',
-                initialValues[field.key],
-              );
+              initialValues[field.key] = {
+                ...initialValues[field.key],
+                type: 'text',
+              };
             }
           } else {
             initialValues[field.key] = initialValues[field.key].map((pair) => {
@@ -889,7 +887,10 @@ class QuickInjectComponent extends Component {
                   value: pair.value.replace(`${field.tupleFilePrefix}`, ''),
                 };
               }
-              return R.assoc('type', 'text', pair);
+              return {
+                ...pair,
+                type: 'text',
+              };
             });
           }
         }

@@ -60,11 +60,11 @@ public class BatchingInjectStatusService {
 
   /**
    * Handles the batched inject-execution callbacks consumed from the inject-trace queue. The batch
-   * mixes tenants, so callbacks are grouped by their inject's tenant (resolved via a native,
-   * filter-exempt projection) and each group is processed under its own tenant scope (v1 {@code
-   * TenantContext} + v2 {@code TxCtx}, set-then-finally-clear on the pooled worker thread), the
-   * same hardening applied to the chaining consumer (#6357 / #6904). A null or unknown tenant falls
-   * back to the default tenant, so mono-tenant deployments keep their previous behaviour.
+   * mixes tenants, so callbacks are grouped by their inject's tenant (read across tenants, see
+   * {@link #groupCallbacksByTenant}) and each group is processed under its own tenant scope (v1
+   * {@code TenantContext} + v2 {@code TxCtx}, set-then-finally-clear on the pooled worker thread),
+   * the same hardening applied to the chaining consumer (#6357 / #6904). A null or unknown tenant
+   * falls back to the default tenant, so mono-tenant deployments keep their previous behaviour.
    *
    * <p>Deliberately NOT run in the class-level transaction: a batch-level transaction would open
    * before the per-tenant scope and leave the batch running outside any tenant, so {@code
@@ -121,9 +121,11 @@ public class BatchingInjectStatusService {
   }
 
   /**
-   * Groups callbacks by the tenant that owns their inject, resolved via a native filter-exempt
-   * projection (the batch worker carries no ambient tenant). Preserves arrival order within a
-   * group; an inject whose tenant cannot be resolved falls back to the default tenant.
+   * Groups callbacks by the tenant that owns their inject. The batch worker has no tenant scope of
+   * its own and the batch mixes tenants, so the owners are read under {@code TxCtx.allTenants()}:
+   * only the inject ids and their tenant ids leave that read, and each group is then processed in
+   * its own tenant. Preserves arrival order within a group; an inject whose tenant cannot be
+   * resolved falls back to the default tenant.
    */
   private Map<String, List<InjectExecutionCallback>> groupCallbacksByTenant(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
@@ -133,7 +135,10 @@ public class BatchingInjectStatusService {
             .collect(Collectors.toSet());
     Map<String, String> tenantByInjectId = new HashMap<>();
     if (!injectIds.isEmpty()) {
-      for (Object[] row : injectRepository.findTenantIdsByInjectIds(injectIds)) {
+      List<Object[]> owners =
+          tenantTx.execute(
+              TxCtx.allTenants(), () -> injectRepository.findTenantIdsByInjectIds(injectIds));
+      for (Object[] row : owners) {
         tenantByInjectId.put((String) row[0], (String) row[1]);
       }
     }

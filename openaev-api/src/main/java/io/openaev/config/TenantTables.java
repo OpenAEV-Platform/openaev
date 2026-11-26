@@ -16,7 +16,10 @@ import java.util.stream.Collectors;
  */
 public record TenantTables(Set<String> strict, Set<String> dualScope) {
 
-  /** Activation allowlist entry meaning "every strict table"; see {@link #restrictTo}. */
+  /**
+   * Activation allowlist entry meaning "every tenant table, dual-scope ones included, but the
+   * self-isolated ones"; see {@link #restrictTo}.
+   */
   public static final String ALL_STRICT = "*";
 
   /**
@@ -157,12 +160,12 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    * ({@link #selfIsolatedTables()}): gating one is never what an operator means, and for the
    * membership mapping it refuses every member every tenant-prefixed request.
    *
-   * <p>The single entry {@value #ALL_STRICT} activates every strict table except those listed in
-   * {@code SELF_ISOLATED_TABLES}, and no dual-scope one: the rollout's terminal state, and what the
-   * nightly shadow run passes to surface what activating everything would break. Dual-scope tables
-   * stay out because a platform row is written with no tenant, which this mechanism does not cover.
-   * It is rejected alongside other entries, so a list always reads as either "these tables" or "all
-   * of them", never both.
+   * <p>The single entry {@value #ALL_STRICT} activates every tenant table, strict and dual-scope,
+   * except those listed in {@code SELF_ISOLATED_TABLES}: the rollout's terminal state. A dual-scope
+   * table is covered because its platform rows (no tenant) are written only by a transaction the
+   * server marked platform-write ({@code TenantDimension}, {@code io.openaev.aop.PlatformWrite}),
+   * so the mechanism does cover a write with no tenant. It is rejected alongside other entries, so
+   * a list always reads as either "these tables" or "all of them", never both.
    */
   public TenantTables restrictTo(Collection<String> allowlist) {
     Set<String> allowed = lowercase(new HashSet<>(allowlist));
@@ -174,9 +177,11 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
                 + "' or a list of tables, not both: "
                 + allowed);
       }
-      Set<String> activable = new HashSet<>(strict);
-      activable.removeAll(SELF_ISOLATED_TABLES);
-      return new TenantTables(activable, Set.of());
+      Set<String> activableStrict = new HashSet<>(strict);
+      activableStrict.removeAll(SELF_ISOLATED_TABLES);
+      Set<String> activableDualScope = new HashSet<>(dualScope);
+      activableDualScope.removeAll(SELF_ISOLATED_TABLES);
+      return new TenantTables(activableStrict, activableDualScope);
     }
     Set<String> selfIsolated = new HashSet<>(allowed);
     selfIsolated.retainAll(SELF_ISOLATED_TABLES);

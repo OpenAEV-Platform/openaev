@@ -210,6 +210,37 @@ public class ElasticService implements EngineService {
                 .toList();
         boolQuery.mustNot(notContainsQueries);
         break;
+      case starts_with:
+      case not_starts_with:
+      case ends_with:
+      case not_ends_with:
+        // Prefix / suffix on a keyword or text field: a wildcard anchored on one side
+        boolean prefix =
+            operator == Filters.FilterOperator.starts_with
+                || operator == Filters.FilterOperator.not_starts_with;
+        List<Query> affixQueries =
+            filter.getValues().stream()
+                .filter(v -> v != null && !v.isEmpty())
+                .map(
+                    v -> {
+                      String escaped = escapeWildcard(toVal(field, v, parameters).stringValue());
+                      String pattern = prefix ? escaped + "*" : "*" + escaped;
+                      return WildcardQuery.of(
+                              w -> w.field(elasticField).value(pattern).caseInsensitive(true))
+                          ._toQuery();
+                    })
+                .toList();
+        if (!affixQueries.isEmpty()) {
+          if (operator == Filters.FilterOperator.not_starts_with
+              || operator == Filters.FilterOperator.not_ends_with) {
+            boolQuery.mustNot(affixQueries);
+          } else if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(affixQueries);
+          } else {
+            boolQuery.should(affixQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
       case gt:
       case gte:
       case lt:
@@ -233,12 +264,22 @@ public class ElasticService implements EngineService {
         }
         break;
       case empty:
-        boolQuery
-            .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
-            .minimumShouldMatch("1");
+        if (isStringField(propertyField)) {
+          boolQuery
+              .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
+              .minimumShouldMatch("1");
+        } else {
+          // A boolean or number field has no empty-string value: the term "" would be coerced
+          // (to false on a boolean field), so emptiness is the absence of the field alone.
+          boolQuery.must(notExistsQuery(elasticField));
+        }
         break;
       case not_empty:
-        boolQuery.must(List.of(existsQuery(elasticField), notEmptyFieldQuery(elasticField)));
+        if (isStringField(propertyField)) {
+          boolQuery.must(List.of(existsQuery(elasticField), notEmptyFieldQuery(elasticField)));
+        } else {
+          boolQuery.must(existsQuery(elasticField));
+        }
         break;
       default:
         throw new UnsupportedOperationException("Filter operator " + operator + " not supported");
@@ -1442,6 +1483,14 @@ public class ElasticService implements EngineService {
   }
 
   // endregion
+
+  /**
+   * Whether a filter field holds strings, so that the empty string is a value it can carry. The
+   * base fields absent from the indexing schema (base_representative & co.) are strings.
+   */
+  private static boolean isStringField(PropertySchema propertyField) {
+    return propertyField == null || propertyField.isStringValued();
+  }
 
   private String toElasticField(@NotBlank final String field) {
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);

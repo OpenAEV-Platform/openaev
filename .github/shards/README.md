@@ -5,33 +5,41 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
-The current layout is **9 explicit shards + catch-all 10**, shared by Core and
-all four Nightly API modes. The catch-all is kept the smallest and fastest API
-job, so it always has headroom for new packages.
+The current layout is **14 packed shards, shard 15 for `architecture` and
+catch-all 16**, shared by Core and all Nightly API modes. Every package is
+assigned to an explicit shard, so the catch-all only runs the root
+`io/openaev/*Test.java` classes and the packages added since the last rebalance:
+it is the smallest API job, with headroom for new packages.
 
-The redistribution based on [run 35204808360](https://github.com/OpenAEV-Platform/openaev/actions/runs/35204808360)
-moves `rest/inject` from shard 4 to shard 8 and top-level `config` tests from
-shard 5 to shard 9. Previously unclaimed non-root test packages are split between
-shards 8 and 9; shards 1, 2, 3, 6, and 7 are unchanged.
+The layout was repacked by `balance-api-shards.py 14` from the per-class times of
+the API jobs of ten runs of 17 November 2026, five on each of two layouts, so
+that the slowest shard decides the run length as little as possible. A class
+runs faster or slower depending on the shard it runs in, so the median over two
+layouts weighs it better than either alone. A shard pays about 10 s for each Spring test
+context its classes need, once however many of them share it, and about a minute
+more for its first one. `.timings.json` holds each class's time without the start
+of the context it shares, and the balancer adds a start per distinct context of a
+shard, read from the test sources: packages that need the same context land in
+the same shard instead of starting it again in each. A package of more than 30
+classes is split into its direct classes and its subpackages, and a unit that
+alone costs more than a shard's share is listed class by class, as
+`rest/*Test.java` and `rest/inject/*Test.java` are: a class added later to such a
+package is listed by no shard file, so it runs in the catch-all until the next
+rebalance.
 
-Shards 2 and 3 were the two slowest jobs across the ten attempts of
-[run 35364059584](https://github.com/OpenAEV-Platform/openaev/actions/runs/35364059584)
-(9.1 and 9.2 min median, against 7.5 min for the fastest explicit shard), so
-`api/notification_trigger` and `database` were unclaimed from shard 3 and
-`rest/asset` from shard 2. They now run in the catch-all, which stays the
-smallest job by a ~1.5 min margin. Shard 3 keeps `rest/*Test.java`: those 36
-top-level classes are 90% of its remaining measured class time, and `*` does not
-cross a `/`, so the package cannot be split further without listing files.
+A shard's heap grows with the Spring contexts its classes keep in the test
+context cache: `rest/exercise` once ran a shard's Surefire fork out of heap. A
+class that runs on the production list of isolated tables extends
+`ProductionTablesIntegrationTest` instead of declaring its own
+`@DynamicPropertySource`, so it shares one context with every other such class.
 
-`rest/exercise` moved from shard 6 to shard 8 when its new test classes ran
-shard 6's Surefire fork out of heap. A shard's heap grows with the Spring
-contexts its classes keep in the test context cache, so the package went to the
-shard with the fewest classes declaring their own context configuration
-(`@MockitoBean`, `@DynamicPropertySource`, `@TestPropertySource`, `@Import`).
-
-`rest/group` moved from shard 6 to shard 9 for the same reason: its group privilege test declares a
-context of its own, which ran shard 6's fork out of heap, and shard 9 has the fewest classes declaring
-their own context configuration.
+`architecture` has shard 15 to itself since
+[run 44228102277](https://github.com/OpenAEV-Platform/openaev/actions/runs/44228102277),
+where it ran shard 6's OpenSearch fork out of heap. Its ArchUnit rules run after
+every JUnit Jupiter class of the fork and import all of `io.openaev` on top of the
+Spring contexts those classes left in the cache. Alone, the import has the heap to
+itself. The balancer's `ISOLATED` list keeps it there: it leaves those packages
+out of the packing and writes each to its own shard file, after the packed ones.
 
 Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
 Otherwise nested classes can be discovered again in the catch-all even when
@@ -53,18 +61,21 @@ durations are workload estimates, not predictions of full CI job duration.
 The existing collection and repacking commands are:
 
     python .github/scripts/collect-test-timings.py <run_id>
-    python .github/scripts/balance-api-shards.py 9
+    python .github/scripts/balance-api-shards.py 14
 
 The first writes `.timings.json` by parsing Surefire's
 `Time elapsed: ... -- in <class>` lines out of the API job logs; the second
-bin-packs packages into `api-<n>.txt`. If you change the shard count, update the
+bin-packs packages into `api-1.txt` to `api-<n>.txt`, then writes one shard file
+per `ISOLATED` package after them (`14` gives `api-15.txt` for `architecture`).
+If you change the shard count or the `ISOLATED` list, update the
 `api-matrix` in `core-ci.yml` and `nightly-ci.yml` to match — the catch-all must
 stay last.
 
 Do not blindly regenerate from the current collector: it misses summaries using
-`@DisplayName` and can count nested durations twice when the enclosing summary
-already includes them. Check top-level summaries or Surefire XML before using
-the weights. Pass `9` explicitly; the balancer's legacy default is `7`.
+`@DisplayName`, can count nested durations twice when the enclosing summary
+already includes them, and keeps in a class's time the start of the context it
+shares, which the balancer then counts twice. Check top-level summaries or Surefire XML before using
+the weights. Pass `14` explicitly; the balancer's legacy default is `7`.
 
 Always verify coverage afterwards:
 

@@ -10,8 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Filters;
@@ -38,8 +37,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -65,18 +62,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @TestInstance(PER_CLASS)
 @DisplayName("Threat arsenal bulk delete acts in the request's write tenant")
-class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
+class ThreatArsenalBulkDeleteEligibilityTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String BULK_DELETE_URI = "/bulk-delete";
   private static final String SEARCH_URI = "/search";
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String WRITE_SCOPE_ERROR = "TENANT_WRITE_SCOPE";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectorContractComposer injectorContractComposer;

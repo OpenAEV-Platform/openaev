@@ -30,6 +30,7 @@ import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
+import io.openaev.rest.scenario.form.ScenarioReachabilityAssertionInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
@@ -288,7 +289,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Requesting non existing scenario by ID fails gracefully")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc
@@ -610,6 +613,50 @@ public class ScenarioApiTest extends IntegrationTest {
         .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
   }
 
+  @Test
+  @DisplayName("A reachability assertion is stored and does not block scheduling")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void reachabilityAssertionIsStoredAndDoesNotBlockScheduling() throws Exception {
+    // Arrange
+    Scenario scenario = getScenario(null, null);
+    String base = SCENARIO_URI + "/" + scenario.getId();
+    ScenarioRecurrenceInput recurrence = new ScenarioRecurrenceInput();
+    recurrence.setRecurrence("0 0 2 * * *");
+    recurrence.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+
+    // -- The scenario is declared an assertion --
+    putReachabilityAssertion(base, true).andExpect(status().is2xxSuccessful());
+    assertTrue(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+
+    // -- The assertion is scheduled like any scenario --
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
+
+    // -- Cleared, the flag is stored as false --
+    putReachabilityAssertion(base, false).andExpect(status().is2xxSuccessful());
+    assertFalse(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+  }
+
+  private org.springframework.test.web.servlet.ResultActions putReachabilityAssertion(
+      String scenarioUri, boolean assertion) throws Exception {
+    ScenarioReachabilityAssertionInput input = new ScenarioReachabilityAssertionInput();
+    input.setReachabilityAssertion(assertion);
+    return mvc.perform(
+        put(scenarioUri + "/reachability-assertion")
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
   @Nested
   @DisplayName("Lock Scenario EE feature")
   @WithMockUser(isAdmin = true)
@@ -660,6 +707,42 @@ public class ScenarioApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+    }
+
+    @Test
+    @DisplayName("Scheduling a scenario stamps and surfaces the scheduling user")
+    @WithMockUser(
+        isAdmin = true,
+        autoJoinDefaultTenant = true,
+        userFirstName = "Misty",
+        userLastName = "Waterflower",
+        userMail = "misty.waterflower@unittests.invalid")
+    void given_scenarioRecurrence_should_returnScheduledByUser() throws Exception {
+      // Arrange
+      Scenario scenario = getScenario(null, null);
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrence("0 30 9 * * *");
+      input.setRecurrenceStart(Instant.now());
+
+      // Act
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /scenarios/{id} ScenarioOutput resolves the scheduling user
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenario.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_scheduled_by_user.user_name").value("Misty Waterflower"))
+          .andExpect(
+              jsonPath("$.scenario_scheduled_by_user.user_email")
+                  .value("misty.waterflower@unittests.invalid"));
     }
 
     @Test

@@ -57,9 +57,9 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.TxCtxScopeUtils;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -118,6 +118,7 @@ public class ExerciseApi extends RestBehavior {
   private final AssetGroupService assetGroupService;
   private final CustomDashboardService customDashboardService;
   private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
   private final FileService fileService;
   private final InjectService injectService;
   private final ImportService importService;
@@ -260,7 +261,9 @@ public class ExerciseApi extends RestBehavior {
     Log log = new Log();
     log.setUpdateAttributes(input);
     log.setExercise(exercise);
-    log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    log.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     log.setUser(
         userRepository
             .findById(currentUser().getId())
@@ -282,10 +285,12 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
-    requireSimulationInScope(ctx, exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Log log = logOfExercise(exerciseId, logId);
     log.setUpdateAttributes(input);
-    log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    log.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     return logRepository.save(log);
   }
 
@@ -599,7 +604,10 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
-    exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    exercise.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), exercise.getTenant().getId())));
     exercise.setUpdateAttributes(input);
     if (hasText(input.getCustomDashboard())) {
       exercise.setCustomDashboard(
@@ -681,7 +689,9 @@ public class ExerciseApi extends RestBehavior {
       @Valid @RequestBody ExerciseUpdateTagsInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
-    exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    exercise.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), exercise.getTenant().getId())));
     return hydrateForResponse(
         exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
@@ -697,10 +707,16 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
-    exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+    String tenantId = exercise.getTenant().getId();
+    exercise.setLogoDark(logoDocument(input.getLogoDark(), tenantId));
+    exercise.setLogoLight(logoDocument(input.getLogoLight(), tenantId));
     return hydrateForResponse(
         exerciseService.withDocumentLinksInitialized(exerciseRepository.save(exercise)));
+  }
+
+  // A null id clears the logo; an id of another tenant is refused like an unknown one.
+  private Document logoDocument(String documentId, String tenantId) {
+    return documentId != null ? documentService.documentInTenant(documentId, tenantId) : null;
   }
 
   // -- OPTION --
@@ -755,16 +771,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional
-  public void deleteExercise(
-      TxCtx ctx,
-      @PathVariable String exerciseId,
-      @Parameter(
-              description =
-                  "True keeps the findings produced by the simulation's injects, detached from"
-                      + " them. False (the default) deletes them with the simulation.")
-          @RequestParam(name = "keep_findings", required = false, defaultValue = "false")
-          boolean keepFindings) {
-    exerciseService.deleteById(ctx, exerciseId, keepFindings);
+  public void deleteExercise(TxCtx ctx, @PathVariable String exerciseId) {
+    exerciseService.deleteById(ctx, exerciseId);
   }
 
   @Operation(
@@ -1217,8 +1225,10 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (each endpoint's agents eager-load their executor).
-  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
-    return this.endpointService.endpointsForSimulation(exerciseId);
+  public List<EndpointOutput> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
+    return this.endpointService.endpointsForSimulation(exerciseId).stream()
+        .map(endpointMapper::toEndpointOutput)
+        .toList();
   }
 
   @PostMapping({

@@ -11,6 +11,7 @@ import io.openaev.database.model.User;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +76,50 @@ class BaseEventRequestAttributionTest {
 
       // Act
       BaseEvent event = new BaseEvent(DATA_UPDATE, tag, mapper);
+
+      // Assert
+      assertThat(event.getTenantId()).isEqualTo(AMBIENT_TENANT);
+    }
+  }
+
+  @Nested
+  @DisplayName("After a request declared the scope its roles were read in")
+  class DeclaredScope {
+
+    @Test
+    @DisplayName("given_aScopeOfNoTenant_should_stampAUserEventWithNoTenant")
+    void given_aScopeOfNoTenant_should_stampAUserEventWithNoTenant() {
+      // Arrange
+      BaseEvent.attributeRequestEventsToOneOf(List.of(), User.class);
+
+      // Act
+      BaseEvent event = new BaseEvent(DATA_UPDATE, savedUser(), mapper);
+
+      // Assert
+      assertThat(event.getTenantId()).isNull();
+    }
+
+    @Test
+    @DisplayName("given_aScopeHoldingTheAmbientTenant_should_stampAUserEventWithTheAmbientTenant")
+    void given_aScopeHoldingTheAmbientTenant_should_stampAUserEventWithTheAmbientTenant() {
+      // Arrange
+      BaseEvent.attributeRequestEventsToOneOf(List.of(WRITE_TENANT, AMBIENT_TENANT), User.class);
+
+      // Act
+      BaseEvent event = new BaseEvent(DATA_UPDATE, savedUser(), mapper);
+
+      // Assert
+      assertThat(event.getTenantId()).isEqualTo(AMBIENT_TENANT);
+    }
+
+    @Test
+    @DisplayName("given_noTenantDeclared_should_stampAUserEventWithTheAmbientTenant")
+    void given_noTenantDeclared_should_stampAUserEventWithTheAmbientTenant() {
+      // Arrange
+      BaseEvent.attributeRequestEventsTo(null, User.class);
+
+      // Act
+      BaseEvent event = new BaseEvent(DATA_UPDATE, savedUser(), mapper);
 
       // Assert
       assertThat(event.getTenantId()).isEqualTo(AMBIENT_TENANT);

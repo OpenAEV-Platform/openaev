@@ -212,6 +212,174 @@ POST /api/custom-dashboards/starter-pack/restore
 
 It imports each bundled starter pack Dashboard whose name no longer exists, under its original name, and sets the default scenario and simulation Dashboards back when they are empty. A second call creates nothing. The answer lists `restored_dashboards`, `existing_dashboards` and `defaults_set`.
 
+## Exploration graph
+
+The exploration graph links Assets, Asset groups, Findings, Injects, Simulations and Scenarios. The API returns lazy slices of it, never the whole graph: one entity and its first ring, a path between two entities, or the risk-first landing view. Each endpoint is available under `/api/graph/...` and under the Tenant prefix `/api/tenants/{tenantId}/graph/...`.
+
+```http
+GET /api/graph/story
+GET /api/graph/overview
+GET /api/graph/starting-points
+GET /api/graph/hot-paths?limit=15
+GET /api/graph/{entityType}/{entityId}/neighbourhood?edges=FOUND_ON,TARGETS&limit=50
+GET /api/graph/path?fromType=asset&fromId={assetId}&toType=scenario&toId={scenarioId}
+```
+
+| Endpoint | Returns | Parameters |
+|---|---|---|
+| `story` | The top exposure story of the landing page: one connected slice of about 30 nodes, the attack path with the most failed steps you can read, else the most exposed Asset with its failed Injects, Findings, Asset groups and identity; empty when nothing failed | none |
+| `overview` | The aggregated estate: up to 40 Asset groups with their member count, scored and failed expectations and failure rate, a bucket for the Assets in no group, and the Simulations that targeted each group (at most 3 per group). Dynamic groups are flagged and counted by their static members | none |
+| `starting-points` | The starting points of the landing page, at most 5 per section: exposed Assets, failing Asset groups, the latest Simulation, Findings by Assets affected, attack paths, exposed Persons | none |
+| `hot-paths` | The exposure hot paths: the entities with the most failed expectations and findings (the former landing view) | `limit`, default `15` |
+| `{entityType}/{entityId}/neighbourhood` | The entity and its direct neighbours | `edges`: comma-separated edge types to expand, all when empty; `limit`: neighbours per edge type, default `50`, maximum `200` |
+| `path` | A shortest path between two entities, at most 6 hops; an empty path when none is found | `fromType`, `fromId`, `toType`, `toId` |
+
+- **Entity types** (case-insensitive): `asset`, `asset_group`, `finding`, `inject`, `simulation`, `scenario`, `person`, `organization`, `team`. An unknown type returns `400`.
+- **Edge types**: `MEMBER_OF` (Asset group contains Asset, static or through the group's dynamic filter), `FOUND_ON` (Finding observed on Asset), `PRODUCED` (Inject produced Finding), `TARGETS` (Inject targeted Asset or Asset group, with its expectation result), `PART_OF` (Inject belongs to Simulation), `RUN_OF` (Simulation is a run of Scenario), `IDENTITY_OF` (Asset is the identity of a Person), `WORKS_FOR` (Person belongs to Organization), `IN_TEAM` (Person is a member of Team), `TEAM_OF` (Team belongs to Organization), `LINKED_TO` (Asset linked to another Asset, see [Asset links](#asset-links)), `ATTACK_STEP` (an attack path step of a Simulation between two Assets). An unknown edge type returns `400`.
+- **Freshness**: `story`, `overview` and `starting-points` read their tenant-wide rankings at most once a minute per Tenant scope; your access is applied on every request.
+- **Access**: the endpoints need the right to read Assets. Simulation, Scenario and Inject nodes are returned only when you can read them in the Tenant of the request; Person, Organization and Team nodes only with the right to read players, organizations or teams; the others are dropped with their edges.
+
+The response is one graph slice:
+
+```json
+{
+  "graph_focus": "ASSET:<asset-uuid>",
+  "graph_nodes": [
+    {
+      "node_id": "ASSET:<asset-uuid>",
+      "node_type": "ASSET",
+      "node_entity_id": "<asset-uuid>",
+      "node_label": "srv-web-01",
+      "node_subtype": "Endpoint",
+      "node_result": "FAILED",
+      "node_failed_count": 2,
+      "node_finding_count": 3
+    }
+  ],
+  "graph_edges": [
+    {
+      "edge_id": "TARGETS|INJECT:<inject-uuid>|ASSET:<asset-uuid>",
+      "edge_type": "TARGETS",
+      "edge_source": "INJECT:<inject-uuid>",
+      "edge_target": "ASSET:<asset-uuid>",
+      "edge_result": "FAILED"
+    }
+  ],
+  "graph_truncated": false,
+  "graph_path": []
+}
+```
+
+A node id is `<TYPE>:<entity id>`. `node_result` and `edge_result` are `SUCCESS`, `PENDING` or `FAILED`, the worst expectation result behind them. `graph_truncated` is `true` when a limit cut neighbours: request the entity again with a higher `limit` to load more. `graph_path` lists the node ids of the path, in order, for a `path` request.
+
+## Asset links
+
+An Asset can be linked to other Assets of the same Tenant: an identity Asset logged on to an endpoint, a service running on a host, a host reaching another. The exploration graph draws each link as a `LINKED_TO` edge. Each endpoint is available under `/api/assets/{assetId}/links` and under the Tenant prefix `/api/tenants/{tenantId}/assets/{assetId}/links`.
+
+```http
+GET /api/assets/{assetId}/links
+POST /api/assets/{assetId}/links
+DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
+```
+
+- **Link types**: `CONNECTS_TO`, `DEPENDS_ON`, `HOSTS`, `LOGGED_ON`, `RUNS_ON`, `USES`, read from the Asset of the path to the linked Asset.
+- **Body** of `POST`: `{"linked_asset_id": "<asset-uuid>", "asset_link_type": "LOGGED_ON"}`. Adding a link that exists returns it unchanged.
+- **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
+- **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
+
+## Asset bulk update
+
+Updates the classification of many Assets in one call, over the same selection as the bulk delete: explicit ids, or the Asset search input with exclusions. Security platforms are never selected. Available under `/api/assets/bulk` and under the Tenant prefix `/api/tenants/{tenantId}/assets/bulk`.
+
+```
+PUT /api/assets/bulk
+```
+
+- **Selection**: `asset_ids_to_process`, or `search_pagination_input` with `asset_ids_to_ignore`.
+- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_tags_to_add`. A field left out is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
+- **Errors**: `400` when nothing is to be updated, for a subcategory without a category, or for a subcategory outside its category; `404` when a tag id is unknown in the Tenant. Nothing is written on an error.
+- **Access**: the right to manage Assets.
+- **Example**, reclassify every Asset carrying a tag:
+
+```json
+{"search_pagination_input": {"filterGroup": {"mode": "and", "filters": [{"key": "asset_tags", "operator": "contains", "values": ["<tag id>"], "mode": "or"}]}},
+ "asset_category": "WEB_APPLICATION", "asset_subcategory": "WEBSITE"}
+```
+
+The subcategory is checked against its category on Asset creation and update too (`400`); an Agent, collector or injector registration drops a mismatched subcategory instead of failing.
+
+## Asset freshness
+
+Every Asset carries when it was last observed and by what, and turns stale once it is unseen for longer than the Tenant allows.
+
+```http
+GET /api/tenants/{tenantId}/tenant-settings/asset-freshness
+PUT /api/tenants/{tenantId}/tenant-settings/asset-freshness
+```
+
+- **Asset fields**: `asset_last_seen` (the latest observation) and `asset_last_seen_source` (what observed it, e.g. `agent:openaev_agent`), filterable and sortable in the Asset searches. Staleness is not a field of its own: `asset_status` reads `STALE` when the Asset was last seen longer ago than the Tenant allows, and its usual value (`ACTIVE`, `INACTIVE`, `AGENTLESS`) otherwise. An Asset never observed has no `asset_last_seen` and is never `STALE`.
+- **Observations**: an Agent that registers or sends a heartbeat stamps its Asset, at most once an hour per source so a heartbeat does not rewrite the Asset every minute. A `STALE` Asset that is observed again leaves `STALE` at once.
+- **Settings body**: `{"asset_stale_after_days": 30}`, from 0 to 3650. `0` by default: the check is off, no Asset turns stale and no event is emitted until a user sets a number of days. The last seen stamp is recorded either way.
+- **Discovery marker**: `{"asset_discovery_tag": true}` on the same endpoint tags with `discovered` every Endpoint a run creates (an autonomous run promoting a finding, an inject whose output brings a new asset), so a filter or a live trigger on Asset creation tells it from a declared one. `false` by default: no tag is created or added. Omitted on an update, the current value is kept.
+- **Job**: every hour (`openaev.cron.config.asset.freshness.interval`, in minutes), each Asset that turned `STALE` since the previous pass gets one Asset update event, so a live trigger on Asset updates receives each transition once. Nothing is written on the Asset.
+
+## Reachability assertions
+
+A Scenario can be declared a reachability assertion: a recurring check, from where its Injects run, that its targets still answer as expected (a port closed, an address answering 403, a protocol off). The expected answer is the Expectation of each Inject; the check runs on the Scenario's recurrence.
+
+```http
+PUT /api/scenarios/{scenarioId}/reachability-assertion
+PUT /api/tenants/{tenantId}/scenarios/{scenarioId}/reachability-assertion
+```
+
+- **Body**: `{"scenario_reachability_assertion": true}` declares it, `false` clears it. `scenario_reachability_assertion` is `false` on every Scenario by default and filterable in the Scenario searches; a Scenario that is not an assertion behaves exactly as before.
+- **Access**: the launch right on the Scenario, as for its recurrence.
+- **Results**: a failed check is reported like any simulation: the Inject's output parser records its findings (an open port, an answer) on the target, and when a run scores lower than the previous one the existing `SCORE_DEGRADATION` notification event fires.
+
+## Finding re-test
+
+A Finding carries a lifecycle status, returned by `GET /api/findings/{id}`:
+
+- `finding_status`: `OPEN` (detected, not disproved by a later re-test), `NOT_REPRODUCED` (a re-test ran on the same targets and did not detect it again) or `RESOLVED`. Every new detection sets it back to `OPEN`.
+- `finding_last_tested`: when a re-test last ended on the Finding.
+- `finding_status_inject_id`: the Inject whose run set the status, a detection or a re-test.
+- `finding_retest_inject_id`: the re-test Inject queued and not finished yet, else empty.
+
+To re-test Findings, send their ids. The endpoint is also available under the Tenant prefix `/api/tenants/{tenantId}/findings/retest`.
+
+```http
+POST /api/findings/retest
+```
+
+```json
+{"finding_ids": ["<finding-uuid>", "<finding-uuid>"]}
+```
+
+- **What runs**: for each Inject that last produced the Findings, one copy with the same contract, content and targets; the original Inject and its history are kept. The copy runs under the same contract as the original, so a test limited to read-only contracts stays so. No approval is asked.
+- **Response**: one entry per Finding, `{"finding_id": "...", "retest_inject_id": "..."}`. Follow the Inject to know when the re-test ends.
+- **Result**: when the copy finishes, a Finding it detected again stays `OPEN`; a Finding it did not detect turns `NOT_REPRODUCED`, with the copy as `finding_status_inject_id`. A copy that ends in error leaves the status unchanged. Each change emits a Finding update event.
+- **Errors**: `400` when an Asset of a Finding is no longer a target of its Inject, directly or through an Asset group; `404` when a Finding is not in the Tenant or has no Inject left.
+- **Access**: the right to launch each Inject that is copied.
+
+## Marking definitions in OpenCTI format
+
+Every Marking definition carries `marking_definition_stix_id`, the STIX id OpenCTI gives the same marking: OpenCTI's fixed ids for TLP:CLEAR, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT and TLP:RED, and for any other marking the id OpenCTI derives from its type and definition. A marking is then the same object in OpenAEV and in OpenCTI. The id is set when the Marking definition is created; it stays empty when another Marking definition of the Tenant already carries it (TLP:WHITE next to TLP:CLEAR).
+
+To export the Marking definitions you are cleared for as a STIX 2.1 bundle of `marking-definition` objects, with OpenCTI's order and color:
+
+```http
+GET /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+To import Marking definitions from a STIX 2.1 bundle (or a list of objects), keeping the id OpenCTI gave them:
+
+```http
+POST /api/tenants/{tenantId}/marking_definitions/stix
+```
+
+- **Response**: one entry per `marking-definition` object, `{"stixId": "...", "type": "...", "definition": "...", "outcome": "..."}`, with `CREATED`, `EXISTING` (the Tenant already has this STIX id), `CONFLICT` (a Marking definition of the same type and definition exists under another id) or `INVALID`. Other object types are ignored and nothing is overwritten.
+- **Access**: the right to manage Marking definitions; a Marking definition above your own clearance on its type is refused, as when created by hand.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators

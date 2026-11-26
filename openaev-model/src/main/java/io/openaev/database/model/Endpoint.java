@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import java.util.*;
@@ -21,7 +20,6 @@ import org.hibernate.annotations.BatchSize;
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =
@@ -145,6 +143,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("endpoint_is_eol"))
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_is_eol")
   @JsonProperty("endpoint_is_eol")
   private boolean isEoL;

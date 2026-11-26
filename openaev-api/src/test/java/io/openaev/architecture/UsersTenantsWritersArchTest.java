@@ -26,6 +26,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
+import io.openaev.service.account.XtmPeerPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
@@ -108,6 +109,9 @@ class UsersTenantsWritersArchTest {
               "the tenantId of the account it provisions"),
           new Writer(
               CatalogConnectorPrivilegeService.class, "the tenantId of the account it provisions"),
+          new Writer(
+              XtmPeerPrivilegeService.class,
+              "the default tenant constant: an XTM peer account reads the default tenant"),
           new Writer(
               OpenCTIConnectorPrivilegeService.class,
               "the tenant of the connector row itself (connector.getTenantId())"),

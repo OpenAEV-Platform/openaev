@@ -15,10 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Tag;
@@ -56,8 +55,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -76,13 +73,7 @@ import reactor.core.publisher.FluxSink;
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("Stream delivery of a tenant user update after the session is closed")
-public class UserUpdateStreamAfterSessionTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+public class UserUpdateStreamAfterSessionTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -224,7 +215,7 @@ public class UserUpdateStreamAfterSessionTest extends IntegrationTest {
   /** A user carries no marking: its events are not filtered. */
   private static StreamVisibilityService unfilteredMarkings() {
     StreamVisibilityService markings = mock(StreamVisibilityService.class);
-    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    when(markings.visibilityOrUnresolved(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
     return markings;
   }
 }

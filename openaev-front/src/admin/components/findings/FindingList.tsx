@@ -4,6 +4,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 
+import markingsColumn from '../../../components/common/list/markingsColumn';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -16,7 +17,10 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
+import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
+import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
 
 interface Props {
@@ -34,6 +38,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
   finding_assets: { width: '17%' },
+  finding_markings: { width: '12%' },
   finding_asset_groups: { width: '15%' },
   finding_created_at: { width: '14%' },
   finding_updated_at: { width: '14%' },
@@ -42,6 +47,7 @@ const inlineStyles: Record<string, CSSProperties> = ({
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const markingEnabled = isFeatureEnabled('MARKING');
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
@@ -105,31 +111,46 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       // Findings are technical values (ports, sockets, hostnames, credentials...): render them
       // as inline code, mirroring the <pre> block of the finding overview page.
       value: (finding: AggregatedFindingOutput) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box
-              component="code"
-              sx={theme => ({
-                display: 'inline-block',
-                maxWidth: '95%',
-                padding: '2px 8px',
-                borderRadius: 1,
-                backgroundColor: theme.palette.background.accent,
-                border: `1px solid ${theme.palette.divider}`,
-                fontFamily: 'Consolas, monaco, monospace',
-                fontSize: FDS.scalars['--text-3'],
-                lineHeight: '18px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                verticalAlign: 'middle',
-              })}
-            >
-              {finding.finding_value}
-            </Box>
-          </TooltipTrigger>
-          {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
-        </Tooltip>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          // 4 px between the value chip and its OpenCTI mark, as on every chip followed by a mark.
+          gap: 0.5,
+        }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                component="code"
+                sx={theme => ({
+                  display: 'inline-block',
+                  maxWidth: '95%',
+                  padding: '2px 8px',
+                  borderRadius: 1,
+                  backgroundColor: theme.palette.background.accent,
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: 'Consolas, monaco, monospace',
+                  fontSize: FDS.scalars['--text-3'],
+                  lineHeight: '18px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  verticalAlign: 'middle',
+                })}
+              >
+                {finding.finding_value}
+              </Box>
+            </TooltipTrigger>
+            {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
+          </Tooltip>
+          {/* A CVE finding also known in OpenCTI or OpenCRQ carries the product mark linking to it. */}
+          {finding.finding_type === 'cve' && (
+            <>
+              <OpenCtiRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+              <OpenCrqRowMark kind="vulnerabilities" objectKey={finding.finding_value} />
+            </>
+          )}
+        </Box>
       ),
     },
     {
@@ -150,6 +171,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         />
       ),
     },
+    ...(markingEnabled
+      ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+      : []),
     {
       field: 'finding_asset_groups',
       label: 'Asset groups',

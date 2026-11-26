@@ -16,7 +16,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.GrantRepository;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exercise.form.GetExercisesInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -24,6 +23,7 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -39,7 +39,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExerciseRepository exerciseRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
 
@@ -249,7 +249,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
         User user = userRepository.findById(currentUser().getId()).get();
         Group group = new Group();
         group.setName("test");
-        group = groupRepository.save(group);
+        group = groupFixtureWriter.save(group);
         exerciseGranted.getGrants().addAll(group.getGrants());
         exerciseGranted = exerciseRepository.save(exerciseGranted);
 
@@ -264,9 +264,9 @@ public class ExerciseApiSearchTest extends IntegrationTest {
         grantPlanner.setGroup(group);
         grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-        group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
+        group.getGrants().addAll(List.of(grantObserver, grantPlanner));
         group.setUsers(new ArrayList<>(List.of(user)));
-        groupRepository.save(group);
+        groupFixtureWriter.save(group);
         EXERCISE_IDS.add(exerciseGranted.getId());
 
         GetExercisesInput getExercisesInput = new GetExercisesInput();

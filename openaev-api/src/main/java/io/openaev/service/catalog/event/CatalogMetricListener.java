@@ -13,7 +13,7 @@ public class CatalogMetricListener {
   private final ContentMetricCollector contentMetricCollector;
 
   @TransactionalEventListener
-  public void onContentChanged(CatalogContentChanged event) {
+  public void onContentChanged(ContentChanged event) {
     contentMetricCollector.addAction(event.type(), event.action());
   }
 }

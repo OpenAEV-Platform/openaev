@@ -41,6 +41,14 @@ public interface EndpointRepository
   // joined). Aliased in double quotes so the label case matches the property name exactly.
   String ACTIVITY_STATUS_SELECT =
       ", (CASE"
+          + " WHEN e.asset_last_seen IS NOT NULL AND EXISTS (SELECT 1 FROM parameters p"
+          + " WHERE p.tenant_id = e.tenant_id AND p.parameter_key = 'asset_stale_after_days'"
+          + " AND (CASE WHEN p.parameter_value ~ '^[0-9]+$'"
+          + " THEN to_number(p.parameter_value, '99999') ELSE 0 END) > 0"
+          + " AND date_part('epoch', now() - e.asset_last_seen) > (CASE WHEN"
+          + " p.parameter_value ~ '^[0-9]+$' THEN to_number(p.parameter_value, '99999')"
+          + " ELSE 0 END) * 86400)"
+          + " THEN 'STALE'"
           + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = e.asset_id)"
           + " THEN 'AGENTLESS'"
           + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = e.asset_id"
@@ -126,8 +134,7 @@ public interface EndpointRepository
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(a.name) LIKE concat('%', lower(cast(coalesce(:name, '') as string)), '%'))"
           // injects_assets may now reference non-endpoint assets (e.g. AI targets)
-          + " AND TYPE(a) = Endpoint"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " AND TYPE(a) = Endpoint")
   List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
   @Query(

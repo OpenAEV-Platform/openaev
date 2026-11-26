@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
@@ -78,7 +79,7 @@ import org.springframework.web.bind.annotation.*;
 public class InjectApi extends RestBehavior {
 
   public static final String INJECT_URI = "/api/injects";
-  static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
+  public static final String TENANT_INJECT_URI = TENANT_PREFIX + "/injects";
 
   private static final int MAX_NEXT_INJECTS = 6;
 
@@ -127,11 +128,15 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+  @ApiResponse(
+      responseCode = "200",
+      content =
+          @Content(mediaType = "application/json", schema = @Schema(implementation = Inject.class)))
+  public ObjectNode inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     Inject inject = this.injectService.inject(ctx, injectId);
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
     InjectLinksInitializer.initialize(List.of(inject));
-    return inject;
+    return injectMapper.toJsonWithVisibleStatus(inject);
   }
 
   @LogExecutionTime
@@ -178,11 +183,10 @@ public class InjectApi extends RestBehavior {
                 .and(
                     permissionService.filterInEachTenant(
                         ctx,
-                        () ->
-                            currentUser.isAdminOrBypass()
-                                || currentUser
-                                    .getCapabilities()
-                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser,
+                        caller ->
+                            caller.isAdminOrBypass()
+                                || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         accessRight ->
                             SpecificationUtils.hasGrantAccess(
                                 currentUser.getId(),

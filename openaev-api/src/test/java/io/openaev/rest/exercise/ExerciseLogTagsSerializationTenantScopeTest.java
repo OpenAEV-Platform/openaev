@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -30,14 +31,9 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -77,13 +73,7 @@ class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    String activeTables = props.getProperty("openaev.tenant.active-tables", "");
+    String activeTables = String.join(",", ProductionActiveTables.names());
     registry.add("openaev.tenant.active-tables", () -> activeTables);
   }
 
@@ -201,6 +191,58 @@ class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
           });
     }
 
+    @Test
+    @DisplayName(
+        "given a log of another simulation when it is edited through this simulation then the"
+            + " edit is refused and the log's tags are unchanged")
+    void given_aLogOfAnotherSimulation_should_refuseTheEditAndKeepItsTags() throws Exception {
+      // -- Arrange --
+      Log log = seedLog(1);
+      List<String> originalTagIds = tagIds(log);
+      String otherTenant = tenantHelper.createTenantWithCurrentUser("simulation-log-tag-b").getId();
+      String otherExerciseId =
+          inTenantScope(
+              otherTenant,
+              () -> {
+                Exercise other = createDefaultExercise();
+                other.setTenant(new Tenant(otherTenant));
+                exerciseComposer.forExercise(other).persist();
+                return other.getId();
+              });
+
+      try {
+        // -- Act --
+        // The URL names another simulation, in another tenant, while logId stays the one seeded
+        // under `tenant`: findByIdAndExerciseId must refuse the mismatch before any tag is read.
+        mvc.perform(
+                put(
+                        TENANT_EXERCISE_URI + "/{exerciseId}/logs/{logId}",
+                        otherTenant,
+                        otherExerciseId,
+                        log.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(editInput(log, List.of())))
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+
+        // -- Assert --
+        inTenantScope(
+            () -> {
+              Log unchanged = logRepository.findById(log.getId()).orElseThrow();
+              assertThat(tagIds(unchanged)).containsExactlyInAnyOrderElementsOf(originalTagIds);
+              return null;
+            });
+      } finally {
+        inTenantScope(
+            otherTenant,
+            () -> {
+              exerciseRepository.deleteById(otherExerciseId);
+              return null;
+            });
+        tenantHelper.deleteCommittedTenants(otherTenant);
+      }
+    }
+
     private LogCreateInput editInput(Log log, List<String> tagIds) {
       LogCreateInput input = new LogCreateInput();
       input.setTitle(log.getTitle());
@@ -244,9 +286,13 @@ class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
    * the v1 thread-local tenant to attribute some rows, so it is set too.
    */
   private <T> T inTenantScope(Supplier<T> work) {
-    TenantContext.setCurrentTenant(tenant);
+    return inTenantScope(tenant, work);
+  }
+
+  private <T> T inTenantScope(String tenantId, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenantId);
     try {
-      return tenantTx.execute(TxCtx.forTenant(tenant), work);
+      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
     } finally {
       TenantContext.clearCurrentTenant();
     }

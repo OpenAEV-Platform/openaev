@@ -51,11 +51,10 @@ import org.springframework.web.server.ResponseStatusException;
  * "unauthorized" audit event before being re-thrown.
  *
  * <p>The aspect order is {@code LOWEST_PRECEDENCE - 1} so it runs <b>inside</b> the transaction
- * boundary ({@code LOWEST_PRECEDENCE - 4}) and the tenant scoping aspects ({@code LOWEST_PRECEDENCE
- * - 3} / {@code - 2}), and <b>outside</b> the RBAC aspect ({@code LOWEST_PRECEDENCE}). When
- * halt-on-failure is active and the audit transport fails, the thrown {@link
- * AuditLogFailureException} propagates through the transaction interceptor, which rolls back the
- * mutation.
+ * boundary ({@code LOWEST_PRECEDENCE - 4}) and the tenant scoping aspect ({@code LOWEST_PRECEDENCE
+ * - 2}), and <b>outside</b> the RBAC aspect ({@code LOWEST_PRECEDENCE}). When halt-on-failure is
+ * active and the audit transport fails, the thrown {@link AuditLogFailureException} propagates
+ * through the transaction interceptor, which rolls back the mutation.
  *
  * <p>Phase 1: delegates to {@link io.openaev.service.LogService} for console-only output.
  */
@@ -133,6 +132,11 @@ public class AccessControlAuditLogAspect {
     }
 
     if (isActive && isActionActive && AuditLogContext.isEnabled()) {
+      // Runs the request's pending writes now, so that their callbacks record the snapshots (see
+      // captureEntitySnapshots). Kept outside the catch below: a write failing here is the
+      // request's own failure, not an audit one. Swallowed, it would leave the transaction
+      // rollback-only and the commit would fail with an UnexpectedRollbackException hiding it.
+      flushIfJoinedToTransaction();
       try {
         JsonNode resultNode = getOutputNode(result);
 
@@ -200,16 +204,29 @@ public class AccessControlAuditLogAspect {
    * transaction commit time — after {@code consumeAllSnapshots()} has already cleared the context.
    *
    * <p>This is safe because the aspect runs inside the transaction boundary; if the flush reveals a
-   * constraint violation, it would have failed at commit anyway.
+   * constraint violation, it would have failed at commit anyway. After a successful call, {@link
+   * #auditAround} has already flushed, and let a failure propagate: what is caught here is a flush
+   * failure after the call itself failed, whose own exception is rethrown.
    */
   private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      entityManager.flush();
+      flushIfJoinedToTransaction();
       return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
       AuditLogContext.clear();
       return null;
+    }
+  }
+
+  /**
+   * Skipped outside a transaction: endpoints in {@code Propagation.SUPPORTS} (catalog sync,
+   * install) commit their writes in inner transactions before returning, whose flush has already
+   * recorded the snapshots, and {@code flush()} would throw a {@code TransactionRequiredException}.
+   */
+  private void flushIfJoinedToTransaction() {
+    if (entityManager.isJoinedToTransaction()) {
+      entityManager.flush();
     }
   }
 

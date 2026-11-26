@@ -30,6 +30,38 @@ yarn test:eslint-rules                 # Tests of the local ESLint rules (packag
 yarn generate-types-from-api           # Sync API types
 ```
 
+## Before Starting a Task
+
+The team is actively working on parts of the codebase. Before writing any code, check that the task is not
+already taken and does not collide with ongoing work. GitHub is the source of truth: do not rely on memory,
+and do not expect a list of ongoing work in this file.
+
+1. **Issue** — every PR is linked to an issue (see [Opening a Pull Request](#opening-a-pull-request)).
+   Check that the linked issue is open and not assigned to someone else:
+   `gh issue view <number> --repo OpenAEV-Platform/openaev`. Skip this check when the user says the issue is
+   in a private repository.
+2. **Ongoing refactors** — list the open issues and epics labeled `refactoring-in-progress`, and read their
+   description to see which modules or paths they cover:
+   `gh issue list --repo OpenAEV-Platform/openaev --label "refactoring-in-progress" --state open`
+3. **Open pull requests** — look for open PRs, drafts included, that reference the same issue or touch the
+   same area. Searching by issue number is the surest way to find a duplicate:
+   ```bash
+   gh pr list --repo OpenAEV-Platform/openaev --state open --search "<issue number>"
+   gh pr list --repo OpenAEV-Platform/openaev --state open --search "<keyword>"
+   ```
+
+If `gh` is not installed or not authenticated, open the same lists in a browser:
+[refactors in progress](https://github.com/OpenAEV-Platform/openaev/issues?q=is%3Aissue+is%3Aopen+label%3Arefactoring-in-progress)
+and [open pull requests](https://github.com/OpenAEV-Platform/openaev/pulls).
+
+**Stop and tell the user, with links, before generating code** when the issue is assigned to someone else, when
+the task touches an area covered by a `refactoring-in-progress` issue, or when an open PR already covers it. Let
+the user coordinate with the maintainers on the issue; never work around it.
+
+> **Maintainers**: when you start a refactor that contributors should not touch, add the `refactoring-in-progress`
+> label to its issue or epic and list the affected modules or paths in its description. Remove the label when the
+> refactor is merged.
+
 ## Where to find conventions
 
 Do NOT look for conventions here — they live in dedicated instruction files, activated automatically based on the files you touch
@@ -185,8 +217,10 @@ Full rules: [copilot-instructions.md → PR description format](.github/copilot-
 
 ## Agent Maintenance Rule
 
-> **When you modify a `.github/instructions/*.md` file, you must update the corresponding
-> `.github/agents/*.agent.md` file in the same PR.**
+> **Rules live only in `.github/instructions/*.md`**: the automatic Copilot review reads them, it does not run the
+> agents. An `.agent.md` file or a skill holds the procedure and links to the instruction section, never a copy
+> of a rule. When you modify an instruction file, check the corresponding agent below in the same PR and remove
+> any copy that now differs.
 
 The mapping is:
 | Instruction file | Agent to update |

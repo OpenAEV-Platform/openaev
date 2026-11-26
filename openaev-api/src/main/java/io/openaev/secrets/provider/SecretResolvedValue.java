@@ -81,6 +81,7 @@ public record SecretResolvedValue(
       String azureTenantId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       byte[] azureRequestsCertificate) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AZURE_SERVICE_PRINCIPAL,
@@ -91,6 +92,7 @@ public record SecretResolvedValue(
             azureTenantId,
             azureSubscriptionId,
             azureAuthorityHostUri,
+            azureScope,
             azureRequestsCertificate));
   }
 
@@ -99,6 +101,7 @@ public record SecretResolvedValue(
       String azureClientId,
       String azureSubscriptionId,
       String azureAuthorityHostUri,
+      String azureScope,
       byte[] azureRequestsCertificate) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AZURE_MANAGED_IDENTITY,
@@ -107,6 +110,7 @@ public record SecretResolvedValue(
             azureClientId,
             azureSubscriptionId,
             azureAuthorityHostUri,
+            azureScope,
             azureRequestsCertificate));
   }
 
@@ -197,6 +201,7 @@ public record SecretResolvedValue(
         @JsonProperty("azure_tenant_id") String azureTenantId,
         @JsonProperty("azure_subscription_id") String azureSubscriptionId,
         @JsonProperty("azure_authority_host_uri") String azureAuthorityHostUri,
+        @JsonProperty("azure_scope") String azureScope,
         @JsonProperty("azure_requests_certificate") byte[] azureRequestsCertificate)
         implements Value {}
 
@@ -206,6 +211,7 @@ public record SecretResolvedValue(
         @JsonProperty("azure_client_id") String azureClientId,
         @JsonProperty("azure_subscription_id") String azureSubscriptionId,
         @JsonProperty("azure_authority_host_uri") String azureAuthorityHostUri,
+        @JsonProperty("azure_scope") String azureScope,
         @JsonProperty("azure_requests_certificate") byte[] azureRequestsCertificate)
         implements Value {}
 

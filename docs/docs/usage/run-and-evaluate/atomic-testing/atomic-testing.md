@@ -18,13 +18,16 @@ Use the search bar and filters to narrow results.
 
 ## Create an Atomic Test
 
-1. Click the **+** button at the bottom right of the screen.
-2. On the left panel, browse the list of available Threat Arsenal Actions. Filter by kill chain phase, Injector, compatible platform, or MITRE ATT&CK tactic. Click the **ATT&CK** icon near the search bar to filter by a specific technique.
-3. Select an Action. The form on the right populates with a default title and a delay field (set to 0 for immediate execution).
+1. Click the **Create** button at the top right of the Atomic testing list. The **Create a new atomic test** page opens.
+2. Browse the Threat Arsenal Actions, shown as cards. Use the search bar, or the **Filters** panel on the left to narrow them by domain, platform, status, author, MITRE ATT&CK tactic or MITRE ATLAS tactic.
+3. Click an Action card. The **Create a new atomic test** drawer opens.
 
 ![Select a Threat Arsenal Action](assets/atomic-testing-create-select.png)
 
-4. Click **Inject content** to define the targeted Assets or Players, required configuration, and Expectations.
+4. Fill in the drawer:
+    - **General**: title (prefilled with the Action name), description and tags.
+    - **Inject data**: the targets of the Action (for example Assets or Asset groups) and the configuration it requires.
+    - **Inject expectations**: the Expectations used to score the test.
 
 ![Configure Inject content](assets/atomic-testing-create-form.png)
 
@@ -45,11 +48,24 @@ The platform checks for due recurring Atomic Tests every minute and launches the
 
     Scheduling requires the permission to launch the Atomic Test. The recurrence can be updated or removed at any time from the same dialog.
 
+## Stop a running Atomic Test
+
+While an Atomic Test is queuing, executing or pending, its header shows **Stop execution**.
+
+1. Click **Stop execution**.
+2. Confirm in the dialog.
+
+The agents no longer receive the jobs they have not picked up yet, and the Atomic Test ends in **Error** with an execution trace naming who stopped it. Commands an agent already started are not interrupted on the endpoint. The same action is available on the API: `POST /api/atomic-testings/{atomicTestingId}/stop`.
+
+!!! note
+
+    Stopping requires the permission to launch the Atomic Test. An Atomic Test that is not running cannot be stopped.
+
 ## Atomic Test detail
 
 The detail page has three parts:
 
-- **Header**: title, status tooltip (tags, description), pie charts summarizing results, and actions (launch, update, delete, export)
+- **Header**: title, status tooltip (tags, description), pie charts summarizing results, and actions (launch, stop, update, delete, export)
 - **Overview**: quick summary of test results across all targets with posture gauges
 - **Execution details**: Inject Expectations and detailed execution traces
 

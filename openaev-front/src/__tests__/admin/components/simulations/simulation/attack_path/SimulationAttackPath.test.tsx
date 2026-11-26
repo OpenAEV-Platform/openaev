@@ -37,6 +37,9 @@ const mocks = vi.hoisted(() => ({
   licenceValidated: true,
 }));
 
+// The exploration graph preview feature reads the platform settings from the store; the attack
+// path renders without one here, so the flag is read on.
+vi.mock('../../../../../../utils/hooks/useExplorationGraph', () => ({ default: () => true }));
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraph: mocks.fetchAttackPathGraph,
   fetchAttackPathGraphDelta: mocks.fetchAttackPathGraphDelta,

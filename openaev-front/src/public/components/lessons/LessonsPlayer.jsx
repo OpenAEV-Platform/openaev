@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { Form } from 'react-final-form';
 import { Link } from 'react-router';
@@ -14,6 +13,7 @@ import OldTextField from '../../../components/fields/OldTextField';
 import SliderField from '../../../components/fields/SliderField';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
+import { ascendBy } from '../../../utils/Sorting';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -65,15 +65,15 @@ const LessonsPlayer = (props) => {
       onFetchPlayerLessonsAnswers();
     });
   };
-  const sortCategories = R.sortWith([R.ascend(R.prop('lessons_category_order'))]);
-  const sortQuestions = R.sortWith([R.ascend(R.prop('lessons_question_order'))]);
+  const sortCategories = items => items.toSorted(ascendBy('lessons_category_order'));
+  const sortQuestions = items => items.toSorted(ascendBy('lessons_question_order'));
   const sortedCategories = sortCategories(lessonsCategories);
 
-  const initialValues = R.pipe(R.map(n => ({
+  const initialValues = Object.assign({}, ...lessonsAnswers.map(n => ({
     [`${n.lessons_answer_question}_score`]: n.lessons_answer_score || 0,
     [`${n.lessons_answer_question}_positive`]: n.lessons_answer_positive || 0,
     [`${n.lessons_answer_question}_negative`]: n.lessons_answer_negative || 0,
-  })), R.mergeAll)(lessonsAnswers);
+  })));
   if (source) {
     return (
       <div className={classes.root}>

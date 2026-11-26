@@ -23,19 +23,28 @@ import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.ExecutionTraceAction;
+import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -81,6 +90,7 @@ class StreamVisibilityServiceTest {
 
   private final ObjectMapper mapper = ObjectMapperHelper.openAEVJsonMapper();
   private final TenantScopedTransaction transaction = mock(TenantScopedTransaction.class);
+  private final StreamClearanceService clearanceService = mock(StreamClearanceService.class);
   private final EntityManager entityManager = mock(EntityManager.class);
 
   /** The rows the reads find: the markings of each asset, the asset of each agent. */
@@ -93,7 +103,7 @@ class StreamVisibilityServiceTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void setUp() {
-    service = new StreamVisibilityService(RULES, transaction, mapper);
+    service = new StreamVisibilityService(RULES, transaction, clearanceService, mapper);
     ReflectionTestUtils.setField(service, "entityManager", entityManager);
     when(transaction.execute(any(TxCtx.class), any(Supplier.class)))
         .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
@@ -212,6 +222,27 @@ class StreamVisibilityServiceTest {
     }
 
     @Test
+    @DisplayName("a row deleted with its parent is told apart from a hidden or unread one")
+    void given_rowDeletedWithItsParent_should_beToldApart() {
+      // Act
+      StreamVisibility deletedWithItsAsset =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-id", endpoint("gone")), mapper), TENANT_ID);
+      StreamVisibility onAHiddenAsset =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-on-r", endpoint("r", "tlp-red")), mapper),
+              TENANT_ID);
+      StreamVisibility unread =
+          service.visibilityOf(
+              new BaseEvent(DATA_DELETE, agentOn("agent-id", endpoint("gone")), mapper), null);
+
+      // Assert
+      assertThat(deletedWithItsAsset.parentDeleted()).isTrue();
+      assertThat(onAHiddenAsset.parentDeleted()).isFalse();
+      assertThat(unread.parentDeleted()).isFalse();
+    }
+
+    @Test
     @DisplayName("with no tenant to read in, a row reaches only unrestricted readers")
     void given_noTenant_should_failClosed() {
       // Act
@@ -282,6 +313,46 @@ class StreamVisibilityServiceTest {
     }
 
     @Test
+    @DisplayName("a single object embedded whole is removed when hidden")
+    void given_collectorOfAHiddenSecurityPlatform_should_removeIt() {
+      // Arrange
+      SecurityPlatform platform = SecurityPlatformFixture.createDefault("platform", "EDR");
+      platform.setId("platform-r");
+      platform.setMarkingIds(new String[] {"tlp-red"});
+      Collector collector = CollectorFixture.createDefaultCollector("collector");
+      collector.setSecurityPlatform(platform);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(collector);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isTrue();
+      assertThat(visibility.payloadFor(AMBER).path("collector_security_platform").isNull())
+          .isTrue();
+      assertThat(visibility.payloadFor(RED).path("collector_security_platform").path("asset_id"))
+          .hasToString("\"platform-r\"");
+    }
+
+    @Test
+    @DisplayName("a single id is removed when hidden")
+    void given_injectorOfAHiddenSecurityPlatform_should_removeItsId() {
+      // Arrange
+      SecurityPlatform platform = SecurityPlatformFixture.createDefault("platform", "EDR");
+      platform.setId("r");
+      Injector injector = InjectorFixture.createDefaultInjector("injector");
+      injector.setSecurityPlatform(platform);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(injector);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isTrue();
+      assertThat(visibility.payloadFor(AMBER).path("injector_security_platform").isNull()).isTrue();
+      assertThat(visibility.payloadFor(RED).path("injector_security_platform"))
+          .hasToString("\"r\"");
+    }
+
+    @Test
     @DisplayName("an inject keeps the visible targets, expectations and traces")
     void given_injectRunOnAHiddenAsset_should_keepWhatTheClearanceAllows() {
       // Arrange
@@ -322,6 +393,132 @@ class StreamVisibilityServiceTest {
       assertThat(idsAt(redPayload, "inject_status.status_traces", "execution_trace_id"))
           .containsExactly("trace-global", "trace-of-agent");
     }
+
+    @Test
+    @DisplayName("a PARTIAL inject shows each reader the status of the traces left to them")
+    void given_partialInjectRunOnAHiddenAsset_should_recomputeTheStatusPerReader() {
+      // Arrange: the RED agent succeeded, the GREEN one failed
+      agentAssets.put("agent-on-g", "g");
+      Endpoint green = endpoint("g");
+      Endpoint red = endpoint("r");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.PARTIAL);
+      status.setExpectedAgentCount(2);
+      status.setTraces(
+          List.of(
+              completeTrace("trace-on-g", agentOn("agent-on-g", green), ExecutionTraceStatus.ERROR),
+              completeTrace(
+                  "trace-on-r", agentOn("agent-on-r", red), ExecutionTraceStatus.EXECUTED)));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(green, red));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert: the stored verdict stays for the reader who sees both traces
+      assertThat(visibility.payloadFor(AMBER).at("/inject_status/status_name").asText())
+          .isEqualTo("ERROR");
+      assertThat(visibility.payloadFor(RED).at("/inject_status/status_name").asText())
+          .isEqualTo("PARTIAL");
+    }
+
+    @Test
+    @DisplayName("an inject whose every agent is hidden shows NOT_VISIBLE, not their outcome")
+    void given_injectRunOnlyOnHiddenAssets_should_showNotVisible() {
+      // Arrange: two RED agents, both succeeded
+      agentAssets.put("agent-on-r2", "r");
+      Endpoint red = endpoint("r");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.EXECUTED);
+      status.setExpectedAgentCount(2);
+      status.setTraces(
+          List.of(
+              completeTrace(
+                  "trace-on-r", agentOn("agent-on-r", red), ExecutionTraceStatus.EXECUTED),
+              completeTrace(
+                  "trace-on-r2", agentOn("agent-on-r2", red), ExecutionTraceStatus.EXECUTED)));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(red));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert
+      assertThat(visibility.payloadFor(AMBER).at("/inject_status/status_name").asText())
+          .isEqualTo("NOT_VISIBLE");
+      assertThat(visibility.payloadFor(RED).at("/inject_status/status_name").asText())
+          .isEqualTo("EXECUTED");
+    }
+
+    @Test
+    @DisplayName(
+        "a PARTIAL inject whose RED agent was deleted keeps its expected count, not the traces left")
+    void given_partialInjectWhoseHiddenAgentWasDeleted_should_notShowTheStoredVerdict() {
+      // Arrange: GREEN failed, RED succeeded; the RED agent was deleted with its traces
+      agentAssets.put("agent-on-g", "g");
+      Endpoint green = endpoint("g");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.PARTIAL);
+      status.setExpectedAgentCount(2);
+      status.setTraces(
+          List.of(
+              completeTrace(
+                  "trace-on-g", agentOn("agent-on-g", green), ExecutionTraceStatus.ERROR)));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(green));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert: the deleted RED success shows to no reader, as on the REST path
+      JsonNode amber = visibility.payloadFor(AMBER);
+      assertThat(amber.at("/inject_status/status_name").asText()).isEqualTo("ERROR");
+      assertThat(visibility.payloadFor(RED).at("/inject_status/status_name").asText())
+          .isEqualTo("ERROR");
+      assertThat(amber.toString()).doesNotContain("expected_agent_count");
+    }
+
+    @Test
+    @DisplayName(
+        "an inject whose every agent was deleted shows NOT_VISIBLE, not its stored verdict")
+    void given_injectWhoseEveryAgentWasDeleted_should_showNotVisible() {
+      // Arrange: the only agent, on RED, succeeded and was deleted with its traces
+      Endpoint green = endpoint("g");
+      InjectStatus status = new InjectStatus();
+      status.setId("status-id");
+      status.setName(ExecutionStatus.EXECUTED);
+      status.setExpectedAgentCount(1);
+      status.setTraces(List.of());
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssets(List.of(green));
+      inject.setStatus(status);
+
+      // Act
+      StreamVisibility visibility = visibilityOf(inject);
+
+      // Assert
+      assertThat(visibility.payloadFor(AMBER).at("/inject_status/status_name").asText())
+          .isEqualTo("NOT_VISIBLE");
+    }
+  }
+
+  private static ExecutionTrace completeTrace(String id, Agent agent, ExecutionTraceStatus status) {
+    ExecutionTrace trace = new ExecutionTrace();
+    trace.setId(id);
+    trace.setAgent(agent);
+    trace.setAction(ExecutionTraceAction.COMPLETE);
+    trace.setStatus(status);
+    return trace;
   }
 
   @Test
@@ -337,6 +534,62 @@ class StreamVisibilityServiceTest {
     // Assert
     assertThat(ruleless.isUnfiltered()).isTrue();
     verify(transaction, never()).execute(any(TxCtx.class), any(Supplier.class));
+  }
+
+  @Nested
+  @DisplayName("visibilityOrUnresolved")
+  class VisibilityOrUnresolved {
+
+    @Test
+    @DisplayName("given filtering off, should resolve unfiltered without any read")
+    void given_notFiltering_should_beUnfilteredWithoutReading() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(false);
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, endpoint("r", "tlp-red"), mapper), TENANT_ID);
+
+      // Assert
+      assertThat(visibility.isUnfiltered()).isTrue();
+      verify(entityManager, never()).createQuery(anyString(), any(Class.class));
+    }
+
+    @Test
+    @DisplayName("given filtering on, should delegate to visibilityOf")
+    void given_filtering_should_delegateToVisibilityOf() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(true);
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, endpoint("r", "tlp-red"), mapper), TENANT_ID);
+
+      // Assert
+      assertThat(visibility.visibleUnder(AMBER)).isFalse();
+      assertThat(visibility.visibleUnder(RED)).isTrue();
+    }
+
+    @Test
+    @DisplayName("given filtering on and a read failure, should fail closed to unresolved")
+    void given_readFailure_should_failClosedToUnresolved() {
+      // Arrange
+      when(clearanceService.isFiltering()).thenReturn(true);
+      when(entityManager.createQuery(anyString(), any(Class.class)))
+          .thenThrow(new RuntimeException("boom"));
+
+      // Act
+      StreamVisibility visibility =
+          service.visibilityOrUnresolved(
+              new BaseEvent(DATA_UPDATE, agentOn("agent-on-r", endpoint("r")), mapper), TENANT_ID);
+
+      // Assert: visible only to a reader cleared for everything, like StreamVisibility.unresolved()
+      assertThat(visibility.isUnfiltered()).isFalse();
+      assertThat(visibility.visibleUnder(RED)).isFalse();
+      assertThat(visibility.visibleUnder(MarkingCtx.all())).isTrue();
+    }
   }
 
   private static List<Class<?>> entities() {

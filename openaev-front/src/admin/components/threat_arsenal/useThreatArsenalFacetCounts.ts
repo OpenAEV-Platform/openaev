@@ -8,12 +8,7 @@ export interface ThreatArsenalFacetCounts {
   statuses: Record<string, number>;
 }
 
-/**
- * Platform + payload-status counts under the current filters (backend
- * aggregation), so the fixed-universe sidebar facets show live counts like the
- * domain and author facets. Returns `null` until the first response lands, so
- * the sidebar can skip the count badges instead of flashing everything at 0.
- */
+// Platform and status counts under the current filters; null until the first answer.
 const useThreatArsenalFacetCounts = (
   searchPaginationInput: SearchPaginationInput,
 ): ThreatArsenalFacetCounts | null => {

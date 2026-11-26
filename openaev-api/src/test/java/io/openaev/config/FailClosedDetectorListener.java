@@ -4,12 +4,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
@@ -58,16 +55,12 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
    * time any query runs, whereas a placeholder read at bean-post-processor construction is not.
    * Cached: the allowlist is fixed for the context.
    */
-  private TenantSqlLeakOracle oracle() {
+  TenantSqlLeakOracle oracle() {
     TenantSqlLeakOracle local = oracle;
     if (local == null) {
+      // armedBy expands the terminal '*': an oracle built on the token itself watches no table.
       String activeTables = environment.getProperty("openaev.tenant.active-tables", "");
-      Set<String> tables =
-          Arrays.stream(activeTables.split(","))
-              .map(String::trim)
-              .filter(s -> !s.isEmpty())
-              .collect(Collectors.toCollection(LinkedHashSet::new));
-      local = new TenantSqlLeakOracle(tables);
+      local = new TenantSqlLeakOracle(ProductionActiveTables.armedBy(activeTables));
       oracle = local;
     }
     return local;

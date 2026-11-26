@@ -4,7 +4,7 @@ import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -14,13 +14,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CatalogScenarioUninstallListener {
 
-  private final CatalogChangePublisher changePublisher;
+  private final ContentChangePublisher changePublisher;
 
   @EventListener(condition = "#event.type == '" + DATA_DELETE + "'")
   public void onDelete(BaseEvent event) {
     if (event.getInstance() instanceof Scenario scenario && scenario.getCatalogIdentity() != null) {
-      changePublisher.changed(
-          scenario, CatalogHistory.Action.UNINSTALL, CatalogHistory.Mode.MANUAL);
+      changePublisher.changed(scenario, ContentChange.Action.UNINSTALL, ContentChange.Mode.MANUAL);
     }
   }
 }

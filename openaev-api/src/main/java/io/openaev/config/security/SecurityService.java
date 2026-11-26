@@ -5,6 +5,8 @@ import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
@@ -14,8 +16,10 @@ import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +47,7 @@ public class SecurityService {
   private final UserEventService userEventService;
   private final TenantRepository tenantRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   @Transactional(rollbackFor = Exception.class)
   public User userManagement(
@@ -58,6 +63,18 @@ public class SecurityService {
     boolean adminConfigured = allAdmin || !adminRoles.isEmpty();
     boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(roles::contains);
     if (hasLength(email)) {
+      String groupsManagementObject =
+          env.getProperty(
+              OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
+              String.class,
+              "");
+      // Widened before the user is loaded: User.groups is an EAGER association over groups, so
+      // loading the user below reads it under whatever scope is set at THIS point, not whatever
+      // is set later. A projection, never findByEmailIgnoreCase(email).getTenants(), keeps that
+      // read itself from triggering the same eager load out of scope.
+      tenantScopedTransaction.setScopeOnCurrentTransaction(
+          TxCtx.forTenants(
+              loginGroupScopeTenantIds(registrationId, email, groupsManagementObject)));
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
       // If user not exists, create it
       if (optionalUser.isEmpty()) {
@@ -66,7 +83,8 @@ public class SecurityService {
                 email, firstName, lastName, false, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
-        return mapGroupsAttachTenantAndSave(registrationId, user, groups, adminConfigured, isAdmin);
+        return mapGroupsAttachTenantAndSave(
+            registrationId, user, groups, adminConfigured, isAdmin, groupsManagementObject);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
@@ -77,7 +95,7 @@ public class SecurityService {
         }
         userEventService.createLoginSuccessEvent(currentUser);
         return mapGroupsAttachTenantAndSave(
-            registrationId, currentUser, groups, adminConfigured, isAdmin);
+            registrationId, currentUser, groups, adminConfigured, isAdmin, groupsManagementObject);
       }
     }
     return null;
@@ -122,18 +140,22 @@ public class SecurityService {
   /**
    * Maps the SSO groups on the user, attaches the tenant of the identity provider, grants its
    * auto-assign groups, puts admins in its "Admin" group and saves the user.
+   *
+   * <p>None of this runs under a request or a {@code TenantScopedTransaction}: the login success
+   * handler calls into an ordinary {@code @Transactional} method with no {@code TxCtx}, so {@code
+   * groups} would otherwise be read and written with no scope at all, which fails closed on every
+   * tenant group (an SSO admin never enrolled, a revoke that finds nothing to remove). The scope
+   * {@link #userManagement} already set, before loading {@code user}, covers the provider's own
+   * tenant, every tenant a configured mapping names, and every tenant the user already belonged to
+   * at that point, so a revoke sees the membership rows it must remove.
    */
   private User mapGroupsAttachTenantAndSave(
       String registrationId,
       User user,
       List<String> groups,
       boolean adminConfigured,
-      boolean isAdmin) {
-    String groupsManagementObject =
-        env.getProperty(
-            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
-            String.class,
-            "");
+      boolean isAdmin,
+      String groupsManagementObject) {
     userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
     Optional<String> attachedTenantId = attachTenant(registrationId, user);
     attachedTenantId.ifPresent(
@@ -141,6 +163,9 @@ public class SecurityService {
     if (adminConfigured) {
       userMappingService.mapAdminGroup(user, providerTenantId(registrationId), isAdmin);
     }
+    // The membership rows were written in SQL and left the loaded groups as they were before:
+    // reloaded, so the event of the user carries the groups the login left.
+    userService.reloadUser(user);
     User savedUser = this.userService.saveUser(user);
     // The new membership is only flushed at commit, but granting the auto-assign groups already
     // cached the user's tenants without it (JDBC read), which would deny every request in the
@@ -148,6 +173,20 @@ public class SecurityService {
     attachedTenantId.ifPresent(
         tenantId -> tenantMembershipCacheManager.evict(savedUser.getId(), tenantId));
     return savedUser;
+  }
+
+  /**
+   * See {@link #mapGroupsAttachTenantAndSave}: the tenants this login's group part must scope,
+   * computed before {@code user} is loaded (a projection, so it does not itself trigger {@code
+   * User.groups}'s eager load out of scope).
+   */
+  private Set<String> loginGroupScopeTenantIds(
+      String registrationId, String email, String groupsManagementObject) {
+    Set<String> tenantIds = new LinkedHashSet<>();
+    tenantIds.add(providerTenantId(registrationId));
+    tenantIds.addAll(userMappingService.configuredMappingTenantIds(groupsManagementObject));
+    tenantIds.addAll(userRepository.findTenantIdsByEmailIgnoreCase(email));
+    return tenantIds;
   }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {

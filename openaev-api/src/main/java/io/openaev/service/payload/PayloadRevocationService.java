@@ -39,7 +39,7 @@ public class PayloadRevocationService {
   @Transactional(rollbackFor = Exception.class)
   public void revoke(TxCtx ctx, String tenantId, String payloadId, String reason) {
     Payload payload = payloadService.payload(tenantId, payloadId);
-    if (payloadRevocationRepository.existsByTenantIdAndPayloadId(tenantId, payloadId)) {
+    if (isRevoked(tenantId, payloadId)) {
       throw new AlreadyExistingException(ALREADY_REVOKED);
     }
     payloadRevocationRepository.save(
@@ -52,6 +52,10 @@ public class PayloadRevocationService {
     return payloadRevocationRepository
         .findByTenantIdAndPayloadId(tenantId, payloadId)
         .orElseThrow(() -> new ElementNotFoundException(NOT_REVOKED));
+  }
+
+  public boolean isRevoked(String tenantId, String payloadId) {
+    return payloadRevocationRepository.existsByTenantIdAndPayloadId(tenantId, payloadId);
   }
 
   /** The revocations of these payload versions in the tenant, by payload id. */

@@ -23,7 +23,7 @@ import {
   fetchFindingsByCategory,
   fetchSimulationsMetaById,
 } from '../../../../../actions/attack-path/attack-path-actions';
-import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
+import { launchScenario } from '../../../../../actions/scenarios/scenario-actions';
 import EmptyPlaceholder from '../../../../../components/common/EmptyPlaceholder';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
@@ -44,6 +44,8 @@ import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingV
 import { download } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
+import useOpenLaunchedSimulation from '../../../scenarios/launch/useOpenLaunchedSimulation';
+import { SCENARIO_TYPE_CHAINED } from '../../../scenarios/scenario/ScenarioType';
 import attackPathStatusColor from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayFindingValue, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
@@ -220,6 +222,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const theme = useTheme();
   const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [rootRef, viewHeight] = useRemainingViewportHeight();
@@ -2667,16 +2670,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       return;
     }
     setLaunching(true);
-    createRunningExerciseFromScenario(scenarioId)
-      .then((res) => {
-        MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-        navigate(`${SIMULATION_BASE_URL}/${res.data.exercise_id}`);
+    launchScenario(scenarioId)
+      .then(({ simulation_id }) => {
+        openLaunchedSimulation(simulation_id, SCENARIO_TYPE_CHAINED);
       })
       .catch(() => {
         MESSAGING$.notifyError(t('Error while launching the simulation'));
         setLaunching(false);
       });
-  }, [scenarioId, navigate, t]);
+  }, [scenarioId, openLaunchedSimulation, t]);
 
   return (
     <Box
@@ -2732,6 +2734,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onToggleFullscreen={() => setFullscreen(f => !f)}
         onExportPng={graphHasContent ? requestPngExport : undefined}
         exportingPng={exportingPng}
+        graphSimulationId={simulationId ?? undefined}
         searchOptions={searchOptions}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}

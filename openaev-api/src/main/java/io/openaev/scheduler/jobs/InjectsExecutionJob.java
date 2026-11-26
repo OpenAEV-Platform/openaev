@@ -17,6 +17,7 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.executors.Executor;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
@@ -33,6 +34,7 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +45,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterators;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +85,7 @@ public class InjectsExecutionJob implements Job {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ScenarioRepository scenarioRepository;
   private final InjectStatusService injectStatusService;
-  private final io.openaev.executors.Executor executor;
+  private final Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final WorkflowService workflowService;
   private final TenantScopedJobRunner tenantScopedJobRunner;
@@ -155,8 +159,14 @@ public class InjectsExecutionJob implements Job {
     return startedExercises;
   }
 
+  /**
+   * Phase 1 only: DB prep up to the point the external path hands off to the publish, or the final
+   * status for an internal injector. The caller ({@link #executeInTenant}) commits this in its own
+   * short transaction and, for an external injector, runs the publish and its outcome trace
+   * afterwards, outside this transaction (see #6968).
+   */
   @VisibleForTesting
-  void executeInject(ExecutableInject executableInject) throws Exception {
+  Executor.ExecutionPhase1Result executeInject(ExecutableInject executableInject) throws Exception {
     // Depending on injector type (internal or external) execution must be done differently
     Inject inject = executableInject.getInjection().getInject();
     // We are now checking if we depend on another inject and if it did not failed
@@ -186,7 +196,7 @@ public class InjectsExecutionJob implements Job {
         buildEndpointResolutions(resolvedAssets.cleared());
     log.info("Executing inject {}", inject.getInject().getTitle());
     try {
-      this.executor.execute(executableInject);
+      return this.executor.executePhase1(executableInject);
     } finally {
       logTargetResolution(inject, executableInject, endpointResolutions);
     }
@@ -417,10 +427,14 @@ public class InjectsExecutionJob implements Job {
 
     // Classical inject execution only applies to non-chained simulations; chained ones are driven
     // by the workflow engine after the run is created.
+    // Published outside any transaction, so the connection pool no longer bounds the publishes in
+    // flight: the batch waits on this instead of overrunning the publisher pool.
+    Semaphore publishSlots = new Semaphore(Math.max(1, executor.maxConcurrentPublishes()));
     byExercises.entrySet().parallelStream()
         .forEach(
             entry -> {
-              entry.getValue().parallelStream().forEach(this::executeInTenant);
+              entry.getValue().parallelStream()
+                  .forEach(injectToRun -> executeInTenant(injectToRun, publishSlots));
 
               // Update the exercise once all injects of the batch are processed.
               if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
@@ -430,27 +444,32 @@ public class InjectsExecutionJob implements Job {
             });
   }
 
-  private void executeInTenant(InjectToRun injectToRun) {
+  private void executeInTenant(InjectToRun injectToRun, Semaphore publishSlots) {
     String injectId = injectToRun.injectId();
     String tenantId = injectToRun.tenantId();
+    Executor.ExecutionPhase1Result phase1;
     try {
-      tenantScopedJobRunner.runInTenant(
-          tenantId,
-          () -> {
-            try {
-              Optional<ExecutableInject> executableInject = injectHelper.executableInject(injectId);
-              if (executableInject.isPresent()) {
-                this.executeInject(executableInject.get());
-              }
-            } catch (Exception e) {
-              // Same transaction: the traces written before the failure and
-              // the ERROR status commit together.
-              Throwable cause =
-                  e instanceof RuntimeException && e.getCause() != null ? e.getCause() : e;
-              log.warn(cause.getMessage(), cause);
-              injectStatusService.persistErrorStatusInTransaction(injectId, cause.getMessage());
-            }
-          });
+      phase1 =
+          tenantScopedJobRunner.supplyInTenant(
+              tenantId,
+              () -> {
+                try {
+                  Optional<ExecutableInject> executableInject =
+                      injectHelper.executableInject(injectId);
+                  if (executableInject.isEmpty()) {
+                    return null;
+                  }
+                  return this.executeInject(executableInject.get());
+                } catch (Exception e) {
+                  // Same transaction: the traces written before the failure and
+                  // the ERROR status commit together.
+                  Throwable cause =
+                      e instanceof RuntimeException && e.getCause() != null ? e.getCause() : e;
+                  log.warn(cause.getMessage(), cause);
+                  injectStatusService.persistErrorStatusInTransaction(injectId, cause.getMessage());
+                  return null;
+                }
+              });
     } catch (RuntimeException e) {
       // The transaction could not commit (rollback-only, commit or
       // after-commit failure): persist the ERROR status in a fresh one.
@@ -459,6 +478,68 @@ public class InjectsExecutionJob implements Job {
       tenantScopedJobRunner.runInTenant(
           tenantId,
           () -> injectStatusService.persistErrorStatusInTransaction(injectId, cause.getMessage()));
+      return;
+    }
+
+    if (phase1 == null || !phase1.isPendingPublish()) {
+      return;
+    }
+    completeExternalPublish(tenantId, phase1.pending(), publishSlots);
+  }
+
+  /**
+   * Phase 2 (the publish, no transaction, connection released since phase 1 already committed) and
+   * phase 3 (a short transaction recording the outcome): see #6968. A failed publish writes an
+   * error trace and status in its own short transaction, never the "published and waiting" trace
+   * phase 1 never wrote.
+   *
+   * <p>Catches {@code Exception} broadly, not just {@code publish}'s declared {@link IOException}
+   * and {@link TimeoutException}: this runs on the shared batch's {@code parallelStream}, with no
+   * other catch above it, so an unexpected {@code RuntimeException} here must fail only this
+   * inject, the same safety net the single enclosing try/catch gave every failure before this split
+   * (see {@link #executeInTenant}).
+   *
+   * <p>Phase 3 is wrapped the same way, so a failure recording one outcome never aborts the batch.
+   */
+  private void completeExternalPublish(
+      String tenantId, Executor.ExternalPublish pending, Semaphore publishSlots) {
+    try {
+      publishSlots.acquireUninterruptibly();
+      try {
+        executor.publish(pending);
+      } finally {
+        publishSlots.release();
+      }
+    } catch (Exception e) {
+      log.warn(e.getMessage(), e);
+      recordPublishFailureBestEffort(tenantId, pending, e);
+      return;
+    }
+    try {
+      tenantScopedJobRunner.runInTenant(tenantId, () -> executor.recordPublishSuccess(pending));
+    } catch (Exception e) {
+      // Published: never record an ERROR for it.
+      log.warn(e.getMessage(), e);
+    }
+  }
+
+  /** Records a failed publish, falling back to a plain ERROR status if that write fails. */
+  private void recordPublishFailureBestEffort(
+      String tenantId, Executor.ExternalPublish pending, Exception cause) {
+    try {
+      tenantScopedJobRunner.runInTenant(
+          tenantId, () -> executor.recordPublishFailure(pending, cause));
+    } catch (Exception recordFailure) {
+      log.warn(recordFailure.getMessage(), recordFailure);
+      try {
+        tenantScopedJobRunner.runInTenant(
+            tenantId,
+            () ->
+                injectStatusService.persistErrorStatusInTransaction(
+                    pending.injectId(), Executor.failureMessage(cause)));
+      } catch (Exception fallbackFailure) {
+        log.warn(fallbackFailure.getMessage(), fallbackFailure);
+      }
     }
   }
 

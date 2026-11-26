@@ -4,6 +4,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.AssetSubCategory;
@@ -12,6 +13,7 @@ import io.openaev.database.model.Endpoint;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,6 +42,10 @@ public class EndpointOutput {
   @Schema(description = "Asset external reference")
   @JsonProperty("asset_external_reference")
   private String externalReference;
+
+  @Schema(description = "Hostname, the key the XTM counterpart lookup matches on")
+  @JsonProperty("asset_hostname")
+  private String hostname;
 
   @Schema(description = "List of agents")
   @JsonProperty("asset_agents")
@@ -98,6 +104,17 @@ public class EndpointOutput {
   @Schema(description = "Cloud region")
   @JsonProperty("asset_cloud_region")
   private String cloudRegion;
+
+  @Schema(
+      description =
+          "Activity status: STALE when unseen past the tenant threshold, else derived from agents"
+              + " (ACTIVE / INACTIVE / AGENTLESS)")
+  @JsonProperty("asset_status")
+  private Asset.ASSET_ACTIVITY_STATUS status;
+
+  @Schema(description = "Last time a source observed the asset")
+  @JsonProperty("asset_last_seen")
+  private Instant lastSeen;
 
   @Schema(description = "Linked person (user id) for identity assets")
   @JsonProperty("asset_linked_person")

@@ -11,6 +11,7 @@ import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.asset.AssetDiscoveryMarker;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,8 +34,12 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
   private static final String END_OF_LIFE = "end_of_life";
   private final EndpointService endpointService;
   private final TagService tagService;
+  private final AssetDiscoveryMarker assetDiscoveryMarker;
 
-  public AssetOutputProcessor(EndpointService endpointService, TagService tagService) {
+  public AssetOutputProcessor(
+      EndpointService endpointService,
+      TagService tagService,
+      AssetDiscoveryMarker assetDiscoveryMarker) {
     super(
         ContractOutputType.Asset,
         ContractOutputTechnicalType.Object,
@@ -48,6 +53,7 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
                 EXTENDED_ATTRIBUTES, ContractOutputTechnicalType.Object, true)));
     this.endpointService = endpointService;
     this.tagService = tagService;
+    this.assetDiscoveryMarker = assetDiscoveryMarker;
   }
 
   @Override
@@ -105,6 +111,8 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
       log.info("Endpoint already exists: {} (id={})", input.getName(), existing.get().getId());
       return;
     }
+    // An endpoint an inject output brings in is a discovery: tagged when the tenant opted in.
+    assetDiscoveryMarker.markDiscovered(input, tenantId);
     Endpoint created = endpointService.createEndpoint(input, tenantId);
     log.info("Created endpoint: {} (id={})", input.getName(), created.getId());
   }

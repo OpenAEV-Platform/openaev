@@ -14,6 +14,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.TeamService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -35,6 +36,7 @@ public class SimulationInjectService {
   private final InjectRepository injectRepository;
   private final CommunicationRepository communicationRepository;
   private final TeamRepository teamRepository;
+  private final TeamService teamService;
 
   // -- READ --
 
@@ -51,9 +53,7 @@ public class SimulationInjectService {
 
   /**
    * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
-   * simulation, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
-   * String)} does, rather than through {@code findByIdAndExerciseId}, which runs under Inject's
-   * still-active v1 filter keyed on the ambient tenant.
+   * simulation, or answers not found.
    */
   @Transactional(readOnly = true)
   public void requireInjectInSimulation(
@@ -67,11 +67,17 @@ public class SimulationInjectService {
     }
   }
 
-  /** Returns the teams assigned to an inject that belongs to the given simulation. */
+  /**
+   * Returns the teams assigned to an inject that belongs to the given simulation, with the
+   * collections their raw response serializes initialized, see {@link
+   * TeamService#withResponseCollections}.
+   */
   @Transactional(readOnly = true)
   public List<Team> findInjectTeamsForSimulation(
       @NotBlank final String simulationId, @NotBlank final String injectId) {
-    return findInjectForSimulation(simulationId, injectId).getTeams();
+    List<Team> teams = findInjectForSimulation(simulationId, injectId).getTeams();
+    teams.forEach(teamService::withResponseCollections);
+    return teams;
   }
 
   /**
@@ -138,23 +144,9 @@ public class SimulationInjectService {
       @NotNull final TxCtx ctx,
       @NotBlank final String simulationId,
       @NotBlank final String injectId) {
-    deleteInject(ctx, simulationId, injectId, false);
-  }
-
-  /**
-   * Deletes an inject that belongs to the given simulation.
-   *
-   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
-   *     deletes them with the inject
-   */
-  public void deleteInject(
-      @NotNull final TxCtx ctx,
-      @NotBlank final String simulationId,
-      @NotBlank final String injectId,
-      final boolean keepFindings) {
     checkInjectForSimulation(simulationId, injectId);
     Exercise exercise = this.exerciseService.exercise(ctx, simulationId);
-    injectService.delete(injectId, keepFindings);
+    injectService.delete(injectId);
     this.exerciseService.updateExercise(exercise);
   }
 

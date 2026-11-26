@@ -362,6 +362,8 @@ class InjectsFinalizationJobTest extends IntegrationTest {
             () -> {
               InjectStatus savedStatus = reload(injectId);
               assertEquals(ExecutionStatus.ERROR, savedStatus.getName());
+              // Launched with no expected count: the timed-out agent is counted on close
+              assertEquals(1, savedStatus.getExpectedAgentCount());
               assertTrue(
                   savedStatus.getTraces().stream()
                       .anyMatch(

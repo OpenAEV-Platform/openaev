@@ -7,10 +7,10 @@ import {
   useAuthorFacetFilter,
 } from '../../../../components/common/facets/ContractFacets';
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
+import { FACET_PLATFORMS, platformFacetIcon } from '../../../../components/common/facets/facetPlatforms';
 import useFacetFilterToggle from '../../../../components/common/facets/useFacetFilterToggle';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../../utils/api-types';
 import { type IconBarElement } from '../../common/domains/IconBar-model';
 import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
@@ -18,23 +18,17 @@ import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
 const AUTHOR_FILTER_KEY = 'action_author';
-const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
-  /** Domain facet rows (with live counts + icons), already ordered. */
   domainElements: IconBarElement[];
-  /** Distinct authors present in the loaded page (id + label + type). */
   authorOptions: AuthorOption[];
-  /** Platform + status counts under the current filters (null until loaded). */
+  // Null until loaded: rows show no count badge meanwhile.
   facetCounts: ThreatArsenalFacetCounts | null;
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
 }
 
-// The Threat Arsenal "basket": a sticky faceted sidebar (mirrors the
-// integrations marketplace CatalogSidebar) whose rows toggle REAL backend
-// filters through `filterHelpers`. The generic "Add filter" bar still handles
-// every other property (injectors, tags, dates...).
+// Each row toggles a search filter; the "Add filter" bar handles the other properties.
 const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, searchPaginationInput, filterHelpers }: Props) => {
   const { t } = useFormatter();
 
@@ -63,13 +57,11 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       onToggle: element.function,
     }));
 
-    // Counts stay undefined (no badge, row clickable) until the aggregation
-    // endpoint answers; afterwards zero-count rows grey out like the domain facet.
-    const platformRows: FacetRow[] = PLATFORMS.map(platform => ({
+    const platformRows: FacetRow[] = FACET_PLATFORMS.map(platform => ({
       value: platform,
       label: t(platform),
       count: facetCounts ? facetCounts.platforms[platform] ?? 0 : undefined,
-      icon: () => <PlatformIcon platform={platform} width={16} />,
+      icon: () => platformFacetIcon(platform),
       checked: platformValues.includes(platform),
       onToggle: () => toggle(PLATFORM_FILTER_KEY, platform),
     }));
