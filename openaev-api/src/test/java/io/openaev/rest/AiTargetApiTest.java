@@ -13,18 +13,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.CredentialSecretReference;
+import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
+import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_TYPE;
+import io.openaev.database.model.SecretReference;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AiTargetRepository;
+import io.openaev.database.repository.SecretReferenceRepository;
 import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
+import io.openaev.utils.fixtures.CredentialSecretReferenceFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -34,6 +43,7 @@ class AiTargetApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private AiTargetRepository aiTargetRepository;
+  @Autowired private SecretReferenceRepository secretReferenceRepository;
   @Autowired private EntityManager entityManager;
 
   private AiTargetInput input(String name) {
@@ -176,5 +186,62 @@ class AiTargetApiTest extends IntegrationTest {
             .getContentAsString();
 
     assertEquals(1, new JSONArray(response).length());
+  }
+
+  @Nested
+  @DisplayName("AI target credential")
+  class AiTargetCredential {
+
+    private String saveCredential(CREDENTIAL_TYPE type, CREDENTIAL_AUTH_METHOD authMethod) {
+      CredentialSecretReference credential =
+          CredentialSecretReferenceFixture.getCredentialSecretReference(type, authMethod);
+      credential.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
+      return secretReferenceRepository.save(credential).getId();
+    }
+
+    private ResultActions create(String credentialId) throws Exception {
+      AiTargetInput input = input("Target-With-Credential");
+      input.setAiTargetCredentialId(credentialId);
+      return mvc.perform(
+          post(AI_TARGET_URI)
+              .content(asJsonString(input))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given an API token credential, should link it to the AI target")
+    void given_apiTokenCredential_should_linkIt() throws Exception {
+      // Arrange
+      String credentialId = saveCredential(CREDENTIAL_TYPE.API, CREDENTIAL_AUTH_METHOD.API_TOKEN);
+
+      // Act & Assert
+      create(credentialId)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.ai_target_credential").value(credentialId));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given a credential that is not an API token, should refuse with 400")
+    void given_otherAuthMethodCredential_should_badRequest() throws Exception {
+      // Arrange
+      String credentialId =
+          saveCredential(CREDENTIAL_TYPE.IDENTITY, CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);
+
+      // Act & Assert
+      create(credentialId).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given an unknown credential, should answer 404")
+    void given_unknownCredential_should_notFound() throws Exception {
+      // Act & Assert
+      create("unknown-credential").andExpect(status().isNotFound());
+    }
   }
 }
