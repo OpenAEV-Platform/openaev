@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,49 @@ public class XtmOneClient {
         .compact();
   }
 
+  /** A token exchange sits on a page view: an unreachable XTM One is given up fast. */
+  private static final Timeout EXCHANGE_TIMEOUT = Timeout.ofSeconds(5);
+
+  /**
+   * A JWT XTM One signs for the current user, addressed to another platform registered in XTM One
+   * ({@code POST /xtm/auth/exchange}, XTM One #952): OpenAEV proves the user with its own per-user
+   * JWT addressed to XTM One, XTM One answers a token whose subject is that user's XTM One account.
+   * Empty when XTM One is not configured, refuses (an older XTM One without the route included) or
+   * cannot be reached, so the caller keeps its behaviour without it. Never logged.
+   */
+  public Optional<String> exchangeUserToken(String audience) {
+    if (!config.isConfigured() || audience == null || audience.isBlank()) {
+      return Optional.empty();
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(EXCHANGE_TIMEOUT)) {
+      HttpPost post = new HttpPost(config.getUrl() + "/xtm/auth/exchange");
+      post.addHeader("Authorization", "Bearer " + issueJwtForCurrentUser());
+      post.addHeader("Accept", "application/json");
+      post.setEntity(
+          new StringEntity(
+              objectMapper.writeValueAsString(Map.of("audience", audience)),
+              ContentType.APPLICATION_JSON));
+      return httpClient.execute(
+          post,
+          response -> {
+            if (response.getCode() != 200 || response.getEntity() == null) {
+              return Optional.<String>empty();
+            }
+            JsonNode token =
+                objectMapper
+                    .readTree(EntityUtils.toString(response.getEntity()))
+                    .path("access_token");
+            return token.isTextual() && !token.asText().isBlank()
+                ? Optional.of(token.asText())
+                : Optional.<String>empty();
+          });
+    } catch (Exception e) {
+      // Never log the request: its headers carry the user's token.
+      log.debug("[XTM One] User token exchange failed: {}", e.getClass().getSimpleName());
+      return Optional.empty();
+    }
+  }
+
   String issueJwtForCurrentUser() {
     User user = userService.currentUser();
     return issueAuthenticationJwt(
@@ -140,7 +184,8 @@ public class XtmOneClient {
       String enterpriseLicensePem,
       String licenseType,
       String businessVertical,
-      List<Map<String, String>> intents) {
+      List<Map<String, String>> intents,
+      Map<String, Object> health) {
     if (!config.isConfigured()) {
       return null;
     }
@@ -158,6 +203,9 @@ public class XtmOneClient {
       // integration can be gated at all, that one says a given client will answer a prompt.
       body.put("supports_approval_prompts", true);
       body.put("intents", intents != null ? intents : List.of());
+      // Platform Health snapshot (XtmOneHealthSnapshot): optional, XTM One ignores what it cannot
+      // read, so an older XTM One simply drops the key.
+      if (health != null) body.put("health", health);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = new HttpPost(config.getUrl() + "/api/v1/platform/register");

@@ -44,6 +44,8 @@ public class SecretStoreRequestFixture {
   public static final String AZURE_OTHER_TENANT_ID = "55555555-5555-5555-5555-555555555555";
   public static final String AZURE_SUBSCRIPTION_ID = "44444444-4444-4444-4444-444444444444";
   public static final String AZURE_AUTHORITY_HOST_URI = "https://localhost:4577";
+  public static final String AZURE_SCOPE = "https://management.sovereign.example/.default";
+  public static final String AZURE_OTHER_SCOPE = "https://management.other.example/.default";
   public static final String AZURE_OTHER_AUTHORITY_HOST_URI = "https://login.sovereign.example";
   public static final String AZURE_REQUESTS_CERTIFICATE =
       "-----BEGIN CERTIFICATE-----\nMIIBEXAMPLECERTIFICATE\n-----END CERTIFICATE-----\n";
@@ -228,6 +230,7 @@ public class SecretStoreRequestFixture {
   public static SecretStoreRequest azureServicePrincipalRequestWithOverrides() {
     return azureServicePrincipalRequest().toBuilder()
         .azureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI)
+        .azureScope(AZURE_SCOPE)
         .azureRequestsCertificate(azureRequestsCertificateBytes())
         .build();
   }
@@ -257,6 +260,7 @@ public class SecretStoreRequestFixture {
   public static SecretStoreRequest azureManagedIdentityRequestWithOverrides() {
     return azureUserAssignedManagedIdentityRequest().toBuilder()
         .azureAuthorityHostUri(AZURE_AUTHORITY_HOST_URI)
+        .azureScope(AZURE_SCOPE)
         .azureRequestsCertificate(azureRequestsCertificateBytes())
         .build();
   }

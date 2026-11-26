@@ -53,8 +53,10 @@ Follow `Group.java` (tenant-scoped) or `Tenant.java` (platform-level):
 Location: `openaev-model/src/main/java/io/openaev/database/repository/`
 
 ```java
-public interface {Entity}Repository extends JpaRepository<{Entity}, String>,
-    JpaSpecificationExecutor<{Entity}> {}
+public interface {Entity}Repository extends Repository<{Entity}, String>,
+    JpaSpecificationExecutor<{Entity}> {
+  // declare only the methods the feature uses, tenant first
+}
 ```
 
 ### Step 3 — Add ResourceType + Capabilities

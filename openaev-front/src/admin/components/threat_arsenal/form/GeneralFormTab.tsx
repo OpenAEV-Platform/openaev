@@ -9,6 +9,7 @@ import { useHelper } from '../../../../store';
 import type { Domain } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { ExpectationType, expectationTypeLabelKey, TECHNICAL_EXPECTATION_TYPES } from '../../common/injects/expectations/Expectation';
+import LockedFields from '../customization/LockedFields';
 import ExpectationSecurityPlatformsField from './ExpectationSecurityPlatformsField';
 
 const GeneralFormTab = () => {
@@ -28,24 +29,28 @@ const GeneralFormTab = () => {
 
   return (
     <>
-      <TextFieldController name="action_name" label={t('Name')} required />
-      <TextFieldController name="action_description" label={t('Description')} multiline={true} rows={3} />
-      <AttackPatternFieldController name="action_attack_patterns" label={t('Attack patterns')} />
+      <LockedFields>
+        <TextFieldController name="action_name" label={t('Name')} required />
+        <TextFieldController name="action_description" label={t('Description')} multiline={true} rows={3} />
+        <AttackPatternFieldController name="action_attack_patterns" label={t('Attack patterns')} />
+      </LockedFields>
       <TagFieldController name="action_tags" label={t('Tags')} />
-      <DomainFieldController
-        name="action_domains"
-        label={t('Domains')}
-        domains={domainOptions}
-        required
-      />
-      <SelectFieldController
-        name="action_expectations"
-        label={t('Expectations')}
-        items={expectationsItems}
-        required={true}
-        multiple={true}
-      />
-      <ExpectationSecurityPlatformsField />
+      <LockedFields>
+        <DomainFieldController
+          name="action_domains"
+          label={t('Domains')}
+          domains={domainOptions}
+          required
+        />
+        <SelectFieldController
+          name="action_expectations"
+          label={t('Expectations')}
+          items={expectationsItems}
+          required={true}
+          multiple={true}
+        />
+        <ExpectationSecurityPlatformsField />
+      </LockedFields>
     </>
   );
 };

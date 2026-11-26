@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
+@TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,EXPLORATION_GRAPH")
 @DisplayName("Exploration graph: tenant isolation and access gate through the real HTTP endpoints")
 class GraphExplorationApiIsolationTest extends IntegrationTest {
 
@@ -158,7 +160,7 @@ class GraphExplorationApiIsolationTest extends IntegrationTest {
             .persist()
             .get();
     mvc.perform(
-            get(GraphExplorationApi.GRAPH_URI + "/hot-paths")
+            get(HOT_PATHS, tenantA)
                 .with(authentication(buildAuthenticationToken(plain)))
                 .with(csrf()))
         .andExpect(status().isForbidden());

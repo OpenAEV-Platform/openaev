@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.StepMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
@@ -64,7 +63,7 @@ public class StepApi {
     Workflow workflow =
         workflowService.getWorkflowByIdAndStatus(input.getWorkflowId(), WorkflowStatus.TEMPLATE);
 
-    return toOutput(stepService.createStepTemplate(workflow, createInput));
+    return stepService.toReaderOutput(stepService.createStepTemplate(workflow, createInput));
   }
 
   // -- READ --
@@ -82,7 +81,7 @@ public class StepApi {
       isEnterpriseEdition = true)
   @GetMapping("/{stepId}")
   public StepOutput findById(TxCtx ctx, @PathVariable String stepId) {
-    return toOutput(stepService.findStepTemplateById(stepId));
+    return stepService.toReaderOutput(stepService.findStepTemplateById(stepId));
   }
 
   @Operation(summary = "List step templates by workflow")
@@ -96,9 +95,7 @@ public class StepApi {
   @GetMapping(params = "workflow_id")
   public List<StepOutput> findByWorkflowId(
       TxCtx ctx, @RequestParam("workflow_id") String workflowId) {
-    return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
-        .map(StepMapper::toOutput)
-        .toList();
+    return stepService.toReaderOutputs(stepService.findAllStepTemplateByWorkflow(workflowId));
   }
 
   // -- UPDATE --
@@ -119,7 +116,7 @@ public class StepApi {
   public StepOutput updateStep(
       TxCtx ctx, @PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
-    return toOutput(stepService.updateStepTemplate(stepId, input));
+    return stepService.toReaderOutput(stepService.updateStepTemplate(stepId, input));
   }
 
   // -- DELETE --

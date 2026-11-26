@@ -58,6 +58,10 @@ public class AzureManagedIdentityHandler implements SecretHandler {
           SecretHandler.blankToNull(request.azureAuthorityHostUri()));
     }
 
+    if (request.azureScope() != null) {
+      azureSecret.setAzureScope(SecretHandler.blankToNull(request.azureScope()));
+    }
+
     // Absent file part = left untouched, like the GCP service account key file.
     if (request.azureRequestsCertificate() != null) {
       azureSecret.setAzureRequestsCertificate(
@@ -79,6 +83,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
           azureManagedIdentitySecret.getAzureClientId(),
           azureManagedIdentitySecret.getAzureSubscriptionId(),
           azureManagedIdentitySecret.getAzureAuthorityHostUri(),
+          azureManagedIdentitySecret.getAzureScope(),
           azureManagedIdentitySecret.getAzureRequestsCertificate() != null);
     }
     throw new IllegalArgumentException(
@@ -98,6 +103,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
           azureManagedIdentitySecret.getAzureClientId(),
           azureManagedIdentitySecret.getAzureSubscriptionId(),
           azureManagedIdentitySecret.getAzureAuthorityHostUri(),
+          azureManagedIdentitySecret.getAzureScope(),
           requestsCertificate);
     }
     throw new IllegalArgumentException(
@@ -119,6 +125,8 @@ public class AzureManagedIdentityHandler implements SecretHandler {
     return azureCredentialConnectivityCheck.validateManagedIdentity(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri(),
+        azureSecret.getAzureScope());
   }
 }

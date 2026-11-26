@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE;
 import io.openaev.database.model.Grant.GRANT_TYPE;
@@ -24,9 +26,25 @@ public class GrantService {
   private final ScenarioRepository scenarioRepository;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final TenantScopedTransaction tenantTx;
 
   public boolean hasReadGrant(@NotBlank final String resourceId, @NotNull final User user) {
     return hasGrant(resourceId, user, GRANT_TYPE.OBSERVER);
+  }
+
+  /**
+   * Same check as {@link #hasReadGrant(String, User)}, resolved in an explicit tenant instead of
+   * the user's scoped one: for a route that carries no tenant of its own (the player routes), where
+   * the scoped tenant falls back to the default one, the grant has to be read in the tenant of the
+   * resource.
+   *
+   * @param tenantId the tenant whose groups, next to platform groups, count for the grant
+   */
+  public boolean hasReadGrantInTenant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      @NotBlank final String tenantId) {
+    return hasGrant(resourceId, user, tenantId, GRANT_TYPE.OBSERVER);
   }
 
   public boolean hasWriteGrant(@NotBlank final String resourceId, @NotNull final User user) {
@@ -50,12 +68,31 @@ public class GrantService {
         user.getId(), GRANT_TYPE.OBSERVER.andHigher());
   }
 
+  /**
+   * Whether {@code user} holds {@code grantType} or higher on {@code resourceId}, through a group
+   * that counts in {@link User#scopedTenantId()}: that tenant's own group, or a platform group.
+   * Read with the transaction narrowed to that one tenant for the query alone, so a grant held
+   * through a group of the ambient tenant is visible even when the request's own scope is another
+   * tenant (the plain route's {@code X-Tenant-Ids} naming a tenant other than the ambient one): the
+   * query's own tenant parameter and the scope it runs under then always agree. Outside a
+   * transaction there is no scope to narrow; every caller of this method runs inside one.
+   */
   private boolean hasGrant(
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
+    String tenantId = user.scopedTenantId();
+    return tenantTx.executeOnCurrentTransaction(
+        TxCtx.forTenant(tenantId), () -> hasGrant(resourceId, user, tenantId, grantType));
+  }
+
+  private boolean hasGrant(
+      @NotBlank final String resourceId,
+      @NotNull final User user,
+      final String tenantId,
+      @NotNull final GRANT_TYPE grantType) {
     return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
-        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
+        user.getId(), tenantId, resourceId, grantType.andHigher());
   }
 
   /**

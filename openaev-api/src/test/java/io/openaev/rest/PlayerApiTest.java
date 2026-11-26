@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
+import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
@@ -61,6 +62,14 @@ class PlayerApiTest extends IntegrationTest {
 
   @Autowired private EntityManager entityManager;
 
+  /**
+   * The player lessons routes under the simulation's tenant, the shape every player link carries.
+   * The fixtures stamp the ambient tenant on the simulation, the default one here. The non-prefixed
+   * route names no tenant, so an anonymous caller reads no simulation there.
+   */
+  private static final String PLAYER_LESSONS_URI =
+      TENANT_BASE_PATH + Tenant.DEFAULT_TENANT_UUID + "/player/lessons/exercise/{0}";
+
   @Nested
   @DisplayName("Player Lessons API")
   class PlayerLessonsApi {
@@ -114,7 +123,7 @@ class PlayerApiTest extends IntegrationTest {
     @Nested
     @DisplayName("Lessons Questions API")
     class LessonsQuestionsApi {
-      private final String urlMask = "/api/player/lessons/exercise/{0}/lessons_questions";
+      private final String urlMask = PLAYER_LESSONS_URI + "/lessons_questions";
 
       private String getUrl(String simulationId) {
         return MessageFormat.format(urlMask, simulationId);
@@ -256,7 +265,7 @@ class PlayerApiTest extends IntegrationTest {
     @Nested
     @DisplayName("Lessons Answers API")
     class LessonsAnswersApi {
-      private final String getAnswersUrlMask = "/api/player/lessons/exercise/{0}/lessons_answers";
+      private final String getAnswersUrlMask = PLAYER_LESSONS_URI + "/lessons_answers";
 
       private String getAnswersUrl(String simulationId) {
         return MessageFormat.format(getAnswersUrlMask, simulationId);
@@ -268,7 +277,7 @@ class PlayerApiTest extends IntegrationTest {
       }
 
       private final String postAnswersUrlMask =
-          "/api/player/lessons/exercise/{0}/lessons_categories/{1}/lessons_questions/{2}/lessons_answers";
+          PLAYER_LESSONS_URI + "/lessons_categories/{1}/lessons_questions/{2}/lessons_answers";
 
       private String postAnswersUrl(String simulationId, String categoryId, String questionId) {
         return MessageFormat.format(postAnswersUrlMask, simulationId, categoryId, questionId);

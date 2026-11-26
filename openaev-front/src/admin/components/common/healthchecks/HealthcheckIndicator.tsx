@@ -3,18 +3,16 @@ import { ErrorOutlineOutlined, WarningAmberOutlined } from '@mui/icons-material'
 import { alpha, Box, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
+import HealthcheckFixButton from './HealthcheckFixButton';
 
 interface Props {
   healthchecks: HealthCheck[];
   scenarioId?: string;
   exerciseId?: string;
 }
-
-const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
 
 /**
  * Discrete, hero-friendly replacement for the bulky Healthchecks accordion:
@@ -24,7 +22,6 @@ const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
  */
 const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenarioId, exerciseId }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
   const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -36,37 +33,6 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
   const Icon = hasError ? ErrorOutlineOutlined : WarningAmberOutlined;
 
   const ordered = [...healthchecks].sort((a, b) => (a.status === 'ERROR' && b.status !== 'ERROR' ? -1 : 1));
-
-  const goToHealthcheckAction = (healthcheckType: string) => {
-    setAnchorEl(null);
-    switch (healthcheckType) {
-      case 'SMTP':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/deployment/configuration/?h=smtp#mail-services`);
-        break;
-      case 'IMAP':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/deployment/configuration/?h=smtp#imap`);
-        break;
-      case 'AGENT_OR_EXECUTOR':
-        navigate('/admin/agents');
-        break;
-      case 'SECURITY_SYSTEM_COLLECTOR':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/usage/collectors/?h=collector`);
-        break;
-      case 'INJECT':
-      case 'PAYLOAD':
-      case 'TEAMS':
-        navigate(exerciseId ? `/admin/simulations/${exerciseId}/injects` : `/admin/scenarios/${scenarioId}/injects`);
-        break;
-      case 'NMAP':
-      case 'NUCLEI':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/usage/injectors`);
-        break;
-      case 'SCOPE_DEFINITION':
-        navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);
-        break;
-      default:
-    }
-  };
 
   return (
     <>
@@ -159,9 +125,16 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
                     {t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
                   </Typography>
                 </Box>
-                <Button type="button" priority="tertiary" size="sm" onClick={() => goToHealthcheckAction(healthcheck.type!)} style={{ flexShrink: 0 }}>
-                  {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
-                </Button>
+                <HealthcheckFixButton
+                  healthcheck={healthcheck}
+                  owner={{
+                    scenarioId,
+                    exerciseId,
+                  }}
+                  priority="tertiary"
+                  onClick={() => setAnchorEl(null)}
+                  style={{ flexShrink: 0 }}
+                />
               </Box>
             );
           })}

@@ -68,7 +68,6 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @AfterEach
   void after() {
-    entityManager.unwrap(org.hibernate.Session.class).disableFilter("tenantFilter");
     entityManager.clear();
     // The rows of a test can sit in any tenant (one test spreads them over two), and the test runs
     // outside a transaction: clean up in a scope that names every tenant.

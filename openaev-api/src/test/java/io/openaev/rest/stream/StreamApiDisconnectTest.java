@@ -1,8 +1,10 @@
 package io.openaev.rest.stream;
 
+import static io.openaev.rest.stream.StreamApi.STREAM_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.StreamService;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -34,7 +36,6 @@ import reactor.core.publisher.FluxSink;
 @DisplayName("Stream consumer cleanup")
 class StreamApiDisconnectTest extends IntegrationTest {
 
-  private static final String STREAM_URI = "/api/stream";
   private static final Duration CLEANUP_TIMEOUT = Duration.ofSeconds(10);
 
   @Autowired private StreamService streamService;
@@ -70,7 +71,9 @@ class StreamApiDisconnectTest extends IntegrationTest {
       // Arrange
       String sessionId = "cancel-" + System.nanoTime();
       Disposable subscription =
-          Flux.merge(streamService.makeDataFlux(sessionId), streamService.makePingFlux())
+          Flux.merge(
+                  streamService.makeDataFlux(sessionId, Tenant.DEFAULT_TENANT_UUID),
+                  streamService.makePingFlux())
               .subscribe();
       assertThat(consumers()).containsKey(sessionId);
 
@@ -87,7 +90,7 @@ class StreamApiDisconnectTest extends IntegrationTest {
     void given_completedDataStream_should_removeConsumer() {
       // Arrange
       String sessionId = "complete-" + System.nanoTime();
-      streamService.makeDataFlux(sessionId).subscribe();
+      streamService.makeDataFlux(sessionId, Tenant.DEFAULT_TENANT_UUID).subscribe();
       FluxSink<Object> sink =
           (FluxSink<Object>)
               ReflectionTestUtils.invokeMethod(consumers().get(sessionId), "fluxSink");
@@ -104,9 +107,11 @@ class StreamApiDisconnectTest extends IntegrationTest {
     void given_reconnectOnSameSession_should_keepNewerConsumer() {
       // Arrange
       String sessionId = "reconnect-" + System.nanoTime();
-      Disposable oldStream = streamService.makeDataFlux(sessionId).subscribe();
+      Disposable oldStream =
+          streamService.makeDataFlux(sessionId, Tenant.DEFAULT_TENANT_UUID).subscribe();
       Object oldConsumer = consumers().get(sessionId);
-      Disposable newStream = streamService.makeDataFlux(sessionId).subscribe();
+      Disposable newStream =
+          streamService.makeDataFlux(sessionId, Tenant.DEFAULT_TENANT_UUID).subscribe();
       Object newConsumer = consumers().get(sessionId);
       assertThat(newConsumer).isNotSameAs(oldConsumer);
 

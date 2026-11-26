@@ -23,18 +23,20 @@ public interface InjectStatusRepository
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
   /**
-   * The execution status name of many injects at once, as {@code (injectId, statusName)} pairs. The
-   * attack-path graph read ships every execution's "did it actually run" status, so resolving it
-   * per row would be one query per visible execution. Injects with no status row yet simply do not
-   * appear.
+   * The execution status name of many injects at once, with the number of agents each was
+   * dispatched to (to show the reader's status). The attack-path graph read ships every execution's
+   * "did it actually run" status, so resolving it per row would be one query per visible execution.
+   * Injects with no status row yet simply do not appear.
    *
    * @param injectIds the injects whose status name is wanted
-   * @return one row per inject that has a status: {@code [injectId, statusName]}
+   * @return one row per inject that has a status: {@code [injectId, statusName, expectedAgentCount
+   *     or null]}
    */
   @Query(
-      "SELECT istatus.inject.id, istatus.name FROM InjectStatus istatus"
+      "SELECT istatus.inject.id, istatus.name, istatus.expectedAgentCount FROM InjectStatus istatus"
           + " WHERE istatus.inject.id IN :injectIds AND istatus.name IS NOT NULL")
-  List<Object[]> findStatusNamesByInjectIds(@Param("injectIds") Collection<String> injectIds);
+  List<Object[]> findStatusNamesAndExpectedAgentCountsByInjectIds(
+      @Param("injectIds") Collection<String> injectIds);
 
   @Modifying(clearAutomatically = true)
   @Query("delete from InjectStatus i where i.id in :ids")

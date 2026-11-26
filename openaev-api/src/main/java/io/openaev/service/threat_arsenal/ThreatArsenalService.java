@@ -392,7 +392,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }
@@ -430,7 +431,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }
@@ -606,8 +608,7 @@ public class ThreatArsenalService {
       return false;
     }
     // Collector-sourced payloads can only be deleted once deprecated.
-    boolean fromCollector = payload.getCollectorType() != null;
-    return !fromCollector || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
+    return !payload.isFromCollector() || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
   }
 
   /** Same eligibility rule as above, decided from a search output instead of the entity. */

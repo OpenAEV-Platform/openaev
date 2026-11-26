@@ -15,8 +15,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -64,8 +63,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -77,10 +74,12 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>The simulation lives in a tenant of its own. Each call is sent on the non-prefixed route, from
  * the request thread's empty ambient tenant, by a caller who is a member of another tenant only, by
- * one with no membership at all, and by a member of the simulation's tenant: the step receives its
- * event in every case, stamped with the simulation's tenant. The inject execution callback is the
- * exception: it loads the inject in the request's scope first, so a caller whose scope does not
- * cover the simulation's tenant is answered not found and nothing is published.
+ * one with no membership at all, and by a member of the simulation's tenant. The member of the
+ * simulation's tenant notifies the step, stamped with the simulation's tenant.
+ *
+ * <p>The other two callers are refused: the inject execution callback and the expectation update
+ * both resolve their inject in the request's tenant scope before they report anything, so a caller
+ * whose scope lacks the simulation's tenant is answered not found and no step is notified.
  *
  * <p>The caller with no membership is the narrowest of the three, not an unscoped one: an empty set
  * of authorized tenants resolves to the missing scope ({@link
@@ -99,13 +98,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = true)
 @TestInstance(PER_CLASS)
 @DisplayName("A chained inject update notifies its step in the simulation's tenant")
-class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class WorkflowUpdateEventOutOfScopeCallersTest extends ProductionTablesIntegrationTest {
 
   private record Seeded(String injectId, String expectationId, String stepId) {}
 
@@ -169,8 +162,8 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
   class ExpectationUpdate {
 
     @Test
-    @DisplayName("given a scope without its tenant should notify the step in that tenant")
-    void given_anExpectationUpdateFromAScopeWithoutItsTenant_should_notifyTheStep()
+    @DisplayName("given a scope without its tenant should refuse the update and notify no step")
+    void given_anExpectationUpdateFromAScopeWithoutItsTenant_should_refuseItAndNotifyNoStep()
         throws Exception {
       // Arrange
       joinAnotherTenantOnly();
@@ -180,12 +173,13 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
       int httpStatus = updateExpectation(seeded.expectationId());
 
       // Assert
-      assertStepNotifiedInItsTenant(httpStatus, seeded);
+      assertRefusedWithNothingPublished(httpStatus);
     }
 
     @Test
-    @DisplayName("given no tenant membership should notify the step in that tenant")
-    void given_anExpectationUpdateWithNoTenantMembership_should_notifyTheStep() throws Exception {
+    @DisplayName("given no tenant membership should refuse the update and notify no step")
+    void given_anExpectationUpdateWithNoTenantMembership_should_refuseItAndNotifyNoStep()
+        throws Exception {
       // Arrange
       Seeded seeded = seedChainedInject();
 
@@ -193,7 +187,7 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
       int httpStatus = updateExpectation(seeded.expectationId());
 
       // Assert
-      assertStepNotifiedInItsTenant(httpStatus, seeded);
+      assertRefusedWithNothingPublished(httpStatus);
     }
 
     @Test
@@ -325,6 +319,11 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
         .containsExactly(tuple(seeded.stepId(), ownerTenantId));
   }
 
+  /**
+   * The endpoint resolves the inject in the request's tenant scope before it reports anything, so a
+   * caller whose scope lacks the simulation's tenant is answered not found and nothing is published
+   * to the chaining queue.
+   */
   private void assertRefusedWithNothingPublished(int httpStatus) throws IOException {
     assertThat(httpStatus).isEqualTo(404);
     verify(updateQueue, never()).publish(any());

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -18,6 +19,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -38,10 +40,22 @@ class GrantServiceTest {
   @Mock private ScenarioRepository scenarioRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private InjectorContractRepository injectorContractRepository;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private GrantService grantService;
 
   @Captor private ArgumentCaptor<Grant> grantCaptor;
+
+  @BeforeEach
+  void runScopedWorkDirectly() {
+    lenient()
+        .when(tenantTx.executeOnCurrentTransaction(any(), any()))
+        .thenAnswer(
+            invocation -> {
+              TenantScopedTransaction.ScopedWork<?, ?> work = invocation.getArgument(1);
+              return work.get();
+            });
+  }
 
   @Test
   void test_hasReadGrant_WHEN_has_read_grant() {
@@ -62,6 +76,19 @@ class GrantServiceTest {
             USER_ID, user.scopedTenantId(), RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
         .thenReturn(false);
 
+    assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
+  }
+
+  @Test
+  void test_hasReadGrantInTenant_WHEN_grant_is_held_in_the_given_tenant() {
+    User user = UserFixture.getUser();
+    user.setId(USER_ID);
+    String otherTenant = "tenant-of-the-resource";
+    when(grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+            USER_ID, otherTenant, RESOURCE_ID, Grant.GRANT_TYPE.OBSERVER.andHigher()))
+        .thenReturn(true);
+
+    assertTrue(grantService.hasReadGrantInTenant(RESOURCE_ID, user, otherTenant));
     assertFalse(grantService.hasReadGrant(RESOURCE_ID, user));
   }
 

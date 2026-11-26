@@ -24,6 +24,8 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetAgentJobFixture;
 import io.openaev.utils.mapper.EndpointMapper;
@@ -43,7 +45,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EndpointServiceTest {
@@ -60,12 +61,18 @@ class EndpointServiceTest {
   @Mock private EndpointMapper endpointMapper;
   @Mock private AgentServiceAccountPrivilegeService privilegeService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private RuntimeSettingsService runtimeSettingsService;
 
   @InjectMocks private EndpointService endpointService;
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(endpointService, "maxSimultaneousJobs", MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.intValue(RuntimeSetting.AGENT_MAX_SIMULTANEOUS_JOBS))
+        .thenReturn(MAX_SIMULTANEOUS_JOBS);
+    org.mockito.Mockito.lenient()
+        .when(runtimeSettingsService.booleanValue(RuntimeSetting.AGENT_AUTO_UPDATE_ENABLED))
+        .thenReturn(true);
   }
 
   @Nested
@@ -499,8 +506,39 @@ class EndpointServiceTest {
 
     @Test
     void shouldReturnCustomDir_whenProvided() {
-      String result = endpointService.generateInstallationDir("Windows", "service", "/custom/dir");
-      assertEquals("/custom/dir", result);
+      String result =
+          endpointService.generateInstallationDir("Linux", "service", "/custom/openaev-dir");
+      assertEquals("/custom/openaev-dir", result);
+    }
+
+    @Test
+    void shouldRejectUnsafeDir_whenProvided() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              endpointService.generateInstallationDir(
+                  "Linux", "service", "/opt/openaev\"; echo unsafe; #"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> endpointService.generateInstallationDir("Windows", "service", "C:\\OAEV\\"));
+    }
+
+    @Test
+    void shouldFallBackToDefault_whenDirIsNullOrEmpty() {
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_UNIX_SERVICE,
+          endpointService.generateInstallationDir("Linux", "service", null));
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_UNIX_SERVICE,
+          endpointService.generateInstallationDir("Linux", "service", ""));
+    }
+
+    @Test
+    void shouldNotValidateServerDefaults() {
+      // the Windows session-user default is expanded by PowerShell on purpose, so it contains a $
+      assertEquals(
+          EndpointService.OPENAEV_INSTALL_DIR_WINDOWS_SESSION_USER,
+          endpointService.generateInstallationDir("Windows", "session-user", null));
     }
   }
 
@@ -540,8 +578,20 @@ class EndpointServiceTest {
     @Test
     void shouldReturnCustomName_whenProvided() {
       String result =
-          endpointService.generateServiceNameOrPrefix("Windows", "service", "my-service");
-      assertEquals("my-service", result);
+          endpointService.generateServiceNameOrPrefix("Windows", "service", "openaev-my-service");
+      assertEquals("openaev-my-service", result);
+    }
+
+    @Test
+    void shouldRejectUnsafeName_whenProvided() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              endpointService.generateServiceNameOrPrefix(
+                  "Linux", "service", "openaev\"; echo unsafe; #"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> endpointService.generateServiceNameOrPrefix("Linux", "service", "sshd"));
     }
   }
 

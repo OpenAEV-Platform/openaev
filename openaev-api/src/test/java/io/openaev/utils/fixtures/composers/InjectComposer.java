@@ -139,7 +139,6 @@ public class InjectComposer extends ComposerBase<Inject> {
       findingComposers.add(findingComposer);
       Finding finding = findingComposer.get();
       finding.setInject(this.inject);
-      this.inject.getFindings().add(finding);
       findingOccurrenceComposers.add(
           findingOccurrenceComposer.forOccurrence(
               createOccurrence(finding, this.inject, Instant.now(), finding.getField())));
@@ -166,6 +165,9 @@ public class InjectComposer extends ComposerBase<Inject> {
       if (inject.getTenant() == null) {
         inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
+      // A finding belongs to the tenant of the inject that produced it, and the inject save
+      // cascades to it
+      findingComposers.forEach(composer -> composer.get().setTenant(inject.getTenant()));
       injectRepository.save(inject);
       injectStatusComposers.ifPresent(InjectStatusComposer.Composer::persist);
       expectationComposers.forEach(InjectExpectationComposer.Composer::persist);

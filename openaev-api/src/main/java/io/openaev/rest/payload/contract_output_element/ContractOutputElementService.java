@@ -1,11 +1,14 @@
 package io.openaev.rest.payload.contract_output_element;
 
 import static io.openaev.rest.payload.contract_output_element.ContractOutputElementUtils.copyFromEntity;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.OutputParser;
 import io.openaev.database.repository.ContractOutputElementRepository;
 import io.openaev.rest.payload.regex_group.RegexGroupService;
+import io.openaev.rest.tag.TagService;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -20,6 +23,7 @@ public class ContractOutputElementService {
 
   private final ContractOutputElementRepository contractOutputElementRepository;
   private final RegexGroupService regexGroupService;
+  private final TagService tagService;
 
   // -- ENTITY --
 
@@ -65,14 +69,14 @@ public class ContractOutputElementService {
    * </ul>
    */
   public void copyContractOutputElementsFromInput(
-      Set<ContractOutputElementInput> source, OutputParser targetElement) {
+      Set<ContractOutputElementInput> source, OutputParser targetElement, String tenantId) {
     if (source == null || targetElement == null) {
       return;
     }
     Set<ContractOutputElement> contractOutputElements =
         source.stream()
             .filter(Objects::nonNull)
-            .map(this::mapFromInput)
+            .map(input -> mapFromInput(input, tenantId))
             .peek(contractOutputElement -> contractOutputElement.setOutputParser(targetElement))
             .collect(Collectors.toSet());
 
@@ -83,29 +87,28 @@ public class ContractOutputElementService {
    * Converts a single {@link ContractOutputElementInput} into a {@link ContractOutputElement}.
    *
    * <p>If the input has an ID, fetches the corresponding entity from the repository and updates it.
-   * If not, creates a new instance. Regex groups are copied accordingly.
+   * If not, creates a new instance. Regex groups and tags are copied accordingly.
    */
-  private ContractOutputElement mapFromInput(ContractOutputElementInput input) {
+  private ContractOutputElement mapFromInput(ContractOutputElementInput input, String tenantId) {
     if (input.getId() == null) {
-      ContractOutputElement newElement =
-          ContractOutputElementUtils.copyFromInput(input, new ContractOutputElement());
-      regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), newElement);
-      return newElement;
+      return fillFromInput(input, new ContractOutputElement(), tenantId);
     }
     return contractOutputElementRepository
         .findById(input.getId())
-        .map(
-            source -> {
-              ContractOutputElement copy = ContractOutputElementUtils.copyFromInput(input, source);
-              regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), copy);
-              return copy;
-            })
-        .orElseGet(
-            () -> {
-              ContractOutputElement copy =
-                  ContractOutputElementUtils.copyFromInput(input, new ContractOutputElement());
-              regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), copy);
-              return copy;
-            });
+        .map(existing -> fillFromInput(input, existing, tenantId))
+        .orElseGet(() -> fillFromInput(input, new ContractOutputElement(), tenantId));
+  }
+
+  /**
+   * Copies the fields, the regex groups and the tags of the input into the target. The tag ids are
+   * resolved in the payload's tenant: an id of another tenant is ignored.
+   */
+  private ContractOutputElement fillFromInput(
+      ContractOutputElementInput input, ContractOutputElement target, String tenantId) {
+    ContractOutputElementUtils.copyFromInput(input, target);
+    regexGroupService.copyRegexGroupsFromInput(input.getRegexGroups(), target);
+    target.setTags(
+        new HashSet<>(tagService.tagsInTenant(emptyIfNull(input.getTagIds()), tenantId)));
+    return target;
   }
 }

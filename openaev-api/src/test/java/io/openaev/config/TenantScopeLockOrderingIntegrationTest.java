@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.aop.AccessControlAspect;
-import io.openaev.aop.HibernateFilterTransactionAspect;
 import io.openaev.aop.TenantScopeTransactionAspect;
 import io.openaev.aop.audit_log.AccessControlAuditLogAspect;
 import io.openaev.aop.lock.Lock;
@@ -125,13 +124,11 @@ class TenantScopeLockOrderingIntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "aspect ordering: Lock < Transaction < TenantFilter < TenantScope < Audit < RBAC (no ties)")
+  @DisplayName("aspect ordering: Lock < Transaction < TenantScope < Audit < RBAC (no ties)")
   void given_allAspects_should_respectStrictRelativeOrdering() {
     // Arrange
     int lockOrder = getOrderValue(LockAspect.class);
     int transactionOrder = transactionAdvisor.getOrder();
-    int tenantFilterOrder = getOrderValue(HibernateFilterTransactionAspect.class);
     int tenantScopeOrder = getOrderValue(TenantScopeTransactionAspect.class);
     int auditOrder = getOrderValue(AccessControlAuditLogAspect.class);
     int rbacOrder = getOrderValue(AccessControlAspect.class);
@@ -141,10 +138,7 @@ class TenantScopeLockOrderingIntegrationTest {
         .as("LockAspect must wrap @Transactional (lower order)")
         .isLessThan(transactionOrder);
     assertThat(transactionOrder)
-        .as("@Transactional must wrap the tenant filter aspect (lower order)")
-        .isLessThan(tenantFilterOrder);
-    assertThat(tenantFilterOrder)
-        .as("the v1 tenant filter must be installed before the v2 tenant scope (lower order)")
+        .as("@Transactional must wrap the tenant scope aspect (lower order)")
         .isLessThan(tenantScopeOrder);
     assertThat(tenantScopeOrder)
         .as(

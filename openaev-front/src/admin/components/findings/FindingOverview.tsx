@@ -7,16 +7,17 @@ import { useParams } from 'react-router';
 
 import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
+import XtmCounterpartsEmblem from '../../../components/xtm/XtmCounterpartsEmblem';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { emptyFilled } from '../../../utils/String';
-import EntityGraph from '../graph/EntityGraph';
 import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingImpactSections from './FindingImpactSections';
@@ -32,6 +33,9 @@ const FindingOverview = () => {
   const theme = useTheme();
   const ability = useAbility();
   const { findingId } = useParams() as { findingId: string };
+  // The hero actions and the OpenCTI / OpenCRQ cards belong to the exploration graph preview
+  // feature (off by default); off, the page is the one shipped before it.
+  const graphEnabled = useExplorationGraph();
 
   const [finding, setFinding] = useState<FindingOutput | null>(null);
   // Group-wide aggregates are computed server-side: a Finding row is ONE
@@ -87,7 +91,13 @@ const FindingOverview = () => {
         iconNode={<FindingIcon findingType={finding.finding_type} />}
         overline={typeLabel}
         title={finding.finding_value}
-        action={<ExploreInGraphButton type="FINDING" entityId={findingId} />}
+        action={(isCVE || graphEnabled) ? (
+          <>
+            {/* The single XTM One emblem first (its own XTM_COUNTERPARTS flag), then the graph. */}
+            {isCVE && <XtmCounterpartsEmblem kind="vulnerabilities" objectKey={finding.finding_value} />}
+            {graphEnabled && <ExploreInGraphButton type="FINDING" entityId={findingId} />}
+          </>
+        ) : undefined}
         chips={cvssScore != null
           ? <Chip label={`CVSS ${cvssScore.toFixed(1)}`} severity="info" />
           : undefined}
@@ -142,12 +152,6 @@ const FindingOverview = () => {
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
       </InformationGrid>
-
-      {/* Mini graph: every asset this finding was found on and the injects that produced it;
-          a click opens the Graph page focused on the finding to pivot further. */}
-      <SectionBlock title={t('Graph')}>
-        <EntityGraph type="FINDING" entityId={findingId} variant="mini" />
-      </SectionBlock>
 
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}

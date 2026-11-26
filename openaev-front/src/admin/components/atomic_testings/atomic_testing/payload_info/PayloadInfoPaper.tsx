@@ -7,6 +7,7 @@ import Section from '../../../../../components/common/overview/Section';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
 import PlatformIconGroup from '../../../../../components/PlatformIconGroup';
+import { OpenCtiRowMark } from '../../../../../components/xtm/XtmPivot';
 import type { AttackPatternSimple, StatusPayloadOutput } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
 
@@ -58,7 +59,21 @@ const PayloadInfoPaper = ({ payloadOutput }: Props) => {
           </Field>
           <Field label="Attack patterns">
             {payloadOutput.payload_attack_patterns && payloadOutput.payload_attack_patterns.length === 0 ? '-' : payloadOutput.payload_attack_patterns?.map((attackPattern: AttackPatternSimple) => (
-              <AttackPatternChip key={attackPattern.attack_pattern_id} attackPattern={attackPattern}></AttackPatternChip>
+              <Box
+                key={attackPattern.attack_pattern_id}
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  // The mark sits 4 px from its own chip; 12 px separate one chip group from the
+                  // next, so a mark never reads as belonging to the following chip.
+                  gap: 0.5,
+                  marginInlineEnd: 1.5,
+                }}
+              >
+                <AttackPatternChip attackPattern={attackPattern}></AttackPatternChip>
+                <OpenCtiRowMark kind="attack-patterns" objectKey={attackPattern.attack_pattern_external_id} />
+              </Box>
             ))}
           </Field>
           <Field label="Tags">

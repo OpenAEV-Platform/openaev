@@ -52,6 +52,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
+import io.openaev.utils.catalog.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
@@ -187,18 +188,24 @@ public class V1_DataImporter implements Importer {
           Optional<InjectorContract> contractOpt =
               injectorContractRepository.findByContractIdAndTenant(
                   contract, TenantContext.getCurrentTenant());
-          if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
-            break;
-          }
-          List<String> docArgKeys =
-              contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> PrimitiveType.Document == arg.getType())
-                  .map(PayloadArgument::getKey)
-                  .toList();
-          if (docArgKeys.isEmpty()) {
+          if (contractOpt.isEmpty()) {
             break;
           }
           ObjectNode contentNode = (ObjectNode) mapper.readTree(content);
+          injectorContractContentUtils.remapImportedReferenceFields(
+              contractOpt.get(),
+              contentNode,
+              oldId ->
+                  baseIds.get(oldId) instanceof Tag tag
+                      ? Optional.of(tag.getId())
+                      : Optional.empty());
+          List<String> docArgKeys =
+              contractOpt.get().getPayload() == null
+                  ? List.of()
+                  : contractOpt.get().getPayload().getArguments().stream()
+                      .filter(arg -> PrimitiveType.Document == arg.getType())
+                      .map(PayloadArgument::getKey)
+                      .toList();
           for (String key : docArgKeys) {
             JsonNode valueNode = contentNode.get(key);
             if (valueNode != null && valueNode.isTextual()) {
@@ -407,7 +414,25 @@ public class V1_DataImporter implements Importer {
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
     return new ImportResult(
-        new ArrayList<>(missingActions), savedScenario == null ? null : savedScenario.getId());
+        new ArrayList<>(missingActions),
+        savedScenario == null ? null : savedScenario.getId(),
+        packageInjectIds(importNode, prefix, baseIds));
+  }
+
+  private static Map<String, String> packageInjectIds(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    Map<String, String> ids = new HashMap<>();
+    importNode
+        .path(prefix + "injects")
+        .forEach(
+            inject -> {
+              String packageId = inject.path("inject_id").asText();
+              Base created = baseIds.get(packageId);
+              if (created != null) {
+                ids.put(created.getId(), packageId);
+              }
+            });
+    return ids;
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {
@@ -2013,19 +2038,7 @@ public class V1_DataImporter implements Importer {
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
-    if (payloadNode.has("payload_arguments")) {
-      for (JsonNode argNode : payloadNode.get("payload_arguments")) {
-        if (argNode.has("type") && "document".equals(argNode.get("type").asText())) {
-          JsonNode defaultValueNode = argNode.get("default_value");
-          if (defaultValueNode != null
-              && !defaultValueNode.asText().isBlank()
-              && baseIds.containsKey(defaultValueNode.asText())) {
-            ((ObjectNode) argNode)
-                .put("default_value", baseIds.get(defaultValueNode.asText()).getId());
-          }
-        }
-      }
-    }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
@@ -2120,8 +2133,9 @@ public class V1_DataImporter implements Importer {
       return Optional.empty();
     }
     // A step never creates a payload: the highest version stands for the exported one.
-    return payloadVersionMatcher
-        .highest(payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId))
+    return SemanticVersion.highest(
+            payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId),
+            Payload::getVersion)
         .flatMap(injectorContractRepository::findInjectorContractByPayload);
   }
 
@@ -2147,8 +2161,36 @@ public class V1_DataImporter implements Importer {
           .put(
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
 
     return buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
+  }
+
+  // The export ships no argument document: an id the zip does not map is kept only when it is a
+  // document of the write tenant, else dropped, as the payload creation refuses any other.
+  private void remapDocumentArgumentDefaults(
+      TxCtx ctx, JsonNode payloadNode, Map<String, Base> baseIds) {
+    if (!payloadNode.has("payload_arguments")) {
+      return;
+    }
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    for (JsonNode argNode : payloadNode.get("payload_arguments")) {
+      JsonNode defaultValueNode = argNode.get("default_value");
+      if (!"document".equals(argNode.path("type").asText())
+          || defaultValueNode == null
+          || defaultValueNode.asText().isBlank()) {
+        continue;
+      }
+      String exportedId = defaultValueNode.asText();
+      Base mapped = baseIds.get(exportedId);
+      String resolvedId =
+          mapped != null
+              ? mapped.getId()
+              : documentRepository.findByIdAndTenantId(exportedId, writeTenant).isPresent()
+                  ? exportedId
+                  : "";
+      ((ObjectNode) argNode).put("default_value", resolvedId);
+    }
   }
 
   // Several versions of one payload: the one the zip holds, else a local copy of its content.

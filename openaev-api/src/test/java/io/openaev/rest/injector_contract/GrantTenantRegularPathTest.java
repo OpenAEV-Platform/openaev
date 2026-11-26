@@ -12,8 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -48,8 +47,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -71,18 +68,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser
 @DisplayName("On the regular route, a tenant-group grant counts only in the ambient tenant")
-class GrantTenantRegularPathTest extends IntegrationTest {
+class GrantTenantRegularPathTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String TENANT_AUTONOMOUS_URI = TENANT_PREFIX + "/autonomous-runs";
   private static final String CONTRACT_URI = INJECTOR_CONTRACT_URL + "/{contractId}";
   private static final String TENANT_CONTRACT_URI = TENANT_INJECTOR_CONTRACT_URL + "/{contractId}";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

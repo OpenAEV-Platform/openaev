@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import LeftBar from '../../../../admin/components/nav/LeftBar';
 import { type NavMenuEntries } from '../../../../components/common/menu/navbar/nav-menu-model';
+import { type UserGrant } from '../../../../utils/api-types';
 import { defineAbility } from '../../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -23,6 +24,39 @@ vi.mock('../../../../admin/components/nav/LeftBarHeader', () => ({ default: () =
 vi.mock('../../../../admin/components/nav/LeftBarTenantSwitcher', () => ({ default: () => null }));
 vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ userTenants: [] }) }));
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
+const graphEnabled = vi.fn(() => true);
+vi.mock('../../../../utils/hooks/useExplorationGraph', () => ({ default: () => graphEnabled() }));
+
+describe('LeftBar with the exploration graph preview feature off (the default)', () => {
+  afterEach(cleanup);
+
+  it('shows Dashboards and Reporting as two entries and no Graph entry, as before the feature', () => {
+    // Arrange
+    graphEnabled.mockReturnValue(false);
+    const ability = defineAbility(['ACCESS_DASHBOARDS', 'ACCESS_REPORTINGS', 'ACCESS_ASSETS'], {}, false);
+
+    // Act
+    render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+    // Assert
+    expect(screen.queryByRole('link', { name: 'Graph' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Dashboards' }).getAttribute('href')).toBe('/admin/workspaces/custom_dashboards');
+    expect(screen.getByRole('link', { name: 'Reporting' }).getAttribute('href')).toBe('/admin/reporting');
+    graphEnabled.mockReturnValue(true);
+  });
+
+  it('shows the Graph entry once the feature is on', () => {
+    // Arrange
+    graphEnabled.mockReturnValue(true);
+    const ability = defineAbility(['ACCESS_ASSETS'], {}, false);
+
+    // Act
+    render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Graph' }).getAttribute('href')).toBe('/admin/graph');
+  });
+});
 
 describe('LeftBar Dashboards entry (custom dashboards and reporting as two tabs)', () => {
   afterEach(cleanup);
@@ -150,6 +184,88 @@ describe('LeftBar Threat Arsenal navigation', () => {
       // Assert
       const link = screen.queryByRole('link', { name: 'Threat Arsenal' });
       expect(link?.getAttribute('href') ?? null).toBe(visible ? '/admin/threat-arsenal' : null);
+    });
+  });
+});
+
+describe('LeftBar assessment navigation', () => {
+  afterEach(cleanup);
+
+  const ASSESSMENT_LINKS = [
+    {
+      name: 'Scenarios',
+      href: '/admin/scenarios',
+    },
+    {
+      name: 'Simulations',
+      href: '/admin/simulations',
+    },
+    {
+      name: 'Atomic testings',
+      href: '/admin/atomic_testings',
+    },
+  ];
+
+  describe.each<{
+    name: string;
+    capabilities: string[];
+    grantType?: UserGrant['type'];
+    visible: boolean;
+  }>([
+    {
+      name: 'a SCENARIO grant',
+      capabilities: [],
+      grantType: 'SCENARIO',
+      visible: true,
+    },
+    {
+      name: 'a SIMULATION grant',
+      capabilities: [],
+      grantType: 'SIMULATION',
+      visible: true,
+    },
+    {
+      name: 'an ATOMIC_TESTING grant',
+      capabilities: [],
+      grantType: 'ATOMIC_TESTING',
+      visible: true,
+    },
+    {
+      name: 'the assessment capability',
+      capabilities: ['ACCESS_ASSESSMENT'],
+      visible: true,
+    },
+    {
+      name: 'a THREAT_ARSENAL grant',
+      capabilities: [],
+      grantType: 'THREAT_ARSENAL',
+      visible: false,
+    },
+    {
+      name: 'no permissions',
+      capabilities: [],
+      visible: false,
+    },
+  ])('with $name', ({ capabilities, grantType, visible }) => {
+    it(`${visible ? 'shows' : 'hides'} the scenario, simulation and atomic testing links`, () => {
+      // Arrange
+      const grants: Record<string, UserGrant> = grantType
+        ? {
+            'granted-resource': {
+              grant: 'OBSERVER',
+              type: grantType,
+            },
+          }
+        : {};
+      const ability = defineAbility(capabilities, grants, false);
+
+      // Act
+      render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+      // Assert
+      ASSESSMENT_LINKS.forEach(({ name, href }) => {
+        expect(screen.queryByRole('link', { name })?.getAttribute('href') ?? null).toBe(visible ? href : null);
+      });
     });
   });
 });

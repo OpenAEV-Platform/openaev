@@ -26,6 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
+import XtmCounterpartsEmblem from '../../../../components/xtm/XtmCounterpartsEmblem';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
@@ -34,8 +35,10 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
@@ -53,6 +56,7 @@ import PostureScore from '../PostureScore';
 import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart';
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
+import AssetLinks from './AssetLinks';
 
 // The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
 // asset's markings; until the API types are regenerated (needs a backend restart) they are
@@ -65,6 +69,8 @@ type AssetOverview = EndpointOverviewOutput & {
   ai_target_model?: string;
   ai_target_system_prompt?: string;
   asset_markings?: string[];
+  asset_external_reference?: string;
+  asset_last_seen_source?: string;
 };
 
 const AssetDetail = () => {
@@ -82,6 +88,7 @@ const AssetDetail = () => {
 
   const [asset, setAsset] = useState<AssetOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const ability = useAbility();
 
   const loadAsset = useCallback(() => {
     setLoading(true);
@@ -95,13 +102,7 @@ const AssetDetail = () => {
     loadAsset();
   }, [loadAsset]);
 
-  // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
-  // it does today - mirrors the Endpoints list convention.
   const markingEnabled = isFeatureEnabled('MARKING');
-  const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
-    assignableOnly: true,
-  });
 
   // Resolve the linked person (identity assets) to a readable name.
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
@@ -140,7 +141,9 @@ const AssetDetail = () => {
   // charts without eating vertical space on the main tab. Tabs are routed
   // (/admin/assets/:id[/statistics]) so they can be deep-linked like the
   // atomic testing and scenario tabs.
-  const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'graph', 'statistics'], 'overview');
+  // The Graph tab and the asset links belong to the exploration graph preview feature (off by default).
+  const graphEnabled = useExplorationGraph();
+  const { currentTab, handleChangeTab } = useRoutedTabs(graphEnabled ? ['overview', 'graph', 'statistics'] : ['overview', 'statistics'], 'overview');
 
   if (loading && !asset) {
     return <Loader />;
@@ -155,6 +158,12 @@ const AssetDetail = () => {
   }
 
   const isAiTarget = asset.asset_category === 'AI_TARGET';
+  // The XTM One and OpenCTI counterparts are matched on a real identifier: the hostname (an OpenCTI
+  // System or Hostname, an XTM One inventory hostname or FQDN), else the first IP or MAC address.
+  const counterpartKey = asset.asset_hostname
+    || asset.asset_ips?.[0]
+    || asset.asset_mac_addresses?.[0]
+    || null;
 
   let internetFacingLabel = '-';
   if (asset.asset_internet_facing != null) {
@@ -203,6 +212,18 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
+            {/* The single XTM One emblem comes first, leftmost, before the page's own actions; its
+                surface lists XTM One, OpenCTI and OpenCRQ. An asset imported from one of them is
+                found from its source link first (rule 5); OpenCRQ keys its supporting assets by
+                hostname only. */}
+            {!isAiTarget && (
+              <XtmCounterpartsEmblem
+                kind="assets"
+                objectKey={counterpartKey}
+                openCrqKey={asset.asset_hostname ?? null}
+                sourceUrl={asset.asset_external_reference}
+              />
+            )}
             <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
@@ -244,10 +265,12 @@ const AssetDetail = () => {
             key: 'overview',
             label: t('Overview'),
           },
-          {
-            key: 'graph',
-            label: t('Graph'),
-          },
+          ...(graphEnabled
+            ? [{
+                key: 'graph',
+                label: t('Graph'),
+              }]
+            : []),
           {
             key: 'statistics',
             label: t('Statistics'),
@@ -257,7 +280,7 @@ const AssetDetail = () => {
         onChange={handleChangeTab}
       />
 
-      {currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
+      {graphEnabled && currentTab === 'graph' && <EntityGraph type="ASSET" entityId={id} variant="embedded" />}
 
       {currentTab === 'statistics' && (
         // Two simple 50/50 time series: the posture-score evolution (same
@@ -317,7 +340,7 @@ const AssetDetail = () => {
               </Field>
               {markingEnabled && (
                 <Field label={t('Markings')}>
-                  <ItemMarkings variant="list" markingIds={asset.asset_markings} definitions={markingDefinitions} />
+                  <ItemMarkings markingIds={asset.asset_markings} />
                 </Field>
               )}
             </InformationGrid>
@@ -428,11 +451,15 @@ const AssetDetail = () => {
             </SectionBlock>
           </DetailSections>
 
-          {/* Mini graph: the asset, its groups, findings and the injects that targeted it, result
-              coloured; a click opens the Graph page focused on the asset. */}
-          <SectionBlock title={t('Graph')}>
-            <EntityGraph type="ASSET" entityId={id} variant="mini" />
-          </SectionBlock>
+          {/* Asset-to-asset links (hosts, uses, logged on...), both directions, read-only and
+              compact; edited in the Manage links drawer only. The graph lives in the Graph tab. */}
+          {graphEnabled && (
+            <AssetLinks
+              assetId={id}
+              assetName={asset.asset_name}
+              canManage={ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS)}
+            />
+          )}
 
           {hasAgents && (
             <SectionBlock title={t('Agents')}>

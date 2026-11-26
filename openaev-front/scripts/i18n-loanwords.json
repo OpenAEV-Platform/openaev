@@ -189,7 +189,13 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}",
+    "Revision #{number}",
+    "Revision",
+    "Variable {key}",
+    "Argument {key}",
+    "Version: v{from} → v{to}"
   ],
   "es": [
     "{count} roles",
@@ -230,9 +236,13 @@
     "Tenants",
     "total",
     "Variables",
-    "Vulnerable"
+    "Vulnerable",
+    "Local",
+    "Variable {key}"
   ],
   "fr": [
+    "1 inject",
+    "Versions",
     "{count} / page",
     "{count} injects",
     "{count} pts",
@@ -309,6 +319,7 @@
     "Microblogging",
     "Microservice",
     "Minutes",
+    "minutes",
     "Mission",
     "Mode",
     "Modification",
@@ -366,9 +377,14 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "Local",
+    "Variable {key}",
+    "Argument {key}"
   ],
   "it": [
+    "1 inject",
+    "1 scenario",
     "Asset",
     "Audio",
     "Auto",
@@ -409,7 +425,8 @@
     "Test",
     "Thin Client",
     "Video",
-    "Workstation"
+    "Workstation",
+    "{injects} in {scenarios}"
   ],
   "ja": [],
   "ko": [],

@@ -87,6 +87,9 @@ final class HandledErrorRollbackRules {
               "CatalogSyncService#sync -> CatalogService.apply",
               "rethrows after asking for the refusal alert, sent once the rollback is done"),
           entry(
+              "CustomDashboardService#restoreStarterPackDashboards -> TenantSettingsService.setSettingIfBlank",
+              "rethrows the IOException as IllegalStateException, so the restore fails whole"),
+          entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),
           entry(
@@ -133,6 +136,17 @@ final class HandledErrorRollbackRules {
               "InjectExecutionStep#run -> InjectStatusService.saveAndStreamInject",
               "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
+          entry(
+              "InjectExecutionStep#run -> InjectStatusService.persistErrorStatusInTransaction",
+              "reached only through Executor.execute's no-transaction-active publish-failure"
+                  + " branch (#6968): InjectExecutionStep#run is itself @Transactional, so in"
+                  + " practice execute() always takes the other branch (publish deferred to"
+                  + " afterCommit, no synchronous call here) for this caller, but the bytecode call"
+                  + " graph does not see that runtime distinction. Were it ever reached, it catches"
+                  + " IOException/TimeoutException, never UnexecutableInjectException, and rethrows"
+                  + " the original exception after recording it; the general catch (Exception e)"
+                  + " then rethrows as ChainingException, so the UnexecutableInjectException catch"
+                  + " never sees this call"),
           entry(
               "InjectExecutionStep#run -> ManagerCreator.createManager",
               "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
@@ -191,7 +205,7 @@ final class HandledErrorRollbackRules {
               "WorkflowService#deleteAllScenarioSteps -> ConditionService.deleteAllConditionsByWorkflowId",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "PhishingTrackingService#captureCredentials -> FindingService.createFindings",
+              "PhishingTrackingService#captureCredentials -> FindingService.recordFindingsByInject",
               "known defect, reported by the #8102 sweep; the victim's tracking write is lost with it"),
           entry(
               "XtmOneService#autoRegister -> TenantSettingsService.resolveSettingValue",

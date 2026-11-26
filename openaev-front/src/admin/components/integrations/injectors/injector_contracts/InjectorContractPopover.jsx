@@ -70,7 +70,7 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
 
     const inputValues = {
       contract_labels: { en: data.injector_contract_name },
-      contract_attack_patterns_ids: R.pluck('id', data.injector_contract_attack_patterns),
+      contract_attack_patterns_ids: data.injector_contract_attack_patterns.map(item => item.id),
       contract_content: JSON.stringify(newInjectorContractContent),
       contract_domains: data.injector_contract_domains.map((d) => {
         return {

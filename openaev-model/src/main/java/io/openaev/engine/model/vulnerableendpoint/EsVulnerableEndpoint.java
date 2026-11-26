@@ -52,7 +52,7 @@ public class EsVulnerableEndpoint extends EsTenantBase {
       label = "vulnerable endpoint agents active status",
       filterable = true,
       refEnumClazz = AgentStatus.class)
-  @EsQueryable(keyword = true)
+  // Boolean list: mapped as `boolean` with no `.keyword` subfield, so never declared keyword.
   private List<Boolean> vulnerable_endpoint_agents_active_status;
 
   @Queryable(

@@ -1,0 +1,91 @@
+package io.openaev.service.payload;
+
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Payload;
+import io.openaev.database.model.catalog.ContentChange;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.payload.PayloadIdentity;
+import io.openaev.database.repository.PayloadIdentityRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.payload.DetectionRemediationUtils;
+import io.openaev.rest.payload.PayloadUtils;
+import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.catalog.event.ContentChangePublisher;
+import io.openaev.utils.catalog.SemanticVersion;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * Catalogue preview on: a content change of a local payload adds a version, injects keep theirs.
+ */
+@Service
+@RequiredArgsConstructor
+public class PayloadLocalVersioning {
+
+  private final PayloadService payloadService;
+  private final PayloadUtils payloadUtils;
+  private final DetectionRemediationUtils detectionRemediationUtils;
+  private final PayloadChangeKind payloadChangeKind;
+  private final PayloadIdentityRepository payloadIdentityRepository;
+  private final PreviewFeatureService previewFeatureService;
+  private final ContentChangePublisher changePublisher;
+
+  /** The new version this input makes; empty when the payload is to be updated in place. */
+  public Optional<Payload> newVersion(
+      Payload current, PayloadUpdateInput input, List<AttackPattern> attackPatterns) {
+    // A collector finds its payload by external id: it must stay one version.
+    if (current.isManaged()
+        || current.isFromCollector()
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.CATALOG)) {
+      return Optional.empty();
+    }
+    Payload candidate = candidate(current, input);
+    PayloadChange change = payloadChangeKind.of(current, candidate, attackPatterns);
+    CustomizableField.refuseLockedChanges(current, change);
+    return change.kind().map(kind -> addVersion(current, candidate, kind));
+  }
+
+  // A duplicate carries the grants of the version; the input then replaces its content.
+  private Payload candidate(Payload current, PayloadUpdateInput input) {
+    Payload candidate = payloadService.generateDuplicatedPayload(current);
+    payloadUtils.copyProperties(input.withoutChildIds(), candidate);
+    candidate.setBase(current.getBase());
+    if (input.getDetectionRemediations() == null) {
+      // Without the license the rules are not sent: they stay as they are.
+      detectionRemediationUtils.copy(current.getDetectionRemediations(), candidate, false);
+    }
+    return candidate;
+  }
+
+  /**
+   * Numbers the candidate after the newest version, makes it the one shown and records the save in
+   * the history. Locked: two saves at once number one after the other instead of taking the same
+   * number.
+   */
+  public Payload addVersion(Payload current, Payload candidate, Hashed.Change change) {
+    PayloadIdentity identity =
+        payloadIdentityRepository
+            .findForUpdateById(current.getIdentity().getId())
+            .orElseThrow(ElementNotFoundException::new);
+    Payload newest =
+        SemanticVersion.highest(
+                payloadService.versionsOf(current.getTenant().getId(), current),
+                Payload::getVersion)
+            .orElse(current);
+    candidate.setIdentity(identity);
+    candidate.setVersion(change.next(SemanticVersion.parse(newest.getVersion())));
+    // The duplicate resets the status and keeps the original's creation date.
+    candidate.setStatus(current.getStatus());
+    candidate.setCreatedAt(Instant.now());
+    candidate.setUpdatedAt(candidate.getCreatedAt());
+    identity.setLatestVersion(candidate);
+    changePublisher.changed(candidate, ContentChange.Action.SAVE, ContentChange.Mode.MANUAL);
+    return candidate;
+  }
+}

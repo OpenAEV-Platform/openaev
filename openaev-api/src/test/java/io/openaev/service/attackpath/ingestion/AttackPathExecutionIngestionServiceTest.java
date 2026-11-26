@@ -4,8 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -67,8 +66,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -82,13 +79,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: create EXECUTION rows")
 @Import(AttackPathExecutionIngestionServiceTest.NudgeRecorder.class)
-class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AttackPathExecutionIngestionServiceTest extends ProductionTablesIntegrationTest {
 
   /**
    * The simulation the verdict tests share; each uses its own tenant, so their counters are too.
@@ -838,13 +829,15 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
                 expectationResult("Not Detected"),
                 expectationResult("Pending"),
                 expectationResult("Partially Detected")),
-            List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
+            List.of(expectationResult("Vulnerable"), expectationResult("Pending")),
+            List.of(expectationResult("Not Logged"), expectationResult("Logged"))));
 
     // Assert
     AttackPathExecution updated = findExecutionRow(tenant, executionId);
     assertThat(updated.getPreventionStatus()).isEqualTo("Prevented");
     assertThat(updated.getDetectionStatus()).isEqualTo("Partially Detected");
     assertThat(updated.getVulnerabilityStatus()).isEqualTo("Pending");
+    assertThat(updated.getLoggingStatus()).isEqualTo("Logged");
     // The stamp is what carries the verdict into the delta read: an unstamped row is invisible to
     // every polling client, which is the frozen-at-pending failure this feature removes (#6647).
     assertThat(updated.getRowVersion()).isEqualTo(currentVersion());
@@ -1001,7 +994,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   private static AttackPathExecutionIngestionService.ExecutionExpectationResults prevention(
       String result) {
     return new AttackPathExecutionIngestionService.ExecutionExpectationResults(
-        List.of(expectationResult(result)), List.of(), List.of());
+        List.of(expectationResult(result)), List.of(), List.of(), List.of());
   }
 
   /**

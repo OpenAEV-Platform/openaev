@@ -64,6 +64,18 @@ public class DocumentService {
   }
 
   /**
+   * Same as {@link #document(String)}, resolved within the given tenant: a document id named in a
+   * request body resolves only within {@code tenantId}, so an id of another tenant is treated like
+   * an unknown id.
+   */
+  public Document documentInTenant(
+      @NotBlank final String documentId, @NotBlank final String tenantId) {
+    return documentRepository
+        .findByIdInTenant(documentId, tenantId)
+        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+  }
+
+  /**
    * Upsert a document
    *
    * @param fileName of the document to upsert
@@ -83,9 +95,9 @@ public class DocumentService {
       DocumentCreateInput input,
       String tenantId)
       throws Exception {
-    // Simulations and scenarios are still scoped by the ambient tenant, which may differ from the
-    // write tenant: resolve the ids the caller supplies in the write tenant, so the document is
-    // only bound to parents of its own tenant.
+    // Documents, simulations, scenarios and tags are v2, so the bridge protects nothing on this
+    // path: the parents the caller names are read in the scope of the caller, which is the write
+    // tenant alone on the upload endpoints (tenantForWrite refuses a scope that holds several).
     return ambientTenantBridge.callInTenantChecked(
         tenantId,
         () -> upsertInTenant(fileName, fileIS, fileSize, fileContentType, input, tenantId));
@@ -117,7 +129,7 @@ public class DocumentService {
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
         List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+            fromIterable(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
         exercises.addAll(inputExercises);
         document.setExercises(exercises);
       }
@@ -125,7 +137,7 @@ public class DocumentService {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -158,7 +170,8 @@ public class DocumentService {
         if (!document.getExercises().isEmpty()) {
           Set<Exercise> exercises = new HashSet<>(document.getExercises());
           List<Exercise> inputExercises =
-              fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+              fromIterable(
+                  exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
           exercises.addAll(inputExercises);
           document.setExercises(exercises);
         }
@@ -166,7 +179,8 @@ public class DocumentService {
         if (!document.getScenarios().isEmpty()) {
           Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
           List<Scenario> inputScenarios =
-              fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+              fromIterable(
+                  scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
           scenarios.addAll(inputScenarios);
           document.setScenarios(scenarios);
         }
@@ -187,11 +201,13 @@ public class DocumentService {
         document.setDescription(input.getDescription());
         if (!input.getExerciseIds().isEmpty()) {
           document.setExercises(
-              iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+              iterableToSet(
+                  exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId)));
         }
         if (!input.getScenarioIds().isEmpty()) {
           document.setScenarios(
-              iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+              iterableToSet(
+                  scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId)));
         }
         document.setTags(
             iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));

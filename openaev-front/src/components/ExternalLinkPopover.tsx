@@ -5,6 +5,20 @@ import { type FunctionComponent } from 'react';
 import Transition from './common/Transition';
 import { useFormatter } from './i18n';
 
+// The schemes a markdown link may open.
+const OPENABLE_PROTOCOLS = ['http:', 'https:', 'mailto:', 'tel:'];
+
+const toOpenableLink = (link: string | URL | undefined): string | undefined => {
+  if (!link) {
+    return undefined;
+  }
+  try {
+    return OPENABLE_PROTOCOLS.includes(new URL(link).protocol) ? link.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 interface ExternalLinkPopoverProps {
   displayExternalLink: boolean;
   externalLink: string | URL | undefined;
@@ -24,7 +38,10 @@ const ExternalLinkPopover: FunctionComponent<ExternalLinkPopoverProps> = ({
     setExternalLink(undefined);
   };
   const handleBrowseExternalLink = () => {
-    window.open(externalLink, '_blank');
+    const safeLink = toOpenableLink(externalLink);
+    if (safeLink) {
+      window.open(safeLink, '_blank');
+    }
     setDisplayExternalLink(false);
     setExternalLink(undefined);
   };

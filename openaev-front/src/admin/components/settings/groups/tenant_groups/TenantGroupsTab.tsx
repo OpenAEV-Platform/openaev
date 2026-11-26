@@ -12,7 +12,6 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { Group } from '../../../../../utils/api-types';
-import useMarkingDefinitions from '../../../../../utils/hooks/useMarkingDefinitions';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../../utils/utils';
@@ -35,7 +34,6 @@ const TenantGroupsTab = () => {
   const { t } = useFormatter();
   const navigate = useNavigate();
   const markingEnabled = isFeatureEnabled('MARKING');
-  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
 
   const {
     groups,
@@ -52,11 +50,8 @@ const TenantGroupsTab = () => {
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT_GROUP, buildSearchPagination({ sorts: TENANT_GROUP_SORTS }));
   const headers = useMemo(
-    () => getTenantGroupHeaders(t, {
-      markingEnabled,
-      markingDefinitions,
-    }),
-    [t, markingEnabled, markingDefinitions],
+    () => getTenantGroupHeaders(t, { markingEnabled }),
+    [t, markingEnabled],
   );
 
   return (

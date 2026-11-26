@@ -1339,6 +1339,7 @@ public class InjectExpectationService {
       // asset — the global verdict IS this asset's verdict.
       expectations.forEach(
           expectation -> applyVulnerabilityVerdict(expectation, anyVulnerable, securityPlatform));
+      stampVulnerabilityManagerRun(inject, securityPlatform);
       return;
     }
 
@@ -1362,6 +1363,24 @@ public class InjectExpectationService {
 
     for (VulnerabilityInjectExpectation expectation : assetExpectations) {
       applyVulnerabilityVerdict(expectation, isAssetVulnerable.test(expectation), securityPlatform);
+    }
+    stampVulnerabilityManagerRun(inject, securityPlatform);
+  }
+
+  /**
+   * Heartbeat of the built-in Expectations Vulnerability Manager collector: it has no scheduled job
+   * and runs only when an output is matched, so each batch of verdicts it writes stamps its last
+   * execution once (never once per expectation). Verdicts attributed to an injector's security
+   * platform are not its runs and leave it untouched.
+   *
+   * @param inject the inject whose output was matched
+   * @param securityPlatform the injector's security platform, when one is declared
+   */
+  private void stampVulnerabilityManagerRun(
+      Inject inject, Optional<SecurityPlatform> securityPlatform) {
+    if (securityPlatform.isEmpty()) {
+      collectorService.updateLastExecution(
+          EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, inject.getTenant().getId());
     }
   }
 

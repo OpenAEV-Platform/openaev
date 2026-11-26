@@ -45,16 +45,16 @@ import {
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
+import { isFeatureEnabled } from '../../../utils/utils';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
-import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
+import { type ExpectationType, expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
-
-type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
+import { getActionStatus, getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
+import PayloadTrustLine from './versions/PayloadTrustLine';
 
 interface Props {
   action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;
@@ -82,6 +82,9 @@ interface Props {
   // the whole store.
   documentsMap?: Record<string, ApiDocument>;
   loading: boolean;
+  // Shown on the trust line: usages on other versions, and the newer Filigran base of a customized copy.
+  toMove?: number;
+  newBase?: string;
 }
 
 const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
@@ -93,6 +96,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   providing,
   documentsMap: documentsMapOverride,
   loading,
+  toMove,
+  newBase,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
@@ -121,7 +126,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status ?? payload?.payload_status;
+  const status = getActionStatus(action, action.action_payload?.payload_status ?? payload?.payload_status);
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -307,6 +312,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {description}
               </Typography>
+            )}
+
+            {isFeatureEnabled('CATALOG') && (
+              <div style={{ marginTop: theme.spacing(1.5) }}>
+                <PayloadTrustLine action={action} toMove={toMove} newBase={newBase} />
+              </div>
             )}
 
             <Box sx={{

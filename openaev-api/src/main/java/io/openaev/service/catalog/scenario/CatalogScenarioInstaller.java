@@ -2,13 +2,10 @@ package io.openaev.service.catalog.scenario;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogInstaller;
 import io.openaev.service.catalog.CatalogOffer;
-import io.openaev.service.catalog.payload.InstallablePayloadVersion;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +28,7 @@ public class CatalogScenarioInstaller
         tenantId,
         catalogScenarioOfferService.installable(ctx, externalId, version),
         choice,
-        CatalogHistory.Mode.MANUAL);
+        ContentChange.Mode.MANUAL);
   }
 
   @Override
@@ -41,7 +38,7 @@ public class CatalogScenarioInstaller
 
   @Override
   protected Scenario install(
-      TxCtx ctx, String tenantId, InstallableScenarioVersion released, CatalogHistory.Mode mode)
+      TxCtx ctx, String tenantId, InstallableScenarioVersion released, ContentChange.Mode mode)
       throws Exception {
     return install(ctx, tenantId, released, null, mode);
   }
@@ -51,18 +48,14 @@ public class CatalogScenarioInstaller
       String tenantId,
       InstallableScenarioVersion released,
       ScenarioInstallChoice choice,
-      CatalogHistory.Mode mode)
+      ContentChange.Mode mode)
       throws Exception {
-    Map<InstallablePayloadVersion, byte[]> payloadFiles = new LinkedHashMap<>();
-    for (InstallablePayloadVersion payload : released.payloads()) {
-      payloadFiles.put(payload, catalogFileService.storedFile(payload.fileHash()));
-    }
     return catalogScenarioService.install(
         ctx,
         tenantId,
         released,
         catalogFileService.storedFile(released.archiveHash()),
-        payloadFiles,
+        catalogFileService.payloadFiles(released.payloads()),
         choice,
         mode);
   }

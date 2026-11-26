@@ -18,6 +18,10 @@ const TIER: Record<GraphNodeType, number> = {
   ASSET_GROUP: 3,
   ASSET: 4,
   FINDING: 5,
+  // People hang below the assets their identities are: person, then team, then organization.
+  PERSON: 5,
+  TEAM: 6,
+  ORGANIZATION: 7,
 };
 
 /** Breadth-first distance from the focus over undirected edges; unreachable nodes get the max + 1. */
@@ -107,6 +111,25 @@ const radial = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: stri
 export const MIN_NODE_DX = 150;
 export const MIN_NODE_DY = 90;
 
+/** Margin kept between the mini graph card's border and its nodes. */
+export const MINI_CARD_PADDING = 24;
+/** The mini graph card never goes under this height. */
+export const MINI_CARD_MIN_HEIGHT = 240;
+
+/**
+ * Height of the mini graph card for a layout drawn at zoom 1: the vertical span of the node boxes
+ * (a position is a node's top-left corner, the box is `nodeBoxHeight` tall) plus the card margin
+ * above and below, so the top and bottom rows are never cut by the card's edges.
+ */
+export const miniCardHeight = (positions: Map<string, Point>, nodeBoxHeight: number): number => {
+  if (positions.size === 0) {
+    return MINI_CARD_MIN_HEIGHT;
+  }
+  const ys = [...positions.values()].map(p => p.y);
+  const span = Math.max(...ys) - Math.min(...ys) + nodeBoxHeight;
+  return Math.max(MINI_CARD_MIN_HEIGHT, Math.ceil(span + 2 * MINI_CARD_PADDING));
+};
+
 /** Half the vertical distance between the two rows of the mini layout. */
 const MINI_ROW = 60;
 
@@ -146,7 +169,7 @@ export const miniLayout = (nodes: GraphNodeOutput[], focus?: string | null): Map
  * (bounded passes): many parallel edges between few nodes make the force step pull them closer
  * than their labels allow. The focused node stays put.
  */
-export const separate = (positions: Map<string, Point>, ids: string[], focus?: string | null) => {
+export const separate = (positions: Map<string, Point>, ids: string[], focus?: string | null, fixed?: Set<string>) => {
   for (let pass = 0; pass < 50; pass += 1) {
     let moved = false;
     for (let i = 0; i < ids.length; i += 1) {
@@ -155,12 +178,12 @@ export const separate = (positions: Map<string, Point>, ids: string[], focus?: s
         const b = positions.get(ids[j]) as Point;
         const ox = MIN_NODE_DX - Math.abs(a.x - b.x);
         const oy = MIN_NODE_DY - Math.abs(a.y - b.y);
-        if (ox <= 0 || oy <= 0) {
+        const aFixed = ids[i] === focus || Boolean(fixed?.has(ids[i]));
+        const bFixed = ids[j] === focus || Boolean(fixed?.has(ids[j]));
+        if (ox <= 0 || oy <= 0 || (aFixed && bFixed)) {
           continue;
         }
         moved = true;
-        const aFixed = ids[i] === focus;
-        const bFixed = ids[j] === focus;
         const share = aFixed || bFixed ? 1 : 0.5;
         if (ox / MIN_NODE_DX < oy / MIN_NODE_DY) {
           const dir = a.x < b.x || (a.x === b.x && i < j) ? -1 : 1;
@@ -192,6 +215,30 @@ const snapshot = (positions: Map<string, Point>) => new Map([...positions].map((
   y: Math.round(p.y),
 }]));
 
+/** True when the placement is taller than it is wide. */
+export const isPortrait = (positions: Map<string, Point>): boolean => {
+  const points = [...positions.values()];
+  if (points.length < 2) {
+    return false;
+  }
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  return Math.max(...ys) - Math.min(...ys) > Math.max(...xs) - Math.min(...xs);
+};
+
+/**
+ * Turns a placement a quarter turn about a centre, in place: what was top to bottom reads left to
+ * right. The page canvas is wider than tall, so a force placement that settled as a tall chain (the
+ * landing story is one attack path) is turned to fill the width instead of falling off the
+ * top and the bottom of the canvas at the story's minimum zoom.
+ */
+export const quarterTurn = (positions: Map<string, Point>, centre: Point) => {
+  positions.forEach((p, id) => positions.set(id, {
+    x: centre.x + (p.y - centre.y),
+    y: centre.y - (p.x - centre.x),
+  }));
+};
+
 /** One frame of the force simulation every this many iterations: what the screen plays live. */
 export const FORCE_FRAME_EVERY = 5;
 
@@ -200,7 +247,8 @@ export const FORCE_FRAME_EVERY = 5;
  * same graph always lands the same way: repulsion between every pair, attraction along edges, a
  * cooling step. Bounded to a fixed number of iterations: the API caps a slice at a few hundred nodes.
  * Answers the frames of the simulation, from the seed to the settled, separated placement, so the
- * explorer plays the forces settling on screen instead of jumping to the result.
+ * explorer plays the forces settling on screen instead of jumping to the result. A placement that
+ * settles taller than wide is turned a quarter turn, every frame with it, to fit the wide canvas.
  */
 const forceFrames = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?: string | null): Map<string, Point>[] => {
   const positions = radial(nodes, edges, focus);
@@ -265,6 +313,18 @@ const forceFrames = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus?:
       frames.push(snapshot(positions));
     }
   }
+  if (isPortrait(positions)) {
+    const pivot = (focus && positions.get(focus)) || {
+      x: 0,
+      y: 0,
+    };
+    const centre = {
+      x: pivot.x,
+      y: pivot.y,
+    };
+    frames.forEach(frame => quarterTurn(frame, centre));
+    quarterTurn(positions, centre);
+  }
   separate(positions, ids, focus);
   frames.push(snapshot(positions));
   return frames;
@@ -317,6 +377,143 @@ export const entering = (from: Map<string, Point>, target: Map<string, Point>, e
   return start;
 };
 
+/**
+ * The layout of the compact mini graph card: the focus in the centre, its first
+ * ring split left and right in columns of three, and each second-hop node one column further out than
+ * the neighbour it hangs on, so a two-hop view stays a small readable block instead of a strip.
+ */
+export const miniCardLayout = (nodes: GraphNodeOutput[], edges: GraphEdgeOutput[], focus: string): Map<string, Point> => {
+  const positions = new Map<string, Point>();
+  if (!nodes.some(n => n.node_id === focus)) {
+    return miniLayout(nodes, focus);
+  }
+  positions.set(focus, {
+    x: 0,
+    y: 0,
+  });
+  const first = new Set<string>();
+  edges.forEach((e) => {
+    if (e.edge_source === focus) first.add(e.edge_target);
+    if (e.edge_target === focus) first.add(e.edge_source);
+  });
+  const ring = nodes.filter(n => first.has(n.node_id));
+  const rows = [-MIN_NODE_DY, 0, MIN_NODE_DY];
+  ring.forEach((n, i) => {
+    const side = i % 2 === 0 ? 1 : -1;
+    const index = Math.floor(i / 2);
+    const column = Math.floor(index / rows.length) + 1;
+    positions.set(n.node_id, {
+      x: side * column * MIN_NODE_DX,
+      y: rows[index % rows.length],
+    });
+  });
+  const outer = new Map<number, number>();
+  nodes.filter(n => !positions.has(n.node_id)).forEach((n) => {
+    const edge = edges.find(e => (e.edge_source === n.node_id && first.has(e.edge_target)) || (e.edge_target === n.node_id && first.has(e.edge_source)));
+    const parent = edge ? positions.get(edge.edge_source === n.node_id ? edge.edge_target : edge.edge_source) : undefined;
+    const base = parent ?? {
+      x: MIN_NODE_DX,
+      y: 0,
+    };
+    const side = base.x < 0 ? -1 : 1;
+    const x = Math.max(...[...positions.values()].filter(p => Math.sign(p.x) === side).map(p => Math.abs(p.x)), 0) + MIN_NODE_DX;
+    const slot = outer.get(side) ?? 0;
+    outer.set(side, slot + 1);
+    positions.set(n.node_id, {
+      x: side * x,
+      y: base.y + (slot % 2 === 0 ? 0 : MIN_NODE_DY / 2),
+    });
+  });
+  separate(positions, nodes.map(n => n.node_id), focus);
+  return snapshot(positions);
+};
+
+/**
+ * Places the nodes that enter a graph already on screen (an expand, a pivot, a node shown again)
+ * without moving any node already placed, as an OpenCTI investigation grows: each new node starts on
+ * an arc around the neighbour it came from, on the side facing away from the rest of the graph, then
+ * only the new nodes are pushed apart until no two node boxes overlap. A node with no neighbour on
+ * screen goes on an arc beyond the graph's outer edge.
+ */
+export const extendLayout = (placed: Map<string, Point>, nodes: GraphNodeOutput[], edges: GraphEdgeOutput[]): Map<string, Point> => {
+  const result = new Map<string, Point>();
+  nodes.forEach((n) => {
+    const p = placed.get(n.node_id);
+    if (p) {
+      result.set(n.node_id, {
+        x: p.x,
+        y: p.y,
+      });
+    }
+  });
+  const fixed = new Set(result.keys());
+  const fresh = nodes.filter(n => !fixed.has(n.node_id));
+  if (fresh.length === 0) {
+    return result;
+  }
+  const existing = [...result.values()];
+  const centre = existing.length > 0
+    ? {
+        x: existing.reduce((sum, p) => sum + p.x, 0) / existing.length,
+        y: existing.reduce((sum, p) => sum + p.y, 0) / existing.length,
+      }
+    : {
+        x: 0,
+        y: 0,
+      };
+  const outer = Math.max(0, ...existing.map(p => Math.hypot(p.x - centre.x, p.y - centre.y)));
+  const byAnchor = new Map<string, GraphNodeOutput[]>();
+  fresh.forEach((n) => {
+    const edge = edges.find(e => (e.edge_source === n.node_id && fixed.has(e.edge_target)) || (e.edge_target === n.node_id && fixed.has(e.edge_source)));
+    let anchor = '';
+    if (edge) {
+      anchor = edge.edge_source === n.node_id ? edge.edge_target : edge.edge_source;
+    }
+    byAnchor.set(anchor, [...(byAnchor.get(anchor) ?? []), n]);
+  });
+  byAnchor.forEach((group, anchorId) => {
+    const anchor = result.get(anchorId);
+    const origin = anchor ?? centre;
+    const away = anchor && Math.hypot(anchor.x - centre.x, anchor.y - centre.y) > 1
+      ? Math.atan2(anchor.y - centre.y, anchor.x - centre.x)
+      : 0;
+    // A small ring opens a half circle away from the graph; a large one closes to a full circle.
+    const spread = Math.min(2 * Math.PI, Math.PI * (1 + group.length / 12));
+    const radius = anchor
+      ? Math.max(RING_GAP, (group.length * MIN_NODE_DX) / spread)
+      : outer + RING_GAP;
+    group
+      .sort((a, b) => TIER[a.node_type] - TIER[b.node_type] || byLabel(a, b))
+      .forEach((n, i) => {
+        const angle = group.length === 1 ? away : away - spread / 2 + (spread * (i + 0.5)) / group.length;
+        result.set(n.node_id, {
+          x: Math.round(origin.x + radius * Math.cos(angle)),
+          y: Math.round(origin.y + radius * Math.sin(angle)),
+        });
+      });
+  });
+  separate(result, nodes.map(n => n.node_id), null, fixed);
+  return snapshot(result);
+};
+
+/** The box that holds every node of a placement (a node's position is the top left of its box). */
+export const layoutBounds = (positions: Map<string, Point>, nodeWidth: number, nodeHeight: number) => {
+  const points = [...positions.values()];
+  if (points.length === 0) {
+    return null;
+  }
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(...xs) - x + nodeWidth,
+    height: Math.max(...ys) - y + nodeHeight,
+  };
+};
+
 /** The positions between two frames at t in [0, 1], for the nodes of the second frame. */
 export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: number): Map<string, Point> => {
   const result = new Map<string, Point>();
@@ -328,4 +525,63 @@ export const interpolate = (a: Map<string, Point>, b: Map<string, Point>, t: num
     });
   });
   return result;
+};
+
+/**
+ * The move toward a layout, planned from what is committed. A new layout run (a layout button,
+ * Re-run the layout, a new slice: its key differs from the run already laid out) or an empty screen
+ * plays the whole layout; anything else (an expand, a hide, a selection, a re-render) extends the
+ * placement already committed, so a re-render while a layout plays keeps that layout's target. Pure:
+ * it never writes what it reads, so React may call it twice for one render (StrictMode, a restarted
+ * transition) and get the same plan.
+ */
+export const planMove = ({ variant, runKey, laidOut, settled, layout, nodes, edges, focus }: {
+  variant: 'page' | 'embedded' | 'mini' | string;
+  runKey: string;
+  laidOut: string;
+  settled: Map<string, Point>;
+  layout: GraphLayout;
+  nodes: GraphNodeOutput[];
+  edges: GraphEdgeOutput[];
+  focus?: string | null;
+}): {
+  frames: Map<string, Point>[];
+  runKey: string;
+  fit: boolean;
+} => {
+  if (variant === 'mini') {
+    return {
+      frames: [miniCardLayout(nodes, edges, focus ?? '')],
+      runKey,
+      fit: true,
+    };
+  }
+  if (laidOut !== runKey || settled.size === 0) {
+    return {
+      frames: layoutFrames(layout, nodes, edges, focus),
+      runKey,
+      fit: true,
+    };
+  }
+  return {
+    frames: [extendLayout(settled, nodes, edges)],
+    runKey,
+    fit: nodes.some(n => !settled.has(n.node_id)),
+  };
+};
+
+/**
+ * The positions of a move at its share of time t: an ease-out over the legs, the first leg from the
+ * screen to the first frame, then the frames in order. t is clamped to [0, 1]: an animation frame's
+ * timestamp can precede the move's start by a few milliseconds, and a negative t once read a frame
+ * before the first ("Cannot read properties of undefined (reading 'forEach')").
+ */
+export const moveAt = (from: Map<string, Point>, steps: Map<string, Point>[], t: number): Map<string, Point> => {
+  const progress = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 1));
+  const eased = 1 - (1 - progress) ** 3;
+  const legs = steps.length;
+  const at = eased * legs;
+  const leg = Math.min(legs - 1, Math.max(0, Math.floor(at)));
+  const legFrom = leg === 0 ? from : steps[leg - 1];
+  return interpolate(legFrom, steps[leg], Math.min(1, at - leg));
 };

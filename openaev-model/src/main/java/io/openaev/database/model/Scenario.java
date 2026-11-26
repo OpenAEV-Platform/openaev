@@ -13,7 +13,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
@@ -79,8 +78,10 @@ import org.hibernate.type.SqlTypes;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+// scenarios is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
+// TenantBaseListener (#6432). A create path that forgets to stamp the tenant fails loudly
+// on the NOT NULL constraint of tenant_id.
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",
@@ -244,6 +245,20 @@ public class Scenario extends ModelBehaviour
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;
 
+  /**
+   * Opt-in reachability assertion: the scenario declares what its targets are expected to answer (a
+   * port closed, an address answering 403, a protocol off) through the expectations of its injects,
+   * checked on its recurrence. Every enabled inject of such a scenario must be read-only (its
+   * injector contract or payload is marked read-only): scheduling is refused otherwise and the
+   * scheduler skips it. A failing check becomes a finding through the inject's output parser, and a
+   * regression against the previous run raises the existing score degradation event. Off by
+   * default; set only through {@code PUT /api/scenarios/{scenarioId}/reachability-assertion}.
+   */
+  @Column(name = "scenario_reachability_assertion")
+  @JsonProperty("scenario_reachability_assertion")
+  @Queryable(filterable = true)
+  private boolean reachabilityAssertion;
+
   // -- OCTI GENERATION SCENARIO FROM HTTP CALL--
 
   @Column(name = "scenario_external_reference")
@@ -307,6 +322,12 @@ public class Scenario extends ModelBehaviour
       name = "organization",
       joinColumns = @JoinColumn(name = "scenario_author_organization"))
   @JsonIgnore
+  @JsonProperty("scenario_author")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"author.user.id", "author.organization.id"},
+      clazz = String.class)
   private Authorship author;
 
   // -- CATALOGUE --
@@ -334,6 +355,11 @@ public class Scenario extends ModelBehaviour
   @Override
   public String getCatalogExternalId() {
     return catalogIdentity == null ? null : catalogIdentity.getExternalId();
+  }
+
+  @Override
+  public String getCatalogContentId() {
+    return id;
   }
 
   // -- MESSAGE --
@@ -610,6 +636,23 @@ public class Scenario extends ModelBehaviour
             inject -> inject.getInjectorContract().map(InjectorContract::getPlatforms).stream())
         .flatMap(Arrays::stream)
         .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  // -- DOMAINS --
+  // Filter only: the search rows carry the domains, so a response never loads the injects for them.
+  @JsonIgnore
+  @JsonProperty("scenario_domains")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injects.injectorContract.domains.id",
+      clazz = String[].class)
+  public List<Domain> getDomains() {
+    return getInjects().stream()
+        .flatMap(inject -> inject.getInjectorContract().stream())
+        .flatMap(contract -> contract.getDomains().stream())
         .distinct()
         .toList();
   }

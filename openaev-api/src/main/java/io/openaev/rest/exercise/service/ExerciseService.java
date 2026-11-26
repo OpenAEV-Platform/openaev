@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.ExerciseRepository.ScenarioSimulationsRow;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -53,7 +54,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
-import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
@@ -163,15 +163,11 @@ public class ExerciseService {
 
   private final ApplicationEventPublisher eventPublisher;
 
-  private final AttackPathExecutionIngestionService attackPathExecutionService;
-
   private final io.openaev.database.repository.autonomous.AutonomousRunRepository
       autonomousRunRepository;
 
   // Lazy: PermissionService reaches the services this one is built from.
   private final ObjectProvider<PermissionService> permissionServiceProvider;
-
-  private final io.openaev.service.finding.FindingDetachService findingDetachService;
 
   // region properties
   @Resource private PlatformMailSender platformMailSender;
@@ -252,11 +248,10 @@ public class ExerciseService {
 
   /**
    * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Exercise> findByIdInScope(
@@ -281,6 +276,11 @@ public class ExerciseService {
     }
   }
 
+  @Transactional(readOnly = true)
+  public long countByScenario(@NotBlank final String tenantId, @NotBlank final String scenarioId) {
+    return this.exerciseRepository.countByTenantIdAndScenarioId(tenantId, scenarioId);
+  }
+
   /**
    * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
    * an id array. Serialization runs open-in-view after the controller transaction has committed,
@@ -294,10 +294,9 @@ public class ExerciseService {
   }
 
   /**
-   * Reads the details of a simulation found inside the request's tenant scope. The native read
-   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
-   * is checked first. The detail also names the simulation's workflow, read in the simulation's own
-   * tenant once access is granted (WorkflowOwnerScope).
+   * Reads the details of a simulation found inside the request's tenant scope. The whole native
+   * read runs inside {@code workflowOwnerScope.call}, so it runs in the simulation's own tenant,
+   * which is also the tenant of the workflow the detail names.
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
@@ -699,7 +698,8 @@ public class ExerciseService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             all,
             granted,
             RawExerciseSimple::getTenant_id,
@@ -720,7 +720,8 @@ public class ExerciseService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEverySimulation(currentUser),
+            currentUser,
+            ExerciseService::canAccessEverySimulation,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -762,16 +763,6 @@ public class ExerciseService {
   }
 
   /**
-   * Find all simulations matching a list of IDs
-   *
-   * @param simulationIds list of simulation IDs to search
-   * @return the list of simulations found
-   */
-  public List<Exercise> findAllById(List<String> simulationIds) {
-    return exerciseRepository.findAllById(simulationIds);
-  }
-
-  /**
    * Save a simulation
    *
    * @param simulation simulation to save
@@ -782,27 +773,14 @@ public class ExerciseService {
   }
 
   /**
-   * Delete a simulation found inside the request's tenant scope
+   * Delete a simulation found inside the request's tenant scope.
    *
    * @param ctx the request's tenant scope
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(TxCtx ctx, String simulationId) {
-    delete(exercise(ctx, simulationId), false);
-  }
-
-  /**
-   * Delete a simulation found inside the request's tenant scope.
-   *
-   * @param ctx the request's tenant scope
-   * @param simulationId ID of the simulation to delete
-   * @param keepFindings true to keep the findings its injects produced, detached from them; false
-   *     (the default) deletes them with the simulation
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteById(TxCtx ctx, String simulationId, boolean keepFindings) {
-    delete(exercise(ctx, simulationId), keepFindings);
+    delete(exercise(ctx, simulationId));
   }
 
   /**
@@ -812,12 +790,12 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    delete(exercise(simulationId), false);
+    delete(exercise(simulationId));
   }
 
   // The simulation is loaded by the caller, in the request scope or in the current tenant, so the
   // tenant check and the workflow sweep's tenant come from the same row.
-  private void delete(Exercise simulation, boolean keepFindings) {
+  private void delete(Exercise simulation) {
     String simulationId = simulation.getId();
     workflowOwnerScope.run(
         simulation,
@@ -828,11 +806,6 @@ public class ExerciseService {
                 "[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
           }
         });
-
-    if (keepFindings) {
-      // Right before the native delete: finding_inject_id_fk would otherwise cascade to them
-      findingDetachService.detachFromSimulations(List.of(simulationId));
-    }
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
@@ -892,9 +865,11 @@ public class ExerciseService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  user.isAdminOrBypass()
-                                      || user.getCapabilities()
+                              user,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
+                                          .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->
                                   SpecificationUtils.hasGrantAccess(
@@ -907,7 +882,7 @@ public class ExerciseService {
         ctx,
         "simulations",
         exerciseIdsToDelete,
-        chunk -> chunk.forEach(id -> delete(exercise(ctx, id), input.isKeepFindings())));
+        chunk -> chunk.forEach(id -> delete(exercise(ctx, id))));
   }
 
   /** Changes the status of an exercise found inside the request's tenant scope. */
@@ -1469,14 +1444,18 @@ public class ExerciseService {
     this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
-    List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
+    List<Team> teams =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(targetTeamIds, exercise.getTenant().getId()));
     exercise.setTeams(teams);
     this.exerciseRepository.save(exercise);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
 
-    List<Team> teamsAdded = fromIterable(this.teamRepository.findAllById(teamIdsAdded));
+    List<Team> teamsAdded =
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(teamIdsAdded, exercise.getTenant().getId()));
 
     // Enable user
     teamsAdded.forEach(
@@ -1691,5 +1670,14 @@ public class ExerciseService {
             workflow -> healthChecks.addAll(healthCheckUtils.runScopeDefinitionChecks(workflow)));
 
     return healthChecks;
+  }
+
+  /**
+   * The number of simulations and the last start per scenario id, for the XTM counterpart lookup
+   * facts.
+   */
+  public List<ScenarioSimulationsRow> countSimulationsByScenarioIdIn(
+      Collection<String> scenarioIds) {
+    return exerciseRepository.countSimulationsByScenarioIdIn(scenarioIds);
   }
 }

@@ -1,5 +1,4 @@
 import { Text } from '@filigran/design-system';
-import { useLocation } from 'react-router';
 
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
@@ -14,6 +13,7 @@ import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
 import useMarkNewsFeedItemsRead from './useMarkNewsFeedItemsRead';
 import useNewsFeedSettings from './useNewsFeedSettings';
+import useNewsFeedVisitKey from './useNewsFeedVisitKey';
 
 interface Props { tab: NewsFeedTab }
 
@@ -25,8 +25,9 @@ interface Props { tab: NewsFeedTab }
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
   const ability = useAbility();
-  // Changes on every navigation, including a click on a link to the page already shown.
-  const { key: visitKey } = useLocation();
+  // Changes on every navigation to the page, including a click on a link to the page already shown, but
+  // not when the list writes its own search to the URL.
+  const visitKey = useNewsFeedVisitKey();
   // Same permission as the connect flow: a user without it is told to ask an administrator instead.
   const canConnectXtmHub = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const { settings: platformSettings } = useAuth();

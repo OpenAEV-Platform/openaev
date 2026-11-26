@@ -4,14 +4,27 @@ import {
   distances,
   entering,
   interpolate,
+  isPortrait,
   layoutFrames,
   layoutGraph,
   MIN_NODE_DX,
   MIN_NODE_DY,
   type Point,
+  quarterTurn,
   separate,
 } from '../../../../admin/components/graph/graph-layout';
-import { type GraphEdgeOutput, graphHref, type GraphNodeOutput, type GraphOutput, parseNodeType } from '../../../../admin/components/graph/graph-model';
+import {
+  ALL_EDGE_TYPES,
+  ALL_NODE_TYPES,
+  EDGE_TYPE_LABEL,
+  type GraphEdgeOutput,
+  graphHref,
+  type GraphNodeOutput,
+  type GraphOutput,
+  NODE_TYPE_LABEL,
+  nodeHref,
+  parseNodeType,
+} from '../../../../admin/components/graph/graph-model';
 import {
   DEFAULT_FILTERS,
   encodeFocus,
@@ -155,6 +168,34 @@ describe('graph-model', () => {
     expect(parseNodeType('nope')).toBeUndefined();
     expect(graphHref('ASSET', 'a b')).toBe('/admin/graph?focus=asset:a%20b');
   });
+
+  it('knows the people of #9447 and opens their pages', () => {
+    expect(parseNodeType('person')).toBe('PERSON');
+    expect(parseNodeType('organization')).toBe('ORGANIZATION');
+    expect(parseNodeType('team')).toBe('TEAM');
+    expect(nodeHref({
+      node_type: 'PERSON',
+      node_entity_id: 'u1',
+    })).toBe('/admin/persons/u1');
+    expect(nodeHref({
+      node_type: 'ORGANIZATION',
+      node_entity_id: 'o1',
+    })).toBe('/admin/organizations/o1');
+    expect(nodeHref({
+      node_type: 'TEAM',
+      node_entity_id: 't1',
+    })).toBe('/admin/teams/t1');
+    expect(nodeHref({
+      node_type: 'INJECT',
+      node_entity_id: 'i1',
+    })).toBeUndefined();
+  });
+
+  it('lists every relation the API returns, attack steps and asset links included', () => {
+    expect(ALL_EDGE_TYPES).toEqual(expect.arrayContaining(['IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'TEAM_OF', 'LINKED_TO', 'ATTACK_STEP']));
+    ALL_EDGE_TYPES.forEach(type => expect(EDGE_TYPE_LABEL[type]).toBeTruthy());
+    ALL_NODE_TYPES.forEach(type => expect(NODE_TYPE_LABEL[type]).toBeTruthy());
+  });
 });
 
 describe('graph-layout', () => {
@@ -183,6 +224,44 @@ describe('graph-layout', () => {
     expect(frames.length).toBeGreaterThan(2);
     expect(frames[frames.length - 1]).toEqual(layoutGraph('force', nodes, edges, 'ASSET:a1'));
     expect(frames[0]).not.toEqual(frames[frames.length - 1]);
+  });
+
+  it('turns a chain that settles taller than wide to read left to right (#9447 story)', () => {
+    const chain = ['ASSET:c1', 'ASSET:c2', 'ASSET:c3', 'ASSET:c4', 'ASSET:c5', 'ASSET:c6'].map(id => node(id, 'ASSET'));
+    const links = chain.slice(1).map((n, i) => edge(`l${i}`, chain[i].node_id, n.node_id));
+    const positions = layoutGraph('force', chain, links, 'ASSET:c3');
+    expect(isPortrait(positions)).toBe(false);
+    const xs = [...positions.values()].map(p => p.x);
+    const ys = [...positions.values()].map(p => p.y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys));
+  });
+
+  it('detects a portrait placement and turns it a quarter turn about a centre', () => {
+    const tall = new Map<string, Point>([['a', {
+      x: 10,
+      y: 0,
+    }], ['b', {
+      x: 10,
+      y: 300,
+    }]]);
+    expect(isPortrait(tall)).toBe(true);
+    quarterTurn(tall, {
+      x: 10,
+      y: 0,
+    });
+    expect(tall.get('a')).toEqual({
+      x: 10,
+      y: 0,
+    });
+    expect(tall.get('b')).toEqual({
+      x: 310,
+      y: 0,
+    });
+    expect(isPortrait(tall)).toBe(false);
+    expect(isPortrait(new Map([['a', {
+      x: 0,
+      y: 0,
+    }]]))).toBe(false);
   });
 
   it('answers one frame for a static layout', () => {

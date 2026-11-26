@@ -96,6 +96,9 @@ public class SessionApiTest extends IntegrationTest {
     class WithinSameTenant {
       @Test
       @DisplayName("Can read all active sessions")
+      @WithMockUser(
+          withCapabilities = {Capability.MANAGE_SESSIONS},
+          autoJoinDefaultTenant = true)
       void canReadAllActiveSessions() throws Exception {
         mockMvc
             .perform(get(SESSION_URI).contentType(MediaType.APPLICATION_JSON).with(csrf()))
@@ -150,6 +153,9 @@ public class SessionApiTest extends IntegrationTest {
 
       @Test
       @DisplayName("Given no active session, then can not find session to delete")
+      @WithMockUser(
+          withCapabilities = {Capability.MANAGE_SESSIONS},
+          autoJoinDefaultTenant = true)
       void given_noActiveSession_then_canNotFindSessionToDelete() throws Exception {
         mockMvc
             .perform(

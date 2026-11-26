@@ -9,6 +9,7 @@ import {
   type GraphOutput,
   type GraphResult,
 } from './graph-model';
+import { inTimeRange, type TimeRange } from './graph-time-range';
 
 /** What the explorer holds: every slice loaded so far, merged, plus the user's view choices. */
 export interface GraphState {
@@ -19,6 +20,8 @@ export interface GraphState {
   pinned: string[];
   path: string[];
   truncatedAt: string[];
+  /** Group nodes the user opened: their members are drawn one by one (see graph-grouping). */
+  ungrouped: string[];
 }
 
 export interface GraphFilters {
@@ -28,6 +31,8 @@ export interface GraphFilters {
   search: string;
   /** Show only the focus and its direct neighbours. */
   focusMode: boolean;
+  /** Dated nodes outside it leave the view (see graph-time-range); null: no range. */
+  timeRange?: TimeRange | null;
 }
 
 export const EMPTY_STATE: GraphState = {
@@ -38,6 +43,7 @@ export const EMPTY_STATE: GraphState = {
   pinned: [],
   path: [],
   truncatedAt: [],
+  ungrouped: [],
 };
 
 export const DEFAULT_FILTERS: GraphFilters = {
@@ -78,6 +84,8 @@ export const mergeSlice = (state: GraphState, slice: GraphOutput, expandedFrom?:
           node_failed_count: Math.max(previous.node_failed_count, n.node_failed_count),
           node_finding_count: Math.max(previous.node_finding_count, n.node_finding_count),
           node_result: worst(previous.node_result, n.node_result),
+          // The newest count wins (a count is the whole data, not a slice's part of it).
+          node_relation_counts: n.node_relation_counts ?? previous.node_relation_counts,
         }
       : n;
   });
@@ -100,6 +108,42 @@ export const mergeSlice = (state: GraphState, slice: GraphOutput, expandedFrom?:
   };
 };
 
+/**
+ * Expands a node in place, as an OpenCTI investigation: the slice is merged into the graph on
+ * screen and the node becomes the focus; nothing already on screen is dropped. `nodeType` keeps only
+ * the neighbours of one entity type (the context menu's Expand by entity type).
+ */
+export const expandSlice = (state: GraphState, slice: GraphOutput, nodeId: string, nodeType?: GraphNodeOutput['node_type']): GraphState => {
+  const kept = nodeType
+    ? {
+        ...slice,
+        graph_nodes: slice.graph_nodes.filter(n => n.node_id === nodeId || n.node_type === nodeType || state.nodes[n.node_id]),
+      }
+    : slice;
+  const ids = new Set([...Object.keys(state.nodes), ...kept.graph_nodes.map(n => n.node_id)]);
+  const merged = mergeSlice(state, {
+    ...kept,
+    graph_edges: kept.graph_edges.filter(e => ids.has(e.edge_source) && ids.has(e.edge_target)),
+    graph_path: [],
+  }, nodeId);
+  return {
+    ...merged,
+    focus: nodeId,
+  };
+};
+
+/** Shows every hidden node again. */
+export const showHidden = (state: GraphState): GraphState => ({
+  ...state,
+  hidden: [],
+});
+
+/** Opens a group node: its members are drawn one by one. */
+export const ungroup = (state: GraphState, groupId: string): GraphState => ({
+  ...state,
+  ungrouped: state.ungrouped.includes(groupId) ? state.ungrouped : [...state.ungrouped, groupId],
+});
+
 /** A fresh state from one slice: the landing view, or a new focus. */
 export const fromSlice = (slice: GraphOutput): GraphState => mergeSlice(EMPTY_STATE, slice, slice.graph_focus ?? null);
 
@@ -107,6 +151,47 @@ export const hideNode = (state: GraphState, nodeId: string): GraphState => ({
   ...state,
   hidden: state.hidden.includes(nodeId) ? state.hidden : [...state.hidden, nodeId],
   pinned: state.pinned.filter(id => id !== nodeId),
+});
+
+/**
+ * Removes nodes from the view, as OpenCTI's "Remove from view" in an investigation: the nodes and
+ * their relations leave the graph (a later expand brings them back); Hide only masks them.
+ */
+export const removeNodes = (state: GraphState, nodeIds: string[]): GraphState => {
+  const gone = new Set(nodeIds.filter(id => id !== state.focus));
+  if (gone.size === 0) {
+    return state;
+  }
+  const nodes = Object.fromEntries(Object.entries(state.nodes).filter(([id]) => !gone.has(id)));
+  const edges = Object.fromEntries(Object.entries(state.edges)
+    .filter(([, e]) => !gone.has(e.edge_source) && !gone.has(e.edge_target)));
+  return {
+    ...state,
+    nodes,
+    edges,
+    hidden: state.hidden.filter(id => !gone.has(id)),
+    pinned: state.pinned.filter(id => !gone.has(id)),
+    path: state.path.some(id => gone.has(id)) ? [] : state.path,
+    truncatedAt: state.truncatedAt.filter(id => !gone.has(id)),
+  };
+};
+
+/** Pins every node of a selection (or unpins them all when every one is already pinned). */
+export const pinNodes = (state: GraphState, nodeIds: string[]): GraphState => {
+  const allPinned = nodeIds.every(id => state.pinned.includes(id));
+  return {
+    ...state,
+    pinned: allPinned
+      ? state.pinned.filter(id => !nodeIds.includes(id))
+      : Array.from(new Set([...state.pinned, ...nodeIds])),
+  };
+};
+
+/** Hides every node of a selection. */
+export const hideNodes = (state: GraphState, nodeIds: string[]): GraphState => ({
+  ...state,
+  hidden: Array.from(new Set([...state.hidden, ...nodeIds])),
+  pinned: state.pinned.filter(id => !nodeIds.includes(id)),
 });
 
 export const togglePin = (state: GraphState, nodeId: string): GraphState => ({
@@ -122,6 +207,7 @@ export const visibleGraph = (state: GraphState, filters: GraphFilters) => {
   let nodes = Object.values(state.nodes).filter(n => !hidden.has(n.node_id)
     && (pinned.has(n.node_id) || n.node_id === state.focus || (
       filters.nodeTypes.includes(n.node_type)
+      && inTimeRange(n, filters.timeRange)
       && (!n.node_result || filters.results.includes(n.node_result)))));
   let ids = new Set(nodes.map(n => n.node_id));
   let edges = Object.values(state.edges).filter(e => filters.edgeTypes.includes(e.edge_type)

@@ -35,10 +35,8 @@ public interface CollectorRepository
    * the tenant (configuration {@code idKey}) is stopped or stopping. A collector with no connector
    * instance is kept.
    *
-   * <p>Native query with an explicit tenant, so no Hibernate filter applies. This is called from
-   * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(), whose
-   * {@code @Transactional} arms the v1 filter through HibernateFilterTransactionAspect with
-   * whatever TenantContext the thread holds.
+   * <p>Native query with an explicit tenant. This is called from InjectsExecutionJob (background
+   * scheduler) via buildAndSaveInjectExpectations().
    */
   @Query(
       nativeQuery = true,

@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData } from '../../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../../attack-path-logging-context';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
 const EndpointClusterCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
   const isOverflow = data.clusterKind === 'overflow';
   const expanded = data.expanded ?? false;
   const accent = attackPathStatusColor(theme, data.status);
@@ -30,7 +32,7 @@ const EndpointClusterCard = ({ data, selected = false }: Props) => {
   } else if (expanded) {
     sub = t('Collapse');
   }
-  const statusText = t(attackPathStatusLabel(data.status));
+  const statusText = t(attackPathStatusLabel(data.status, showsLogging));
   const Icon = expanded && !isOverflow ? UnfoldLessOutlined : UnfoldMoreOutlined;
   let action = t('Click to expand the endpoints');
   if (isOverflow) {

@@ -424,6 +424,110 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("asset_ips").isEqualTo(endpointCreated.getIps());
   }
 
+  private Endpoint saveInventoryEndpoint(String externalReference) {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    endpoint.setName("ww-onedev-control-001");
+    endpoint.setHostname("control-001.onedev.ww.example.org");
+    endpoint.setIps(new String[] {"198.51.100.7"});
+    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setCategory(AssetCategory.HOST);
+    endpoint.setDescription("Created by the inventory collector");
+    endpoint.setExternalReference(externalReference);
+    return endpointRepository.save(endpoint);
+  }
+
+  private EndpointInput discoveredWebApplicationInput(String externalReference) {
+    EndpointInput input = new EndpointInput();
+    input.setName("control-001.onedev.ww.example.org");
+    input.setHostname("control-001.onedev.ww.example.org");
+    input.setIps(new String[] {"198.51.100.7", "198.51.100.8"});
+    input.setCategory(AssetCategory.WEB_APPLICATION);
+    input.setSubcategory(AssetSubCategory.WEBSITE);
+    input.setExternalReference(externalReference);
+    return input;
+  }
+
+  @DisplayName(
+      "Given an upsert matched by hostname and IP on another source's endpoint, should keep its"
+          + " name, category and external reference and only merge addresses")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingForeignEndpointByHostnameAndIp_should_keepItsIdentity()
+      throws Exception {
+    // --PREPARE--
+    Endpoint foreign = saveInventoryEndpoint("inventory-collector:vps-001");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(
+                        asJsonString(
+                            discoveredWebApplicationInput(
+                                "dns-enum:control-001.onedev.ww.example.org")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(foreign.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("ww-onedev-control-001");
+    assertThatJson(response).node("asset_category").isEqualTo("HOST");
+    assertThatJson(response)
+        .node("asset_description")
+        .isEqualTo("Created by the inventory collector");
+    assertThatJson(response)
+        .node("asset_external_reference")
+        .isEqualTo("inventory-collector:vps-001");
+    assertThatJson(response).node("endpoint_platform").isEqualTo("Linux");
+    assertThatJson(response)
+        .node("asset_ips")
+        .isArray()
+        .containsExactlyInAnyOrder("198.51.100.7", "198.51.100.8");
+    Endpoint stored =
+        endpointRepository
+            .findByIdAndTenantId(foreign.getId(), TenantContext.getCurrentTenant())
+            .orElseThrow();
+    assertThat(stored.getSubcategory()).isNull();
+    assertThat(stored.getHostname()).isEqualTo("control-001.onedev.ww.example.org");
+  }
+
+  @DisplayName(
+      "Given an upsert matched by the caller's own external reference, should update name and"
+          + " category")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingOwnExternalReference_should_updateIdentity() throws Exception {
+    // --PREPARE--
+    String externalReference = "dns-enum:control-001.onedev.ww.example.org";
+    Endpoint own = saveInventoryEndpoint(externalReference);
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(asJsonString(discoveredWebApplicationInput(externalReference)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(own.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("control-001.onedev.ww.example.org");
+    assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
+  }
+
   @DisplayName("Given valid input, should delete an endpoint successfully")
   @Test
   @WithMockUser(isAdmin = true)
@@ -1525,6 +1629,216 @@ class EndpointApiTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
       assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/endpoints/search - end of life filter and sort")
+  @WithMockUser(isAdmin = true)
+  class EndOfLifeFilter {
+
+    private static final String PREFIX = "eol-filter-";
+
+    private Endpoint persistEndpoint(String name, boolean endOfLife) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setEoL(endOfLife);
+      return endpointRepository.save(endpoint);
+    }
+
+    private Filters.FilterGroup eolFilter(String value) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("endpoint_is_eol");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>(List.of(value)));
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(new ArrayList<>(List.of(filter)));
+      return group;
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal")
+    void given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("true"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(eol.getId()).doesNotContain(supported.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_eqFalse_should_returnOnlySupportedEndpoints")
+    void given_eqFalse_should_returnOnlySupportedEndpoints() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("false"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId()).doesNotContain(eol.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast")
+    void given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .sorts(
+                  List.of(
+                      io.openaev.utils.pagination.SortField.builder()
+                          .property("endpoint_is_eol")
+                          .direction("asc")
+                          .build()))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId(), eol.getId());
+    }
+
+    @Test
+    @DisplayName("given_unknownFilterKey_should_stillAnswerBadRequest")
+    void given_unknownFilterKey_should_stillAnswerBadRequest() throws Exception {
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "endpoint_not_a_field", "true", Filters.FilterOperator.eq);
+
+      mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/endpoints/search - empty / not_empty on a Boolean column")
+  @WithMockUser(isAdmin = true)
+  class BooleanEmptyFilter {
+
+    private static final String PREFIX = "internet-facing-empty-";
+
+    private Endpoint persistEndpoint(String name, Boolean internetFacing) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setInternetFacing(internetFacing);
+      return endpointRepository.save(endpoint);
+    }
+
+    private SearchPaginationInput input(Filters.FilterOperator operator) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("asset_internet_facing");
+      filter.setOperator(operator);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>());
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+      return PaginationFixture.getDefault()
+          .size(100)
+          .textSearch(PREFIX)
+          .filterGroup(filterGroup)
+          .build();
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal")
+    void given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal()
+        throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactly(unset.getId())
+          .doesNotContain(exposed.getId(), internal.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse")
+    void given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse() throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.not_empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(exposed.getId(), internal.getId())
+          .doesNotContain(unset.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(2);
     }
   }
 

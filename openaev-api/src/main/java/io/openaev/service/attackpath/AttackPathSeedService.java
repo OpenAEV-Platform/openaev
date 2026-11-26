@@ -103,6 +103,7 @@ public class AttackPathSeedService {
     "attackpath_execution_prevention_status",
     "attackpath_execution_detection_status",
     "attackpath_execution_vulnerability_status",
+    "attackpath_execution_logging_status",
     "attackpath_execution_command",
     "attackpath_execution_terminal_output"
   };
@@ -429,6 +430,9 @@ public class AttackPathSeedService {
       random.nextBoolean()
           ? ExpectationType.VULNERABILITY.successLabel
           : ExpectationType.VULNERABILITY.failureLabel,
+      random.nextBoolean()
+          ? ExpectationType.LOGGING.successLabel
+          : ExpectationType.LOGGING.failureLabel,
       command(injector, endpoint, sampleCredential),
       terminalOutput(random, injector, sampleCredential)
     };

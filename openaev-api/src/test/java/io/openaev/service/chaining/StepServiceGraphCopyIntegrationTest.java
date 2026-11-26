@@ -17,6 +17,8 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
+import io.openaev.utilstest.KeepRabbit;
+import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,10 +37,12 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @Transactional
 // Runs the test transaction in the default tenant's scope, where every fixture here is created, as
-// a launch or a duplication copies a workflow in its tenant's scope.
+// a launch or a duplication copies a workflow in its tenant's scope. A launch publishes its ready
+// steps, so the RabbitMQ queues another class of the shared context closed are opened again.
 @TestExecutionListeners(
-    listeners = DefaultTenantScopeTestListener.class,
+    listeners = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@KeepRabbit
 @DisplayName("StepService - workflow graph copy")
 class StepServiceGraphCopyIntegrationTest {
 
@@ -66,7 +70,9 @@ class StepServiceGraphCopyIntegrationTest {
     return workflowRepository.save(template);
   }
 
+  // A nested class needs its own marker: the listener reads it from the class it opens or closes.
   @Nested
+  @KeepRabbit
   @DisplayName("DEPEND_ON remapping")
   class DependOnRemapping {
 

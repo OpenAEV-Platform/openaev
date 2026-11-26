@@ -1,11 +1,6 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNKNOWN;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -13,24 +8,37 @@ import static org.mockito.Mockito.*;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
 import com.azure.core.http.HttpResponse;
+import com.azure.core.http.netty.NettyAsyncHttpClientBuilder;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
+import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.utils.helpers.MockCloudServer;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
+import javax.net.ssl.SSLHandshakeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Mono;
@@ -38,11 +46,10 @@ import reactor.core.publisher.Mono;
 /**
  * Unit tests for the Azure credential probe.
  *
- * <p>No test here reaches the network: {@code subscriptionId} is always null, which stops the probe
- * right after the token exchange. The ARM subscription branch is deliberately NOT unit tested —
- * covering it would mean either a real outbound HTTPS call or an in-test HTTP server, and both make
- * the suite slow and flaky for a branch whose only logic (the status-code mapping) is already
- * exercised through {@link ClientAuthenticationException} and {@link HttpResponseException} here.
+ * <p>No test here reaches a real cloud. The ARM subscription read is only exercised through a scope
+ * naming a {@link MockCloudServer} on loopback, which is exactly the mocked cloud use case of that
+ * override; elsewhere {@code subscriptionId} is null, which stops the probe right after the token
+ * exchange.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AzureCredentialValidator tests")
@@ -58,10 +65,16 @@ class AzureCredentialConnectivityCheckTest {
 
   @BeforeEach
   void setUp() {
+    // A real transport: the subscription read must go over an actual socket to the mock cloud.
+    lenient()
+        .when(tokenCredentialFactory.httpClient())
+        .thenReturn(new NettyAsyncHttpClientBuilder().build());
     validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);
+    // The mocked cloud listens on loopback: the on-premise opt-out is what lets the probe in.
+    ReflectionTestUtils.setField(validator, "allowInternalEndpoints", true);
   }
 
   /** Makes the mocked credential answer with a usable token. */
@@ -92,14 +105,20 @@ class AzureCredentialConnectivityCheckTest {
     void given_grantedToken_should_returnActive() {
       // Arrange
       when(tokenCredentialFactory.forServicePrincipal(
-              any(), eq(AZURE_TENANT_ID), eq(AZURE_CLIENT_ID), eq(AZURE_CLIENT_SECRET)))
+              any(), eq(AZURE_TENANT_ID), eq(AZURE_CLIENT_ID), eq(AZURE_CLIENT_SECRET), isNull()))
           .thenReturn(tokenCredential);
       givenTokenIsGranted();
 
       // Act
       SecretConnectionResult result =
           validator.validateServicePrincipal(
-              AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -111,13 +130,19 @@ class AzureCredentialConnectivityCheckTest {
     @DisplayName("The probe targets the resolved cloud, not a hardcoded one")
     void given_sovereignCloud_should_buildCredentialForThatCloud() {
       // Arrange
-      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any()))
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
           .thenReturn(tokenCredential);
       givenTokenIsGranted();
 
       // Act
       validator.validateServicePrincipal(
-          AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          null,
+          null,
+          null);
 
       // Assert
       verify(tokenCredentialFactory)
@@ -125,7 +150,8 @@ class AzureCredentialConnectivityCheckTest {
               eq(AzureEnvironment.AZURE),
               eq(AZURE_TENANT_ID),
               eq(AZURE_CLIENT_ID),
-              eq(AZURE_CLIENT_SECRET));
+              eq(AZURE_CLIENT_SECRET),
+              isNull());
     }
 
     @Test
@@ -134,7 +160,13 @@ class AzureCredentialConnectivityCheckTest {
       // Arrange / Act
       SecretConnectionResult result =
           validator.validateServicePrincipal(
-              UNSUPPORTED_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+              UNSUPPORTED_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -150,7 +182,7 @@ class AzureCredentialConnectivityCheckTest {
       // Arrange / Act
       SecretConnectionResult result =
           validator.validateServicePrincipal(
-              environment, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+              environment, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -165,13 +197,13 @@ class AzureCredentialConnectivityCheckTest {
       // Arrange / Act
       SecretConnectionResult missingTenant =
           validator.validateServicePrincipal(
-              AZURE_ENVIRONMENT, missing, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+              AZURE_ENVIRONMENT, missing, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null, null, null);
       SecretConnectionResult missingClient =
           validator.validateServicePrincipal(
-              AZURE_ENVIRONMENT, AZURE_TENANT_ID, missing, AZURE_CLIENT_SECRET, null);
+              AZURE_ENVIRONMENT, AZURE_TENANT_ID, missing, AZURE_CLIENT_SECRET, null, null, null);
       SecretConnectionResult missingSecret =
           validator.validateServicePrincipal(
-              AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, missing, null);
+              AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, missing, null, null, null);
 
       // Assert
       assertThat(missingTenant.status()).isEqualTo(FORMAT_ERROR);
@@ -197,7 +229,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -215,7 +247,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -233,7 +265,7 @@ class AzureCredentialConnectivityCheckTest {
 
       // Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(UNKNOWN);
@@ -246,12 +278,365 @@ class AzureCredentialConnectivityCheckTest {
     void given_unsupportedEnvironment_should_returnUnknownInvalidConfiguration() {
       // Arrange / Act
       SecretConnectionResult result =
-          validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null);
+          validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
       assertThat(result.wasChecked()).isTrue();
       verifyNoInteractions(tokenCredentialFactory);
+    }
+  }
+
+  @Nested
+  @DisplayName("Sovereign cloud overrides")
+  class SovereignCloudOverrides {
+
+    private static final String SUBSCRIPTION_PATH = "/subscriptions/" + AZURE_SUBSCRIPTION_ID;
+
+    /** The scope the probe asked a token for. */
+    private String requestedScope() {
+      ArgumentCaptor<TokenRequestContext> context =
+          ArgumentCaptor.forClass(TokenRequestContext.class);
+      verify(tokenCredential).getToken(context.capture());
+      return context.getValue().getScopes().getFirst();
+    }
+
+    @Test
+    @DisplayName("A service principal authenticates against the authority host of the credential")
+    void given_authorityHost_should_buildCredentialOnIt() {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              AZURE_AUTHORITY_HOST_URI,
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      verify(tokenCredentialFactory)
+          .forServicePrincipal(
+              eq(AzureEnvironment.AZURE),
+              eq(AZURE_TENANT_ID),
+              eq(AZURE_CLIENT_ID),
+              eq(AZURE_CLIENT_SECRET),
+              eq(AZURE_AUTHORITY_HOST_URI));
+      // No scope of its own: the token is asked for the authority host.
+      assertThat(requestedScope()).isEqualTo(AZURE_AUTHORITY_HOST_URI + "/.default");
+    }
+
+    @Test
+    @DisplayName("A scope wins over the authority host for the resource the token is asked for")
+    void given_scopeAndAuthorityHost_should_requestTokenForTheScope() {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      validator.validateServicePrincipal(
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          null,
+          AZURE_AUTHORITY_HOST_URI,
+          "https://management.sovereign.example/.default");
+
+      // Assert
+      assertThat(requestedScope()).isEqualTo("https://management.sovereign.example/.default");
+    }
+
+    @Test
+    @DisplayName("A managed identity without scope asks its token for the authority host")
+    void given_managedIdentityWithAuthorityHost_should_requestTokenForIt() {
+      // Arrange
+      when(tokenCredentialFactory.forManagedIdentity(isNull())).thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateManagedIdentity(
+              AZURE_ENVIRONMENT, null, null, AZURE_AUTHORITY_HOST_URI, null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(requestedScope()).isEqualTo(AZURE_AUTHORITY_HOST_URI + "/.default");
+    }
+
+    @Test
+    @DisplayName("Without an override, the token is requested for the stored cloud")
+    void given_noScope_should_scopeOnStoredCloud() {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      validator.validateServicePrincipal(
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          null,
+          null,
+          null);
+
+      // Assert
+      assertThat(requestedScope()).isEqualTo("https://management.azure.com/.default");
+    }
+
+    @ParameterizedTest(name = "scope=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "https://management.sovereign.example/.default",
+          "https://management.sovereign.example",
+          "https://management.sovereign.example/"
+        })
+    @DisplayName("The token is requested for the scope, whether or not it carries its suffix")
+    void given_scope_should_requestTokenForIt(String scope) {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              scope);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(requestedScope()).isEqualTo("https://management.sovereign.example/.default");
+    }
+
+    @Test
+    @DisplayName("An authority host refused by the SDK is a configuration problem")
+    void given_authorityHostRefusedBySdk_should_returnFormatError() {
+      // Arrange — the SDK only accepts an HTTPS authority host.
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenThrow(new IllegalArgumentException("Authority host must use https"));
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              "http://localhost:4577",
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(result.wasChecked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("The subscription is read on the resource manager the scope names")
+    void given_scopeAndSubscription_should_readSubscriptionOnIt() throws IOException {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      try (MockCloudServer cloud =
+          MockCloudServer.start().respond("/subscriptions/", 200, "application/json", "{}")) {
+
+        // Act
+        SecretConnectionResult result =
+            validator.validateServicePrincipal(
+                AZURE_ENVIRONMENT,
+                AZURE_TENANT_ID,
+                AZURE_CLIENT_ID,
+                AZURE_CLIENT_SECRET,
+                AZURE_SUBSCRIPTION_ID,
+                null,
+                cloud.url("/.default"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(ACTIVE);
+        assertThat(requestedScope()).isEqualTo(cloud.url("/.default"));
+        assertThat(cloud.requests())
+            .singleElement()
+            .satisfies(
+                request -> {
+                  assertThat(request.method()).isEqualTo("GET");
+                  assertThat(request.path()).isEqualTo(SUBSCRIPTION_PATH);
+                  assertThat(request.authorization()).isEqualTo("Bearer fake-access-token");
+                });
+      }
+    }
+
+    @Test
+    @DisplayName("A subscription refused by the overridden cloud is conclusive")
+    void given_subscriptionRejectedByScope_should_returnAuthFailed() throws IOException {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      try (MockCloudServer cloud =
+          MockCloudServer.start().respond("/subscriptions/", 401, "application/json", "{}")) {
+
+        // Act
+        SecretConnectionResult result =
+            validator.validateServicePrincipal(
+                AZURE_ENVIRONMENT,
+                AZURE_TENANT_ID,
+                AZURE_CLIENT_ID,
+                AZURE_CLIENT_SECRET,
+                AZURE_SUBSCRIPTION_ID,
+                null,
+                cloud.url("/.default"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(AUTH_FAILED);
+      }
+    }
+
+    @Test
+    @DisplayName("An overridden cloud that does not answer is inconclusive, never a rejection")
+    void given_unreachableScope_should_returnNetworkError() throws IOException {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              AZURE_SUBSCRIPTION_ID,
+              null,
+              MockCloudServer.unreachableUrl("/.default"));
+
+      // Assert
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.wasChecked()).isTrue();
+    }
+
+    @ParameterizedTest(name = "override=\"{0}\"")
+    @ValueSource(strings = {"/login", "file:///tmp/login", "https:///login"})
+    @DisplayName("An authority host that is not an absolute HTTP(S) URL is a configuration problem")
+    void given_malformedAuthorityHost_should_returnFormatError(String authorityHost) {
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              authorityHost,
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(tokenCredentialFactory);
+    }
+
+    @ParameterizedTest(name = "scope=\"{0}\"")
+    @ValueSource(strings = {"/management/.default", "file:///tmp/arm", "api://management/.default"})
+    @DisplayName("A scope that is not an absolute HTTP(S) URL is a configuration problem")
+    void given_malformedScope_should_returnFormatError(String scope) {
+      // Act
+      SecretConnectionResult servicePrincipal =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              scope);
+      SecretConnectionResult managedIdentity =
+          validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null, null, scope);
+
+      // Assert
+      assertThat(servicePrincipal.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(managedIdentity.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(tokenCredentialFactory);
+    }
+
+    static Stream<Arguments> transportFailuresOfTheTokenExchange() {
+      return Stream.of(
+          Arguments.of(
+              "connection refused", new ConnectException("Connection refused"), NETWORK_ERROR),
+          Arguments.of(
+              "TLS handshake",
+              new SSLHandshakeException("PKIX path building failed"),
+              NETWORK_ERROR),
+          Arguments.of(
+              "unknown host", new UnknownHostException("login.sovereign.example"), NETWORK_ERROR),
+          Arguments.of("no answer in time", new TimeoutException("no answer"), TIMEOUT));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("transportFailuresOfTheTokenExchange")
+    @DisplayName(
+        "A token exchange failing on transport against the override is inconclusive, never a rejection")
+    void given_transportFailureWrappedInAuthenticationException_should_beInconclusive(
+        String description, Throwable cause, SECRET_STATUS expected) throws IOException {
+      // Arrange — the SDK wraps a connection or TLS failure of the token call in a
+      // ClientAuthenticationException that carries no HTTP response.
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenFailsWith(new ClientAuthenticationException("Authentication failed", null, cause));
+
+      // Act
+      SecretConnectionResult result =
+          validator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              MockCloudServer.unreachableUrl(""),
+              null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(expected);
+      assertThat(result.wasChecked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("A managed identity reads the subscription on the resource manager of the scope")
+    void given_managedIdentityWithScope_should_readSubscriptionOnIt() throws IOException {
+      // Arrange
+      when(tokenCredentialFactory.forManagedIdentity(isNull())).thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      try (MockCloudServer cloud =
+          MockCloudServer.start().respond("/subscriptions/", 200, "application/json", "{}")) {
+
+        // Act
+        SecretConnectionResult result =
+            validator.validateManagedIdentity(
+                AZURE_ENVIRONMENT, null, AZURE_SUBSCRIPTION_ID, null, cloud.url("/.default"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(ACTIVE);
+        assertThat(requestedScope()).isEqualTo(cloud.url("/.default"));
+        assertThat(cloud.requests())
+            .singleElement()
+            .satisfies(request -> assertThat(request.path()).isEqualTo(SUBSCRIPTION_PATH));
+      }
     }
   }
 
@@ -262,7 +647,7 @@ class AzureCredentialConnectivityCheckTest {
     @BeforeEach
     void stubFactory() {
       lenient()
-          .when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any()))
+          .when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
           .thenReturn(tokenCredential);
     }
 
@@ -360,7 +745,7 @@ class AzureCredentialConnectivityCheckTest {
       // Arrange — a provider error echoing the secret back is exactly the leak to prevent.
       givenTokenFailsWith(
           new ClientAuthenticationException(
-              "Invalid client secret provided: " + AZURE_CLIENT_SECRET, null));
+              "Invalid client secret provided: " + AZURE_CLIENT_SECRET, null, null));
 
       // Act
       SecretConnectionResult result = validateServicePrincipal();
@@ -372,7 +757,185 @@ class AzureCredentialConnectivityCheckTest {
 
     private SecretConnectionResult validateServicePrincipal() {
       return validator.validateServicePrincipal(
-          AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
+          AZURE_ENVIRONMENT,
+          AZURE_TENANT_ID,
+          AZURE_CLIENT_ID,
+          AZURE_CLIENT_SECRET,
+          null,
+          null,
+          null);
+    }
+  }
+
+  @Nested
+  @DisplayName("Internal endpoint overrides")
+  class InternalEndpointOverrides {
+
+    private AzureCredentialConnectivityCheck defaultValidator;
+
+    @BeforeEach
+    void withoutOptOut() {
+      defaultValidator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
+      ReflectionTestUtils.setField(defaultValidator, "timeoutSeconds", TIMEOUT_SECONDS);
+    }
+
+    @ParameterizedTest(name = "override=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4577",
+          "https://localhost:4577",
+          "https://10.0.0.5/",
+          "https://169.254.169.254/",
+          "https://[::1]:8080/"
+        })
+    @DisplayName("An authority host or scope inside the platform's network is refused")
+    void given_internalOverride_should_returnFormatError(String override) {
+      // Act
+      SecretConnectionResult asAuthority =
+          defaultValidator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              override,
+              null);
+      SecretConnectionResult asScope =
+          defaultValidator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              null,
+              override);
+      SecretConnectionResult managedIdentity =
+          defaultValidator.validateManagedIdentity(
+              AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, null, override);
+
+      // Assert — refused before any credential is built.
+      assertThat(asAuthority.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(asScope.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(managedIdentity.status()).isEqualTo(FORMAT_ERROR);
+      verify(tokenCredentialFactory, never())
+          .forServicePrincipal(any(), any(), any(), any(), any());
+      verify(tokenCredentialFactory, never()).forManagedIdentity(any());
+    }
+
+    @Test
+    @DisplayName("Nothing reaches an internal resource manager, so its status cannot be read back")
+    void given_internalResourceManager_should_sendNoRequest() throws IOException {
+      // Arrange — a usable credential: without the guard the subscription read would be sent.
+      lenient()
+          .when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      try (MockCloudServer cloud =
+          MockCloudServer.start().respond("/subscriptions/", 200, "application/json", "{}")) {
+
+        // Act
+        SecretConnectionResult result =
+            defaultValidator.validateServicePrincipal(
+                AZURE_ENVIRONMENT,
+                AZURE_TENANT_ID,
+                AZURE_CLIENT_ID,
+                AZURE_CLIENT_SECRET,
+                AZURE_SUBSCRIPTION_ID,
+                null,
+                cloud.url("/.default"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
+    @Test
+    @DisplayName("Each of the authority host and the scope is checked on its own")
+    void given_oneInternalAndOnePublicOverride_should_returnFormatError() {
+      // Act — IP literals: no DNS lookup.
+      SecretConnectionResult internalAuthority =
+          defaultValidator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              "https://10.0.0.5/",
+              "https://8.8.8.8/.default");
+      SecretConnectionResult internalScope =
+          defaultValidator.validateServicePrincipal(
+              AZURE_ENVIRONMENT,
+              AZURE_TENANT_ID,
+              AZURE_CLIENT_ID,
+              AZURE_CLIENT_SECRET,
+              null,
+              "https://8.8.8.8/",
+              "https://10.0.0.5/.default");
+
+      // Assert
+      assertThat(internalAuthority.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(internalScope.status()).isEqualTo(FORMAT_ERROR);
+      verify(tokenCredentialFactory, never())
+          .forServicePrincipal(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A managed identity only calls the resource manager, which is what is checked")
+    void given_managedIdentity_should_checkOnlyTheResourceManager() {
+      // Arrange
+      when(tokenCredentialFactory.forManagedIdentity(any())).thenReturn(tokenCredential);
+      givenTokenIsGranted();
+
+      // Act — the authority host serves no call here, so an internal one beside a public scope is
+      // harmless; alone, it is the resource manager and is refused.
+      SecretConnectionResult publicScope =
+          defaultValidator.validateManagedIdentity(
+              AZURE_ENVIRONMENT,
+              AZURE_CLIENT_ID,
+              null,
+              "https://10.0.0.5/",
+              "https://8.8.8.8/.default");
+      SecretConnectionResult authorityOnly =
+          defaultValidator.validateManagedIdentity(
+              AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, "https://10.0.0.5/", null);
+
+      // Assert
+      assertThat(publicScope.status()).isEqualTo(ACTIVE);
+      assertThat(authorityOnly.status()).isEqualTo(FORMAT_ERROR);
+    }
+
+    @Test
+    @DisplayName("The official endpoints of the stored cloud are never looked up")
+    void given_noOverride_should_notResolveAnyHost() {
+      // Arrange
+      when(tokenCredentialFactory.forServicePrincipal(any(), any(), any(), any(), any()))
+          .thenReturn(tokenCredential);
+      when(tokenCredentialFactory.forManagedIdentity(any())).thenReturn(tokenCredential);
+      givenTokenIsGranted();
+      try (MockedStatic<EndpointUrls> endpointUrls =
+          mockStatic(EndpointUrls.class, CALLS_REAL_METHODS)) {
+
+        // Act
+        SecretConnectionResult servicePrincipal =
+            defaultValidator.validateServicePrincipal(
+                AZURE_ENVIRONMENT,
+                AZURE_TENANT_ID,
+                AZURE_CLIENT_ID,
+                AZURE_CLIENT_SECRET,
+                null,
+                null,
+                null);
+        SecretConnectionResult managedIdentity =
+            defaultValidator.validateManagedIdentity(
+                AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null, null, null);
+
+        // Assert
+        assertThat(servicePrincipal.status()).isEqualTo(ACTIVE);
+        assertThat(managedIdentity.status()).isEqualTo(ACTIVE);
+        endpointUrls.verify(
+            () -> EndpointUrls.refusal(anyBoolean(), anyInt(), any(String[].class)), never());
+      }
     }
   }
 }
