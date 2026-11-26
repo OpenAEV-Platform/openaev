@@ -12,6 +12,7 @@ export const ENTITY_TYPES = {
   AGENTS: 'agents',
   ASSET_GROUPS: 'assetgroups',
   ASSETS: 'assets',
+  MARKING_DEFINITIONS: 'markingdefinitions',
   TAGS: 'tags',
 } as const;
 
