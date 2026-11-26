@@ -226,7 +226,8 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
       return t('Moved back to draft');
     }
     if (entry.content_history_action === 'APPROVE' && entry.content_history_automatic) {
-      return t('Auto-approved');
+      // Versions that existed before payload approval were approved by the upgrade, not by anyone.
+      return historyDetails(entry)?.source === 'upgrade' ? t('Approved when payload approval was introduced') : t('Auto-approved');
     }
     return t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
   };
@@ -282,11 +283,14 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
     }
     return parts.length > 0 ? parts.join(' · ') : '-';
   };
-  // Who did it: the user, else the platform (Filigran for content approved on arrival from its catalogue).
+  // Who did it: the user, else the platform (Filigran for content approved on arrival from its catalogue;
+  // nobody for a version approved by the upgrade that introduced payload approval).
   const userOf = (entry: ContentHistoryOutput) => {
     if (entry.content_history_user) return entry.content_history_user;
     if (!entry.content_history_automatic) return '-';
-    return historyDetails(entry)?.source === 'catalog' ? t('Filigran') : t('Platform');
+    const source = historyDetails(entry)?.source;
+    if (source === 'upgrade') return '-';
+    return source === 'catalog' ? t('Filigran') : t('Platform');
   };
   return (
     <>
