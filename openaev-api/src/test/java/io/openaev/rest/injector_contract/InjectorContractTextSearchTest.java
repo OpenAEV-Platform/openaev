@@ -121,8 +121,7 @@ class InjectorContractTextSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("Several matching attack patterns never duplicate the contract")
-    void given_several_matching_attack_patterns_should_return_the_contract_once()
-        throws Exception {
+    void given_several_matching_attack_patterns_should_return_the_contract_once() throws Exception {
       String marker = "dup-" + UUID.randomUUID();
       InjectorContract contract =
           persistContract(
