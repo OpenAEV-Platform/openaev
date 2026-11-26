@@ -269,7 +269,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
         fileService.uploadFile(
-            FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
+            tenantId,
+            FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png",
+            file.get());
       }
       String queueName = this.rabbitmqService.registerQueue(input.getId());
       // Contracts declared by an external injector are attributed to a publisher
@@ -483,7 +485,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       throws InjectorRegistrationException {
 
     // Upload icon if available
-    uploadInjectorIcon(contractor);
+    uploadInjectorIcon(tenantId, contractor);
 
     // Get contracts from contractor
     List<Contract> staticContracts;
@@ -556,12 +558,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectorId);
   }
 
-  private void uploadInjectorIcon(Contractor contractor) {
+  private void uploadInjectorIcon(String tenantId, Contractor contractor) {
     if (contractor.getIcon() != null) {
       try {
         InputStream iconData = contractor.getIcon().getData();
         fileService.uploadStream(
-            INJECTORS_IMAGES_BASE_PATH, contractor.getType() + ".png", iconData);
+            tenantId, INJECTORS_IMAGES_BASE_PATH, contractor.getType() + ".png", iconData);
       } catch (Exception e) {
         log.warn(
             "Failed to upload icon for injector '{}': {}", contractor.getType(), e.getMessage());
