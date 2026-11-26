@@ -17,13 +17,13 @@ import org.springframework.stereotype.Component;
  * pod still running the previous version re-creates that row and re-feeds the assets with its own
  * document building, which has no classification fields; the new pod then finds a row at boot and
  * never rebuilds the index. The documents written that way keep a null {@code
- * asset_internet_facing} until their asset changes again, so analytics on the classification
- * fields undercount (issue #9888).
+ * asset_internet_facing} until their asset changes again, so analytics on the classification fields
+ * undercount (issue #9888).
  *
  * <p>Same procedure as {@link V6_20261118120000000__Request_finding_refeed_for_asset_groups_side}:
- * the {@code asset} cursor is moved back to epoch (the index stays complete throughout, bulk index =
- * upsert), a pending reset request ({@link EsIndexingUtils#REINDEX_REQUESTED_CURSOR}) and a missing
- * row are left alone, and the model is registered in-process ({@link
+ * the {@code asset} cursor is moved back to epoch (the index stays complete throughout, bulk index
+ * = upsert), a pending reset request ({@link EsIndexingUtils#REINDEX_REQUESTED_CURSOR}) and a
+ * missing row are left alone, and the model is registered in-process ({@link
  * EsIndexingUtils#requestRefeedAtStartup}) so that the pod applying this migration re-asserts epoch
  * once the pods of the previous version are expected to be gone. Instances that already applied the
  * previous migration get the reliable re-feed too.

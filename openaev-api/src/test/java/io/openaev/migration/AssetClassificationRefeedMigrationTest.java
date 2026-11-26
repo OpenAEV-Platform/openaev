@@ -37,8 +37,7 @@ class AssetClassificationRefeedMigrationTest extends IntegrationTest {
   private static final String OTHER_MODEL = "finding";
   private static final Instant REGULAR_CURSOR = Instant.parse("2026-11-25T18:00:00Z");
 
-  @Autowired
-  private V6_20261126090000000__Request_asset_refeed_for_classification_fields migration;
+  @Autowired private V6_20261126090000000__Request_asset_refeed_for_classification_fields migration;
 
   @AfterEach
   void tearDown() {
