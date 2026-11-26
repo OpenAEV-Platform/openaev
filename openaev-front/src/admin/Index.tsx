@@ -190,6 +190,7 @@ const Index = () => {
             <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
             <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
             <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'blog_posts' })} />
+            <Route path="profile/news-feed/github-releases" element={errorWrapper(ProfileNewsFeed)({ tab: 'github_releases' })} />
             <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             {/* Home guards itself: the capability depends on which home dashboard it resolves */}

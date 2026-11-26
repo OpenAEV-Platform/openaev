@@ -57,6 +57,7 @@ vi.mock('../../../../admin/components/profile/news_feed/NewsFeedBlogPosts', asyn
     },
   };
 });
+vi.mock('../../../../admin/components/profile/news_feed/NewsFeedGithubReleases', () => ({ default: () => <div data-testid="news-feed-github-releases" /> }));
 vi.mock('../../../../admin/components/nav/useNewsFeedUnreadCount', () => ({ default: mockUnreadCount }));
 vi.mock('../../../../components/NotFound', () => ({ default: () => <div data-testid="not-found" /> }));
 
@@ -71,13 +72,13 @@ const buildSettings = (overrides: Partial<NewsFeedSettingsOutput> = {}): NewsFee
   news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
   news_feed_settings_hub_registered: true,
   news_feed_settings_hub_connected: true,
-  news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
+  news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST', 'GITHUB_RELEASE'],
   ...overrides,
 });
 
 const WITHOUT_BLOG_POSTS = buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO'] });
 
-const renderPage = (tab: 'blog_posts' | 'settings') => render(
+const renderPage = (tab: 'blog_posts' | 'github_releases' | 'settings') => render(
   <MemoryRouter>
     <IntlProvider locale="en" onError={() => {}}>
       <ThemeProvider theme={createTheme()}>
@@ -131,6 +132,27 @@ describe('NewsFeed page', () => {
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
       expect(mockMarkAllRead).toHaveBeenCalledWith('RESOURCE');
       expect(mockMarkAllRead).not.toHaveBeenCalledWith();
+    });
+
+    it('marks only the GitHub releases read under the Last releases tab', async () => {
+      renderPage('github_releases');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(mockMarkAllRead).toHaveBeenCalledWith('GITHUB_RELEASE');
+    });
+
+    it('marks the GitHub releases read too under the Blogpost tab when XTM Hub provisions no release, as no tab shows them', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
+      renderPage('blog_posts');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(mockMarkAllRead).toHaveBeenCalledWith();
+    });
+
+    it('marks what the tab displayed does not show too when the page falls back to the GitHub releases', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'GITHUB_RELEASE'] }) });
+      renderPage('blog_posts');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('news-feed-github-releases')).toBeInTheDocument();
+      expect(mockMarkAllRead).toHaveBeenCalledWith();
     });
 
     it('marks every item read, whatever its category, when XTM Hub provisions no blogpost', async () => {
@@ -258,6 +280,39 @@ describe('NewsFeed page', () => {
       const tab = await screen.findByRole('tab', { name: /Blogpost/ });
       expect(within(tab).getByText('4')).toBeInTheDocument();
       expect(mockUnreadCount).toHaveBeenCalledWith('BLOG_POST');
+    });
+
+    it('shows the GitHub releases under the Last releases tab, linked to its route', async () => {
+      renderPage('github_releases');
+      expect(await screen.findByTestId('news-feed-github-releases')).toBeInTheDocument();
+      expect(screen.queryByTestId('news-feed-blog-posts')).not.toBeInTheDocument();
+      const tab = screen.getByRole('tab', { name: /Last releases/ });
+      expect(tab).toHaveAttribute('aria-current', 'page');
+      expect(tab).toHaveAttribute('href', '/admin/profile/news-feed/github-releases');
+    });
+
+    it('shows the unread GitHub releases on the Last releases tab', async () => {
+      mockUnreadCount.mockImplementation((category?: string) => (category === 'GITHUB_RELEASE' ? 3 : 0));
+      renderPage('settings');
+      const tab = await screen.findByRole('tab', { name: /Last releases/ });
+      expect(within(tab).getByText('3')).toBeInTheDocument();
+      expect(mockUnreadCount).toHaveBeenCalledWith('GITHUB_RELEASE');
+    });
+
+    it('has no Last releases tab when XTM Hub provisions no release, and shows the blogposts instead of its page', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
+      renderPage('github_releases');
+      expect(await screen.findByTestId('news-feed-blog-posts')).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Last releases/ })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('news-feed-github-releases')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the GitHub releases when XTM Hub provisions no blogpost', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'GITHUB_RELEASE'] }) });
+      renderPage('blog_posts');
+      expect(await screen.findByTestId('news-feed-github-releases')).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Blogpost/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Last releases/ })).toHaveAttribute('aria-current', 'page');
     });
 
     it('falls back to the settings, without a Blogpost tab, when XTM Hub provisions no blogpost', async () => {

@@ -127,10 +127,10 @@ describe('NewsFeed page visit', () => {
     mockFetchUnreadCount.mockResolvedValue({ data: 0 });
     mockFetchSettings.mockResolvedValue({
       data: {
-        news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
+        news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST', 'GITHUB_RELEASE'],
         news_feed_settings_hub_registered: true,
         news_feed_settings_hub_connected: true,
-        news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST'],
+        news_feed_settings_available_types: ['RESOURCE_SCENARIO', 'BLOG_POST', 'GITHUB_RELEASE'],
       },
     });
   });
