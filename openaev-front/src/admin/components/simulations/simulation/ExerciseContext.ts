@@ -55,7 +55,7 @@ const injectContextForExercise = (exercise: Exercise) => {
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
       return bulkUpdateInjectForSimulation(exercise.exercise_id, param).then((result: { data: Inject[] }) => result?.data);
     },
-    onUpdateInject(injectId: Inject['inject_id'], inject: Inject): Promise<{
+    onUpdateInject(injectId: Inject['inject_id'], inject: Inject | InjectInput): Promise<{
       result: string;
       entities: { injects: Record<string, InjectStore> };
     }> {

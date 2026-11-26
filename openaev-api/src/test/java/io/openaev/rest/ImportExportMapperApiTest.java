@@ -7,13 +7,17 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.utils.CsvType;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.File;
@@ -21,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -37,6 +42,15 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  private <T> T inDefaultTenant(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
+  }
+
+  private void inDefaultTenant(Runnable work) {
+    tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
+  }
 
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
@@ -87,7 +101,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testImportCsvWithEndpointsCsvType() throws Exception {
     // -- PREPARE --
-    endpointRepository.deleteAll();
+    inDefaultTenant(() -> endpointRepository.deleteAll());
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");
 
     InputStream in = new FileInputStream(testFile);
@@ -105,8 +119,9 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    List<Endpoint> endpoints = StreamHelper.fromIterable(endpointRepository.findAll());
-    Optional<Tag> tag = tagRepository.findByName("ransomware");
+    List<Endpoint> endpoints =
+        inDefaultTenant(() -> StreamHelper.fromIterable(endpointRepository.findAll()));
+    Optional<Tag> tag = inDefaultTenant(() -> tagRepository.findByName("ransomware"));
 
     // -- ASSERT --
     assertEquals(1, endpoints.size());
@@ -114,9 +129,57 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     assertEquals("titi", endpoints.getFirst().getName());
     assertEquals("ransomware", tag.get().getName());
     assertEquals("#8fd671", tag.get().getColor());
+    // a file in the older format, without the asset_internet_facing column, leaves it unknown
+    assertNull(endpoints.getFirst().getInternetFacing());
 
-    endpointRepository.deleteAll();
-    tagRepository.deleteById(tag.get().getId());
+    inDefaultTenant(
+        () -> {
+          endpointRepository.deleteAll();
+          tagRepository.deleteById(tag.get().getId());
+        });
+  }
+
+  @DisplayName("Export then import of endpoints keeps the internet-facing flag")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void testExportImportRoundTripKeepsInternetFacing() throws Exception {
+    // -- PREPARE --
+    inDefaultTenant(() -> endpointRepository.deleteAll());
+    Endpoint facing = EndpointFixture.createEndpoint();
+    facing.setName("internet-facing-round-trip");
+    facing.setMacAddresses(EndpointMapper.setMacAddresses(EndpointFixture.MAC_ADDRESSES));
+    facing.setInternetFacing(true);
+    inDefaultTenant(() -> endpointRepository.save(facing));
+
+    byte[] exported =
+        this.mvc
+            .perform(
+                MockMvcRequestBuilders.post("/api/mappers/export/csv?csvType=" + CsvType.ENDPOINTS)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(new SearchPaginationInput()))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+    inDefaultTenant(() -> endpointRepository.deleteAll());
+
+    // -- EXECUTE --
+    this.mvc
+        .perform(
+            MockMvcRequestBuilders.multipart("/api/mappers/import/csv?csvType=" + CsvType.ENDPOINTS)
+                .file(new MockMultipartFile("file", "endpoints.csv", "text/csv", exported))
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    List<Endpoint> endpoints =
+        inDefaultTenant(() -> StreamHelper.fromIterable(endpointRepository.findAll()));
+    assertEquals(1, endpoints.size());
+    assertEquals("internet-facing-round-trip", endpoints.getFirst().getName());
+    assertEquals(Boolean.TRUE, endpoints.getFirst().getInternetFacing());
+
+    inDefaultTenant(() -> endpointRepository.deleteAll());
   }
 
   @DisplayName("Test testing an import csv with unknown csv type")

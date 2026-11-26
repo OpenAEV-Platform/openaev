@@ -59,7 +59,36 @@ public enum ReservedServiceAccount {
           "0d7c4060-0c48-4910-a504-c06ca885d680",
           "Catalog connectors",
           "Group for granting access rights to connectors deployed from the catalog"),
-      "connector-catalog-%s@openaev.invalid");
+      "connector-catalog-%s@openaev.invalid"),
+
+  /**
+   * The accounts a sibling XTM product reads this platform with, one per consumer, provisioned by
+   * the deployment manager through {@code POST /api/xtm/peer-tokens}. The email is chosen by the
+   * caller and must match {@code <consumer>@xtm.<product>.filigran.io}.
+   *
+   * <p>Read-only, and limited to what the one consumer accepted today reads: the OpenCRQ connector
+   * sync (asset inventory and AI targets, attack and vulnerability snapshots, the exercise,
+   * scenario, inject and finding reads of its fallback path, users, tags, asset groups and the
+   * asset posture series). No MANAGE or DELETE capability: the peer never writes. A consumer that
+   * needs other reads is refused by {@code XtmPeerPrivilegeService} until it names them here.
+   */
+  XTM_PEER(
+      new WellKnownAccess(
+          "510b137a-02b7-44d7-9c12-14970c5d07d2",
+          "XTM peers",
+          "Allows the sibling products of the XTM Platform to read this platform.",
+          Set.of(
+              Capability.ACCESS_ASSESSMENT,
+              Capability.ACCESS_TEAMS_AND_PLAYERS,
+              Capability.ACCESS_ASSETS,
+              Capability.ACCESS_FINDINGS,
+              Capability.ACCESS_SNAPSHOT_OBSERVATION,
+              Capability.ACCESS_DASHBOARDS,
+              Capability.ACCESS_TAGS),
+          "4037de72-1827-497d-b491-374c9757d4f6",
+          "XTM peers",
+          "Group for granting access rights to the sibling products of the XTM Platform"),
+      "%s@xtm.%s.filigran.io");
 
   private final WellKnownAccess access;
 

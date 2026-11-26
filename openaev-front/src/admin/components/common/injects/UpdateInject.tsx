@@ -17,6 +17,7 @@ import {
   type AttackPattern, type Document,
   type Inject,
   type InjectInput,
+  type InjectorContract,
   type KillChainPhase, type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
@@ -25,6 +26,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../utils/permissions/types';
 import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
+import PayloadContractVersionSelect from '../../threat_arsenal/versions/PayloadContractVersionSelect';
 import { PermissionsContext } from '../Context';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
@@ -35,7 +37,7 @@ import UpdateInjectLogicalChains from './UpdateInjectLogicalChains';
 interface Props {
   open: boolean;
   handleClose: () => void;
-  onUpdateInject: (data: Inject) => Promise<void>;
+  onUpdateInject: (data: InjectInput) => Promise<void>;
   massUpdateInject?: (data: Inject[]) => Promise<void>;
   injectId: string;
   isAtomic?: boolean;
@@ -116,6 +118,16 @@ const UpdateInject: React.FC<Props> = ({
     }
   }, [inject]);
 
+  // A disabled inject stays fully editable: "disabled" only means it is excluded from
+  // execution, it is not a read-only state. Only missing contract content and
+  // permissions make the form read-only.
+  const formDisabled = !injectorContractContent
+    || permissions.readOnly
+    || (inherited_context === INHERITED_CONTEXT.NONE
+      && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
+      && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT));
+  const canChooseVersion = !inject?.inject_exercise && !formDisabled;
+
   const getInjectHeaderTitle = (): string => {
     if (injectorContract?.injector_contract_needs_executor && inject?.inject_attack_patterns?.length !== 0) {
       const phases = (inject?.inject_kill_chain_phases ?? []).map((value: KillChainPhase) => value.phase_name).filter(Boolean).join(', ');
@@ -152,8 +164,16 @@ const UpdateInject: React.FC<Props> = ({
         <div style={{
           display: 'flex',
           alignItems: 'center',
+          gap: theme.spacing(1),
         }}
         >
+          {canChooseVersion && injectorContract && (
+            <PayloadContractVersionSelect
+              action={injectorContract}
+              value={injectorContractContent?.contract_id ?? injectorContract.injector_contract_id}
+              onChange={(action: InjectorContract) => setInjectorContractContent(JSON.parse(action.injector_contract_content))}
+            />
+          )}
           {inject?.inject_injector_contract?.injector_contract_platforms?.map(
             platform => (
               <PlatformIcon
@@ -207,20 +227,11 @@ const UpdateInject: React.FC<Props> = ({
             {!isInjectLoading && inject && (
               <InjectForm
                 handleClose={handleClose}
-                // A disabled inject stays fully editable: "disabled" only means it is excluded from
-                // execution, it is not a read-only state. Only missing contract content and
-                // permissions make the form read-only.
-                disabled={
-                  !injectorContractContent
-                  || permissions.readOnly
-                  || (inherited_context === INHERITED_CONTEXT.NONE
-                    && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
-                    && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT))
-                }
+                disabled={formDisabled}
                 isAtomic={isAtomic}
                 defaultInject={inject}
                 injectorContractContent={injectorContractContent}
-                onSubmitInject={(data: InjectInput) => onUpdateInject(data as Inject)}
+                onSubmitInject={onUpdateInject}
                 articlesFromExerciseOrScenario={articlesFromExerciseOrScenario}
                 uriVariable={uriVariable}
                 variablesFromExerciseOrScenario={variablesFromExerciseOrScenario}

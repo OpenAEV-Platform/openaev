@@ -9,6 +9,7 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.TenantRoleService;
+import io.openaev.service.UserGroupMembershipService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.*;
@@ -25,6 +26,7 @@ public abstract class AbstractPrivilegeService {
   protected final TenantUserService tenantUserService;
   protected final MarkingClearanceCacheManager markingClearanceCacheManager;
   protected final TenantWriteScopeResolver writeScopeResolver;
+  protected final UserGroupMembershipService userGroupMembershipService;
 
   protected abstract WellKnownAccess wellKnownAccess();
 
@@ -80,21 +82,50 @@ public abstract class AbstractPrivilegeService {
     return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 
+  /**
+   * Gives an existing account its attributes and makes {@code group} its only group of the scope.
+   * The membership is written first and the account reloaded before any attribute changes, so the
+   * update event published when they are written carries the groups the account holds now.
+   */
   protected void applyUserServiceAttributes(
       User user, String firstname, String lastname, String email, Group group) {
-    boolean groupsChanged =
-        !user.getUnscopedGroups().stream()
-            .map(Group::getId)
-            .toList()
-            .equals(List.of(group.getId()));
+    boolean groupsChanged = makeOnlyMembershipOf(user, group);
+    userService.reloadUser(user);
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setEmail(email);
     user.setAdmin(false);
-    user.setGroups(new ArrayList<>(List.of(group)));
     // The markings a user sees are cached from their groups: refresh them when the groups change.
     if (groupsChanged) {
       markingClearanceCacheManager.evictForUser(user.getId());
     }
+  }
+
+  /**
+   * Puts a new account in {@code group}. Nobody else can hold a membership row of an account that
+   * is not written yet, so its group is set in memory before its first flush, like the auto-assign
+   * groups of a new user, and the event of its creation carries it.
+   */
+  protected static void joinGroupAsNewAccount(User newAccount, Group group) {
+    newAccount.getUnscopedGroups().add(group);
+  }
+
+  /**
+   * Makes {@code user}'s whole membership exactly {@code group}: adds it if missing and removes
+   * every other group the user currently holds, one {@code users_groups} row at a time through
+   * {@link UserGroupMembershipService}, rather than a blanket collection replace that would
+   * recreate every tenant's membership row from this one read. Returns whether anything changed.
+   */
+  private boolean makeOnlyMembershipOf(User user, Group group) {
+    List<String> otherGroupIds =
+        user.getUnscopedGroups().stream()
+            .map(Group::getId)
+            .filter(id -> !id.equals(group.getId()))
+            .toList();
+    boolean changed = userGroupMembershipService.addMembership(user.getId(), group.getId());
+    for (String otherGroupId : otherGroupIds) {
+      changed |= userGroupMembershipService.removeMembership(user.getId(), otherGroupId);
+    }
+    return changed;
   }
 }

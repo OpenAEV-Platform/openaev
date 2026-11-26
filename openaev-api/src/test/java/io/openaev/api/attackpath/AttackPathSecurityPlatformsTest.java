@@ -1,14 +1,14 @@
 package io.openaev.api.attackpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
@@ -46,8 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,13 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path execution detail — security platforms (A1)")
-class AttackPathSecurityPlatformsTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class AttackPathSecurityPlatformsTest extends ProductionTablesIntegrationTest {
 
   private static final String SIM = "SIM-SP";
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
@@ -194,6 +186,29 @@ class AttackPathSecurityPlatformsTest extends IntegrationTest {
     assertThat(p.alerts())
         .extracting(io.openaev.service.attackpath.dto.AttackPathAlertDTO::title)
         .containsExactlyInAnyOrder("Alert A", "Alert B");
+  }
+
+  @Test
+  @DisplayName("a logging expectation surfaces its platform and the execution's logging status")
+  void loggingExecution_listsLoggingPlatform_andStatus() {
+    // Arrange
+    Inject inject = injectRepository.save(InjectFixture.getDefaultInject());
+    String executionId = seedExecution(inject.getId(), null);
+    AttackPathExecution execution = executionRepository.findById(executionId).orElseThrow();
+    execution.setLoggingStatus("Logged");
+    executionRepository.save(execution);
+    saveCollectorRow(executionId, "DETECTION", "Not Detected", "[]", 0.0);
+    saveCollectorRow(executionId, "LOGGING", "Logged", "[]", 1.0);
+    entityManager.flush();
+
+    // Act
+    AttackPathExecutionDetailDTO d = executionDetailForCurrentTenant(executionId);
+
+    // Assert
+    assertThat(d.loggingStatus()).isEqualTo("Logged");
+    assertThat(d.securityPlatforms())
+        .extracting(AttackPathSecurityPlatformDTO::bucket, AttackPathSecurityPlatformDTO::status)
+        .containsExactly(tuple("DETECTION", "FAILED"), tuple("LOGGING", "SUCCESS"));
   }
 
   @Test

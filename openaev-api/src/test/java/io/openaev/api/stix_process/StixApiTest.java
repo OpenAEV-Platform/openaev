@@ -1077,6 +1077,56 @@ class StixApiTest extends IntegrationTest {
       assertThat(injects).hasSize(1);
       assertEquals(injects.iterator().next().getTitle(), "[artifact-file-test2.txt] Placeholder");
     }
+
+    @Test
+    @DisplayName(
+        "Should build nothing and acknowledge the work when the coverage is in an OpenCTI draft")
+    void shouldBuildNothingWhenSecurityCoverageIsInOpenCtiDraft() throws Exception {
+      // PREPARE
+      JsonNode draftEvent = stixSecurityCoverage.deepCopy();
+      ObjectNode internal = (ObjectNode) draftEvent.path("internal");
+      internal.put("draft_id", "8f1c1b52-0a3c-4c6f-9a55-2d0f3f1f7a10");
+      internal.put("trigger", "create");
+      long scenariosBefore = scenarioRepository.count();
+      long coveragesBefore = securityCoverageRepository.count();
+      long injectsBefore = injectRepository.count();
+
+      // EXECUTE
+      String response =
+          mvc.perform(processBundleRequest(mapper.writeValueAsString(draftEvent)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // VERIFY
+      JsonNode report = mapper.readTree(response);
+      assertThat(report.path("scenarioId").isNull() || report.path("scenarioId").isMissingNode())
+          .isTrue();
+      assertThat(report.path("importSummary").asText()).isEqualTo(StixApi.DRAFT_SKIPPED_MESSAGE);
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(scenarioRepository.count()).isEqualTo(scenariosBefore);
+      assertThat(securityCoverageRepository.count()).isEqualTo(coveragesBefore);
+      assertThat(injectRepository.count()).isEqualTo(injectsBefore);
+    }
+
+    @Test
+    @DisplayName("Should build the scenario when the draft id is blank (live graph)")
+    void shouldBuildScenarioWhenDraftIdIsBlank() throws Exception {
+      // PREPARE
+      JsonNode liveEvent = stixSecurityCoverage.deepCopy();
+      ObjectNode internal = (ObjectNode) liveEvent.path("internal");
+      internal.put("draft_id", "");
+      internal.put("trigger", "create");
+
+      // EXECUTE
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(liveEvent));
+
+      // VERIFY
+      assertThat(scenarioRepository.findById(scenarioId)).isPresent();
+      assertThat(injectRepository.findByScenarioId(scenarioId)).isNotEmpty();
+    }
   }
 
   private String getScenarioIdResponse(String content) throws Exception {

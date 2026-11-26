@@ -1,4 +1,7 @@
+import { type ChipSeverity } from '@filigran/design-system';
+
 import { type MarkingDefinitionOutput } from './api-types';
+import { type Option } from './Option';
 
 // Order-independent: a marking picker's Autocomplete can re-emit the same selection in a
 // different order without the assigned set actually changing, and treating that as "changed"
@@ -24,6 +27,38 @@ export const markingLabel = (marking: MarkingDefinitionOutput) => {
   return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;
 };
 
+// The tone a predefined marking (TLP, PAP) is drawn with, the same mapping every XTM Platform
+// module uses (OpenCTI, OpenCRQ, XTM One): red is critical, amber high, green low, clear neutral.
+// Drawn through the design system's severity chip. `undefined`: a custom marking, which keeps
+// its administrator's colour.
+export const markingTone = (marking: MarkingDefinitionOutput): ChipSeverity | undefined => {
+  switch (markingLabel(marking)) {
+    case 'TLP:RED':
+    case 'PAP:RED':
+      return 'critical';
+    case 'TLP:AMBER':
+    case 'TLP:AMBER+STRICT':
+    case 'PAP:AMBER':
+      return 'high';
+    case 'TLP:GREEN':
+    case 'PAP:GREEN':
+      return 'low';
+    case 'TLP:CLEAR':
+    case 'TLP:WHITE':
+    case 'PAP:CLEAR':
+    case 'PAP:WHITE':
+      return 'neutral';
+    default:
+      return undefined;
+  }
+};
+
+// The `{ id, label }` option of a marking definition, for the value pickers of the marking filter.
+export const markingOption = (marking: MarkingDefinitionOutput): Option => ({
+  id: marking.marking_definition_id,
+  label: markingLabel(marking),
+});
+
 // Keeps only the highest-order marking per type (e.g. TLP:CLEAR/GREEN/AMBER collapse to
 // TLP:AMBER): holding a level already implies holding every less restrictive level of the same
 // type (see MarkingScopeResolver), so there is never a product reason to show or keep more than
@@ -44,5 +79,14 @@ export const collapseToHighestPerType = (
   return Array.from(highestByType.values())
     .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
 };
+
+// Most restrictive first within a type (TLP:RED at the top), for the marking pickers.
+export const sortMarkings = (markings: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
+  [...markings].sort((a, b) => {
+    if (a.marking_definition_type !== b.marking_definition_type) {
+      return a.marking_definition_type.localeCompare(b.marking_definition_type);
+    }
+    return b.marking_definition_order - a.marking_definition_order;
+  });
 
 export default markingIdSetsEqual;

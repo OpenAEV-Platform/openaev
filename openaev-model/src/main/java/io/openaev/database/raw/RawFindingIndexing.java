@@ -91,6 +91,12 @@ public interface RawFindingIndexing extends RawTenant {
   /** Returns the simulation of the inject the finding is deleted with. */
   String getFinding_simulation_id();
 
+  /** Returns the asset of the finding's location, which deletes the finding with it. */
+  String getFinding_location_asset_id();
+
+  /** Returns the user of the finding's location, which deletes the finding with it. */
+  String getFinding_location_user_id();
+
   /** Returns the scenario of the inject the finding is deleted with. */
   String getFinding_scenario_id();
 
@@ -100,4 +106,12 @@ public interface RawFindingIndexing extends RawTenant {
    * @return the asset IDs
    */
   Set<String> getAsset_ids();
+
+  /**
+   * Returns the IDs of the asset groups that statically contain one of this finding's assets. The
+   * dynamic groups are added at indexing time by the membership resolver.
+   *
+   * @return the asset group IDs
+   */
+  Set<String> getAsset_group_ids();
 }

@@ -7,6 +7,7 @@ import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.ExecutionTraceStatus;
+import io.openaev.utils.InjectStatusUtils.CompleteTrace;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -53,6 +54,120 @@ class InjectStatusUtilsTest {
 
       // -- ASSERT --
       assertThat(result).isEqualTo(ExecutionStatus.ERROR);
+    }
+  }
+
+  @Nested
+  @DisplayName("Method: visibleStatus")
+  class VisibleStatus {
+
+    private static final String RED_AGENT = "red-agent";
+    private static final String GREEN_AGENT = "green-agent";
+
+    private static CompleteTrace of(String agentId, ExecutionTraceStatus status) {
+      return new CompleteTrace(status, agentId);
+    }
+
+    @Test
+    @DisplayName("Given every agent hidden from the reader should return NOT_VISIBLE")
+    void given_everyAgentHidden_should_returnNotVisible() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(ExecutionStatus.EXECUTED, 2, List.of());
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.NOT_VISIBLE);
+    }
+
+    @Test
+    @DisplayName("Given only the failed agent visible should return ERROR")
+    void given_onlyFailedAgentVisible_should_returnError() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.PARTIAL, 2, List.of(of(GREEN_AGENT, ERROR)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName("Given every agent visible should return the stored status")
+    void given_everyAgentVisible_should_returnStored() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.PARTIAL, 2, List.of(of(RED_AGENT, EXECUTED), of(GREEN_AGENT, ERROR)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.PARTIAL);
+    }
+
+    @Test
+    @DisplayName("Given a status set by hand, with no agent dispatched, should return it")
+    void given_noAgentDispatched_should_returnStored() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(ExecutionStatus.EXECUTED, null, List.of());
+
+      // -- ASSERT --
+      // No trace for anyone: hiding nothing, the reader sees what the admin sees
+      assertThat(result).isEqualTo(ExecutionStatus.EXECUTED);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a platform error trace and a hidden success should return the visible ERROR, not"
+            + " the stored PARTIAL")
+    void given_platformErrorAndHiddenSuccess_should_returnVisibleError() {
+      // -- ACT --
+      // Stored PARTIAL counts the hidden RED agent's success with the platform's error
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.PARTIAL, 1, List.of(of(null, INTERRUPTED)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName(
+        "Given more visible agents than dispatched ones should recompute from the visible traces")
+    void given_moreVisibleAgentsThanDispatched_should_recompute() {
+      // -- ACT --
+      // One RED agent dispatched, hidden, which succeeded; two agents never dispatched reported
+      // anyway
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.EXECUTED,
+              1,
+              List.of(of(GREEN_AGENT, ERROR), of("undispatched-agent", ERROR)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName("Given only agents that were not executed visible should return NOT_VISIBLE")
+    void given_onlyNotCountedAgentVisible_should_returnNotVisible() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(
+              ExecutionStatus.EXECUTED, 2, List.of(of(GREEN_AGENT, ASSET_CLEARANCE_RESTRICTED)));
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.NOT_VISIBLE);
+    }
+
+    @Test
+    @DisplayName("Given an inject still in flight should keep its lifecycle status")
+    void given_pending_should_keepStored() {
+      // -- ACT --
+      ExecutionStatus result =
+          InjectStatusUtils.visibleStatus(ExecutionStatus.PENDING, 2, List.of());
+
+      // -- ASSERT --
+      assertThat(result).isEqualTo(ExecutionStatus.PENDING);
     }
   }
 }

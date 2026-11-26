@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
@@ -24,6 +25,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -55,6 +57,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   @Autowired private NotifierService notifierService;
   @Autowired private NotifierRepository notifierRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @AfterEach
   void afterEach() {
@@ -62,13 +65,18 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   // Explicit tenant rather than TenantContext: notifiers is v2-active, so the built-ins are
-  // provisioned and read for a named tenant, not for whatever the thread-local happens to hold.
+  // provisioned and read for a named tenant, inside that tenant's scope. The test method itself
+  // holds no transaction, so a read outside the runner would see no row.
   private String uiNotifierId() {
-    notifierService.ensureBuiltInNotifiers(Tenant.DEFAULT_TENANT_UUID);
-    return notifierRepository
-        .findFirstByTenantIdAndTypeAndBuiltInTrue(Tenant.DEFAULT_TENANT_UUID, NotifierType.UI)
-        .orElseThrow()
-        .getId();
+    return tenantScopedJobRunner.supplyInTenant(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          notifierService.ensureBuiltInNotifiers(Tenant.DEFAULT_TENANT_UUID);
+          return notifierRepository
+              .findFirstByTenantIdAndTypeAndBuiltInTrue(Tenant.DEFAULT_TENANT_UUID, NotifierType.UI)
+              .orElseThrow()
+              .getId();
+        });
   }
 
   @Test
@@ -326,5 +334,33 @@ public class NotificationTriggerApiTest extends IntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
+  }
+
+  @Test
+  @WithMockUser(autoJoinDefaultTenant = true)
+  @DisplayName("A user with no access to findings cannot watch findings")
+  void restrictedUserCannotWatchATypeItCannotSearch() throws Exception {
+    createLive(ResourceType.FINDING, NotificationTriggerEventType.CREATE)
+        .andExpect(status().isForbidden());
+    assertEquals(0, notificationTriggerRepository.count());
+  }
+
+  @Test
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_FINDINGS},
+      autoJoinDefaultTenant = true)
+  @DisplayName("A user who can search findings can watch findings")
+  void userWithSearchCanWatchTheType() throws Exception {
+    createLive(ResourceType.FINDING, NotificationTriggerEventType.CREATE)
+        .andExpect(status().is2xxSuccessful());
+  }
+
+  @Test
+  @WithMockUser(autoJoinDefaultTenant = true)
+  @DisplayName(
+      "A restricted user can watch scenarios: what it receives is filtered per scenario it reads")
+  void restrictedUserCanWatchAGrantManagedType() throws Exception {
+    createLive(ResourceType.SCENARIO, NotificationTriggerEventType.CREATE)
+        .andExpect(status().is2xxSuccessful());
   }
 }

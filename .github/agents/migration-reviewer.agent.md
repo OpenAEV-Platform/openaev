@@ -16,7 +16,7 @@ break tenant isolation, or cause downtime. Catch these issues before they ship.
 
 Always load:
 1. **Read `AGENTS.md`** — architecture overview, module structure, Shared Severity Rubric, Shared Exceptions
-2. **Read `.github/copilot-instructions.md`** — migration naming and versioning rules
+2. **Read `.github/copilot-instructions.md`** — build and conventions index
 3. **Read `.github/instructions/migration.instructions.md`** — class structure, critical rules, anti-patterns
 
 Load conditionally based on the diff:
@@ -38,9 +38,9 @@ Additional migration-specific levels:
 
 | Severity | Migration-specific criteria |
 |---|---|
-| 🔴 **CRITICAL** | `DROP TABLE` / `DROP COLUMN` without deprecation migration, `NOT NULL` without `DEFAULT` on populated table, modified existing migration (Flyway checksum break), missing `tenant_id` on new tenant-scoped table |
-| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id`, `DELETE FROM indexing_status` used to rebuild a search index (lost on a rolling deploy) |
-| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing search index rebuild (re-feed or reset) after a change to an indexed model's data, invalid migration naming format |
+| 🔴 **CRITICAL** | [migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 2 to 4 (modified migration, `DROP` without deprecation, `NOT NULL` without `DEFAULT`); missing `tenant_id` on a new tenant-scoped table ([multi-tenancy › Entity Scoping](../instructions/multi-tenancy.instructions.md#entity-scoping)); a large-table rewrite in one uncommitted transaction with no pacing ([migration › Anti-Patterns](../instructions/migration.instructions.md#anti-patterns)) |
+| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` ([migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 1); unique constraint without `tenant_id` ([database › Business Keys & Unique Constraints](../instructions/database.instructions.md#business-keys--unique-constraints)); tenant FK without `ON DELETE CASCADE` or `tenant_id` without index ([database › Schema Naming](../instructions/database.instructions.md#schema-naming)); every other entry of [migration › Anti-Patterns](../instructions/migration.instructions.md#anti-patterns) |
+| 🟡 **MEDIUM** | Large data change not batched on a small or catalog-sized table ([database › Flyway Migrations](../instructions/database.instructions.md#flyway-migrations)); missing search index rebuild ([migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 6); invalid migration naming ([migration › Naming Convention](../instructions/migration.instructions.md#naming-convention)) |
 | 🟢 **LOW** | Non-descriptive migration name, minor style inconsistency |
 
 ## What NOT to Flag
@@ -58,12 +58,12 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 Follow `.claude/skills/review-migration/SKILL.md` step-by-step for all bash commands.
 
 The SKILL covers:
-1. **Naming format & uniqueness** — `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`, timestamp block present, unique filename, no existing migration modified
-2. **Class structure** — extends `BaseJavaMigration`, `@Component`, `migrate(Context context)`, `try (Statement statement = ...)` pattern
-3. **Idempotency** — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TABLE IF EXISTS`, `CREATE INDEX IF NOT EXISTS`
-4. **Tenant isolation** — `tenant_id NOT NULL`, FK with `ON DELETE CASCADE`, index on `tenant_id`, composite unique constraints
-5. **Data safety** — `NOT NULL` with `DEFAULT`, large migrations batched in chunks of 1000, no `DROP` without prior deprecation migration
-6. **Search index rebuild** — re-feed in place or reset with the sentinel when the modified data is indexed, matching the need, and never `DELETE FROM indexing_status`
+1. **Naming & uniqueness** — [migration › Naming Convention](../instructions/migration.instructions.md#naming-convention), unique filename, no existing migration modified
+2. **Class structure** — [migration › Migration Class Structure](../instructions/migration.instructions.md#migration-class-structure)
+3. **Idempotency** — [migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 1
+4. **Tenant isolation** — [database › Schema Naming](../instructions/database.instructions.md#schema-naming), [database › Business Keys & Unique Constraints](../instructions/database.instructions.md#business-keys--unique-constraints)
+5. **Data safety** — [migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 3 to 5
+6. **Search index rebuild** — [migration › Critical Rules](../instructions/migration.instructions.md#critical-rules) 6
 
 ## Output Format
 

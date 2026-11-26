@@ -11,7 +11,9 @@ import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.settings.TenantSettingsService;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class XtmOneService {
   private final EnterpriseEditionService eeService;
   private final XtmOneEntitlementService entitlementService;
   private final LicenseCacheManager licenseCacheManager;
+  private final XtmOneHealthSnapshot healthSnapshot;
 
   private static final List<Map<String, String>> DEFAULT_INTENTS =
       List.of(
@@ -70,13 +73,34 @@ public class XtmOneService {
               "description",
               "Generate phishing landing page HTML/CSS for authorized awareness exercises"));
 
+  private static final Pattern COMMIT_SHA = Pattern.compile("^[0-9a-fA-F]{7,40}$");
+
+  /**
+   * The version this platform registers with XTM One: {@code <version>-dev.<sha7>} on a non-release
+   * build (a commit given), the version alone on a release image. XTM One and OpenCRQ version their
+   * non-release builds the same way, so XTM One's version-change event fires on a rolling upgrade.
+   * The platform version used everywhere else is unchanged.
+   */
+  static String buildVersion(String version, String buildCommit) {
+    String base = version != null ? version : "";
+    if (base.isEmpty() || buildCommit == null) {
+      return base;
+    }
+    String commit = buildCommit.trim();
+    if (!COMMIT_SHA.matcher(commit).matches()) {
+      return base;
+    }
+    return base + "-dev." + commit.substring(0, 7).toLowerCase(Locale.ROOT);
+  }
+
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
    * is an upsert, so repeated calls are safe). Sends the current license state, business vertical,
    * and declared intents for agent binding. Each answer is a heartbeat that re-evaluates the
    * Enterprise Edition granted through XTM One from the license certificate it carries, never from
    * its advisory {@code ee_enabled} (see {@link XtmOneEntitlementService}). The license sent is
-   * always this platform's own: XTM One validates it on its side.
+   * always this platform's own: XTM One validates it on its side. It also carries the platform
+   * health snapshot ({@link XtmOneHealthSnapshot}), which XTM One's Platform Health page reads.
    *
    * <p>Runs outside any transaction, each read in its own: the registration is an HTTP call that
    * must not hold a database connection, and a change of the XTM license in force publishes a
@@ -137,12 +161,13 @@ public class XtmOneService {
               "openaev",
               platformUrl,
               platformName,
-              version != null ? version : "",
+              buildVersion(version, config.getBuildCommit()),
               platformId,
               licensePem,
               licenseType,
               "aev",
-              DEFAULT_INTENTS);
+              DEFAULT_INTENTS,
+              healthSnapshot.build());
       if (entitlementService.onRegistrationAnswer(
           result,
           platformId,

@@ -2,6 +2,7 @@ package io.openaev.secrets.provider.impl.validators;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
+import javax.net.ssl.SSLContext;
 
 /**
  * Builds the Google SDK credential objects used to probe a stored GCP credential.
@@ -20,11 +21,14 @@ public interface GcpCredentialConnectivityCheckFactory {
    *
    * @param privateKeyJson the decrypted key file content
    * @param scope the OAuth scope the credential is stored for
+   * @param customResourceManagerUri optional token server of a sovereign or mocked cloud; the
+   *     {@code token_uri} of the key file is used when blank
    * @return a credential able to request tokens for that service account
    * @throws IOException when the key material cannot be parsed — a stored-configuration problem,
    *     never a rejection
    */
-  GoogleCredentials forServiceAccount(byte[] privateKeyJson, String scope) throws IOException;
+  GoogleCredentials forServiceAccount(
+      byte[] privateKeyJson, String scope, String customResourceManagerUri) throws IOException;
 
   /**
    * Builds a credential from an OAuth 2.0 installed-application grant.
@@ -33,8 +37,24 @@ public interface GcpCredentialConnectivityCheckFactory {
    * @param clientSecret the decrypted OAuth client secret
    * @param refreshToken the decrypted refresh token
    * @param scope the OAuth scope the credential is stored for
+   * @param customTokenUri optional token server of a sovereign or mocked cloud; the library default
+   *     is used when blank
    * @return a credential able to exchange the refresh token for an access token
    */
   GoogleCredentials forOAuth2(
-      String clientId, String clientSecret, String refreshToken, String scope);
+      String clientId,
+      String clientSecret,
+      String refreshToken,
+      String scope,
+      String customTokenUri);
+
+  /**
+   * The TLS context the credentials built here use for their token calls.
+   *
+   * <p>The project read goes through it too, so that both calls trust certificates the same way: a
+   * second client with its own trust can reach the token endpoint and fail on the very same host.
+   *
+   * @return the shared TLS context, never null
+   */
+  SSLContext sslContext();
 }

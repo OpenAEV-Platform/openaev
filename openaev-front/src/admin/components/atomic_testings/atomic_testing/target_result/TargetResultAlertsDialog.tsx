@@ -8,8 +8,10 @@ import { fetchExpectationTraces } from '../../../../../actions/atomic_testings/a
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
+import { OpenCtiRowMark } from '../../../../../components/xtm/XtmPivot';
 import type { InjectExpectationResult, InjectExpectationTrace } from '../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { traceMatchTypeLabelKey, traceWording } from './expectationTraceLabels';
 import useExpectationSourceLogo from './useExpectationSourceLogo';
 
 interface Props {
@@ -52,11 +54,12 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       .finally(() => setLoading(false));
   }, [injectExpectation.inject_expectation_id, sourceId]);
 
+  const wording = traceWording(injectExpectation.inject_expectation_type);
   const sourceName = expectationResult?.sourceName?.trim() || '-';
   const platformType = expectationResult?.sourcePlatform?.trim();
   const expectationTypeLabel = injectExpectation.inject_expectation_type
     ? t(injectExpectation.inject_expectation_type)
-    : t('Alerts');
+    : t(wording.column);
 
   // Platform-first logo resolution: a result written by a since-deleted
   // collector still resolves to its (surviving) security platform logo.
@@ -74,9 +77,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
       return null;
     }
     if (sortedTraces.length === 1) {
-      return `1 ${t('alert')}`;
+      return `1 ${t(wording.one)}`;
     }
-    return `${sortedTraces.length} ${t('alerts')}`;
+    return `${sortedTraces.length} ${t(wording.many)}`;
   })();
 
   return (
@@ -224,7 +227,7 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
               textAlign: 'center',
             }}
             >
-              {t('No alerts have been reported by this security platform.')}
+              {t(wording.empty)}
             </Typography>
           </Box>
         )}
@@ -240,6 +243,8 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
               const alertLink = expectationTrace.inject_expectation_trace_alert_link;
               const alertHost = extractHost(alertLink);
               const alertDate = expectationTrace.inject_expectation_trace_date ?? expectationTrace.inject_expectation_trace_created_at;
+              // What matched the inject in a log event (marker or IP), only written for Logging.
+              const matchTypeKey = traceMatchTypeLabelKey(expectationTrace.inject_expectation_trace_match_type);
 
               const rowContent = (
                 <>
@@ -291,7 +296,7 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                       fontVariantNumeric: 'tabular-nums',
                     }}
                     >
-                      {[alertHost, alertDate ? fldt(alertDate) : undefined].filter(Boolean).join(' · ')}
+                      {[alertHost, matchTypeKey ? t(matchTypeKey) : undefined, alertDate ? fldt(alertDate) : undefined].filter(Boolean).join(' · ')}
                     </Typography>
                   </div>
                   {alertLink && (
@@ -315,10 +320,9 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                 ...(traceIndex > 0 && { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` }),
               } as const;
 
-              return alertLink
+              const row = alertLink
                 ? (
                     <Box
-                      key={expectationTrace.inject_expectation_trace_id}
                       component="a"
                       href={alertLink}
                       target="_blank"
@@ -326,10 +330,18 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                       data-testid="target-result-alert-row"
                       sx={{
                         ...rowSx,
+                        'flex': 1,
+                        'minWidth': 0,
                         'textDecoration': 'none',
                         'cursor': 'pointer',
                         '&:hover': {
                           'backgroundColor': theme.palette.action.hover,
+                          '& .MuiSvgIcon-root': { color: 'primary.main' },
+                        },
+                        '&:focus-visible': {
+                          'backgroundColor': theme.palette.action.hover,
+                          'outline': `2px solid ${theme.palette.primary.main}`,
+                          'outlineOffset': '-2px',
                           '& .MuiSvgIcon-root': { color: 'primary.main' },
                         },
                       }}
@@ -339,13 +351,33 @@ const TargetResultAlertsDialog: FunctionComponent<Props> = ({
                   )
                 : (
                     <Box
-                      key={expectationTrace.inject_expectation_trace_id}
                       data-testid="target-result-alert-row"
-                      sx={rowSx}
+                      sx={{
+                        ...rowSx,
+                        flex: 1,
+                        minWidth: 0,
+                      }}
                     >
                       {rowContent}
                     </Box>
                   );
+
+              // The same alert known in OpenCTI (an incident or sighting carrying its link as an
+              // external reference): "Investigate in OpenCTI" beside the row. Every linked row keeps
+              // the mark's slot, so the open-link icons stay in one column.
+              return (
+                <Box
+                  key={expectationTrace.inject_expectation_trace_id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  {row}
+                  {alertLink && <OpenCtiRowMark kind="alerts" objectKey={alertLink} label="Investigate in OpenCTI" reserveSlot />}
+                </Box>
+              );
             })}
           </Box>
         )}

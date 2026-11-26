@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData } from '../../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../../attack-path-logging-context';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 const FindingTypeCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
   const tooltip = (
     <LogicNodeTooltip
@@ -28,7 +30,7 @@ const FindingTypeCard = ({ data, selected = false }: Props) => {
       rows={data.status
         ? [{
             label: t('Status'),
-            value: t(attackPathStatusLabel(data.status)),
+            value: t(attackPathStatusLabel(data.status, showsLogging)),
           }]
         : []}
       accentColor={data.status ? verdict : undefined}

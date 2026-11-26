@@ -28,6 +28,8 @@ const AttackPathVerdictPill: FunctionComponent<Props> = ({ label, status }) => {
         borderRadius: 1,
         backgroundColor: alpha(color, 0.08),
         color,
+        // The design-system 1.13 chip look: the tone fill and a 1px hairline at 30% of the tone.
+        border: `1px solid ${alpha(color, 0.3)}`,
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: '0.04em',

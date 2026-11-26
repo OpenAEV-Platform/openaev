@@ -1,5 +1,4 @@
-import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
-import { SelectGroup } from 'mdi-material-ui';
+import { Icon } from '@filigran/design-system';
 import { type FunctionComponent, memo } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
@@ -25,30 +24,30 @@ const CustomizationMenuComponent: FunctionComponent = () => {
   const entries: RightMenuEntry[] = [
     {
       path: '/admin/settings/customization/asset_rules',
-      icon: () => (<SelectGroup />),
+      icon: () => (<Icon name="layers" size={16} />),
       label: 'Default asset rules',
     },
     {
       path: '/admin/settings/customization/custom_domains',
-      icon: () => (<DnsOutlined />),
+      icon: () => (<Icon name="server" size={16} />),
       label: 'Custom domains',
     },
     {
       path: '/admin/settings/customization/notifiers',
-      icon: () => (<NotificationsOutlined />),
+      icon: () => (<Icon name="bell" size={16} />),
       label: 'Notifiers',
     },
     ...(ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)
       ? [{
           path: LESSONS_TEMPLATES_BASE_URL,
-          icon: () => (<SchoolOutlined />),
+          icon: () => (<Icon name="graduation-cap" size={16} />),
           label: 'Lessons learned',
         }]
       : []),
     ...(autonomousReady
       ? [{
           path: '/admin/settings/customization/autonomous_attack',
-          icon: () => (<AutoAwesome />),
+          icon: () => (<Icon name="sparkles" size={16} />),
           label: 'Autonomous attack',
           chip: isEnterpriseEdition ? undefined : <EEChip />,
         }]

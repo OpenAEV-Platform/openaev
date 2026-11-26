@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.PlatformWrite;
+import io.openaev.api.xtm_composer.dto.XtmComposerConnectivityInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
@@ -75,10 +76,13 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite
   public XtmComposerOutput refreshConnectivity(
-      TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+      TxCtx ctx,
+      @PathVariable @NotBlank final String xtmComposerId,
+      // Optional: an older XTM Composer sends no body; the recorded version and image are kept.
+      @Valid @RequestBody(required = false) XtmComposerConnectivityInput input) {
     AuditLogContext.setEnabled(false);
 
-    return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
+    return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now(), input);
   }
 
   // The ONLY XtmComposerApi endpoint actually called from the frontend
@@ -118,6 +122,11 @@ public class XtmComposerApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+    // The WRITE action gates this read (PLATFORM_SETTING READ is an open resource), but it also
+    // makes
+    // the audit aspect log the whole response, which carries the connector-instance configuration.
+    // Disable audit logging here, as the other composer callbacks do.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);
   }
 
@@ -137,6 +146,8 @@ public class XtmComposerApi extends RestBehavior {
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody XtmComposerUpdateStatusInput input) {
+    // WRITE on PLATFORM_SETTING: keep the connector-instance configuration out of the audit log.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.updateConnectorInstanceStatus(
         xtmComposerId, connectorInstanceId, input.getCurrentStatus());
   }
@@ -183,6 +194,8 @@ public class XtmComposerApi extends RestBehavior {
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceHealthInput input) {
+    // WRITE on PLATFORM_SETTING: keep the connector-instance configuration out of the audit log.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.patchConnectorInstanceHealthCheck(
         xtmComposerId, connectorInstanceId, input);
   }

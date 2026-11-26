@@ -2,6 +2,8 @@ package io.openaev.rest.asset.endpoint.form;
 
 import com.opencsv.bean.CsvBindByName;
 import com.opencsv.bean.CsvBindByPosition;
+import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.AssetSubCategory;
 import io.openaev.database.model.Endpoint;
 import lombok.Data;
 
@@ -43,4 +45,22 @@ public class EndpointExportImport {
   @CsvBindByName(column = "endpoint_is_eol", required = true)
   @CsvBindByPosition(position = 8)
   private boolean isEol;
+
+  // Classification columns, appended after the original nine and optional, so a file exported
+  // before they existed still imports (its assets keep the default category).
+  @CsvBindByName(column = "asset_category")
+  @CsvBindByPosition(position = 9)
+  private AssetCategory category;
+
+  @CsvBindByName(column = "asset_subcategory")
+  @CsvBindByPosition(position = 10)
+  private AssetSubCategory subcategory;
+
+  @CsvBindByName(column = "asset_url")
+  @CsvBindByPosition(position = 11)
+  private String url;
+
+  @CsvBindByName(column = "asset_internet_facing")
+  @CsvBindByPosition(position = 12)
+  private Boolean internetFacing;
 }

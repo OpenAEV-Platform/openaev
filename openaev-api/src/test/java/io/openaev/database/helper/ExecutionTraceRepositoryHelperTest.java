@@ -85,7 +85,7 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     entityManager.flush();
 
     // Act
-    helper.updateInjectStatus(injectStatus.getId(), "EXECUTED", endDate);
+    helper.updateInjectStatus(injectStatus.getId(), "EXECUTED", endDate, 2);
 
     // Assert
     entityManager.clear();
@@ -94,5 +94,6 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     assertThat(updated).isPresent();
     assertThat(updated.get().getName()).isEqualTo(ExecutionStatus.EXECUTED);
     assertThat(updated.get().getTrackingEndDate()).isNotNull();
+    assertThat(updated.get().getExpectedAgentCount()).isEqualTo(2);
   }
 }

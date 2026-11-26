@@ -31,10 +31,13 @@ public class AzureServicePrincipalHandler implements SecretHandler {
 
   @Override
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
-    AzureServicePrincipalSecret azureSecret =
-        existingSecret instanceof AzureServicePrincipalSecret casted
-            ? casted
-            : new AzureServicePrincipalSecret();
+    AzureServicePrincipalSecret azureSecret;
+    if (existingSecret instanceof AzureServicePrincipalSecret casted) {
+      refuseEndpointChangeWithoutNewClientSecret(casted, request);
+      azureSecret = casted;
+    } else {
+      azureSecret = new AzureServicePrincipalSecret();
+    }
 
     // A null value means "left untouched by the client", so the stored value must be kept: the form
     // strips unchanged write-only fields from the payload.
@@ -65,6 +68,10 @@ public class AzureServicePrincipalHandler implements SecretHandler {
           SecretHandler.blankToNull(request.azureAuthorityHostUri()));
     }
 
+    if (request.azureScope() != null) {
+      azureSecret.setAzureScope(SecretHandler.blankToNull(request.azureScope()));
+    }
+
     // Absent file part = left untouched, like the GCP service account key file.
     if (request.azureRequestsCertificate() != null) {
       azureSecret.setAzureRequestsCertificate(
@@ -82,6 +89,27 @@ public class AzureServicePrincipalHandler implements SecretHandler {
     return azureSecret;
   }
 
+  /**
+   * The stored client secret must not be replayed against a new authority host or scope: the caller
+   * has to supply it again, otherwise whoever can edit the credential could redirect it, or the
+   * token it yields, to a host they control.
+   */
+  private static void refuseEndpointChangeWithoutNewClientSecret(
+      AzureServicePrincipalSecret existing, SecretStoreRequest request) {
+    if (request.azureClientSecret() != null) {
+      return;
+    }
+    if (SecretHandler.redirectsEndpoint(
+        existing.getAzureAuthorityHostUri(), request.azureAuthorityHostUri())) {
+      throw new IllegalArgumentException(
+          "Azure client secret must be reset in order to change the authority host URI");
+    }
+    if (SecretHandler.redirectsEndpoint(existing.getAzureScope(), request.azureScope())) {
+      throw new IllegalArgumentException(
+          "Azure client secret must be reset in order to change the scope");
+    }
+  }
+
   @Override
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof AzureServicePrincipalSecret azureServicePrincipalSecret) {
@@ -91,6 +119,7 @@ public class AzureServicePrincipalHandler implements SecretHandler {
           azureServicePrincipalSecret.getAzureTenantId(),
           azureServicePrincipalSecret.getAzureSubscriptionId(),
           azureServicePrincipalSecret.getAzureAuthorityHostUri(),
+          azureServicePrincipalSecret.getAzureScope(),
           azureServicePrincipalSecret.getAzureRequestsCertificate() != null);
     }
     throw new IllegalArgumentException(
@@ -114,6 +143,7 @@ public class AzureServicePrincipalHandler implements SecretHandler {
         azureSecret.getAzureTenantId(),
         azureSecret.getAzureSubscriptionId(),
         azureSecret.getAzureAuthorityHostUri(),
+        azureSecret.getAzureScope(),
         requestsCertificate);
   }
 
@@ -134,6 +164,8 @@ public class AzureServicePrincipalHandler implements SecretHandler {
         azureSecret.getAzureTenantId(),
         azureSecret.getAzureClientId(),
         nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri(),
+        azureSecret.getAzureScope());
   }
 }

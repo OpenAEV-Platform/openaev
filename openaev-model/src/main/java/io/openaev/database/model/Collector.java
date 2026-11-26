@@ -24,11 +24,10 @@ import lombok.Setter;
 import org.hibernate.annotations.Type;
 
 /**
- * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
- * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed as part of the
- * activation; they must NOT come back — the filter would AND two predicates and return zero rows,
- * and the listener is a v1 pattern that reads from TenantContext (no longer the source of truth for
- * activated tables). Write attribution is now explicit via {@code TenantWriteScopeResolver}.
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). No Hibernate filter
+ * is declared on this entity and none may be added ({@code TenantFilterRemovedArchTest}). No
+ * listener stamps the tenant from {@code TenantContext} (not the source of truth for activated
+ * tables): write attribution is explicit via {@code TenantWriteScopeResolver}.
  */
 @Getter
 @Setter

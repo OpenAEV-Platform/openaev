@@ -4,6 +4,7 @@ import { Fragment, memo } from 'react';
 import { useFormatter } from '../../../../../../components/i18n';
 import attackPathStatusColor, { attackPathCausalColor, attackPathStatusLabel } from '../attack-path-colors';
 import { AP_FLOW_CAUSAL_EDGE_TYPE } from '../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../attack-path-logging-context';
 import { type EdgeGeometry } from './canvas-geometry';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 const AttackPathConnectors = ({ geometries, width, height }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
 
   return (
     <svg
@@ -71,7 +73,7 @@ const AttackPathConnectors = ({ geometries, width, height }: Props) => {
                 <title>
                   {isCausal
                     ? label
-                    : `${label} — ${t(attackPathStatusLabel(data?.status))}`}
+                    : `${label} — ${t(attackPathStatusLabel(data?.status, showsLogging))}`}
                 </title>
                 <rect
                   x={labelX - (label!.length * 3.4 + 6)}

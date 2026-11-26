@@ -20,6 +20,11 @@ const EXPECTATION_RESULT_LABELS: Record<string, Record<ExpectationResult, string
     PARTIAL: 'Partially Detected',
     FAILED: 'Not Detected',
   },
+  LOGGING: {
+    SUCCESS: 'Logged',
+    PARTIAL: 'Partially Logged',
+    FAILED: 'Not Logged',
+  },
   VULNERABILITY: {
     SUCCESS: 'Not vulnerable',
     PARTIAL: 'Partially Vulnerable',
@@ -97,6 +102,7 @@ const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   QUEUING: 'yellow',
   DRAFT: 'blueGrey',
   DISABLED: 'blueGrey',
+  NOT_VISIBLE: 'blueGrey',
   // Expectation display labels (the per-type result labels resolve through their result)
   FAILED: 'red',
   ASSET_INACTIVE: 'red',

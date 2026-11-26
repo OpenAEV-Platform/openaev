@@ -22,8 +22,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
-import io.openaev.execution.ExecutableInject;
 import io.openaev.helper.InjectHelper;
+import io.openaev.helper.InjectToRun;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -512,7 +512,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
           // NOTE: we are changing the time of Instant.now() here to fast forward in the future
           mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
 
-          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          List<InjectToRun> injects = injectHelper.getInjectsToRun();
           Instant expectedStartTime = instantBeforeSetRun.truncatedTo(MINUTES).plus(1, MINUTES);
           assertEquals(
               expectedStartTime.toString(), JsonPath.read(response, "$.exercise_start_date"));
@@ -522,7 +522,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
           assertEquals(
               1,
               injects.stream()
-                  .filter((ij) -> SCHEDULED_EXERCISE.getId().equals(ij.getExerciseId()))
+                  .filter((ij) -> SCHEDULED_EXERCISE.getId().equals(ij.exerciseId()))
                   .toList()
                   .size());
         }
@@ -578,10 +578,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
   }
 
-  @DisplayName("Reset of a finished exercise deletes the findings its injects wrote")
+  @DisplayName("Reset of a finished exercise keeps the findings its injects wrote")
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  void given_finishedExerciseWithFindings_should_deleteThemOnReset() throws Exception {
+  void given_finishedExerciseWithFindings_should_keepThemOnReset() throws Exception {
     // Arrange
     findingComposer.reset();
     FindingComposer.Composer findingWrapper =
@@ -613,12 +613,17 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    // Assert
+    // Assert: a reset keeps the finding and its occurrence, detached from the inject
     entityManager.flush();
     entityManager.clear();
-    assertThat(findingRepository.findById(findingId)).isEmpty();
     assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
         .isEmpty();
+    assertThat(findingRepository.findById(findingId))
+        .hasValueSatisfying(
+            finding ->
+                assertThat(finding.getOccurrences())
+                    .singleElement()
+                    .satisfies(occurrence -> assertThat(occurrence.getInject()).isNull()));
   }
 
   @DisplayName("Check an exercise from finished to scheduled")
@@ -710,7 +715,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
           // NOTE: we are changing the time of Instant.now() here to fast forward in the future
           mockedInstant.when(Instant::now).thenReturn(instantAfterSetRun);
 
-          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          List<InjectToRun> injects = injectHelper.getInjectsToRun();
           List<Pause> pauses = pauseRepository.findAllForExercise(PAUSED_EXERCISE.getId());
           Optional<Exercise> exercise =
               exerciseRepository.findById(JsonPath.read(response, "$.exercise_id"));
@@ -771,7 +776,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                   .getResponse()
                   .getContentAsString();
 
-          List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+          List<InjectToRun> injects = injectHelper.getInjectsToRun();
 
           // --ASSERT--
           Optional<Exercise> exercise =

@@ -2,8 +2,8 @@ import type { Dispatch } from 'redux';
 
 import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type {
-  InjectorContractSearchPaginationInput, SearchPaginationInput,
-  ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
+  InjectorContractSearchPaginationInput, PayloadCustomizationUpdateInput, PayloadUsageMoveInput, SearchPaginationInput,
+  ThreatArsenalActionCreateInput, ThreatArsenalActionIdsInput, ThreatArsenalActionUpdateInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
@@ -21,6 +21,8 @@ export const addThreatArsenalAction = (data: ThreatArsenalActionCreateInput) => 
   return simplePostCall(THREAT_ARSENAL_URI, data, {}, true, true);
 };
 
+export const fetchThreatArsenalVersionChanges = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/changes`);
+
 export const fetchThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simpleCall(uri);
@@ -30,6 +32,27 @@ export const updateThreatArsenalAction = (actionId: string, data: ThreatArsenalA
   const uri = `${THREAT_ARSENAL_URI}/${actionId}`;
   return simplePutCall(uri, data, {}, true, true);
 };
+
+export const fetchThreatArsenalActionOfPayload = (payloadId: string) => simpleCall(`${THREAT_ARSENAL_URI}/payloads/${payloadId}/action`);
+
+export const fetchThreatArsenalVersions = (actionId: string, notifyError = true) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/versions`, undefined, notifyError);
+
+export const fetchThreatArsenalUsages = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/usages`);
+
+export const moveThreatArsenalUsages = (actionId: string, input: PayloadUsageMoveInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/usages/move`, input);
+export const searchThreatArsenalHistory = (actionId: string, input: SearchPaginationInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/history/search`, input);
+
+export const customizeThreatArsenalAction = (actionId: string) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customize`);
+
+export const fetchThreatArsenalCustomization = (actionId: string) => simpleCall(`${THREAT_ARSENAL_URI}/${actionId}/customization`);
+
+export const updateThreatArsenalCustomization = (actionId: string, input: PayloadCustomizationUpdateInput) => simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/customization/update`, input);
+
+export const fetchThreatArsenalOlderVersionsInUse = (input: ThreatArsenalActionIdsInput) => simplePostCall(`${THREAT_ARSENAL_URI}/older-versions-in-use`, input);
+
+export const keepThreatArsenalOlderVersions = (actionId: string) => simplePutCall(`${THREAT_ARSENAL_URI}/${actionId}/older-versions-kept`, undefined, undefined, true, false);
+
+export const showThreatArsenalOlderVersions = (actionId: string) => simpleDelCall(`${THREAT_ARSENAL_URI}/${actionId}/older-versions-kept`, undefined, true, false);
 
 export const duplicateThreatArsenalAction = (actionId: string) => {
   const uri = `${THREAT_ARSENAL_URI}/${actionId}/duplicate`;

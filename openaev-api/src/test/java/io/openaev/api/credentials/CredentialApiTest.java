@@ -4,6 +4,8 @@ import static io.openaev.api.credentials.CredentialApi.*;
 import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.service.credential.CredentialService.AWS_ACCOUNT_ID_DESCRIPTION;
+import static io.openaev.service.credential.CredentialService.AZURE_SCOPE_DESCRIPTION;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -20,6 +22,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -37,11 +40,12 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -127,6 +131,130 @@ class CredentialApiTest extends IntegrationTest {
       List<String> keyFieldTypes =
           JsonPath.read(response, String.format(fieldPath, "gcp_private_key_json") + ".field_type");
       assertThat(keyFieldTypes).containsExactly("file");
+    }
+
+    private static final Set<String> ENDPOINT_FIELDS =
+        Set.of(
+            "aws_endpoint_url",
+            "azure_authority_host_uri",
+            "azure_scope",
+            "gcp_custom_resource_manager_uri",
+            "gcp_custom_projects_uri",
+            "gcp_custom_token_uri",
+            "gcp_custom_iam_uri");
+
+    static Stream<Arguments> sovereignCloudFields() {
+      Map<String, String> aws = new LinkedHashMap<>();
+      aws.put("aws_account_id", "text");
+      aws.put("aws_endpoint_url", "text");
+      Map<String, String> azure = new LinkedHashMap<>();
+      azure.put("azure_authority_host_uri", "text");
+      azure.put("azure_scope", "text");
+      azure.put("azure_requests_certificate", "file");
+      Map<String, String> gcpServiceAccount = new LinkedHashMap<>();
+      gcpServiceAccount.put("gcp_custom_resource_manager_uri", "text");
+      gcpServiceAccount.put("gcp_custom_projects_uri", "text");
+      Map<String, String> gcpOAuth2 = new LinkedHashMap<>();
+      gcpOAuth2.put("gcp_custom_token_uri", "text");
+      gcpOAuth2.put("gcp_custom_projects_uri", "text");
+      gcpOAuth2.put("gcp_custom_iam_uri", "text");
+      gcpOAuth2.put("gcp_custom_oauth_access_token", "password");
+      return Stream.of(
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY, aws),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE, aws),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY, azure),
+          Arguments.of(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+              gcpServiceAccount),
+          Arguments.of(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2, gcpOAuth2));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("sovereignCloudFields")
+    @DisplayName("given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional")
+    void given_cloudContract_should_exposeSovereignCloudFieldsLastAndOptional(
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD authMethod,
+        Map<String, String> expectedTypesByField)
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-sovereign");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String contractPath = "$[?(@.credential_auth_method == '" + authMethod.name() + "')]";
+      List<String> fieldNames = JsonPath.read(response, contractPath + ".fields[*].field_name");
+      List<String> expectedFields = new ArrayList<>(expectedTypesByField.keySet());
+      assertThat(fieldNames.subList(fieldNames.size() - expectedFields.size(), fieldNames.size()))
+          .containsExactlyElementsOf(expectedFields);
+      expectedTypesByField.forEach(
+          (fieldName, fieldType) -> {
+            String fieldPath = contractPath + ".fields[?(@.field_name == '" + fieldName + "')]";
+            List<String> types = JsonPath.read(response, fieldPath + ".field_type");
+            List<Boolean> required = JsonPath.read(response, fieldPath + ".required");
+            assertThat(types).as(fieldName).containsExactly(fieldType);
+            assertThat(required).as(fieldName).containsExactly(false);
+            // Every field holding a URL, URI, authority host or scope is an endpoint, whichever
+            // auth method declares it.
+            List<Boolean> endpoint = JsonPath.read(response, fieldPath + ".endpoint");
+            assertThat(endpoint).as(fieldName).containsExactly(ENDPOINT_FIELDS.contains(fieldName));
+          });
+    }
+
+    @Test
+    @DisplayName("given_awsContracts_should_describeAccountIdField")
+    void given_awsContracts_should_describeAccountIdField() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-aws-desc");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> descriptions =
+          JsonPath.read(
+              response, "$[*].fields[?(@.field_name == 'aws_account_id')].field_description");
+      assertThat(descriptions)
+          .containsExactly(AWS_ACCOUNT_ID_DESCRIPTION, AWS_ACCOUNT_ID_DESCRIPTION);
+    }
+
+    @Test
+    @DisplayName("given_azureContracts_should_describeScopeField")
+    void given_azureContracts_should_describeScopeField() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-desc");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> descriptions =
+          JsonPath.read(
+              response, "$[*].fields[?(@.field_name == 'azure_scope')].field_description");
+      assertThat(descriptions).containsExactly(AZURE_SCOPE_DESCRIPTION, AZURE_SCOPE_DESCRIPTION);
     }
   }
 
@@ -402,6 +530,10 @@ class CredentialApiTest extends IntegrationTest {
       String tenantId = tenant.getId();
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
       String credentialName = "cred-a-" + uniqueSuffix;
+      // The ambient tenant falls back to the default one: the secret and its reference must
+      // take the tenant of the request, with nothing ambient to stamp them.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       CredentialInput input =
@@ -452,7 +584,11 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-ak");
       CredentialInput input = awsAccessKeyInput("aws-ak-create");
       when(awsCredentialConnectivityCheck.validateAccessKey(
-              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              eq(null),
+              eq(null)))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -468,7 +604,8 @@ class CredentialApiTest extends IntegrationTest {
 
       // Assert
       verify(awsCredentialConnectivityCheck)
-          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+          .validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, null);
       assertThatJson(response).node("credential_status").isEqualTo(ACTIVE.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 
@@ -495,7 +632,8 @@ class CredentialApiTest extends IntegrationTest {
               eq(AWS_EXTERNAL_ID),
               eq(STATIC_ACCESS_KEY),
               eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
-              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY)))
+              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY),
+              eq(null)))
           .thenReturn(SecretConnectionResult.authFailed());
 
       // Act
@@ -517,7 +655,8 @@ class CredentialApiTest extends IntegrationTest {
               AWS_EXTERNAL_ID,
               STATIC_ACCESS_KEY,
               AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
-              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+              null);
       assertThatJson(response).node("credential_status").isEqualTo(AUTH_FAILED.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 
@@ -996,6 +1135,40 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_azureInputWithScope_should_storeAndReturnScope")
+    void given_azureInputWithScope_should_storeAndReturnScope() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-scope");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithScope("azure-scope", AZURE_SCOPE);
+
+      // Act
+      String created =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String credentialId = JsonPath.read(created, "$.credential_id");
+      // The creation answers with the short output: the scope is a field of the detail.
+      String detail =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(detail).node("credential_azure_scope").isEqualTo(AZURE_SCOPE);
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(((AzureServicePrincipalSecret) secret).getAzureScope()).isEqualTo(AZURE_SCOPE);
+    }
+
+    @Test
     @DisplayName("given_oversizedAzureCertificate_should_failCreation")
     void given_oversizedAzureCertificate_should_failCreation() throws Exception {
       // Arrange
@@ -1334,7 +1507,11 @@ class CredentialApiTest extends IntegrationTest {
 
       CredentialInput updateInput = awsAccessKeyInput("aws-ak-update");
       when(awsCredentialConnectivityCheck.validateAccessKey(
-              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              eq(null),
+              eq(null)))
           .thenReturn(SecretConnectionResult.timeout());
 
       // Act
@@ -1351,7 +1528,8 @@ class CredentialApiTest extends IntegrationTest {
 
       // Assert
       verify(awsCredentialConnectivityCheck)
-          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+          .validateAccessKey(
+              AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null, null);
       assertThatJson(response).node("credential_status").isEqualTo(TIMEOUT.name());
       assertThatJson(response).node("credential_last_verified_at").isPresent();
 
@@ -1967,6 +2145,7 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         null,
+        null,
         // GCP
         null,
         null,
@@ -2005,6 +2184,7 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         // AZURE
+        null,
         null,
         null,
         null,

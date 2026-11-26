@@ -70,11 +70,13 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingLocationComposer findingLocationComposer;
   @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
@@ -91,6 +93,7 @@ class IndexingRegressionTest extends IntegrationTest {
     exerciseComposer.reset();
     injectComposer.reset();
     endpointComposer.reset();
+    assetGroupComposer.reset();
     injectExpectationComposer.reset();
     agentComposer.reset();
     collectorComposer.reset();
@@ -1014,44 +1017,6 @@ class IndexingRegressionTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Multi-asset finding is indexed as ONE doc aggregating ALL asset ids")
-    void given_findingOnSeveralAssets_should_indexSingleDocWithAllAssets() {
-      // The previous per-(finding, asset) rows shared the same base_id: each bulk upsert
-      // overwrote the previous row, so only one arbitrary asset survived (last-asset-wins).
-      EndpointComposer.Composer endpointOne =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      EndpointComposer.Composer endpointTwo =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      FindingComposer.Composer findingWrapper =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(endpointOne)
-              .withEndpoint(endpointTwo);
-      InjectComposer.Composer injectWrapper =
-          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
-      exerciseComposer
-          .forExercise(ExerciseFixture.createDefaultExercise())
-          .withInject(injectWrapper)
-          .persist();
-      entityManager.flush();
-      entityManager.clear();
-
-      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
-
-      String findingId = findingWrapper.get().getId();
-      assertThat(results)
-          .filteredOn(es -> es.getBase_id().equals(findingId))
-          .as("exactly ONE doc per finding (no per-asset row fan-out)")
-          .singleElement()
-          .satisfies(
-              es ->
-                  assertThat(es.getBase_endpoint_side())
-                      .as("base_endpoint_side must aggregate ALL linked assets")
-                      .containsExactlyInAnyOrder(
-                          endpointOne.get().getId(), endpointTwo.get().getId()));
-    }
-
-    @Test
     @DisplayName("Finding without assets is indexed with an empty endpoint side")
     void given_findingWithoutAssets_should_indexWithEmptyEndpointSide() {
       FindingComposer.Composer findingWrapper =
@@ -1076,9 +1041,9 @@ class IndexingRegressionTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Only the inject the finding is deleted with is a deletion dependency, every occurrence is"
-            + " a side")
-    void given_occurrenceOnAnotherInject_should_keepItOutOfTheDependencies() {
+        "No inject nor simulation is a deletion dependency: deleting one keeps the finding, every"
+            + " occurrence is a side")
+    void given_occurrencesOnTwoInjects_should_keepThemOutOfTheDependencies() {
       // Arrange
       FindingComposer.Composer findingWrapper =
           findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
@@ -1111,14 +1076,235 @@ class IndexingRegressionTest extends IntegrationTest {
       // Act
       EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
 
-      // Assert: deleting the other inject leaves the finding in place, so it must not cascade
+      // Assert: deleting an inject or a simulation leaves the finding in place (#7848, chunk 4)
       assertThat(indexed.getBase_dependencies())
-          .contains(ownInject.get().getId(), ownSimulation.getId())
-          .doesNotContain(otherInject.get().getId(), otherSimulation.getId());
+          .doesNotContain(
+              ownInject.get().getId(),
+              ownSimulation.getId(),
+              otherInject.get().getId(),
+              otherSimulation.getId());
       assertThat(indexed.getBase_inject_side())
           .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
       assertThat(indexed.getBase_simulation_side())
           .containsExactlyInAnyOrder(ownSimulation.getId(), otherSimulation.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "The asset of the location is the only asset dependency and endpoint side, another linked"
+            + " asset is ignored")
+    void given_findingLocatedOnAnAsset_should_dependOnThatAssetOnly() {
+      // Arrange
+      Asset locationAsset =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+      Asset otherLinkedAsset =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setLocation(persistLocation(locationAsset, null));
+      finding.getAssets().addAll(List.of(locationAsset, otherLinkedAsset));
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getBase_dependencies()).containsExactly(locationAsset.getId());
+      assertThat(indexed.getBase_endpoint_side()).containsExactly(locationAsset.getId());
+    }
+
+    @Test
+    @DisplayName("The user of the location is a dependency: deleting it deletes the finding")
+    void given_findingLocatedOnAUser_should_dependOnThatUser() {
+      // Arrange
+      User locationUser =
+          userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setLocation(persistLocation(null, locationUser));
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getBase_dependencies()).containsExactly(locationUser.getId());
+    }
+
+    private FindingLocation persistLocation(Asset asset, User user) {
+      FindingLocation location = new FindingLocation();
+      location.setAsset(asset);
+      location.setUser(user);
+      location.setLocationKey(
+          FindingLocationKeys.keyOf(
+              asset != null ? asset.getId() : null, user != null ? user.getId() : null));
+      entityManager.persist(location);
+      return location;
+    }
+
+    @Test
+    @DisplayName(
+        "Every side of a finding is aggregated once, however its occurrences, assets and asset"
+            + " groups combine")
+    void given_occurrencesAssetsAndOverlappingAssetGroups_should_indexEachSideOnce() {
+      // Arrange: two occurrences, two assets, and asset groups shared between the two injects -
+      // the combination the indexing query used to multiply into one row per (occurrence,
+      // scenario, asset, asset group)
+      EndpointComposer.Composer endpointOne =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointTwo =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingLocationComposer.Composer locationEndpointOne =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointOne);
+      FindingLocationComposer.Composer locationEndpointTwo =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointTwo);
+      // Both assets in the shared group, one asset in each of the others: the groups of the
+      // finding are those of its assets, each listed once however many assets it holds
+      AssetGroupComposer.Composer groupOwnOnly =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own only"))
+              .withAsset(endpointOne);
+      AssetGroupComposer.Composer groupShared =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("shared"))
+              .withAsset(endpointOne)
+              .withAsset(endpointTwo);
+      AssetGroupComposer.Composer groupOtherOnly =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other only"))
+              .withAsset(endpointTwo);
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withLocation(locationEndpointOne);
+      InjectComposer.Composer ownInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withFinding(findingWrapper)
+              .withAssetGroup(groupOwnOnly)
+              .withAssetGroup(groupShared);
+      ExerciseComposer.Composer ownSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(ownInject);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withSimulation(ownSimulation)
+              .persist()
+              .get();
+      InjectComposer.Composer otherInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withAssetGroup(groupShared)
+              .withAssetGroup(groupOtherOnly);
+      Exercise otherSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherInject)
+              .persist()
+              .get();
+      findingOccurrenceComposer
+          .forOccurrence(
+              FindingOccurrenceFixture.createOccurrence(
+                  findingWrapper.get(),
+                  otherInject.get(),
+                  Instant.now(),
+                  FindingOccurrenceFixture.OTHER_FIELD))
+          .persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      // contains, not containsExactly: a dynamic group seeded in the shared test database may also
+      // match these endpoints; the side is a set, so each group is listed once
+      assertThat(indexed.getBase_asset_groups_side())
+          .contains(groupOwnOnly.get().getId(), groupShared.get().getId());
+      assertThat(indexed.getBase_endpoint_side())
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
+      assertThat(indexed.getBase_inject_side())
+          .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
+      assertThat(indexed.getBase_simulation_side())
+          .containsExactlyInAnyOrder(ownSimulation.get().getId(), otherSimulation.getId());
+      assertThat(indexed.getBase_scenario_side()).containsExactly(scenario.getId());
+      assertThat(indexed.getFinding_field())
+          .containsExactlyInAnyOrder(
+              findingWrapper.get().getField(), FindingOccurrenceFixture.OTHER_FIELD);
+      assertThat(indexed.getBase_dependencies())
+          .as("the location assets delete the finding")
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
+    }
+
+    @Test
+    @DisplayName(
+        "The asset groups of a finding are those of its assets, static and dynamic, never the"
+            + " groups its inject targeted")
+    void given_injectTargetingOtherGroups_should_indexOnlyTheGroupsOfTheFindingAssets() {
+      // Arrange: the finding hits asset A. A is listed in G1 and matched by the dynamic filter of
+      // G3. The inject targets G1 and G2; G2 holds another asset only.
+      // A is the only Linux asset of the test; B is a Windows asset
+      EndpointComposer.Composer assetA =
+          endpointComposer.forEndpoint(
+              EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+      EndpointComposer.Composer assetB =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint("asset B"));
+      FindingLocationComposer.Composer locationAssetA =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetA);
+      FindingLocationComposer.Composer locationAssetB =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetB);
+      AssetGroupComposer.Composer g1 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G1 static"))
+              .withAsset(assetA);
+      AssetGroupComposer.Composer g2 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G2 targeted only"))
+              .withAsset(assetB);
+      Filters.Filter linux = new Filters.Filter();
+      linux.setKey("endpoint_platform");
+      linux.setMode(Filters.FilterMode.or);
+      linux.setOperator(Filters.FilterOperator.eq);
+      linux.setValues(List.of(Endpoint.PLATFORM_TYPE.Linux.name()));
+      Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+      dynamicFilter.setMode(Filters.FilterMode.and);
+      dynamicFilter.setFilters(List.of(linux));
+      AssetGroupComposer.Composer g3 =
+          assetGroupComposer.forAssetGroup(
+              AssetGroupFixture.createAssetGroupWithDynamicFilter("G3 dynamic", dynamicFilter));
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withLocation(locationAssetA);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper)
+                  .withAssetGroup(g1)
+                  .withAssetGroup(g2))
+          .persist();
+      g3.persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      // Other dynamic groups of the shared test database may match the Linux asset too: the
+      // assertion is on the three groups this test owns
+      assertThat(indexed.getBase_asset_groups_side())
+          .as("G1 holds the asset, G3 matches it; G2 is only targeted by the inject")
+          .contains(g1.get().getId(), g3.get().getId())
+          .doesNotContain(g2.get().getId());
     }
 
     private String persistFindingInSimulation(Finding finding) {

@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.OrganizationFixture.createDefaultOrganis
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static io.openaev.utils.fixtures.TeamFixture.createTeamWithName;
+import static io.openaev.utils.fixtures.TenantGroupFixture.getGroup;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -28,6 +29,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Communication;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Scenario;
@@ -37,6 +39,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -47,11 +50,13 @@ import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.rest.user.form.player.PlayerInput;
+import io.openaev.service.TeamService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
@@ -61,6 +66,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -114,6 +120,9 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
   @Autowired private OrganizationComposer organizationComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private TeamComposer teamComposer;
+  @Autowired private TenantGroupComposer groupComposer;
+  @Autowired private TeamService teamService;
+  @Autowired private GroupRepository groupRepository;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private TagRepository tagRepository;
   @Autowired private OrganizationRepository organizationRepository;
@@ -133,6 +142,7 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
     organizationComposer.reset();
     userComposer.reset();
     teamComposer.reset();
+    groupComposer.reset();
     exerciseComposer.reset();
     seededScenarios.clear();
     // A tenant the current user is a member of, so the request scope covers the seeded rows.
@@ -153,6 +163,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
               teamComposer.generatedItems.stream().map(Team::getId).toList());
           userRepository.deleteAllById(
               userComposer.generatedItems.stream().map(User::getId).toList());
+          groupRepository.deleteAllById(
+              groupComposer.generatedItems.stream().map(Group::getId).toList());
           organizationRepository.deleteAllById(
               organizationComposer.generatedItems.stream().map(Organization::getId).toList());
           tagRepository.deleteAllById(tagComposer.generatedItems.stream().map(Tag::getId).toList());
@@ -208,6 +220,40 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           .andExpect(
               jsonPath("$.team_communications[*].communication_id")
                   .value(contains(injects.communicationId())));
+    }
+  }
+
+  @Nested
+  @DisplayName("Read a team in the scope of the request")
+  class ReadTeamInScope {
+
+    @Test
+    @DisplayName(
+        "given a player in a tenant group when the team is read in scope then its players and their"
+            + " groups are loaded in that scope")
+    void
+        given_a_player_in_a_tenant_group_when_the_team_is_read_in_scope_then_the_players_and_their_groups_are_loaded_in_that_scope() {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      String groupId = putPlayerInATenantGroup(seeded.player());
+      TxCtx scope = TxCtx.forTenant(tenant);
+
+      // -- Act --
+      Team team =
+          tenantTx.execute(
+              scope, () -> teamService.teamInScopeWithCollections(scope, seeded.team().getId()));
+
+      // -- Assert --
+      // The response is serialized after the transaction, with no scope: a collection left lazy
+      // at that point, or the eager groups of a player loaded then, read nothing.
+      assertThat(Hibernate.isInitialized(team.getUsers())).isTrue();
+      assertThat(team.getUsers())
+          .singleElement()
+          .satisfies(
+              player ->
+                  assertThat(player.getUnscopedGroups())
+                      .extracting(Group::getId)
+                      .contains(groupId));
     }
   }
 
@@ -490,6 +536,19 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
           return new TargetingInjects(
               exerciseInject.getId(), scenarioInject.getId(), communication.getId());
+        });
+  }
+
+  /** Adds the player to a group of the test tenant and returns the group id. */
+  private String putPlayerInATenantGroup(User player) {
+    return inTenantScope(
+        () -> {
+          TenantGroupComposer.Composer group =
+              groupComposer.forGroup(getGroup("team-group-" + UUID.randomUUID())).persist();
+          User managed = userRepository.findById(player.getId()).orElseThrow();
+          managed.getUnscopedGroups().add(group.get());
+          userRepository.save(managed);
+          return group.get().getId();
         });
   }
 

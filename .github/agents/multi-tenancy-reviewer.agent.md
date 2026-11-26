@@ -25,56 +25,24 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 
 Follow `.claude/skills/review-multi-tenancy/SKILL.md` step-by-step, running
 every command — that is the single source of truth for the procedure
-(Step 1 inventory → Step 2/2b @Filter + v1-vs-v2 classification → Step 3
+(Step 1 inventory → Step 2/2b table classification → Step 3
 native queries → Step 4 migrations → Step 5 async/background → Step 6 API
 responses → Step 7 caching → Step 8 dual-scope → Step 9 compile findings).
-Do not maintain a separate copy of these steps here; a duplicated procedure
-drifts from the skill as it evolves (this file used to inline its own Steps
-1-5, which went stale and were missing the v1/v2 split and the
-persist-vs-read-only nuance in Step 5 before this refresh removed the
-duplicate).
+Do not maintain a separate copy of these steps here.
 
-Two steps deserve emphasis because getting them wrong produces the opposite
-of the intended finding:
+Steps whose order or severity matters (rules in `multi-tenancy.instructions.md`):
 
-- **Step 2b (v1 vs v2 classification)** must run before Steps 2, 3, 5: a
-  table's governing mechanism (v2-active / v1 / permanently-v1-by-design)
-  changes what "correct" looks like and what severity a gap gets. Do not
-  apply the v1 `@Filter`/`WHERE tenant_id` checklist to a v2-active table, or
-  the `TxCtx` checklist to a v1 one — each produces false positives on the
-  other's table.
-- **Step 5 (background contexts)**: a job converted to
-  `TenantScopedTransaction` no longer needs `TenantContext.setCurrentTenant()`
-  for READS against v2-active tables — but still needs it if it persists any
-  `TenantBase` entity (`TenantBaseListener.@PrePersist` stamps `tenant_id`
-  from `TenantContext.getCurrentTenant()` regardless of v1/v2) or calls any
-  code path that isn't v2 yet. Only recommend removing the call when the
-  block is read-only, every touched table is v2-active, and no legacy path is
-  reached — otherwise flag its *absence* as 🔴 CRITICAL, never its presence.
-  A `session.disableFilter("tenantFilter")` presented as what makes a read
-  cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
-  > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
-  rejects any new call. Ask for the primitive with an explicit scope instead.
-- **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
-  join is *keyed on*. An id that repeats across tenants by design, which is any
-  key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:
-  joining on it alone admits another tenant's row even when every table in the
-  statement is v2-active, because the inspector restricts tables and not join
-  keys. `openaev-api/src/test/resources/shared-tenant-keys.txt` is the list.
-  A join on one of them either constrains both sides to the same tenant or
-  carries a reasoned waiver, and the waiver's `reaches-active-table:` and
-  `until-active:` reasons are themselves checked against the activation list,
-  so an activation can expire one. Flag an unwaived one as 🟠 HIGH.
-- **Step 3b (ids named in a request body)**: a write that links rows by ids from the body
-  resolves them with `findAllByIdInTenant(ids, tenantId)` and the tenant of the entity written
-  (rule 10), so an id of another tenant is treated like an unknown id. `findAllById`,
-  `getReferenceById` or an unscoped `findAllByIdIn*` on the repository of an active table is
-  caught by `LinkedIdResolutionArchTest`; `linked-id-resolution-baseline.txt` only shrinks, and a
-  new `link` line is never accepted. Outside that guard, so look for them by reading and flag them
-  as 🟠 HIGH: `findById` on a body id, a call through a generic helper (`DatabaseHelper`), an id
-  lookup declared under another name (`findAllByIds`, `findAiTargetsByIds`,
-  `findAllByIdOrExternalIdIn`), `deleteAllById`, `findAll(Specification)` and
-  `entityManager.find`.
+- **Step 2b (table classification)** must run before Steps 2, 3, 5: whether
+  a table is in `active-tables` changes what "correct" looks like and what severity a gap
+  gets. Do not apply the explicit `WHERE tenant_id` checklist to an active table, or the
+  `TxCtx` checklist to an inactive one: each produces false positives on the other's table.
+- **Step 5 (background contexts)**: [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes). Flag the *absence* of the ambient tenant as 🔴 CRITICAL,
+  never its presence, unless every removal condition of that section holds. A cross-tenant read through
+  `session.disableFilter("tenantFilter")` → ask for the primitive with an explicit scope. A line added to
+  `v1-tenant-construct-baseline.txt` → 🟠 HIGH.
+- **Step 3 (native queries)**: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 2 and 8 — look at what the join is *keyed on*; an unwaived join on a
+  shared tenant key → 🟠 HIGH.
+- **Step 3b (ids named in a request body)**: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 10 — read for the calls the guard does not see; each → 🟠 HIGH.
 
 ## Model Policy
 
@@ -96,20 +64,18 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | Severity | Criteria | Action |
 |---|---|---|
 | 🔴 **CRITICAL** | Cross-tenant data leak: query returns data from other tenants | `issue (blocking):` — PR must not merge |
-| 🔴 **CRITICAL** | Missing `@Filter` on new `TenantBase` entity **not yet v2-active** (check Step 2b) | `issue (blocking):` — invisible to Hibernate filter |
-| 🔴 **CRITICAL** | `@Transactional` entrypoint whose call graph reaches a **v2-active** table (directly, via another service, or via an association/join) without a `TxCtx` parameter | `issue (blocking):` — silent empty-result regression, not a loud failure; see the `changeExerciseStatus` incident (a sibling caller of the same gate had `TxCtx`, this one didn't) |
-| 🔴 **CRITICAL** | `@Filter("tenantFilter")` still present on a table that IS v2-active | `issue (blocking):` — v1 and v2 are mutually exclusive per table, not defense in depth |
-| 🟠 **HIGH** | Native query without `WHERE tenant_id` on a **v1** table | `issue (blocking):` — bypasses Hibernate filter |
-| 🟠 **HIGH** | Native query `JOIN`ing a **v2-active** table with a FROM/JOIN shape not in `TenantStatementInspectorTest`'s accepted list | `issue (blocking):` — fails closed (`TENANT_FILTERING_REFUSED`) in production (#7007) |
-| 🟠 **HIGH** | Global unique constraint on tenant-scoped entity (should be composite with `tenant_id`) | `issue (blocking):` — blocks multi-tenant usage |
-| 🟠 **HIGH** | Single service handling both platform and tenant scope for dual-scope entity | `issue (blocking):` — cross-scope data leak risk |
-| 🟠 **HIGH** | Unscoped `findAll()` / `findById()` on dual-scope entity (no `tenant_id` filter) | `issue (blocking):` — returns mixed platform + tenant data |
-| 🟠 **HIGH** | New endpoint on tenant-scoped data also mapped on a short `/api/...` route (rule 9) | `issue (blocking):` — a write without the tenant in the URI is ambiguous for a user in several tenants |
-| 🟡 **MEDIUM** | Service calling `TenantContext.getCurrentTenant()` directly (should receive tenant as argument from API layer) | `suggestion (blocking):` — hidden coupling, breaks testability and async safety |
-| 🔴 **CRITICAL** | Background job / queue consumer / async task reading or writing tenant rows without `TenantContext.setCurrentTenant()`, when it persists any `TenantBase` entity or touches a v1/not-yet-v2 code path (even when it sets `TxCtx`) | `issue (blocking):` — silently resolves the DEFAULT tenant via `TenantBaseListener`, see `multi-tenancy.instructions.md` > Background Threads Carry Both Scopes |
-| 🟡 **MEDIUM** | Background job already converted to `TenantScopedTransaction`, read-only, every touched table v2-active, no legacy path reached, but still calls `TenantContext.setCurrentTenant()` | `suggestion (non-blocking):` — dead v1 call, safe to remove; confirm the read-only/all-v2-active/no-legacy-path conditions before suggesting removal, a false positive here reintroduces the DEFAULT_TENANT_UUID attribution bug |
-| 🟠 **HIGH** | `TenantContext.setCurrentTenant()` on a pooled thread without a `finally` restore | `issue (blocking):` — leaks the scope into the next task on that thread |
-| 🟡 **MEDIUM** | Cache key without `tenant_id` | `suggestion (non-blocking):` — cross-tenant cache poisoning risk |
+| 🔴 **CRITICAL** | Entrypoint reaching a v2-active table without `TxCtx`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 3 | `issue (blocking):` — silent empty-result regression |
+| 🔴 **CRITICAL** | Hibernate `@Filter` or `enableFilter` / `disableFilter` call: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 4 | `issue (blocking):` |
+| 🟠 **HIGH** | Query on a self-isolated table without `WHERE tenant_id`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 1 | `issue (blocking):` no ambient read isolation |
+| 🟠 **HIGH** | Native query shape on a v2-active table: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 2 | `issue (blocking):` — fails closed in production (#7007) |
+| 🟠 **HIGH** | Global unique constraint: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 6 | `issue (blocking):` — blocks multi-tenant usage |
+| 🟠 **HIGH** | Dual-scope entity with one service, or unscoped `findAll()` / `findById()`: [Dual-Scope Pattern](../instructions/multi-tenancy.instructions.md#dual-scope-pattern) | `issue (blocking):` — cross-scope data leak risk |
+| 🟠 **HIGH** | Tenant-scoped endpoint also on `/api/...`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 9 | `issue (blocking):` — ambiguous write for a user in several tenants |
+| 🟡 **MEDIUM** | Service calling `TenantContext` directly: [code-review › Multi-Tenancy](../instructions/code-review.instructions.md#multi-tenancy) | `suggestion (blocking):` — hidden coupling, breaks testability and async safety |
+| 🔴 **CRITICAL** | Background job / queue consumer / async task reading or writing tenant rows without `TenantScopedJobRunner` ([multi-tenancy › Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes)) | `issue (blocking):` — reads silently come back empty, writes land in the default tenant |
+| 🟡 **MEDIUM** | Background job still setting the ambient tenant when every removal condition of [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes) holds | `suggestion (non-blocking):` — dead v1 call; a false positive reintroduces the DEFAULT_TENANT_UUID attribution bug |
+| 🟠 **HIGH** | Ambient tenant set on a pooled thread without a `finally` restore: [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes) | `issue (blocking):` — leaks the scope into the next task on that thread |
+| 🟡 **MEDIUM** | Cache key without the tenant: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 11 | `suggestion (non-blocking):` — cross-tenant cache poisoning risk |
 | 🟢 **LOW** | Entity could be tenant-scoped but isn't yet (tech debt tracking) | `note:` — informational |
 
 ## What NOT to Flag

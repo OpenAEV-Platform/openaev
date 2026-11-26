@@ -1,0 +1,404 @@
+package io.openaev.rest.asset.endpoint;
+
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.awaitility.Awaitility.await;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
+import io.openaev.database.raw.RawGrant;
+import io.openaev.database.raw.RawUserAuth;
+import io.openaev.engine.EngineContext;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.model.EsSearch;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RabbitMQTestListener;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+/**
+ * The endpoint delete publishes its index delete event only when its scoped DELETE removed a row.
+ *
+ * <p>Not {@code @Transactional}: the rows are committed and the engine flush runs after commit
+ * inside the request, against the real search engine of the test stack. Documents are looked up by
+ * the endpoint id through the engine's exact-id search, never counted, because the engine is shared
+ * with other test classes.
+ */
+@DisplayName("Endpoint delete and its index delete event")
+@TestExecutionListeners(
+    value = {RabbitMQTestListener.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
+
+  private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
+
+  private static final RawUserAuth INDEX_READER =
+      new RawUserAuth() {
+        @Override
+        public String getUser_id() {
+          return "index-reader-" + UUID.randomUUID();
+        }
+
+        @Override
+        public boolean getUser_admin() {
+          return true;
+        }
+
+        @Override
+        public Set<RawGrant> getUser_grants() {
+          return Set.of();
+        }
+      };
+
+  @Autowired private MockMvc mvc;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private DataSource dataSource;
+  @Autowired private EngineService engineService;
+  @Autowired private EngineContext engineContext;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  /** Engine model of the endpoint documents: its indexing cursor is set aside for each test. */
+  private static final String ASSET_MODEL = "asset";
+
+  private String tenantA;
+  private String tenantB;
+  private String endpointB;
+  private String otherTypeAssetA;
+  private Map<String, Object> assetCursor;
+  private boolean assetCursorSetAside;
+
+  enum Route {
+    TENANT_PREFIXED,
+    HEADER
+  }
+
+  @AfterEach
+  void removeWhatTheTestCreated() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    List<Runnable> steps = new ArrayList<>();
+    if (endpointB != null) {
+      steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", endpointB));
+      steps.add(() -> engineService.bulkDelete(List.of(endpointB)));
+      steps.add(() -> jdbc.update("DELETE FROM engine_deletions WHERE deletion_id = ?", endpointB));
+    }
+    if (otherTypeAssetA != null) {
+      steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", otherTypeAssetA));
+    }
+    steps.add(() -> tenantHelper.deleteCommittedTenants(tenantA, tenantB));
+    if (assetCursorSetAside) {
+      steps.add(this::restoreAssetCursor);
+    }
+    runAll(steps);
+  }
+
+  /** Runs every step even when an earlier one fails, then rethrows the first failure. */
+  private static void runAll(List<Runnable> steps) {
+    RuntimeException first = null;
+    for (Runnable step : steps) {
+      try {
+        step.run();
+      } catch (RuntimeException e) {
+        if (first == null) {
+          first = e;
+        } else {
+          first.addSuppressed(e);
+        }
+      }
+    }
+    if (first != null) {
+      throw first;
+    }
+  }
+
+  private void givenTwoTenantsAndIndexedEndpointOfB(boolean callerIsMemberOfB) throws Exception {
+    tenantA = tenantHelper.createTenantWithCurrentUser("endpoint-del-a").getId();
+    tenantB = tenantHelper.createTenantWithCurrentUser("endpoint-del-b").getId();
+    if (!callerIsMemberOfB) {
+      tenantHelper.detachCurrentUserFromTenant(tenantB);
+    }
+    endpointB = seedEndpoint(tenantB);
+    setAssetCursorAside();
+    tenantTx.execute(
+        TxCtx.allTenants(), () -> engineService.bulkProcessing(engineContext.getModels().stream()));
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .pollInterval(Duration.ofMillis(300))
+        .untilAsserted(
+            () -> {
+              assertThat(isIndexed(TxCtx.allTenants())).as("endpoint indexed").isTrue();
+              assertThat(isIndexed(TxCtx.forTenant(tenantB))).as("visible to B").isTrue();
+            });
+  }
+
+  @Nested
+  @DisplayName("Delete of an id that matches no row of the request scope")
+  class UnmatchedId {
+
+    @ParameterizedTest
+    @EnumSource(Route.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given an admin of A, should leave the row and the document in place")
+    void given_adminOfA_should_leaveRowAndDocumentInPlace(Route route) throws Exception {
+      // Arrange
+      givenTwoTenantsAndIndexedEndpointOfB(false);
+
+      // Act
+      int status = deleteEndpointB(route, tenantA);
+
+      // Assert
+      assertSoftly(
+          softly -> {
+            softly.assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
+            softly
+                .assertThat(isIndexed(TxCtx.forTenant(tenantB)))
+                .as("document seen by a member of B")
+                .isTrue();
+            softly.assertThat(rowExists()).as("row").isTrue();
+            softly.assertThat(deletionJournalEntries()).as("engine_deletions rows").isZero();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName(
+        "given a holder of the asset delete right in A, should leave the row and the document in"
+            + " place")
+    void given_holderOfDeleteRightInA_should_leaveRowAndDocumentInPlace() throws Exception {
+      // Arrange
+      givenTwoTenantsAndIndexedEndpointOfB(false);
+      tenantHelper.grantCapabilitiesInTenant(
+          tenantA,
+          Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS, Capability.DELETE_ASSETS));
+
+      // Act
+      int status = deleteEndpointB(Route.TENANT_PREFIXED, tenantA);
+
+      // Assert
+      assertSoftly(
+          softly -> {
+            softly.assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
+            softly
+                .assertThat(isIndexed(TxCtx.forTenant(tenantB)))
+                .as("document seen by a member of B")
+                .isTrue();
+            softly.assertThat(rowExists()).as("row").isTrue();
+            softly.assertThat(deletionJournalEntries()).as("engine_deletions rows").isZero();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
+    }
+  }
+
+  @Nested
+  @DisplayName("Delete of an id that matches a row of the request scope")
+  class MatchedId {
+
+    @ParameterizedTest
+    @EnumSource(Route.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given a member of B deleting an endpoint of B, should remove the row and the document")
+    void given_memberOfB_should_removeRowAndDocument(Route route) throws Exception {
+      // Arrange
+      givenTwoTenantsAndIndexedEndpointOfB(true);
+
+      // Act
+      int status = deleteEndpointB(route, tenantB);
+
+      // Assert
+      assertThat(status).as("HTTP status").isEqualTo(200);
+      assertThat(rowExists()).as("row").isFalse();
+      assertThat(isIndexed(TxCtx.allTenants())).as("document").isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("Delete of an id that is not an endpoint")
+  class IdOfAnotherAssetType {
+
+    /** The asset types, other than an endpoint, that share the assets table. */
+    enum OtherType {
+      SECURITY_PLATFORM("'SecurityPlatform', 'Crowdstrike', NULL"),
+      AI_TARGET("'Asset', NULL, 'AI_TARGET'");
+
+      final String typeColumns;
+
+      OtherType(String typeColumns) {
+        this.typeColumns = typeColumns;
+      }
+    }
+
+    static Stream<Arguments> typesAndRoutes() {
+      return Stream.of(OtherType.values())
+          .flatMap(type -> Stream.of(Route.values()).map(route -> Arguments.of(type, route)));
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource("typesAndRoutes")
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given an id of another asset type in the caller's own tenant, should answer 404 and keep"
+            + " the row")
+    void given_idOfAnotherAssetTypeInOwnTenant_should_answerNotFoundAndKeepRow(
+        OtherType type, Route route) throws Exception {
+      // Arrange
+      tenantA = tenantHelper.createTenantWithCurrentUser("endpoint-del-a").getId();
+      otherTypeAssetA = seedOtherTypeAsset(tenantA, type);
+
+      // Act
+      int status = deleteAsset(route, tenantA, otherTypeAssetA);
+
+      // Assert
+      assertSoftly(
+          softly -> {
+            softly.assertThat(assetRowExists(otherTypeAssetA)).as("row").isTrue();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
+    }
+  }
+
+  /**
+   * Deletes the endpoint of B on the given route, with {@code scopeTenant} as the request scope.
+   */
+  private int deleteEndpointB(Route route, String scopeTenant) throws Exception {
+    return deleteAsset(route, scopeTenant, endpointB);
+  }
+
+  /** Deletes the asset through the endpoint routes, with {@code scopeTenant} as the scope. */
+  private int deleteAsset(Route route, String scopeTenant, String assetId) throws Exception {
+    TenantContext.clearCurrentTenant();
+    MockHttpServletRequestBuilder request =
+        switch (route) {
+          case TENANT_PREFIXED ->
+              delete(TENANT_ENDPOINT_URI.replace("{tenantId}", scopeTenant) + "/" + assetId);
+          case HEADER -> delete(ENDPOINT_URI + "/" + assetId).header("X-Tenant-Ids", scopeTenant);
+        };
+    return mvc.perform(request.with(csrf()).accept(MediaType.APPLICATION_JSON))
+        .andReturn()
+        .getResponse()
+        .getStatus();
+  }
+
+  /** Plain JDBC: a committed row of a type the endpoint routes do not serve. */
+  private String seedOtherTypeAsset(String tenantId, IdOfAnotherAssetType.OtherType type) {
+    String assetId = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO assets (asset_id, asset_name, asset_created_at, asset_updated_at,"
+                + " tenant_id, asset_type, security_platform_type, asset_category)"
+                + " VALUES (?, ?, now() - interval '1 day', now() - interval '1 day', ?, "
+                + type.typeColumns
+                + ")",
+            assetId,
+            "other-type-" + assetId,
+            tenantId);
+    return assetId;
+  }
+
+  /**
+   * Removes the asset model's indexing cursor, so the next indexing round reads the aged fixture
+   * whatever cursor an earlier test left; {@link #restoreAssetCursor} puts it back.
+   */
+  private void setAssetCursorAside() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT indexing_status_indexing_date, indexing_status_last_id FROM indexing_status"
+                + " WHERE indexing_status_type = ?",
+            ASSET_MODEL);
+    assetCursor = rows.isEmpty() ? null : rows.getFirst();
+    jdbc.update("DELETE FROM indexing_status WHERE indexing_status_type = ?", ASSET_MODEL);
+    assetCursorSetAside = true;
+  }
+
+  /** Puts back the cursor {@link #setAssetCursorAside} removed, or none if there was none. */
+  private void restoreAssetCursor() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    jdbc.update("DELETE FROM indexing_status WHERE indexing_status_type = ?", ASSET_MODEL);
+    if (assetCursor != null) {
+      jdbc.update(
+          "INSERT INTO indexing_status"
+              + " (indexing_status_type, indexing_status_indexing_date, indexing_status_last_id)"
+              + " VALUES (?, ?, ?)",
+          ASSET_MODEL,
+          (Timestamp) assetCursor.get("indexing_status_indexing_date"),
+          assetCursor.get("indexing_status_last_id"));
+    }
+    assetCursor = null;
+    assetCursorSetAside = false;
+  }
+
+  /** Plain JDBC: committed and aged, so the indexer's grace window does not re-fetch it. */
+  private String seedEndpoint(String tenantId) {
+    String assetId = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO assets (asset_id, asset_name, asset_type, asset_created_at,"
+                + " asset_updated_at, tenant_id, asset_hostname, endpoint_platform, endpoint_arch)"
+                + " VALUES (?, ?, 'Endpoint', now() - interval '1 day', now() - interval '1 day',"
+                + " ?, ?, 'Linux', 'x86_64')",
+            assetId,
+            "endpoint-del-" + assetId,
+            tenantId,
+            "endpoint-del-" + assetId);
+    return assetId;
+  }
+
+  /** Exact-id search of the engine: matches the document whose id is the endpoint id, if any. */
+  private boolean isIndexed(TxCtx ctx) {
+    return engineService.search(ctx, INDEX_READER, endpointB, null).stream()
+        .map(EsSearch::getId)
+        .anyMatch(endpointB::equals);
+  }
+
+  private int deletionJournalEntries() {
+    Integer count =
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT count(*) FROM engine_deletions WHERE deletion_id = ?",
+                Integer.class,
+                endpointB);
+    return count == null ? 0 : count;
+  }
+
+  private boolean rowExists() {
+    return assetRowExists(endpointB);
+  }
+
+  private boolean assetRowExists(String assetId) {
+    Integer count =
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT count(*) FROM assets WHERE asset_id = ?", Integer.class, assetId);
+    return count != null && count == 1;
+  }
+}

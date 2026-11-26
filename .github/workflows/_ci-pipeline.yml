@@ -60,11 +60,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # On a pull request: the merge commit and its first parent, the target branch.
+          # On a pull request or a merge queue group: the merge commit and its first parent, the
+          # target branch.
           fetch-depth: 2
       - uses: ./.github/actions/adr-numbering
         with:
-          pull-request: ${{ github.event_name == 'pull_request' }}
+          pull-request: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
 
   ocsf-parser-generation-stability:
     strategy:
@@ -443,9 +444,8 @@ jobs:
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
   # changes are covered, and backend line coverage does not drop by more than 0.1 point against
   # the last commit of main. It builds its own report, next to coverage-backend rather than after it.
-  # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a
-  # while on real PRs. Making it blocking means taking the job out of the advisory list in the
-  # gate below.
+  # A broken rule fails the job and blocks the merge through the Pipeline Gate, unless the pull
+  # request description waives it with a "Coverage exempt: <why>" line.
   coverage-backend-gate:
     name: "🔎 Backend Coverage Check"
     needs: [api-tests]
@@ -469,7 +469,7 @@ jobs:
         with:
           min-coverage: "80"
           max-drop: "0.1"
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          client-id: ${{ vars.OPENAEV_PR_CHECKS_CLIENT_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
   coverage-frontend:
@@ -653,12 +653,14 @@ jobs:
             Docker Build (${{ matrix.variant }} arm64)
 
   # Aikido scan of both amd64 images, on main and on every pull request, with Aikido's PR gate on
-  # pull requests and its release gate on pushes. Issues post an "Aikido Image Scan (advisory)"
-  # check and leave the job green; the gate treats the job as advisory for now. Details in the
-  # aikido-image-scan action.
+  # pull requests and its release gate on pushes. Issues are listed in the job summary and leave the
+  # job green. A scan or a report that cannot be produced fails the job, and the gate with it, so a
+  # run either has its report or fails. Details in the aikido-image-scan action. Skipped in the
+  # merge queue: each queue ref is unique, so a scan there would create two new Aikido containers
+  # per queued PR, and the PR and main scans already cover the same images.
   aikido-image-scan:
     name: "🔍 Aikido Image Scan"
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.event_name != 'merge_group' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -669,15 +671,13 @@ jobs:
       - uses: ./.github/actions/aikido-image-scan
         with:
           api-key: ${{ secrets.AIKIDO_TOKEN }}
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
-          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
   # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
   # Coverage upload is best-effort and stays out of it; the backend coverage rules
-  # (coverage-backend-gate) are in it, advisory.
+  # (coverage-backend-gate) are in it, and block.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
@@ -732,7 +732,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate|aikido-image-scan)
+              bom-override-guard)
                 advisory=1
                 ;;
             esac

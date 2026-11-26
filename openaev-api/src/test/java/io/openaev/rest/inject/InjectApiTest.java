@@ -29,7 +29,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
@@ -138,6 +140,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private PayloadRevocationRepository payloadRevocationRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
@@ -1734,6 +1737,51 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isBadRequest());
     }
 
+    @DisplayName("Should refuse a revoked payload version to the agent and trace why")
+    @Test
+    void given_revokedPayloadVersion_should_refuseItAndTraceTheReason() throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Command payloadCommand =
+          PayloadFixture.createCommand("bash", "echo Hello World", List.of(), "echo cleanup");
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(new HashMap<>()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
+              .persist()
+              .get();
+      PayloadRevocation revocation = new PayloadRevocation();
+      revocation.setTenant(payloadCommand.getTenant());
+      revocation.setPayload(payloadCommand);
+      revocation.setReason("Deletes user files");
+      payloadRevocationRepository.save(revocation);
+      String agentId = targetAgentWrapper.get().getId();
+
+      // -- EXECUTE --
+      mvc.perform(
+              get(INJECT_URI + "/" + injectSaved.getId() + "/" + agentId + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // -- ASSERT --
+      verify(injectStatusService)
+          .setImplantErrorTrace(
+              injectSaved.getId(), agentId, "Payload revoked: Deletes user files");
+      verify(injectStatusService, never())
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+    }
+
     @DisplayName(
         "Should override document argument default_value with the inject content value so the implant downloads the right document")
     @Test
@@ -2797,8 +2845,8 @@ class InjectApiTest extends IntegrationTest {
 
       @Test
       @DisplayName(
-          "Should merge assets of duplicate PortsScan findings when two assets expose the same host/port/service")
-      void shouldMergeAssetsOfDuplicatePortScanFindingsWhenTwoAssetsHaveSameHostPortService()
+          "Should create one PortsScan finding per asset when two assets expose the same host/port/service")
+      void shouldCreateOnePortScanFindingPerAssetWhenTwoAssetsHaveSameHostPortService()
           throws Exception {
         // -- PREPARE --
         Endpoint endpointA = EndpointFixture.createEndpoint();
@@ -2860,18 +2908,17 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
-        assertEquals(
-            1,
-            findings.size(),
-            "Two PortsScan entries with same host/port/service must be consolidated into one finding");
-        Finding merged = findings.getFirst();
-        assertEquals(ContractOutputType.PortsScan, merged.getType());
-        assertEquals("192.168.1.10:8080 (http)", merged.getValue());
-        List<String> assetIds = merged.getAssets().stream().map(Asset::getId).toList();
-        assertTrue(
-            assetIds.contains(endpointASaved.getId()), "Merged finding must be linked to asset A");
-        assertTrue(
-            assetIds.contains(endpointBSaved.getId()), "Merged finding must be linked to asset B");
+        assertThat(findings)
+            .hasSize(2)
+            .allSatisfy(
+                finding -> {
+                  assertEquals(ContractOutputType.PortsScan, finding.getType());
+                  assertEquals("192.168.1.10:8080 (http)", finding.getValue());
+                  assertEquals(1, finding.getAssets().size());
+                });
+        assertThat(findings)
+            .extracting(finding -> finding.getAssets().getFirst().getId())
+            .containsExactlyInAnyOrder(endpointASaved.getId(), endpointBSaved.getId());
       }
 
       // CVE

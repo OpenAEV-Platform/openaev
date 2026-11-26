@@ -3,12 +3,10 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -47,8 +45,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
@@ -64,13 +60,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  */
 @SpringBootTest
 @DisplayName("Queue chaining job: each entry's changes are written in its own tenant")
-class QueueChainingJobPendingChangesTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class QueueChainingJobPendingChangesTest extends ProductionTablesIntegrationTest {
 
   @Autowired private QueueChainingJob job;
   @Autowired private WorkflowComposer workflowComposer;
@@ -170,7 +160,7 @@ class QueueChainingJobPendingChangesTest extends IntegrationTest {
       String stepOfTenantB = persistDueEntryOf(persistTenant());
       doAnswer(invocation -> List.of((Step) invocation.getArgument(0)))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       doThrow(new IOException("broker down")).when(queueChainingService).readyStep(any(), any());
       doAnswer(invocation -> invocation.getArgument(0))
           .when(workflowService)

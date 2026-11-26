@@ -2,6 +2,7 @@ package io.openaev.rest.atomic_testing.form;
 
 import static lombok.AccessLevel.NONE;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ExecutionStatus;
 import jakarta.validation.constraints.NotNull;
@@ -32,4 +33,7 @@ public class InjectStatusSimple {
 
   @JsonProperty("tracking_end_date")
   private Instant trackingEndDate;
+
+  // Read to show the reader's status (InjectVisibleStatusService), never sent
+  @JsonIgnore private Integer expectedAgentCount;
 }

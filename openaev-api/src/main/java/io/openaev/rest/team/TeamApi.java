@@ -203,9 +203,11 @@ public class TeamApi extends RestBehavior {
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     team.setTags(iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
-    team.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
-    team.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
-    return teamRepository.save(team);
+    team.setExercises(
+        iterableToSet(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), writeTenant)));
+    team.setScenarios(
+        iterableToSet(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), writeTenant)));
+    return teamService.withResponseCollections(teamRepository.save(team));
   }
 
   @PostMapping({"/api/teams/upsert", TENANT_TEAM_URI + "/upsert"})
@@ -217,8 +219,7 @@ public class TeamApi extends RestBehavior {
   public Team upsertTeam(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
-      throw new UnsupportedOperationException(
-          "Contextual team can only be associated to one exercise");
+      throw new BadRequestException("Contextual team can only be associated to one exercise");
     }
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Team> team =
@@ -232,7 +233,7 @@ public class TeamApi extends RestBehavior {
       existingTeam.setOrganization(
           updateRelation(
               input.getOrganizationId(), existingTeam.getOrganization(), organizationRepository));
-      return teamRepository.save(existingTeam);
+      return teamService.withResponseCollections(teamRepository.save(existingTeam));
     } else {
       Team newTeam = new Team();
       newTeam.setTenant(new Tenant(writeTenant));
@@ -242,9 +243,13 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
       newTeam.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), writeTenant)));
-      newTeam.setExercises(iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
-      newTeam.setScenarios(iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
-      return teamRepository.save(newTeam);
+      newTeam.setExercises(
+          iterableToSet(
+              exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), writeTenant)));
+      newTeam.setScenarios(
+          iterableToSet(
+              scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), writeTenant)));
+      return teamService.withResponseCollections(teamRepository.save(newTeam));
     }
   }
 
@@ -304,7 +309,7 @@ public class TeamApi extends RestBehavior {
             tagRepository.findAllByIdInTenant(input.getTagIds(), team.getTenant().getId())));
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
-    return teamRepository.save(team);
+    return teamService.withResponseCollections(teamRepository.save(team));
   }
 
   @PutMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
@@ -342,7 +347,7 @@ public class TeamApi extends RestBehavior {
     // re-insert the audience rows just deleted. Reload it so the entity matches the database.
     Team refreshedTeam = removedUserIds.isEmpty() ? team : teamService.teamInScope(ctx, teamId);
     refreshedTeam.setUsers(nextTeamUsers);
-    return teamRepository.save(refreshedTeam);
+    return teamService.withResponseCollections(teamRepository.save(refreshedTeam));
   }
 
   // -- OPTION --

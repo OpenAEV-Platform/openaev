@@ -13,11 +13,16 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.*;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -65,7 +70,7 @@ public class AtomicTestingService {
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
-  private final DocumentRepository documentRepository;
+  private final DocumentService documentService;
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final UserService userService;
@@ -77,6 +82,10 @@ public class AtomicTestingService {
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final RecurrenceService recurrenceService;
+  private final InjectStatusService injectStatusService;
+  private final AssetAgentJobRepository assetAgentJobRepository;
+  private final HealthCheckUtils healthCheckUtils;
 
   // -- CRUD --
 
@@ -137,10 +146,10 @@ public class AtomicTestingService {
     // (#8485): resolve it in the tenant the inject being written here belongs to, never the ambient
     // one (the default tenant on the non-prefixed route). On a create that is the write tenant the
     // API resolved from the request's scope, on an update the tenant of the loaded inject.
-    String contractTenantId = isCreate ? tenantId : injectToSave.getTenant().getId();
+    String injectTenantId = isCreate ? tenantId : injectToSave.getTenant().getId();
     InjectorContract injectorContract =
         injectorContractService
-            .injectorContractByIdInTenant(input.getInjectorContract(), contractTenantId)
+            .injectorContractByIdInTenant(input.getInjectorContract(), injectTenantId)
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations
@@ -161,17 +170,25 @@ public class AtomicTestingService {
     injectToSave.setExercise(null);
 
     // Set dependencies
-    injectToSave.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
-    injectToSave.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    injectToSave.setAssets(fromIterable(this.assetRepository.findAllById(input.getAssets())));
+    // The ids named in the body resolve in the tenant of the inject written: an id of another
+    // tenant is treated like an unknown id.
+    injectToSave.setTeams(
+        fromIterable(teamRepository.findAllByIdInTenant(input.getTeams(), injectTenantId)));
+    injectToSave.setTags(
+        iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), injectTenantId)));
+    injectToSave.setAssets(
+        fromIterable(this.assetRepository.findAllByIdInTenant(input.getAssets(), injectTenantId)));
     injectToSave.setAssetGroups(
-        fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
+        fromIterable(
+            this.assetGroupRepository.findAllByIdInTenant(input.getAssetGroups(), injectTenantId)));
     Set<String> previousSecretReferenceIds =
         injectToSave.getSecretReferences().stream()
             .map(SecretReference::getId)
             .collect(Collectors.toSet());
     injectToSave.setSecretReferences(
-        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
+        fromIterable(
+            secretReferenceRepository.findAllByIdInTenant(
+                input.getSecretReferences(), injectTenantId)));
 
     injectToSave.getDocuments().clear();
 
@@ -189,7 +206,7 @@ public class AtomicTestingService {
                 injectDocument.setCompositeId(injectDocumentId);
                 injectDocument.setInject(finalInjectToSave);
                 injectDocument.setDocument(
-                    documentRepository.findById(i.getDocumentId()).orElseThrow());
+                    documentService.documentInTenant(i.getDocumentId(), injectTenantId));
               }
               injectDocument.setAttached(i.isAttached());
               finalInjectToSave
@@ -214,12 +231,15 @@ public class AtomicTestingService {
       TxCtx ctx, String injectId, AtomicTestingUpdateTagsInput input) {
 
     Inject inject = findInject(ctx, injectId);
-    inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    inject.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(input.getTagIds(), inject.getTenant().getId())));
 
     Inject saved = injectRepository.save(inject);
     return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
+  /** Deletes an atomic testing. */
   public void deleteAtomicTesting(TxCtx ctx, String injectId) {
     // Verify the inject exists inside the request's tenant scope before deleting
     findInject(ctx, injectId);
@@ -231,7 +251,8 @@ public class AtomicTestingService {
    * (select-all with optional exclusions). The scope is restricted to atomic testings (injects
    * without scenario or simulation) the user is allowed to plan on.
    *
-   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @param input the bulk delete input (ids or search input, plus ids to ignore, and keep_findings:
+   *     true keeps the findings the atomic testings produced, detached from them)
    *     <p>Not transactional as a whole: the deletion scope is resolved in a short transaction,
    *     then atomic testings are deleted in small independent chunks (with deadlock retry) tracked
    *     as a massive operation, so per-entity stream events are suppressed in favor of aggregated
@@ -266,8 +287,28 @@ public class AtomicTestingService {
   }
 
   public InjectResultOverviewOutput launch(TxCtx ctx, String id) {
-    findInject(ctx, id);
+    throwIfMandatoryFieldsMissing(findInject(ctx, id));
     return injectService.launch(id);
+  }
+
+  /**
+   * Refuses to launch an atomic testing that leaves a mandatory field of its injector contract
+   * empty: it would run and do nothing (no recipient, no target). The 400 names each field, the
+   * ones {@code inject_missing_mandatory_fields} lists on the read. Only the fields of a contract
+   * are checked here: an atomic testing with no contract keeps its current launch path.
+   */
+  void throwIfMandatoryFieldsMissing(Inject inject) {
+    List<String> missingFields =
+        HealthCheckUtils.missingMandatoryFields(
+            healthCheckUtils.runContentChecks(inject).stream()
+                .filter(check -> check.getField() != null)
+                .toList());
+    if (!missingFields.isEmpty()) {
+      throw new BadRequestException(
+          "The atomic testing is not ready to be launched: mandatory field(s) "
+              + String.join(", ", missingFields)
+              + " of its injector contract are empty");
+    }
   }
 
   /**
@@ -289,7 +330,9 @@ public class AtomicTestingService {
    * they are not cleared for will not be executed, so their executors must not block the launch.
    */
   public void throwIfNotLaunchable(TxCtx ctx, String id) {
-    injectService.throwIfInjectNotLaunchable(findInject(ctx, id));
+    Inject inject = findInject(ctx, id);
+    throwIfMandatoryFieldsMissing(inject);
+    injectService.throwIfInjectNotLaunchable(inject);
   }
 
   /**
@@ -304,6 +347,40 @@ public class AtomicTestingService {
     findInject(ctx, id);
     // The grants move with the relaunch, in InjectService, before the old inject is deleted.
     return injectService.relaunchAsCurrentUser(id);
+  }
+
+  /**
+   * Stops a running atomic testing on a user's request: withdraws the agent jobs not picked up yet
+   * (an agent no longer receives them), then ends the inject in ERROR with an INTERRUPTED trace
+   * naming who stopped it. The simulation cancel ends its injects the same way ({@code
+   * WorkflowEndService#stopActiveInjects}); an atomic testing has no simulation, so it is stopped
+   * here. An implant an agent already started is not killed: no agent protocol carries a kill
+   * today, and its later callbacks find the inject's execution authorisation revoked.
+   *
+   * @param ctx the request scope the atomic testing is resolved in
+   * @param id the atomic testing (inject) id
+   * @return the stopped atomic testing
+   * @throws BadRequestException when the inject is not an atomic testing or is not in progress
+   */
+  @Transactional
+  public InjectResultOverviewOutput stop(TxCtx ctx, String id) {
+    Inject inject = findInject(ctx, id);
+    if (!inject.isAtomicTesting()) {
+      throw new BadRequestException("Only an atomic testing can be stopped here");
+    }
+    ExecutionStatus currentStatus =
+        inject.getStatus().map(InjectStatus::getName).orElse(ExecutionStatus.DRAFT);
+    if (!ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(currentStatus)) {
+      throw new BadRequestException(
+          "The atomic testing is not running (status " + currentStatus.name() + ")");
+    }
+    // Withdraw the jobs first, in the atomic testing's own tenant (asset_agent_jobs is v2-active):
+    // an agent polling meanwhile must not receive a job of a stopped atomic testing.
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(
+        List.of(inject.getId()), inject.getTenant().getId());
+    injectStatusService.interruptInjectStatus(inject, userService.currentUser().getNameOrEmail());
+    log.info("Atomic testing {} stopped (was {})", inject.getId(), currentStatus.name());
+    return findById(ctx, id);
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
@@ -347,6 +424,10 @@ public class AtomicTestingService {
         (input.getRecurrence() == null || input.getRecurrence().isBlank())
             ? null
             : input.getRecurrence().trim();
+    // Refuse an expression the scheduler could never fire (a Unix 5-field cron, a Quartz cron
+    // with a year...) before any gate or write: it would otherwise be stored, answered 200, and
+    // silently never run.
+    recurrenceService.validateExpression(recurrence);
     // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
     // applies: without it, scheduling would bypass the licence check enforced on manual launches
     // (scheduled executions deliberately skip the gate at run time). A recurrence with a null
@@ -393,11 +474,10 @@ public class AtomicTestingService {
                     .getObject()
                     .filterInEachTenant(
                         ctx,
-                        () ->
-                            currentUser.isAdminOrBypass()
-                                || currentUser
-                                    .getCapabilities()
-                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser,
+                        caller ->
+                            caller.isAdminOrBypass()
+                                || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         accessRight ->
                             SpecificationUtils.hasGrantAccess(
                                 currentUser.getId(),

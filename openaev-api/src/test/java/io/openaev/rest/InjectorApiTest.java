@@ -134,6 +134,9 @@ public class InjectorApiTest extends IntegrationTest {
   @DisplayName("Retrieve injectors")
   class GetInjectors {
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Should retrieve all injectors")
     void shouldRetrieveAllInjectors() throws Exception {
       Injector injector = getInjector("nuclei");
@@ -171,6 +174,9 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName(
         "Given queryParams include_next to true should retrieve all injectors and and pending injectors")
     void givenQueryParamsIncludeNextToTrue_shouldRetrieveAllInjectorsAndPendingInjectors()

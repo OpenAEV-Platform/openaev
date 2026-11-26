@@ -10,6 +10,8 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - **The fewest tests that cover all the new code**: one integration test per flow, parameterized tests
   for the list of refusal or error cases
 - No test that restates configuration (one test per enum value, per mapping entry)
+- Test through the public API: no direct test of a private method, of framework behaviour (Spring Security
+  config, Hibernate internals) or of exact error wording (assert the status and error structure)
 - Delete the tests of removed code in the same PR
 
 ## Integration Tests (API)

@@ -42,13 +42,12 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * {@code TransactionTemplate}. This sets the v2 GUC ({@code app.current_tenants}), scoping the
    * tenant-active tables the run writes (e.g. {@code attackpath_execution}).
    *
-   * <p>The GUC alone is not enough here: a step run also reads v1 {@code @Filter} entities that are
-   * not yet migrated to v2 (injector contract, endpoints, assets). Those are scoped by the
-   * thread-local {@link TenantContext} via {@link io.openaev.aop.HibernateFilterTransactionAspect},
-   * not by the GUC. Each consumer therefore also sets {@link TenantContext} to the run's tenant for
-   * the duration of the event (set-then-finally-clear on the pooled worker thread), mirroring the
-   * background scheduler jobs (e.g. {@code ScenarioExecutionJob}). Both scopes carry the same
-   * tenant and cohabit: the primitive covers v2, {@link TenantContext} covers v1.
+   * <p>The GUC alone is not enough here: rows the listener stamps and tenant-keyed lookups take
+   * their tenant from the thread-local {@link TenantContext}, not from the GUC. Each consumer
+   * therefore also sets {@link TenantContext} to the run's tenant for the duration of the event
+   * (set-then-finally-clear on the pooled worker thread), mirroring the background scheduler jobs
+   * (e.g. {@code ScenarioExecutionJob}). Both scopes carry the same tenant and cohabit: the
+   * primitive scopes the reads, {@link TenantContext} is the tenant the listener stamps.
    */
   private final TenantScopedTransaction tenantTx;
 
@@ -82,8 +81,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
     TenantContext.setCurrentTenant(tenantId);
+    AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
     try {
-      AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () ->
@@ -106,7 +105,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
                           log.error(
                               "[Chaining] Ready consume: Step not found for StepEvent ID: {}",
                               stepEvent.getStepId())));
-      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     } catch (Exception e) {
       if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
         stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
@@ -136,6 +134,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         endReadyStepWithoutEvent(stepEvent, tenantId);
       }
     } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
       TenantContext.clearCurrentTenant();
     }
   }
@@ -161,9 +160,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           "[Chaining] Could not end step {} after its event was dropped, it stays READY.",
           stepEvent.getStepId(),
           e);
-      return;
+    } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     }
-    evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
   }
 
   /** Ends a step and gives its workflow run, which is evaluated once this is committed. */
@@ -279,15 +278,10 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param events list of events
    * @return consumed list of events
    */
-  // #6357: NOT @Transactional. A batch-level transaction would fire
-  // HibernateFilterTransactionAspect
-  // once with the (context-less) default tenant and pin the tenantFilter to it for every event in
-  // the
-  // batch, defeating the per-event tenant restore below. Each event runs in its own transaction
-  // with
-  // its tenant set first (mirrors handleReadyStepEvent), which also isolates a failing event from
-  // the
-  // rest of the batch.
+  // #6357: NOT @Transactional. A batch-level transaction would run once with the (context-less)
+  // default tenant for every event in the batch, defeating the per-event tenant restore below.
+  // Each event runs in its own transaction with its tenant set first (mirrors
+  // handleReadyStepEvent), which also isolates a failing event from the rest of the batch.
   public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;
@@ -301,7 +295,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
     // #6357: same dual scoping as the ready path (see handleReadyStepEvent) - the MT v2 primitive
-    // for the tenant-active writes, TenantContext for the v1 @Filter reads, both on the run's
+    // for the scoped reads, TenantContext for the tenant the listener stamps, both on the run's
     // tenant, set-then-finally-clear on the pooled worker thread. Null tenantId (legacy/in-flight
     // message) falls back to the default tenant.
     String tenantId =

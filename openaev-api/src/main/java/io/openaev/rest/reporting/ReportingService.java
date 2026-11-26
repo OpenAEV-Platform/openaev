@@ -467,7 +467,9 @@ public class ReportingService {
       final TxCtx ctx, final ReportingContextType contextType, final String contextId) {
     requireSubjectAccess(
         this.permissionService.holdsInScope(
-            ctx, subjectReadable(contextType, contextId, this.userService.currentUser())),
+            ctx,
+            this.userService.currentUser(),
+            caller -> subjectReadable(contextType, contextId, caller).getAsBoolean()),
         contextType,
         contextId);
   }

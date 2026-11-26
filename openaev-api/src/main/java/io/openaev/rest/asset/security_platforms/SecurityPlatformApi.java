@@ -45,7 +45,6 @@ public class SecurityPlatformApi {
 
   private final TenantWriteScopeResolver writeScopeResolver;
   private final SecurityPlatformRepository securityPlatformRepository;
-  private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final DocumentService documentService;
   private final InjectorRepository injectorRepository;
@@ -105,16 +104,8 @@ public class SecurityPlatformApi {
     securityPlatform.setTenant(new Tenant(tenantId));
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
-    if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    } else {
-      securityPlatform.setLogoDark(null);
-    }
-    if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    } else {
-      securityPlatform.setLogoLight(null);
-    }
+    securityPlatform.setLogoDark(logoDocument(input.getLogoDark(), tenantId));
+    securityPlatform.setLogoLight(logoDocument(input.getLogoLight(), tenantId));
     securityPlatform.setTags(
         iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return this.securityPlatformRepository.save(securityPlatform);
@@ -146,20 +137,11 @@ public class SecurityPlatformApi {
     }
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
-    if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    } else {
-      securityPlatform.setLogoDark(null);
-    }
-    if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    } else {
-      securityPlatform.setLogoLight(null);
-    }
+    String platformTenantId = securityPlatform.getTenant().getId();
+    securityPlatform.setLogoDark(logoDocument(input.getLogoDark(), platformTenantId));
+    securityPlatform.setLogoLight(logoDocument(input.getLogoLight(), platformTenantId));
     securityPlatform.setTags(
-        iterableToSet(
-            this.tagRepository.findAllByIdInTenant(
-                input.getTagIds(), securityPlatform.getTenant().getId())));
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), platformTenantId)));
     // Initialized before the link below is written, so the response carries the stored links
     // plus the one this request adds.
     SecurityPlatform saved =
@@ -250,20 +232,11 @@ public class SecurityPlatformApi {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository.findById(securityPlatformId).orElseThrow();
     securityPlatform.setUpdateAttributes(input);
-    if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    } else {
-      securityPlatform.setLogoDark(null);
-    }
-    if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    } else {
-      securityPlatform.setLogoLight(null);
-    }
+    String platformTenantId = securityPlatform.getTenant().getId();
+    securityPlatform.setLogoDark(logoDocument(input.getLogoDark(), platformTenantId));
+    securityPlatform.setLogoLight(logoDocument(input.getLogoLight(), platformTenantId));
     securityPlatform.setTags(
-        iterableToSet(
-            this.tagRepository.findAllByIdInTenant(
-                input.getTagIds(), securityPlatform.getTenant().getId())));
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), platformTenantId)));
     return withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
   }
 
@@ -319,5 +292,10 @@ public class SecurityPlatformApi {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  // A null id clears the logo; an id of another tenant is refused like an unknown one.
+  private Document logoDocument(String documentId, String tenantId) {
+    return documentId != null ? documentService.documentInTenant(documentId, tenantId) : null;
   }
 }

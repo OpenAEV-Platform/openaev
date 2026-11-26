@@ -185,25 +185,12 @@ public class ExecutionExecutorService {
     if (agents.isEmpty()) {
       return;
     }
-    long endpointCount =
-        agents.stream()
-            .map(Agent::getAsset)
-            .filter(Objects::nonNull)
-            .map(Asset::getId)
-            .distinct()
-            .count();
-    String message =
-        "Distributing inject to "
-            + agents.size()
-            + " agent(s) across "
-            + endpointCount
-            + " endpoint(s)";
     ExecutionTrace trace =
         new ExecutionTrace(
             injectStatus,
             ExecutionTraceStatus.INFO,
             List.of(),
-            message,
+            "Distributing inject",
             ExecutionTraceAction.START,
             null,
             null);

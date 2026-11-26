@@ -18,7 +18,8 @@ import org.springframework.stereotype.Component;
  * Retention job for execution_traces, the fastest-growing table of the platform (one row per agent
  * execution message). Disabled by default; enable by setting a positive {@code
  * openaev.retention.execution-traces.retention-days}. Deletion is batched in short independent
- * transactions to avoid long locks on this hot-write table, each under the all-tenants scope.
+ * transactions to avoid long locks on this hot-write table, each under the all-tenants scope. The
+ * COMPLETE trace of each agent is kept: the status of an inject is computed from it.
  */
 @Component
 @DisallowConcurrentExecution

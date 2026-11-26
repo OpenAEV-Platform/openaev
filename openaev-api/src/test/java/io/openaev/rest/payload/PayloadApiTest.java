@@ -36,6 +36,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
@@ -494,6 +495,13 @@ class PayloadApiTest extends IntegrationTest {
     @DisplayName("Given argument types, should persist them on generated injector contract fields")
     void given_argumentTypes_should_propagate_to_injectorContract_fields() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      // The default value of a Document-type argument now resolves within the payload's own
+      // write tenant (an id of another tenant is refused like an unknown id), so it must name a
+      // real document here rather than an arbitrary string.
+      Document document = DocumentFixture.getDocumentJpeg();
+      document.setName("payload-argument-type-" + UUID.randomUUID());
+      document.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      String documentId = documentRepository.save(document).getId();
       PayloadCreateInput input =
           PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
               List.of(domain.getId()));
@@ -506,7 +514,7 @@ class PayloadApiTest extends IntegrationTest {
               PayloadFixture.createPayloadArgument(
                   "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u"),
               PayloadFixture.createPayloadArgument(
-                  "arg_document", PrimitiveType.Document, "document-id", null)));
+                  "arg_document", PrimitiveType.Document, documentId, null)));
 
       String response =
           mvc.perform(
@@ -541,7 +549,7 @@ class PayloadApiTest extends IntegrationTest {
             }
             if ("arg_document".equals(key)) {
               assertEquals("document", f.get("type").asText());
-              assertEquals("document-id", f.get("defaultValue").asText());
+              assertEquals(documentId, f.get("defaultValue").asText());
             }
           });
 

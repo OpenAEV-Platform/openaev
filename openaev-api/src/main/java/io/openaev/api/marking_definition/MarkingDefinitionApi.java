@@ -2,6 +2,8 @@ package io.openaev.api.marking_definition;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
@@ -14,7 +16,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
-import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.service.marking_definition.MarkingDefinitionStixService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +33,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,21 +46,11 @@ public class MarkingDefinitionApi extends RestBehavior {
       TENANT_PREFIX + "/marking_definitions";
 
   private final MarkingDefinitionService service;
+  private final MarkingDefinitionStixService stixService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final UserService userService;
 
   // -- SEARCH --
-
-  @LogExecutionTime
-  @GetMapping
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Get marking definitions",
-      description = "Get the list of marking definitions")
-  public List<MarkingDefinitionOutput> list(TxCtx ctx) {
-    return service.list(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
-  }
 
   @LogExecutionTime
   @GetMapping("/assignable")
@@ -67,21 +58,14 @@ public class MarkingDefinitionApi extends RestBehavior {
   // No capability needed: the result is already narrowed to the caller's own clearance.
   @AccessControl(skipRBAC = true)
   @Operation(
-      summary = "Get the marking definitions the current user may assign",
+      summary = "Get the marking definitions the current user is cleared for",
       description =
-          "The tenant's marking definitions narrowed to the caller's own clearance (cumulative per"
-              + " type - holding TLP:AMBER also covers TLP:GREEN and TLP:CLEAR), the same rule"
-              + " enforced server-side when a marking is actually assigned. Built for an assignment"
-              + " picker: every definition returned here is one a submission is actually allowed to"
-              + " include.")
+          "The marking definitions of the tenants in scope narrowed to the caller's own clearance"
+              + " (cumulative per type - holding TLP:AMBER also covers TLP:GREEN and TLP:CLEAR), the"
+              + " same rule enforced server-side when a marking is actually assigned. Built for an"
+              + " assignment picker and for the marking filter's value picker.")
   public List<MarkingDefinitionOutput> assignable(TxCtx ctx) {
-    // tenantForWrite is a "write scope" resolver by name, but what it actually does - resolve the
-    // request scope to exactly one tenant or refuse an ambiguous one - is exactly what a clearance
-    // lookup needs too; this endpoint doesn't write anything.
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return service.listAssignable(ctx, tenantId, userService.currentUser().getId()).stream()
-        .map(MarkingDefinitionMapper::toOutput)
-        .toList();
+    return service.listAssignable(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
   }
 
   @LogExecutionTime
@@ -106,6 +90,37 @@ public class MarkingDefinitionApi extends RestBehavior {
     return service.search(ctx, searchPaginationInput).map(MarkingDefinitionMapper::toOutput);
   }
 
+  // -- STIX (OpenCTI format) --
+
+  @LogExecutionTime
+  @GetMapping("/stix")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Export marking definitions in OpenCTI's STIX 2.1 format",
+      description =
+          "A STIX 2.1 bundle of marking-definition objects, each with the STIX id OpenCTI gives"
+              + " the marking and OpenCTI's order and color.")
+  public ObjectNode exportStix(TxCtx ctx) {
+    return stixService.exportBundle(ctx);
+  }
+
+  @PostMapping("/stix")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Import marking definitions from OpenCTI's STIX 2.1 format",
+      description =
+          "Creates the marking-definition objects of a STIX bundle the tenant does not have,"
+              + " keeping their STIX id. Nothing is overwritten: each object is reported CREATED,"
+              + " EXISTING (same STIX id), CONFLICT (same type and definition, another id) or"
+              + " INVALID.")
+  public List<MarkingDefinitionStixService.ImportLine> importStix(
+      TxCtx ctx, @RequestBody JsonNode stix) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return stixService.importStix(stix, tenantId, userService.currentUser().getId());
+  }
+
   // -- CREATE --
 
   @PostMapping
@@ -116,7 +131,7 @@ public class MarkingDefinitionApi extends RestBehavior {
   public MarkingDefinitionOutput create(
       TxCtx ctx, @Valid @RequestBody MarkingDefinitionInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    MarkingDefinition created = service.create(input, tenantId);
+    MarkingDefinition created = service.create(input, tenantId, userService.currentUser().getId());
     return MarkingDefinitionMapper.toOutput(created);
   }
 
@@ -133,7 +148,8 @@ public class MarkingDefinitionApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String markingDefinitionId,
       @Valid @RequestBody MarkingDefinitionInput input) {
-    return MarkingDefinitionMapper.toOutput(service.update(ctx, markingDefinitionId, input));
+    return MarkingDefinitionMapper.toOutput(
+        service.update(ctx, markingDefinitionId, input, userService.currentUser().getId()));
   }
 
   // -- DELETE --
@@ -147,31 +163,6 @@ public class MarkingDefinitionApi extends RestBehavior {
       resourceType = ResourceType.MARKING_DEFINITION)
   @Operation(summary = "Delete a marking definition")
   public void delete(TxCtx ctx, @PathVariable String markingDefinitionId) {
-    service.delete(ctx, markingDefinitionId);
-  }
-
-  // -- OPTIONS --
-
-  @LogExecutionTime
-  @GetMapping("/options")
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Search marking definition options",
-      description = "Labeled {id, label} options for a filter's dynamic value picker")
-  public List<FilterUtilsJpa.Option> optionsByName(
-      TxCtx ctx, @RequestParam(required = false) String searchText) {
-    return service.optionsByName(ctx, searchText);
-  }
-
-  @LogExecutionTime
-  @PostMapping("/options")
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Resolve marking definition options by id",
-      description = "Labels a set of already-selected marking definition ids")
-  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody List<String> ids) {
-    return service.optionsById(ctx, ids);
+    service.delete(ctx, markingDefinitionId, userService.currentUser().getId());
   }
 }

@@ -55,7 +55,7 @@ ignore unless your changes touch these.
 
 CI runs on GitHub Actions (see `.github/workflows/`):
 
-1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then the backend coverage rules on the changed lines and on the whole backend (advisory for now)
+1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then the backend coverage rules on the changed lines and on the whole backend (blocking)
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
@@ -68,8 +68,9 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **nightly-ci.yml**: Nightly extended test suite
 - **deploy-feature-branch.yml**: Feature branch build for staging deploys (promoted from the release repository)
 - **codeql.yml**: Security scanning (weekly + main push)
+- **docker-layer-cache.yml**: Weekday (05:17, 09:17, 13:17 and 17:17 UTC) and manual refresh of the buildx layer cache that Core CI pull requests restore for the standard amd64 image. Pushes to `main` build that image without the cache
 - **snyk-rolling-image-scan.yml**: Daily (03:30 UTC) and manual Snyk scan of the published `openaev/platform` images. High and critical findings are uploaded as job artifacts, kept for the repository's artifact retention (7 days). Findings do not fail the run, a scanner error does. Aikido scans the published images on its own, as a public image
-- **Aikido image scan** (`.github/actions/aikido-image-scan`): Core CI runs it with Aikido's gates on the images it builds, on `main` and on every pull request: a high or critical issue that Aikido counts (open on `main`, added by a pull request, not ignored in Aikido) posts a red "Aikido Image Scan (advisory)" check that explains it, which does not block for now (see `.github/ci-pipeline-schema.md`)
+- **Aikido image scan** (`.github/actions/aikido-image-scan`): Core CI runs it with Aikido's gates on the images it builds, on `main` and on every pull request: a high or critical issue that Aikido counts (open on `main`, added by a pull request, not ignored in Aikido) is listed in the job summary and the `aikido-image-scan` artifact without failing the job; a scan or report that cannot be produced fails the job and the Pipeline Gate (see `.github/ci-pipeline-schema.md`)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
@@ -176,7 +177,7 @@ Examples:
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, advisory for now).
+9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, blocking). Java migrations (`io/openaev/migration`) are left out of both rules. A change that cannot be tested waives both rules with a `Coverage exempt: <why>` line in the PR description; agents never add that line themselves, only the PR author does.
 10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 

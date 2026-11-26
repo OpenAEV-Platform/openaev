@@ -427,11 +427,13 @@ class BatchQueueServiceBatchProcessingTest {
       service.processBufferedBatch(0);
       assertTrue(failingAckCalled.await(5, TimeUnit.SECONDS), "first ack should be attempted");
 
-      // The next batch of the same worker must still be processed
+      // The next batch of the same worker must still be processed. The first ack's exception
+      // escapes its worker thread on purpose: the wait must not rethrow it in the test thread.
       internalQueue.get(0).add(nextElem);
       deliveryTable.put(
           nextElem, DeliveryContext.builder().tag(2L).deliveryChannel(nextChannel).build());
       Awaitility.await()
+          .dontCatchUncaughtExceptions()
           .atMost(5, TimeUnit.SECONDS)
           .until(
               () -> {

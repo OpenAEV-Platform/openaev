@@ -1,7 +1,7 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CampaignOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
 import { searchMyNewsFeedItems } from '../../../../actions/news_feed/news-feed-actions';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -19,6 +19,7 @@ import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
 import TopBarIconLink from '../../nav/TopBarIconLink';
 import { buildHubUrl } from './newsFeedUtils';
+import useNewsFeedStreamRefresh from './useNewsFeedStreamRefresh';
 
 const MAX_DISPLAYED_TAGS = 3;
 
@@ -46,17 +47,78 @@ const NewsFeedList = () => {
   // Only the latest request may flag a failure: PaginationComponentV2 already ignores the
   // loading state and the content of a superseded one.
   const latestRequest = useRef(0);
+  const loadsInFlight = useRef(0);
+  const refreshPending = useRef(false);
+  // Set from an effect, so that it survives the double mount of the strict mode.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // Refetches the list in place, with no loading placeholders: the rows the user looks at do not blink
+  // out for a change elsewhere. It runs on the latest search of the user, and a request that a newer one
+  // superseded, or that ends after the list is gone, is dropped. It never starts while a load is in
+  // flight, whoever asks (the stream or the timer below): PaginationComponentV2 would apply the rows of
+  // that older load over the refreshed ones. The refetch is made once the loads are over.
+  const refreshItems = () => {
+    if (loadsInFlight.current > 0) {
+      refreshPending.current = true;
+      return;
+    }
+    const requestId = ++latestRequest.current;
+    searchMyNewsFeedItems(searchPaginationInput, false)
+      .then(({ data }) => {
+        if (!mounted.current || requestId !== latestRequest.current) {
+          return;
+        }
+        setFailed(false);
+        setItems(data.content);
+        queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+        // The current page fell past the end because items were deleted: back to the first page.
+        if (data.pageable.pageNumber > 0 && data.totalPages <= data.pageable.pageNumber) {
+          queryableHelpers.paginationHelpers.handleChangePage(0);
+        }
+      })
+      // Deliberate: a failed refetch keeps the rows shown, and the next change or visit refreshes them.
+      .catch(() => {});
+  };
+  const latestRefreshItems = useRef(refreshItems);
+  latestRefreshItems.current = refreshItems;
+
   const searchItemsToLoad = (input: SearchPaginationInput) => {
     const requestId = ++latestRequest.current;
+    loadsInFlight.current += 1;
     setFailed(false);
-    return searchMyNewsFeedItems(input).catch((error) => {
-      if (requestId === latestRequest.current) {
-        setItems([]);
-        setFailed(true);
-      }
-      throw error;
-    });
+    return searchMyNewsFeedItems(input)
+      .catch((error) => {
+        if (requestId === latestRequest.current) {
+          setItems([]);
+          setFailed(true);
+        }
+        throw error;
+      })
+      .finally(() => {
+        loadsInFlight.current -= 1;
+        // A change streamed while a load was in flight is refetched once it ends: the slower load could
+        // otherwise put back rows the change removed. A timer, so that PaginationComponentV2 has shown the
+        // rows of the load by then and the refetch has the last word.
+        if (loadsInFlight.current === 0 && refreshPending.current) {
+          refreshPending.current = false;
+          setTimeout(() => {
+            if (mounted.current) {
+              latestRefreshItems.current();
+            }
+          }, 0);
+        }
+      });
   };
+
+  // A change streamed to the user (the collector updated or deleted an item, or created one) is shown
+  // without a reload.
+  useNewsFeedStreamRefresh(refreshItems);
 
   const hubUrl = (item: NewsFeedItemOutput) => (
     item.news_feed_item_url_path

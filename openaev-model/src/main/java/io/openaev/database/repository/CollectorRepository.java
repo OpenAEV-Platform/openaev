@@ -31,15 +31,30 @@ public interface CollectorRepository
   void deleteByCollectorId(@Param("id") String id);
 
   /**
-   * Native query with an explicit tenant, so no Hibernate filter applies. This is called from
-   * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(), whose
-   * {@code @Transactional} arms the v1 filter through HibernateFilterTransactionAspect with
-   * whatever TenantContext the thread holds.
+   * Security-platform collectors of the tenant, without the collectors whose connector instance in
+   * the tenant (configuration {@code idKey}) is stopped or stopping. A collector with no connector
+   * instance is kept.
+   *
+   * <p>Native query with an explicit tenant. This is called from InjectsExecutionJob (background
+   * scheduler) via buildAndSaveInjectExpectations().
    */
   @Query(
       nativeQuery = true,
       value =
-          "SELECT * FROM collectors WHERE tenant_id = :tenantId AND collector_security_platform IS NOT NULL")
-  List<Collector> findAllByTenantIdAndSecurityPlatformIsNotNull(
-      @Param("tenantId") @NotNull String tenantId);
+          """
+              SELECT c.* FROM collectors c
+              WHERE c.tenant_id = :tenantId
+              AND c.collector_security_platform IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1
+                FROM connector_instance_configurations conf
+                JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id
+                WHERE conf.connector_instance_configuration_key = :idKey
+                AND jsonb_exists(conf.connector_instance_configuration_value, c.collector_id)
+                AND instance.tenant_id = c.tenant_id
+                AND (instance.connector_instance_current_status = 'stopped'
+                  OR instance.connector_instance_requested_status = 'stopping'))
+              """)
+  List<Collector> findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+      @Param("tenantId") @NotNull String tenantId, @Param("idKey") @NotNull String idKey);
 }

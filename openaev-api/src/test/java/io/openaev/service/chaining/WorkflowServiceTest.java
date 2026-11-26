@@ -23,6 +23,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
@@ -66,6 +67,7 @@ class WorkflowServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private ScopeService scopeService;
+  @Mock private FaithfulCopyTransaction faithfulCopy;
   @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private WorkflowStateStore workflowStateStore;
@@ -76,6 +78,7 @@ class WorkflowServiceTest {
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
   @Mock private AttackPathExecutionIngestionService attackPathExecutionIngestionService;
+  @Mock private io.openaev.service.NotificationEventService notificationEventService;
 
   private WorkflowService workflowService;
   private WorkflowEndService workflowEndService;
@@ -94,7 +97,8 @@ class WorkflowServiceTest {
             scopeSnapshotService,
             assetAgentJobRepository,
             workflowStateStore,
-            attackPathExecutionIngestionService);
+            attackPathExecutionIngestionService,
+            notificationEventService);
 
     workflowService =
         new WorkflowService(
@@ -104,6 +108,7 @@ class WorkflowServiceTest {
             stepDelayQueueService,
             scopeSnapshotService,
             scopeService,
+            faithfulCopy,
             lessonsService,
             workflowRepository,
             workflowScopeRuleRepository,
@@ -116,6 +121,15 @@ class WorkflowServiceTest {
             scopeMetricCollector,
             chainingSafetyPolicyMetricCollector,
             resultsMetricCollector);
+  }
+
+  /** The scope resolution a tenant workflow hands to the system-clearance door runs as given. */
+  @SuppressWarnings("unchecked")
+  private void stubScopeResolutionRunsInline() {
+    when(faithfulCopy.readIds(any(), any()))
+        .thenAnswer(
+            invocation ->
+                ((java.util.function.Supplier<List<String>>) invocation.getArgument(1)).get());
   }
 
   // ========================================================================
@@ -998,6 +1012,149 @@ class WorkflowServiceTest {
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
 
+    private WorkflowScopeRule assetRuleOn(String ruleId, String assetId) {
+      return WorkflowScopeRule.builder()
+          .id(ruleId)
+          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+          .ruleSource(ScopeRuleSource.ASSET)
+          .valueType(ScopeRuleValueType.ASSET_ID)
+          .ruleValue(assetId)
+          .build();
+    }
+
+    @Test
+    @DisplayName("should keep the rule of an asset the writer cannot see when the list is saved")
+    void given_ruleOnHiddenAsset_should_keepItWhenTheListIsSaved() {
+      // Arrange: the read dropped the red rule, so the saved list holds only the green one
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule green = assetRuleOn("rule-green", "green-asset");
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      WorkflowScopeRule gone = assetRuleOn("rule-gone", "gone-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(green, red, gone)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id("rule-green")
+                  .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue("green-asset")
+                  .build()));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals(
+          List.of("rule-green", "rule-red"),
+          result.getWorkflowScopeRules().stream().map(WorkflowScopeRule::getId).toList(),
+          "the hidden rule survives, a visible rule absent from the list is removed");
+    }
+
+    @Test
+    @DisplayName("should keep the rules of hidden assets when the writer empties the list")
+    void given_emptiedList_should_keepTheRulesOnHiddenAssets() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule green = assetRuleOn("rule-green", "green-asset");
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(green, red)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(List.of());
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals(
+          List.of("rule-red"),
+          result.getWorkflowScopeRules().stream().map(WorkflowScopeRule::getId).toList());
+    }
+
+    @Test
+    @DisplayName("should not let an input rewrite a rule on a hidden asset through its id")
+    void given_inputWithTheIdOfAHiddenRule_should_notRewriteIt() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      WorkflowScopeRule red = assetRuleOn("rule-red", "red-asset");
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .workflowScopeRules(new ArrayList<>(List.of(red)))
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(
+          List.of(
+              WorkflowScopeRuleInput.builder()
+                  .id("rule-red")
+                  .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                  .ruleSource(ScopeRuleSource.ASSET)
+                  .ruleValue("other-asset")
+                  .build()));
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("red-asset"));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      assertEquals("red-asset", red.getRuleValue());
+      assertEquals(ScopeRuleSelectedMode.ALLOWLIST, red.getSelectedMode());
+    }
+
+    @Test
+    @DisplayName("should realign the templates from the saved scope at the system clearance")
+    void given_tenantWorkflow_should_realignFromTheScopeResolvedAtSystemClearance() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .tenant(new Tenant("tenant-1"))
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+      Asset inScope = new Asset();
+      inScope.setId("asset-123");
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(inScope));
+      stubScopeResolutionRunsInline();
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert: the templates follow the scope, not the assets they carried before
+      verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
+    }
+
     @Test
     @DisplayName("should not realign step templates when no scope rule changed")
     void given_unchangedScopeRules_should_notRealignStepTemplates() {
@@ -1177,6 +1334,54 @@ class WorkflowServiceTest {
       // Assert
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+
+    @Test
+    @DisplayName(
+        "cleanScopeRulesSimulation should keep the rule of an asset hidden from the caller")
+    void cleanScopeRulesSimulation_should_keepRule_whenAssetExistsButIsHidden() {
+      // Arrange
+      Workflow template =
+          Workflow.builder()
+              .id("wf-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(new Exercise())
+              .tenant(new Tenant("tenant-1"))
+              .build();
+      WorkflowScopeRule hiddenRule =
+          WorkflowScopeRule.builder()
+              .id("rule-red")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-red")
+              .workflow(template)
+              .build();
+      WorkflowScopeRule ghostRule =
+          WorkflowScopeRule.builder()
+              .id("rule-ghost")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-ghost")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().addAll(List.of(hiddenRule, ghostRule));
+
+      when(workflowRepository.findBySimulation_IdAndStatus("sim-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      // Both read as "not found" in the caller's scope; only the first one still exists.
+      when(scopeSnapshotService.buildCurrentSnapshot(hiddenRule)).thenReturn(null);
+      when(scopeSnapshotService.buildCurrentSnapshot(ghostRule)).thenReturn(null);
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("asset-red"));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of());
+      stubScopeResolutionRunsInline();
+
+      // Act
+      workflowService.cleanScopeRulesSimulation("sim-1");
+
+      // Assert
+      assertEquals(List.of(hiddenRule), template.getWorkflowScopeRules());
     }
   }
 
@@ -1359,6 +1564,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -1815,6 +2021,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2005,6 +2212,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2275,6 +2483,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              faithfulCopy,
               lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
@@ -2448,7 +2657,7 @@ class WorkflowServiceTest {
       // Assert - returned untouched, and no step ever readied / enqueued on the ended run.
       assertSame(workflowRun, result);
       verify(stepService, never()).findAllStepTemplateByWorkflow(any());
-      verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+      verify(stepService, never()).createReadySteps(any(), any(), any());
       verify(stepService, never()).enqueueReadySteps(any(), any());
     }
 
@@ -2494,7 +2703,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // Active steps (RUN or READY) exist
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(2L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
 
       // Act
@@ -2530,7 +2739,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
       // Delay queue has entries
       StepDelayQueue delayedEntry = mock(StepDelayQueue.class);
@@ -2571,7 +2780,7 @@ class WorkflowServiceTest {
       // No pre-existing active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
       // But createReadySteps produces a new ready step
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(List.of(stepReady));
 
       // Act
@@ -2608,7 +2817,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
       // Delay queue is empty
       when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))

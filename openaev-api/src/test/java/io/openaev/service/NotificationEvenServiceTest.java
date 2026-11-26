@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.ResourceType;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
+import io.openaev.notification.handler.SimulationNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -28,6 +29,7 @@ public class NotificationEvenServiceTest extends IntegrationTest {
 
   @Mock private ApplicationEventPublisher appPublisher;
   @Mock private ScenarioNotificationEventHandler scenarioNotificationEventHandler;
+  @Mock private SimulationNotificationEventHandler simulationNotificationEventHandler;
   @Mock private ThreadPoolTaskScheduler taskScheduler;
 
   private NotificationEventService notificationEventService;
@@ -35,7 +37,11 @@ public class NotificationEvenServiceTest extends IntegrationTest {
   @BeforeEach
   public void setUp() {
     notificationEventService =
-        new NotificationEventService(appPublisher, scenarioNotificationEventHandler, taskScheduler);
+        new NotificationEventService(
+            appPublisher,
+            scenarioNotificationEventHandler,
+            simulationNotificationEventHandler,
+            taskScheduler);
   }
 
   @Test
@@ -49,6 +55,20 @@ public class NotificationEvenServiceTest extends IntegrationTest {
             .build();
     notificationEventService.handleNotificationEvent(notificationEvent);
     verify(scenarioNotificationEventHandler).handle(notificationEvent);
+  }
+
+  @Test
+  public void test_handleSimulationEvent() {
+    NotificationEvent notificationEvent =
+        NotificationEvent.builder()
+            .eventType(NotificationEventType.SIMULATION_COMPLETED)
+            .resourceType(ResourceType.SIMULATION)
+            .timestamp(Instant.now())
+            .resourceId("id")
+            .tenantId("tenant")
+            .build();
+    notificationEventService.handleNotificationEvent(notificationEvent);
+    verify(simulationNotificationEventHandler).handle(notificationEvent);
   }
 
   @Test

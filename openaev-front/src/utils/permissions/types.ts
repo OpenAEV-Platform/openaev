@@ -16,6 +16,7 @@ export const ACTIONS = {
   DELETE: 'DELETE',
   SEARCH: 'SEARCH',
   CREATE: 'CREATE',
+  REVOKE: 'REVOKE',
 } as const;
 
 export type Actions = typeof ACTIONS[keyof typeof ACTIONS];
@@ -26,6 +27,7 @@ type BackendSubject = SuffixOf<CapabilityName>;
 
 export const SUBJECTS = {
   ASSESSMENT: 'ASSESSMENT', // Scenarios, Simulations and Atomic Testings
+  ASSESSMENT_RESOURCE: 'ASSESSMENT_RESOURCE', // Grants on a Scenarios, Simulations and Atomic Testings
   TEAMS_AND_PLAYERS: 'TEAMS_AND_PLAYERS',
   ASSETS: 'ASSETS',
   CREDENTIALS: 'CREDENTIALS',
@@ -51,7 +53,7 @@ export const SUBJECTS = {
   PLATFORM_USERS_GROUPS_AND_ROLES: 'PLATFORM_USERS_GROUPS_AND_ROLES',
   SESSIONS: 'SESSIONS',
   PLATFORM_SESSIONS: 'PLATFORM_SESSIONS',
-} as const satisfies Record<string, BackendSubject | 'RESOURCE' | 'THREAT_ARSENAL_RESOURCE'>;
+} as const satisfies Record<string, BackendSubject | 'RESOURCE' | 'THREAT_ARSENAL_RESOURCE' | 'ASSESSMENT_RESOURCE'>;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];
 

@@ -296,7 +296,7 @@ class AttackPathFindingIngestionServiceTest extends IntegrationTest {
     Team team = persistTeam();
     User victim = persistUser();
     Inject inject = persistInjectWithCredentials("deferred", List.of(victim), List.of(team));
-    String findingId = inject.getFindings().getFirst().getId();
+    String findingId = onlyFindingOf(inject);
     freezeTeamExecution("exec-team", team.getId());
     freezePersonExecution("exec-victim", victim.getId(), team.getId());
     Step step = new Step();
@@ -502,6 +502,15 @@ class AttackPathFindingIngestionServiceTest extends IntegrationTest {
         value,
         endpointKey,
         tenant.getId());
+  }
+
+  // The finding of an inject is the one with an occurrence on it
+  private String onlyFindingOf(Inject inject) {
+    return jdbc.queryForObject(
+        "SELECT finding_occurrence_finding_id FROM finding_occurrences"
+            + " WHERE finding_occurrence_inject_id = ?",
+        String.class,
+        inject.getId());
   }
 
   private Integer findingCountUnderTenant(String tenantId) {

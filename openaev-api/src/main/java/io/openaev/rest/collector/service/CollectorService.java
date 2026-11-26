@@ -205,8 +205,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return catalogConnectorMapper.toConnectorIds(null, null, true);
   }
 
+  /** Security-platform collectors of the tenant, minus those of a paused connector instance. */
   public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
-    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
+    return collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+        tenantId, ConnectorType.COLLECTOR.getIdKeyName());
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {

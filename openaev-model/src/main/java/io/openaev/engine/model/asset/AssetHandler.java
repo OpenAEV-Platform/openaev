@@ -41,6 +41,10 @@ public class AssetHandler implements Handler<EsAsset> {
               esAsset.setAsset_description(asset.getAsset_description());
               esAsset.setAsset_external_reference(asset.getAsset_external_reference());
               esAsset.setAsset_category(asset.getAsset_category());
+              esAsset.setAsset_subcategory(asset.getAsset_subcategory());
+              esAsset.setAsset_criticality(asset.getAsset_criticality());
+              esAsset.setAsset_internet_facing(asset.getAsset_internet_facing());
+              esAsset.setAsset_url(asset.getAsset_url());
               esAsset.setAsset_ips(asset.getAsset_ips());
               esAsset.setAsset_hostname(asset.getAsset_hostname());
               esAsset.setAsset_mac_addresses(asset.getAsset_mac_addresses());

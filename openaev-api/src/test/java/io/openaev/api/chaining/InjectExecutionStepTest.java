@@ -35,7 +35,9 @@ import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.form.InjectDocumentInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -649,6 +651,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
         tenantRepository.save(
             TenantFixture.getTenant("inject-execution-step-other-" + UUID.randomUUID()));
     entityManager.flush();
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // The rows of the other tenant are written in that tenant's scope and flushed before the scope
+    // goes back, so no statement writes them from the scope of the test's own tenant.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(otherTenant.getId()));
     Injector otherInjectorToSave = InjectorFixture.createDefaultPayloadInjector();
     otherInjectorToSave.setTenantId(otherTenant.getId());
     Injector otherInjector = injectorRepository.save(otherInjectorToSave);
@@ -658,6 +664,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     InjectorContract otherContractSaved = injectorContractRepository.save(otherContract);
     otherInjector.linkContract(otherContractSaved);
     injectorRepository.save(otherInjector);
+    entityManager.flush();
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
 
     doReturn(otherContractSaved)
         .when(injectorContractService)
@@ -697,6 +705,69 @@ public class InjectExecutionStepTest extends IntegrationTest {
             stepTemplateOpt.get().getData(), "inject_injector_contract.injector_contract_id"));
     verify(injectorContractService)
         .injectorContractInTenant(eq(otherContractSaved.getId()), eq(otherTenant.getId()));
+  }
+
+  /**
+   * Pins the tenant {@link InjectExecutionStep#stepData} resolves a step's documents in: the parent
+   * simulation's own tenant, not the caller's ambient one (#7961). A document id that only exists
+   * under another tenant must be refused exactly like an unknown id, the same contract {@code
+   * DocumentService#documentInTenant} already applies to a simulation inject's own create/update
+   * path (see {@code InjectDocumentLinkTenantTest}).
+   */
+  @Test
+  public void given_stepDocumentInAnotherTenant_should_refuseTheCreate() throws Exception {
+    // PREPARE: a document that exists, but only under another tenant.
+    Tenant otherTenant =
+        tenantRepository.save(
+            TenantFixture.getTenant("inject-execution-step-doc-" + UUID.randomUUID()));
+    Document documentInOtherTenant = DocumentFixture.getDocumentJpeg();
+    documentInOtherTenant.setTenant(otherTenant);
+    documentInOtherTenant = documentRepository.save(documentInOtherTenant);
+    entityManager.flush();
+
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    InjectDocumentInput documentInput = new InjectDocumentInput();
+    documentInput.setDocumentId(documentInOtherTenant.getId());
+    injectInput.setDocuments(List.of(documentInput));
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    // ACT & ASSERT: the simulation's own tenant (this test's ambient tenant) has no such document.
+    assertThrows(
+        ElementNotFoundException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+  }
+
+  /**
+   * The same-tenant counterpart of the test above: a document of the simulation's own tenant still
+   * links normally.
+   */
+  @Test
+  public void given_stepDocumentInTheSimulationsTenant_should_linkIt() throws Exception {
+    // PREPARE: a document that exists in the simulation's own tenant (this test's ambient one).
+    Document ownDocument = DocumentFixture.getDocumentJpeg();
+    ownDocument.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    ownDocument = documentRepository.save(ownDocument);
+    entityManager.flush();
+
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    InjectDocumentInput documentInput = new InjectDocumentInput();
+    documentInput.setDocumentId(ownDocument.getId());
+    injectInput.setDocuments(List.of(documentInput));
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+
+    // ASSERT
+    assertTrue(stepTemplateOpt.isPresent());
+    JsonNode data = mapper.readTree(stepTemplateOpt.get().getData());
+    assertEquals(
+        ownDocument.getId(), data.withArray("inject_documents").get(0).get("document_id").asText());
   }
 
   /**
@@ -2146,6 +2217,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   void given_injectWithPayloadCommands_whenGetCommand_thenResolvePayloadVariables() {
     // Arrange
     Inject inject = new Inject();
+    inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     InjectorContract contract = new InjectorContract();
     Command payload = new Command();
     payload.setExecutor("bash");

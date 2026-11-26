@@ -18,6 +18,8 @@ import type { Header } from '../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../components/i18n';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import type { Reporting, SearchPaginationInput } from '../../../utils/api-types';
+import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
+import AnalyticsTabs from '../workspaces/AnalyticsTabs';
 import ReportingCard from './ReportingCard';
 import {
   latestGeneration,
@@ -50,6 +52,8 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Reportings = () => {
   // Standard hooks
   const { t, fldt } = useFormatter();
+  // Under the exploration graph preview feature Reporting is a tab of the one Dashboards entry.
+  const graphEnabled = useExplorationGraph();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
 
@@ -189,11 +193,12 @@ const Reportings = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{
+        elements={[...(graphEnabled ? [{ label: t('Dashboards') }] : []), {
           label: t('Reporting'),
           current: true,
         }]}
       />
+      <AnalyticsTabs current="reporting" />
       <PaginationComponentV2
         fetch={search}
         searchPaginationInput={searchPaginationInput}

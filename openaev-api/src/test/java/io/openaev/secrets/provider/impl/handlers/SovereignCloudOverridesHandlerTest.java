@@ -6,11 +6,15 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ACCO
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ENDPOINT_URL;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_AUTHORITY_HOST_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_AUTHORITY_HOST_URI;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_CLIENT_SECRET;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_OTHER_SCOPE;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SCOPE;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_IAM_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_OAUTH_ACCESS_TOKEN;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_PROJECTS_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_RESOURCE_MANAGER_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_CUSTOM_TOKEN_URI;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OTHER_CUSTOM_IAM_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OTHER_CUSTOM_OAUTH_ACCESS_TOKEN;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OTHER_CUSTOM_PROJECTS_URI;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OTHER_CUSTOM_RESOURCE_MANAGER_URI;
@@ -30,6 +34,7 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.gcpOAuth2Reque
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.gcpServiceAccountRequest;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.gcpServiceAccountRequestWithOverrides;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.AwsAccessKeySecret;
@@ -42,6 +47,7 @@ import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.service.connector_instances.NativeEncryptionService;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -380,6 +386,47 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       assertThat(resolved.gcpCustomIamUri()).isEqualTo(GCP_CUSTOM_IAM_URI);
       assertThat(resolved.gcpCustomOauthAccessToken()).isEqualTo(GCP_CUSTOM_OAUTH_ACCESS_TOKEN);
     }
+
+    @Test
+    @DisplayName("Given a new uri without the stored secrets, should throw")
+    void given_newUriWithoutSecrets_should_throw() {
+      // Arrange
+      GcpOAuth2Secret existing =
+          (GcpOAuth2Secret) gcpOAuth2Handler.buildOrUpdate(null, gcpOAuth2RequestWithOverrides());
+      List<SecretStoreRequest> requests =
+          List.of(
+              // none of the secrets is resent
+              SecretStoreRequest.builder().gcpCustomTokenUri(GCP_OTHER_CUSTOM_TOKEN_URI).build(),
+              SecretStoreRequest.builder()
+                  .gcpCustomProjectsUri(GCP_OTHER_CUSTOM_PROJECTS_URI)
+                  .build(),
+              SecretStoreRequest.builder().gcpCustomIamUri(GCP_OTHER_CUSTOM_IAM_URI).build(),
+              // the stored custom access token is not resent
+              gcpOAuth2Request().toBuilder().gcpCustomTokenUri(GCP_OTHER_CUSTOM_TOKEN_URI).build());
+
+      // Act & Assert
+      for (SecretStoreRequest request : requests) {
+        assertThatThrownBy(() -> gcpOAuth2Handler.buildOrUpdate(existing, request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("must be reset in order to change");
+      }
+    }
+
+    @Test
+    @DisplayName("Given a new uri and no stored access token, should not require one")
+    void given_newUriAndNoStoredAccessToken_should_notRequireOne() {
+      // Arrange
+      GcpOAuth2Secret existing =
+          (GcpOAuth2Secret) gcpOAuth2Handler.buildOrUpdate(null, gcpOAuth2Request());
+      SecretStoreRequest request =
+          gcpOAuth2Request().toBuilder().gcpCustomTokenUri(GCP_OTHER_CUSTOM_TOKEN_URI).build();
+
+      // Act
+      GcpOAuth2Secret updated = (GcpOAuth2Secret) gcpOAuth2Handler.buildOrUpdate(existing, request);
+
+      // Assert
+      assertThat(updated.getCustomTokenUri()).isEqualTo(GCP_OTHER_CUSTOM_TOKEN_URI);
+    }
   }
 
   @Nested
@@ -446,6 +493,30 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
           .isEqualTo(GCP_OTHER_CUSTOM_RESOURCE_MANAGER_URI);
       assertThat(updated.getCustomProjectsUri()).isNull();
     }
+
+    @Test
+    @DisplayName("Given a new uri without a new key file, should throw")
+    void given_newUriWithoutKeyFile_should_throw() {
+      // Arrange
+      GcpServiceAccountSecret existing =
+          (GcpServiceAccountSecret)
+              gcpServiceAccountHandler.buildOrUpdate(null, gcpServiceAccountRequestWithOverrides());
+      List<SecretStoreRequest> requests =
+          List.of(
+              SecretStoreRequest.builder()
+                  .gcpCustomResourceManagerUri(GCP_OTHER_CUSTOM_RESOURCE_MANAGER_URI)
+                  .build(),
+              SecretStoreRequest.builder()
+                  .gcpCustomProjectsUri(GCP_OTHER_CUSTOM_PROJECTS_URI)
+                  .build());
+
+      // Act & Assert
+      for (SecretStoreRequest request : requests) {
+        assertThatThrownBy(() -> gcpServiceAccountHandler.buildOrUpdate(existing, request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("must be reset in order to change");
+      }
+    }
   }
 
   @Nested
@@ -453,8 +524,9 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
   class AzureServicePrincipal {
 
     @Test
-    @DisplayName("Given overrides, should store the authority host and encrypt the certificate")
-    void given_overrides_should_storeAuthorityHostAndEncryptCertificate() {
+    @DisplayName(
+        "Given overrides, should store the authority host and scope and encrypt the certificate")
+    void given_overrides_should_storeAuthorityHostAndScopeAndEncryptCertificate() {
       // Act
       AzureServicePrincipalSecret secret =
           (AzureServicePrincipalSecret)
@@ -463,6 +535,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(secret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(secret.getAzureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(secret.getAzureRequestsCertificate())
           .isNotNull()
           .isNotEqualTo(azureRequestsCertificateBytes());
@@ -488,6 +561,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       // Assert
       assertThat(updated.getAzureRequestsCertificate()).isEqualTo(storedCertificate);
       assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_SCOPE);
     }
 
     @Test
@@ -516,15 +590,18 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given a blank authority host, should clear the stored one")
-    void given_blankAuthorityHost_should_clearStoredOne() {
+    @DisplayName("Given a blank authority host and scope, should clear the stored ones")
+    void given_blankAuthorityHostAndScope_should_clearStoredOnes() {
       // Arrange
       AzureServicePrincipalSecret existing =
           (AzureServicePrincipalSecret)
               azureServicePrincipalHandler.buildOrUpdate(
                   null, azureServicePrincipalRequestWithOverrides());
       SecretStoreRequest request =
-          azureServicePrincipalRequest().toBuilder().azureAuthorityHostUri("").build();
+          azureServicePrincipalRequest().toBuilder()
+              .azureAuthorityHostUri("")
+              .azureScope("")
+              .build();
 
       // Act
       AzureServicePrincipalSecret updated =
@@ -533,6 +610,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(updated.getAzureAuthorityHostUri()).isNull();
+      assertThat(updated.getAzureScope()).isNull();
     }
 
     @Test
@@ -549,6 +627,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(metadata.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(metadata.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(metadata.azureRequestsCertificateDefined()).isTrue();
     }
 
@@ -569,8 +648,10 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.azureRequestsCertificateDefined()).isFalse();
       assertThat(metadata.azureAuthorityHostUri()).isNull();
+      assertThat(metadata.azureScope()).isNull();
       assertThat(resolved.azureRequestsCertificate()).isNull();
       assertThat(resolved.azureAuthorityHostUri()).isNull();
+      assertThat(resolved.azureScope()).isNull();
     }
 
     @Test
@@ -589,7 +670,56 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(resolved.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(resolved.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(resolved.azureRequestsCertificate()).isEqualTo(azureRequestsCertificateBytes());
+    }
+
+    @Test
+    @DisplayName("Given a new authority host or scope without the client secret, should throw")
+    void given_newEndpointWithoutClientSecret_should_throw() {
+      // Arrange
+      AzureServicePrincipalSecret existing =
+          (AzureServicePrincipalSecret)
+              azureServicePrincipalHandler.buildOrUpdate(
+                  null, azureServicePrincipalRequestWithOverrides());
+      List<SecretStoreRequest> requests =
+          List.of(
+              SecretStoreRequest.builder()
+                  .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+                  .build(),
+              SecretStoreRequest.builder().azureScope(AZURE_OTHER_SCOPE).build());
+
+      // Act & Assert
+      for (SecretStoreRequest request : requests) {
+        assertThatThrownBy(() -> azureServicePrincipalHandler.buildOrUpdate(existing, request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("client secret must be reset in order to change");
+      }
+    }
+
+    @Test
+    @DisplayName("Given a new authority host and scope with the client secret, should store them")
+    void given_newEndpointsWithClientSecret_should_storeThem() {
+      // Arrange
+      AzureServicePrincipalSecret existing =
+          (AzureServicePrincipalSecret)
+              azureServicePrincipalHandler.buildOrUpdate(
+                  null, azureServicePrincipalRequestWithOverrides());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+              .azureScope(AZURE_OTHER_SCOPE)
+              .azureClientSecret(AZURE_OTHER_CLIENT_SECRET)
+              .build();
+
+      // Act
+      AzureServicePrincipalSecret updated =
+          (AzureServicePrincipalSecret)
+              azureServicePrincipalHandler.buildOrUpdate(existing, request);
+
+      // Assert
+      assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_OTHER_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_OTHER_SCOPE);
     }
   }
 
@@ -598,8 +728,9 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
   class AzureManagedIdentity {
 
     @Test
-    @DisplayName("Given overrides, should store the authority host and encrypt the certificate")
-    void given_overrides_should_storeAuthorityHostAndEncryptCertificate() {
+    @DisplayName(
+        "Given overrides, should store the authority host and scope and encrypt the certificate")
+    void given_overrides_should_storeAuthorityHostAndScopeAndEncryptCertificate() {
       // Act
       AzureManagedIdentitySecret secret =
           (AzureManagedIdentitySecret)
@@ -608,6 +739,7 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(secret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(secret.getAzureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(secret.getAzureRequestsCertificate())
           .isNotNull()
           .isNotEqualTo(azureRequestsCertificateBytes());
@@ -653,9 +785,34 @@ class SovereignCloudOverridesHandlerTest extends IntegrationTest {
 
       // Assert
       assertThat(metadata.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(metadata.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(metadata.azureRequestsCertificateDefined()).isTrue();
       assertThat(resolved.azureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
+      assertThat(resolved.azureScope()).isEqualTo(AZURE_SCOPE);
       assertThat(resolved.azureRequestsCertificate()).isEqualTo(azureRequestsCertificateBytes());
+    }
+
+    @Test
+    @DisplayName("Given a new authority host and scope, should not require any other value")
+    void given_newEndpoints_should_notRequireAnyOtherValue() {
+      // Arrange
+      AzureManagedIdentitySecret existing =
+          (AzureManagedIdentitySecret)
+              azureManagedIdentityHandler.buildOrUpdate(
+                  null, azureManagedIdentityRequestWithOverrides());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .azureAuthorityHostUri(AZURE_OTHER_AUTHORITY_HOST_URI)
+              .azureScope(AZURE_OTHER_SCOPE)
+              .build();
+
+      // Act
+      AzureManagedIdentitySecret updated =
+          (AzureManagedIdentitySecret) azureManagedIdentityHandler.buildOrUpdate(existing, request);
+
+      // Assert
+      assertThat(updated.getAzureAuthorityHostUri()).isEqualTo(AZURE_OTHER_AUTHORITY_HOST_URI);
+      assertThat(updated.getAzureScope()).isEqualTo(AZURE_OTHER_SCOPE);
     }
   }
 }

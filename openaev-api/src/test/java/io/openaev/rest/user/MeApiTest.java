@@ -41,12 +41,15 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +76,17 @@ public class MeApiTest extends IntegrationTest {
   @BeforeEach
   void before() {
     reset(mockRandomUtils, mockMailingService);
+    // Email-change confirmation tokens live in a process-wide map on the UserService singleton, not
+    // in the transaction, so entries survive another test's rollback. Clear it so each test sees
+    // only its own tokens — a leftover entry whose confirmation code was never stubbed (null) would
+    // otherwise make confirmEmailChange's lookup throw for an unrelated test.
+    @SuppressWarnings("unchecked")
+    Map<String, ?> emailChangeTokens =
+        (Map<String, ?>)
+            ReflectionTestUtils.getField(userService, "emailChangeConfirmationTokenMap");
+    if (emailChangeTokens != null) {
+      emailChangeTokens.clear();
+    }
   }
 
   @Nested
@@ -383,6 +397,181 @@ public class MeApiTest extends IntegrationTest {
           .isNotEmpty()
           .get()
           .satisfies(user -> assertThat(user.getEmail()).isEqualTo(newEmail));
+    }
+
+    @Test
+    @DisplayName("Given email change request, then confirmation link is sent to the new address")
+    void given_emailChangeRequest_then_confirmationLinkGoesToNewAddress() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new-owner@elsewhere.invalid";
+      User me = testUserHolder.get();
+      String currentEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<User>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(mockMailingService, atLeastOnce())
+          .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
+
+      // The confirmation link must reach the new address and only the new address: the current
+      // address holder must never receive it, otherwise they could confirm a change to an address
+      // they do not control. Assert exactly one link-bearing mail, to the new address, and no
+      // link-bearing mail addressed to the current address.
+      List<String> bodies = bodyCaptor.getAllValues();
+      List<List<User>> recipients = recipientsCaptor.getAllValues();
+      int linkMails = 0;
+      boolean newAddressGotLink = false;
+      for (int i = 0; i < bodies.size(); i++) {
+        if (bodies.get(i).contains("/api/me/confirm-email-change/")) {
+          linkMails++;
+          List<String> addresses = recipients.get(i).stream().map(User::getEmail).toList();
+          assertThat(addresses).doesNotContain(currentEmail);
+          if (addresses.contains(newEmail)) {
+            newAddressGotLink = true;
+          }
+        }
+      }
+      assertThat(linkMails).isEqualTo(1);
+      assertThat(newAddressGotLink).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given confirmation, then the previous address is notified the change was applied")
+    void given_confirmedUpdate_then_previousAddressIsNotified() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new-owner@elsewhere.invalid";
+      // A code unique to this test: the confirmation-token map is a process-wide field matched by
+      // code, and reusing another test's literal would let confirmEmailChange hit that test's
+      // (rolled-back) user and fail with 404.
+      String superSecretConfirmationCode = "CONFIRM_PREVIOUS_ADDRESS_NOTICE";
+      User me = testUserHolder.get();
+      String previousEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      when(mockRandomUtils.getRandomAlphanumeric(anyInt())).thenReturn(superSecretConfirmationCode);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      // Forget the request-time mails: this test asserts only on what is sent when the change is
+      // actually APPLIED, so the previous-address request notice does not get mistaken for the
+      // completion notice.
+      reset(mockMailingService);
+
+      mvc.perform(
+              get(ME_URI + "/confirm-email-change/" + superSecretConfirmationCode)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isFound());
+
+      ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<User>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(mockMailingService, atLeastOnce())
+          .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
+
+      // Once the change has taken effect, the PREVIOUS address must receive a completion notice so
+      // its owner can react if they did not start the change. That notice must NOT carry a
+      // confirmation link (the change is already done) and must name the new address.
+      List<String> bodies = bodyCaptor.getAllValues();
+      List<List<User>> recipients = recipientsCaptor.getAllValues();
+      int noticesToPreviousAddress = 0;
+      for (int i = 0; i < bodies.size(); i++) {
+        List<String> addresses = recipients.get(i).stream().map(User::getEmail).toList();
+        if (addresses.equals(List.of(previousEmail))) {
+          noticesToPreviousAddress++;
+          assertThat(bodies.get(i)).doesNotContain("/api/me/confirm-email-change/");
+          assertThat(bodies.get(i)).doesNotContain(superSecretConfirmationCode);
+          assertThat(bodies.get(i)).contains(newEmail);
+        }
+      }
+      // Exactly one completion notice, addressed solely to the previous address.
+      assertThat(noticesToPreviousAddress).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a confirmed change to an address carrying markup, the previous-address notice escapes it")
+    void given_confirmedChangeToPayloadAddress_then_noticeEscapesIt() throws Exception {
+      String currentPassword = "current_user_password";
+      // A new address that passes @Email (a quoted local part) yet carries HTML / FreeMarker
+      // metacharacters — the kind an account holder could choose to tamper with the warning that
+      // goes to the address being removed.
+      String payloadEmail = "\"<div>\"@evil.invalid";
+      String superSecretConfirmationCode = "CONFIRM_MARKUP_ADDRESS_NOTICE";
+      User me = testUserHolder.get();
+      String previousEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(payloadEmail);
+
+      when(mockRandomUtils.getRandomAlphanumeric(anyInt())).thenReturn(superSecretConfirmationCode);
+
+      // The controller must ACCEPT the address (@Email allows a quoted local part); were it
+      // rejected
+      // here, the injection vector would not exist and this test would need to change.
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      // Assert only on what is sent when the change is applied.
+      reset(mockMailingService);
+
+      mvc.perform(
+              get(ME_URI + "/confirm-email-change/" + superSecretConfirmationCode)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isFound());
+
+      ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<User>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(mockMailingService, atLeastOnce())
+          .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
+
+      // The notice to the PREVIOUS address must carry the new address escaped, never raw. Because
+      // MailingService is mocked, the captured body is exactly what UserService produced, so this
+      // proves the escaping happens in UserService, before the body reaches the mailer.
+      List<String> bodies = bodyCaptor.getAllValues();
+      List<List<User>> recipients = recipientsCaptor.getAllValues();
+      int checked = 0;
+      for (int i = 0; i < bodies.size(); i++) {
+        List<String> addresses = recipients.get(i).stream().map(User::getEmail).toList();
+        if (addresses.equals(List.of(previousEmail))) {
+          checked++;
+          assertThat(bodies.get(i)).doesNotContain("<div");
+          assertThat(bodies.get(i)).contains("&lt;div");
+        }
+      }
+      assertThat(checked).isEqualTo(1);
     }
 
     @Test

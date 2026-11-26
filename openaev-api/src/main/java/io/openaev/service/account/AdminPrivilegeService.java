@@ -80,6 +80,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
       TenantWriteScopeResolver writeScopeResolver,
+      UserGroupMembershipService userGroupMembershipService,
       PlatformRoleService platformRoleService,
       PlatformGroupService platformGroupService) {
     super(
@@ -88,7 +89,8 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
         userService,
         tenantUserService,
         markingClearanceCacheManager,
-        writeScopeResolver);
+        writeScopeResolver,
+        userGroupMembershipService);
     this.platformRoleService = platformRoleService;
     this.platformGroupService = platformGroupService;
   }
@@ -122,11 +124,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   public Group ensureAdminGroup(TxCtx ctx, String tenantId, User adminUser) {
     Group group = resolveAdminGroup(writeScopeResolver.tenantForWrite(ctx, tenantId));
     tenantGroupService.receiveEveryMarking(tenantId, group);
-    boolean alreadyMember =
-        adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
-    if (!alreadyMember) {
-      adminUser.getUnscopedGroups().add(group);
-      userService.saveUser(adminUser);
+    if (userGroupMembershipService.addMembership(adminUser.getId(), group.getId())) {
       log.info(
           "Enrolled admin user {} into the '{}' group for tenant {}",
           adminUser.getId(),
@@ -210,11 +208,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
             PLATFORM_ADMIN_ACCESS.groupName(),
             PLATFORM_ADMIN_ACCESS.groupDescription(),
             List.of(role));
-    boolean alreadyMember =
-        adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
-    if (!alreadyMember) {
-      adminUser.getUnscopedGroups().add(group);
-      userService.saveUser(adminUser);
+    if (userGroupMembershipService.addMembership(adminUser.getId(), group.getId())) {
       log.info(
           "Enrolled admin user {} into the platform '{}' group",
           adminUser.getId(),

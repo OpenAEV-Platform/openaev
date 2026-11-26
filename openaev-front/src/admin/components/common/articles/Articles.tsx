@@ -2,7 +2,6 @@ import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/d
 import { VisibilityOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -160,11 +159,8 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
     ...item,
     article_fullchannel: item.article_channel ? channelsMap[item.article_channel] : {},
   }));
-  const sortedArticles: FullArticleStore[] = R.filter(
-    (n: FullArticleStore) => channels.length === 0
-      || channels.map(o => o.id).includes(n.article_fullchannel?.channel_id ?? ''),
-    filtering.filterAndSort(fullArticles),
-  );
+  const sortedArticles: FullArticleStore[] = filtering.filterAndSort(fullArticles).filter((n: FullArticleStore) => channels.length === 0
+    || channels.map(o => o.id).includes(n.article_fullchannel?.channel_id ?? ''));
 
   return (
     <ConfigurationSection

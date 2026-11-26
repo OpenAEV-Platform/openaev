@@ -68,7 +68,9 @@ const ScenarioPopover: FunctionComponent<Props> = ({
 
   // Deletion
   const [deletion, setDeletion] = useState(false);
-  const handleOpenDelete = () => setDeletion(true);
+  const handleOpenDelete = () => {
+    setDeletion(true);
+  };
   const handleCloseDelete = () => setDeletion(false);
   const submitDelete = () => {
     dispatch(deleteScenario(scenario.scenario_id)).then(() => {

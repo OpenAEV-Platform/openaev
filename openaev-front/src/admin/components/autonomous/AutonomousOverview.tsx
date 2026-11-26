@@ -1,5 +1,4 @@
 import { Stack } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -7,10 +6,11 @@ import { type AutonomousEvent, type AutonomousRun, type AutonomousRunStatus } fr
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../actions/exercises/exercise-action';
 import { SectionBlock } from '../../../components/common/detail/EntityDetailCommon';
 import PostureGauges from '../../../components/common/detail/PostureGauges';
-import SAMPLE_POSTURE from '../../../components/common/detail/samplePosture';
+import samplePosture from '../../../components/common/detail/samplePosture';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { type ExpectationResultsByType, type InjectExpectationResultsByAttackPattern } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import MitreCoverageMatrix from '../common/matrix/MitreCoverageMatrix';
 import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../workspaces/custom_dashboards/results/contextualWidgets';
 import SamplePreview from '../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
@@ -39,6 +39,7 @@ interface AutonomousOverviewProps {
  */
 const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, sharedEvents }) => {
   const { t } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const navigate = useNavigate();
   const location = useLocation();
   const status = run.autonomous_run_status;
@@ -81,11 +82,11 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, s
   }, [isPlanMode, isActive, reloadResults]);
 
   const attackPatternIds = injectResults
-    ? R.uniq(
+    ? [...new Set(
         injectResults
           .filter(injectResult => !!injectResult.inject_attack_pattern)
           .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-      )
+      )]
     : [];
   const hasMitreResults = !!injectResults && attackPatternIds.length > 0;
 
@@ -121,7 +122,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, s
             if (postureResults.length === 0) {
               return (
                 <SamplePreview active variant="subtle" atPanelEdge>
-                  <PostureGauges expectationResultsByTypes={SAMPLE_POSTURE} />
+                  <PostureGauges expectationResultsByTypes={samplePosture(isLoggingEnabled)} />
                 </SamplePreview>
               );
             }
