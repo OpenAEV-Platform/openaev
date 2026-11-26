@@ -67,7 +67,7 @@ public class SentinelOneExecutorContextService
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);
 
-    List<SentinelOneAction> actions = new ArrayList<>();
+    List<AgentAction<SentinelOneAction>> actions = new ArrayList<>();
     // Set implant script for each agent
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
       for (Endpoint.PLATFORM_ARCH arch : Endpoint.PLATFORM_ARCH.values()) {
@@ -102,12 +102,11 @@ public class SentinelOneExecutorContextService
       }
     }
     // Launch payloads with SentinelOne API
-    executeActions(actions);
+    dispatch(inject, actions);
     return sentinelOneAgents;
   }
 
-  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
-  // SentinelOne API to execute the implant, and each implant calls the OpenAEV API to set traces.
+  // Implant cleanup, tied to no inject: a send failure is only logged.
   public void executeActions(List<SentinelOneAction> actions) {
     dispatch(actions);
   }
@@ -124,13 +123,18 @@ public class SentinelOneExecutorContextService
   }
 
   @Override
+  protected ExecutorService executorService() {
+    return executorService;
+  }
+
+  @Override
   protected Integer batchSize() {
     return this.config.getApiBatchExecutionActionPagination();
   }
 
-  private List<SentinelOneAction> getWindowsActions(
+  private List<AgentAction<SentinelOneAction>> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
-    List<SentinelOneAction> actions = new ArrayList<>();
+    List<AgentAction<SentinelOneAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionWindows = new SentinelOneAction();
       actionWindows.setScriptId(this.config.getWindowsScriptId());
@@ -162,35 +166,35 @@ public class SentinelOneExecutorContextService
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionWindows);
+      actions.add(new AgentAction<>(agent, actionWindows));
     }
     return actions;
   }
 
-  private List<SentinelOneAction> getLinuxActions(
+  private List<AgentAction<SentinelOneAction>> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
-    List<SentinelOneAction> actions = new ArrayList<>();
+    List<AgentAction<SentinelOneAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, arch, token));
       actionLinux.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionLinux);
+      actions.add(new AgentAction<>(agent, actionLinux));
     }
     return actions;
   }
 
-  private List<SentinelOneAction> getMacOSActions(
+  private List<AgentAction<SentinelOneAction>> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
-    List<SentinelOneAction> actions = new ArrayList<>();
+    List<AgentAction<SentinelOneAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, arch, token));
       actionMac.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionMac);
+      actions.add(new AgentAction<>(agent, actionMac));
     }
     return actions;
   }

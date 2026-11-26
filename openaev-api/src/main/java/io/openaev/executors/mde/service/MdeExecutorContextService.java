@@ -70,7 +70,7 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
 
-    List<MdeAction> actions = new ArrayList<>();
+    List<AgentAction<MdeAction>> actions = new ArrayList<>();
     actions.addAll(
         getWindowsActions(
             getAgentsFromOS(mdeAgents, Endpoint.PLATFORM_TYPE.Windows), injector, inject, token));
@@ -80,7 +80,7 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
     actions.addAll(
         getMacOSActions(
             getAgentsFromOS(mdeAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
-    dispatch(actions);
+    dispatch(inject, actions);
     return mdeAgents;
   }
 
@@ -96,9 +96,8 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
   }
 
   @Override
-  protected void onSendFailure(MdeAction action, String reason) {
-    executorService.reportSendFailure(
-        action.getTenantId(), action.getInjectId(), action.getAgent().getId(), reason);
+  protected ExecutorService executorService() {
+    return executorService;
   }
 
   @Override
@@ -116,9 +115,9 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
     return BATCH_INTERVAL;
   }
 
-  private List<MdeAction> getWindowsActions(
+  private List<AgentAction<MdeAction>> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<MdeAction> actions = new ArrayList<>();
+    List<AgentAction<MdeAction>> actions = new ArrayList<>();
     Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
     // Use the MDE-specific command (scheduled-task launch): MDE Live Response terminates the
     // session process tree on teardown, so the implant must run from a detached SYSTEM task to
@@ -172,38 +171,34 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
       action.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
       action.setAgent(agent);
-      action.setTenantId(inject.getTenant().getId());
-      action.setInjectId(inject.getId());
-      actions.add(action);
+      actions.add(new AgentAction<>(agent, action));
     }
     return actions;
   }
 
-  private List<MdeAction> getLinuxActions(
+  private List<AgentAction<MdeAction>> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     return getUnixActions(agents, injector, inject, Endpoint.PLATFORM_TYPE.Linux, token);
   }
 
-  private List<MdeAction> getMacOSActions(
+  private List<AgentAction<MdeAction>> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     return getUnixActions(agents, injector, inject, Endpoint.PLATFORM_TYPE.MacOS, token);
   }
 
-  private List<MdeAction> getUnixActions(
+  private List<AgentAction<MdeAction>> getUnixActions(
       List<Agent> agents,
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_TYPE platform,
       String token) {
-    List<MdeAction> actions = new ArrayList<>();
+    List<AgentAction<MdeAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       MdeAction action = new MdeAction();
       action.setScriptName(mdeExecutorConfig.getUnixScriptName());
       action.setCommandEncoded(getUnixCommand(platform, injector, inject, agent, token));
       action.setAgent(agent);
-      action.setTenantId(inject.getTenant().getId());
-      action.setInjectId(inject.getId());
-      actions.add(action);
+      actions.add(new AgentAction<>(agent, action));
     }
     return actions;
   }

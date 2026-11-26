@@ -67,7 +67,7 @@ public class CrowdStrikeExecutorContextService
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
 
-    List<CrowdStrikeAction> actions = new ArrayList<>();
+    List<AgentAction<CrowdStrikeAction>> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
     actions.addAll(
         getWindowsActions(
@@ -81,12 +81,11 @@ public class CrowdStrikeExecutorContextService
         getMacOSActions(
             getAgentsFromOS(csAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
     // Launch payloads with CS API
-    executeActions(actions);
+    dispatch(inject, actions);
     return csAgents;
   }
 
-  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
-  // CrowdStrike API to execute the implant, and each implant calls the OpenAEV API to set traces.
+  // Implant cleanup, tied to no inject: a send failure is only logged.
   public void executeActions(List<CrowdStrikeAction> actions) {
     dispatch(actions);
   }
@@ -103,13 +102,18 @@ public class CrowdStrikeExecutorContextService
   }
 
   @Override
+  protected ExecutorService executorService() {
+    return executorService;
+  }
+
+  @Override
   protected Integer batchSize() {
     return this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
   }
 
-  private List<CrowdStrikeAction> getWindowsActions(
+  private List<AgentAction<CrowdStrikeAction>> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<CrowdStrikeAction> actions = new ArrayList<>();
+    List<AgentAction<CrowdStrikeAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionWindows = new CrowdStrikeAction();
       actionWindows.setScriptName(this.crowdStrikeExecutorConfig.getWindowsScriptName());
@@ -153,35 +157,35 @@ public class CrowdStrikeExecutorContextService
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionWindows);
+      actions.add(new AgentAction<>(agent, actionWindows));
     }
     return actions;
   }
 
-  private List<CrowdStrikeAction> getLinuxActions(
+  private List<AgentAction<CrowdStrikeAction>> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<CrowdStrikeAction> actions = new ArrayList<>();
+    List<AgentAction<CrowdStrikeAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, token));
       actionLinux.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionLinux);
+      actions.add(new AgentAction<>(agent, actionLinux));
     }
     return actions;
   }
 
-  private List<CrowdStrikeAction> getMacOSActions(
+  private List<AgentAction<CrowdStrikeAction>> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<CrowdStrikeAction> actions = new ArrayList<>();
+    List<AgentAction<CrowdStrikeAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, token));
       actionMac.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionMac);
+      actions.add(new AgentAction<>(agent, actionMac));
     }
     return actions;
   }
