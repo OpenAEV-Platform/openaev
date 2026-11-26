@@ -194,7 +194,8 @@
     "Revision #{number}",
     "Revision",
     "Variable {key}",
-    "Argument {key}"
+    "Argument {key}",
+    "Version: v{from} → v{to}"
   ],
   "es": [
     "{count} roles",

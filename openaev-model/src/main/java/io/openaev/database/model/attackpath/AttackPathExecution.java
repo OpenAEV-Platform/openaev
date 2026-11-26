@@ -123,6 +123,9 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_vulnerability_status")
   private String vulnerabilityStatus;
 
+  @Column(name = "attackpath_execution_logging_status")
+  private String loggingStatus;
+
   /**
    * The graph read never selects it; unlike the heavy TOASTed terminal_output it is generally
    * smaller.

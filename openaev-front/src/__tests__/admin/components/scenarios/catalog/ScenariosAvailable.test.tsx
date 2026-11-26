@@ -1,6 +1,8 @@
+import '@testing-library/jest-dom/vitest';
+
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   installAllCatalogScenarios: vi.fn(),
   navigate: vi.fn(),
   loadMore: { current: () => {} },
+  updates: new Map<string, string>(),
+  fetchScenarioVersions: vi.fn(),
 }));
 
 vi.mock(import('react-router'), async importOriginal => ({
@@ -45,6 +49,9 @@ vi.mock(import('../../../../../utils/utils'), async importOriginal => ({
   isFeatureEnabled: () => true,
 }));
 vi.mock('../../../../../admin/components/scenarios/page/ScenariosHero', () => ({ default: () => null }));
+vi.mock('../../../../../admin/components/scenarios/card/useScenarioUpdatesAvailable', () => ({ default: () => mocks.updates }));
+vi.mock('../../../../../actions/scenarios/scenario-update-actions', () => ({ fetchScenarioVersions: mocks.fetchScenarioVersions }));
+vi.mock('../../../../../admin/components/scenarios/scenario/versions/ScenarioUpdateDialog', () => ({ default: ({ target }: { target: { title: string } }) => <div role="dialog">{target.title}</div> }));
 vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer', () => ({ default: () => null }));
 vi.mock('../../../../../admin/components/scenarios/catalog/CatalogScenarioInstallDrawer', () => ({
   default: ({ scenario, onInstalled }: {
@@ -90,6 +97,7 @@ const cardTitles = () => screen.queryAllByTestId('scenario-catalog-card').map(ca
 describe('ScenariosAvailable', () => {
   beforeEach(() => {
     localStorage.clear();
+    mocks.updates = new Map();
     vi.spyOn(MESSAGING$, 'notifySuccess').mockImplementation(() => undefined);
     vi.stubGlobal('IntersectionObserver', class {
       constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
@@ -198,6 +206,43 @@ describe('ScenariosAvailable', () => {
 
     // Assert
     await waitFor(() => expect(lastSearch().textSearch ?? '').toBe(''));
+  });
+
+  it('given_anInstalledScenarioWithAnUpdate_should_sayItAndOpenTheUpdate', async () => {
+    // Arrange
+    mocks.searchCatalogScenarios.mockResolvedValue(page([{
+      ...PHISHING,
+      catalog_scenario_version: '1.2.0',
+      catalog_scenario_installed_scenario_id: 'installed-phishing',
+    }, {
+      ...RANSOMWARE,
+      catalog_scenario_installed_scenario_id: 'installed-ransomware',
+    }]));
+    mocks.updates = new Map([['installed-phishing', '1.2.0']]);
+    mocks.fetchScenarioVersions.mockResolvedValue({
+      scenario_simulations_count: 0,
+      scenario_versions: [{
+        scenario_version: '1.1.0',
+        scenario_version_current: true,
+        scenario_version_latest: false,
+        scenario_version_status: 'VERIFIED',
+      }],
+    });
+    renderPage();
+    await waitFor(() => expect(cardTitles()).toHaveLength(2));
+    const [updated, installed] = screen.getAllByTestId('scenario-catalog-card');
+
+    // Assert: only the one with an update says so; the other stays installed.
+    expect(updated).toHaveTextContent('Update available');
+    expect(installed).toHaveTextContent('Installed');
+    expect(installed).not.toHaveTextContent('Update');
+
+    // Act
+    fireEvent.click(within(updated).getByRole('button', { name: 'Update' }));
+
+    // Assert
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Update to Filigran v1.2.0');
+    expect(mocks.fetchScenarioVersions).toHaveBeenCalledWith('installed-phishing');
   });
 
   it('given_anInstalledScenario_should_notifyWithALinkToItAndOpenIt', async () => {

@@ -57,18 +57,9 @@ class MessageComponent extends Component {
         onClose={this.handleCloseMessage.bind(this)}
         autoHideDuration={sticky ? null : 4000}
       >
-        {error ? (
-          <Alert severity="error" onClose={this.handleCloseMessage.bind(this)}>
-            {text.length > 0 && text}
-          </Alert>
-        ) : (
-          <Alert
-            severity="success"
-            onClose={this.handleCloseMessage.bind(this)}
-          >
-            {text.length > 0 && text}
-          </Alert>
-        )}
+        <Alert severity={error ? 'error' : 'success'} onClose={this.handleCloseMessage.bind(this)}>
+          {text}
+        </Alert>
       </Snackbar>
     );
   }

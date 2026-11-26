@@ -45,6 +45,7 @@ public class CatalogScenarioUpdater {
       TxCtx ctx,
       String scenarioId,
       String version,
+      String previewedVersion,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
     InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
@@ -52,6 +53,7 @@ public class CatalogScenarioUpdater {
     catalogScenarioUpdateService.apply(
         ctx,
         toRelease(ctx, installed, released),
+        previewedVersion,
         catalogFileService.payloadFiles(released.payloads()),
         choices,
         edits);
@@ -67,10 +69,11 @@ public class CatalogScenarioUpdater {
       TxCtx ctx,
       String scenarioId,
       String revisionId,
+      String previewedVersion,
       Map<String, ScenarioMerge.Choice> choices,
       Map<String, String> edits) {
     catalogScenarioUpdateService.apply(
-        ctx, toRevision(ctx, scenarioId, revisionId), Map.of(), choices, edits);
+        ctx, toRevision(ctx, scenarioId, revisionId), previewedVersion, Map.of(), choices, edits);
   }
 
   // -- STEPS --
@@ -88,7 +91,7 @@ public class CatalogScenarioUpdater {
   private ScenarioUpdate toRelease(
       TxCtx ctx, InstalledScenario installed, InstallableScenarioVersion released) {
     ReleasedScenario files =
-        catalogScenarioOfferService.released(installed.externalId(), released.version());
+        catalogScenarioOfferService.released(ctx, installed.externalId(), released.version());
     ScenarioPackage scenarioPackage = packageOf(files);
     if (scenarioPackage.linksImportedContent()) {
       throw new BadRequestException(IMPORTED_LINKS_REFUSED);
@@ -115,7 +118,7 @@ public class CatalogScenarioUpdater {
   // What the installed version brought: the client's changes are measured against it.
   private ObjectNode base(TxCtx ctx, InstalledScenario installed) {
     ReleasedScenario released =
-        catalogScenarioOfferService.released(installed.externalId(), installed.version());
+        catalogScenarioOfferService.released(ctx, installed.externalId(), installed.version());
     return reader.fromPackage(packageOf(released), released.payloadVersions());
   }
 

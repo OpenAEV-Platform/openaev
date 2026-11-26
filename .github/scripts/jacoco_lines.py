@@ -19,6 +19,15 @@ from xml.parsers import expat
 
 HIT, PARTIAL, MISS = "hit", "partial", "miss"
 
+# Packages the coverage rules leave out. Flyway already runs every migration when the tests start,
+# so a schema migration is covered; a data migration only meets the empty test database, and its
+# real edge cases come from existing data that no test can know.
+EXCLUDED_PACKAGES = ("io/openaev/migration",)
+
+
+def excluded(package: str) -> bool:
+    return any(package == name or package.startswith(name + "/") for name in EXCLUDED_PACKAGES)
+
 
 def classify(attributes: dict[str, str]) -> str:
     """State of one `<line>`: instructions (mi, ci) and branches (mb, cb) missed and covered."""
@@ -48,9 +57,12 @@ def parse(xml: bytes) -> ET.Element:
 
 
 def report_lines(xml: bytes, src_root: str) -> dict[str, dict[int, str]]:
-    """State of every line of the report, by repository path then line number."""
+    """State of every line of the report, by repository path then line number, without the
+    excluded packages."""
     files: dict[str, dict[int, str]] = {}
     for package in parse(xml).iter("package"):
+        if excluded(package.get("name") or ""):
+            continue
         for source in package.findall("sourcefile"):
             path = "/".join(
                 part for part in (src_root, package.get("name"), source.get("name")) if part

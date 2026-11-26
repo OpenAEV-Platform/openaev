@@ -25,6 +25,7 @@ const TextDiff = ({ text, other }: Props) => {
     <Text
       variant="content-code"
       style={{
+        fontFamily: 'var(--font-content-code), monospace',
         whiteSpace: 'pre-wrap',
         overflowWrap: 'anywhere',
       }}

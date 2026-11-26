@@ -74,7 +74,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
 
   /** A released version, offered or not, as the one a tenant installed. */
   @Transactional(readOnly = true)
-  public ReleasedScenario released(String externalId, String version) {
+  public ReleasedScenario released(TxCtx ctx, String externalId, String version) {
     return toReleased(
         catalogListService
             .version(CatalogScenario.class, externalId, version)

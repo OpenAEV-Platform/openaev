@@ -115,7 +115,7 @@ describe('ScenarioHeader normal launch of a chained scenario', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Launch now' }));
 
     // Assert
-    expect(mocks.launchScenario).toHaveBeenCalledWith('chained', expect.anything());
+    expect(mocks.launchScenario).toHaveBeenCalledWith('chained', expect.anything(), false);
   });
 
   it('asks for a confirmation without the catalogue preview', async () => {
