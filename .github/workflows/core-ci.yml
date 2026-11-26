@@ -19,6 +19,8 @@ permissions:
   contents: read
   actions: read
   packages: write
+  # The backend coverage check reads the pull request description for a "Coverage exempt:" line.
+  pull-requests: read
 
 jobs:
   pipeline:
