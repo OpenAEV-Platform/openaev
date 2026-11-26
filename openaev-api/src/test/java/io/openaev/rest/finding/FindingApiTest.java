@@ -15,7 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
+import io.openaev.api.injector.dto.InjectorSimple;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -1291,6 +1292,120 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
 
       assertThat(page.getContent()).hasSize(1);
       assertThat(page.getContent().getFirst().getId()).isEqualTo(olderA.getId());
+    }
+
+    @Nested
+    @DisplayName("Sources: the injectors that detected a finding")
+    class Sources {
+
+      private Injector implantInjector;
+      private Injector emailInjector;
+
+      @BeforeEach
+      void setUpInjectors() {
+        implantInjector = injectorFixture.getWellKnownOaevImplantInjector();
+        emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+        // The composer only wires the injector contract: the injector the finding is attributed to
+        // is the one stored on the inject itself.
+        injectWrapper.get().setInjector(implantInjector);
+        injectWrapper2.get().setInjector(emailInjector);
+      }
+
+      @Test
+      @DisplayName("Should list the injectors of every occurrence of the (type, value) group")
+      void given_sameValueDetectedByTwoInjectors_should_listBothSourcesOnTheGroup() {
+        // Arrange
+        scopeToAmbientTenant();
+        findingComposer
+            .forFinding(FindingFixture.createDefaultTextFinding())
+            .withInject(injectWrapper)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .persist();
+        findingComposer
+            .forFinding(FindingFixture.createDefaultTextFinding())
+            .withInject(injectWrapper2)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .persist();
+        entityManager.flush();
+        entityManager.clear();
+
+        // Act
+        Page<AggregatedFindingOutput> page =
+            findingDistinctSearchService.searchDistinctFindings(
+                PaginationFixture.getDefault().size(500).build());
+
+        // Assert
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().getFirst().getSources())
+            .extracting(InjectorSimple::id)
+            .containsExactlyInAnyOrder(implantInjector.getId(), emailInjector.getId());
+      }
+
+      @Test
+      @DisplayName("Should return no source when the inject has no injector")
+      void given_anInjectWithoutInjector_should_returnNoSource() {
+        // Arrange
+        scopeToAmbientTenant();
+        injectWrapper.get().setInjector(null);
+        findingComposer
+            .forFinding(FindingFixture.createDefaultTextFinding())
+            .withInject(injectWrapper)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .persist();
+        entityManager.flush();
+        entityManager.clear();
+
+        // Act
+        Page<AggregatedFindingOutput> page =
+            findingDistinctSearchService.searchDistinctFindings(
+                PaginationFixture.getDefault().size(500).build());
+
+        // Assert
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().getFirst().getSources()).isEmpty();
+      }
+
+      @Test
+      @DisplayName("Should keep only the findings detected by the injector of the filter")
+      void given_aSourcesFilter_should_keepOnlyFindingsDetectedByThatInjector() throws Exception {
+        // Arrange
+        findingComposer
+            .forFinding(FindingFixture.createDefaultTextFinding())
+            .withInject(injectWrapper)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .persist();
+        Finding detectedByEmail =
+            findingComposer
+                .forFinding(FindingFixture.createDefaultIPV6Finding())
+                .withInject(injectWrapper2)
+                .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+                .persist()
+                .get();
+        entityManager.flush();
+        entityManager.clear();
+
+        SearchPaginationInput input = new SearchPaginationInput();
+        Filters.FilterGroup group = new Filters.FilterGroup();
+        group.setMode(Filters.FilterMode.and);
+        group.setFilters(
+            List.of(
+                buildFilter(
+                    "finding_sources",
+                    Filters.FilterOperator.contains,
+                    List.of(emailInjector.getId()))));
+        input.setFilterGroup(group);
+
+        // Act & Assert
+        performCallbackRequest(FINDING_URI + "/search?distinct=true", input)
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].finding_id").value(detectedByEmail.getId()))
+            .andExpect(
+                jsonPath("$.content.[0].finding_sources.[0].injector_id")
+                    .value(emailInjector.getId()))
+            .andExpect(
+                jsonPath("$.content.[0].finding_sources.[0].injector_type")
+                    .value(emailInjector.getType()));
+      }
     }
 
     @Nested

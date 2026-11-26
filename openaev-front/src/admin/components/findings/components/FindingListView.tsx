@@ -5,7 +5,7 @@ import { type CSSProperties } from 'react';
 import { Link } from 'react-router';
 
 import markingsColumn from '../../../../components/common/list/markingsColumn';
-import type { QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
+import { type QueryableHelpers } from '../../../../components/common/queryable/QueryableHelpers';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import Empty from '../../../../components/Empty';
@@ -19,6 +19,7 @@ import { OpenCtiRowMark } from '../../../../components/xtm/XtmPivot';
 import { type AggregatedFindingOutput, type TargetSimple } from '../../../../utils/api-types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import ContractOutputElementType from '../ContractOutputElementType';
+import FindingSource from './FindingSource';
 
 interface Props {
   loading: boolean;
@@ -30,10 +31,11 @@ interface Props {
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
   finding_value: { width: '27%' },
-  finding_assets: { width: '20%' },
+  finding_assets: { width: '15%' },
   finding_markings: { width: '12%' },
-  finding_created_at: { width: '14%' },
-  finding_updated_at: { width: '14%' },
+  finding_sources: { width: '13%' },
+  finding_created_at: { width: '10%' },
+  finding_updated_at: { width: '10%' },
 });
 
 const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [] }: Props) => {
@@ -128,6 +130,12 @@ const FindingListView = ({ loading, findings, queryableHelpers, hiddenFields = [
     ...(markingEnabled
       ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
       : []),
+    {
+      field: 'finding_sources',
+      label: 'Sources',
+      isSortable: false,
+      value: (finding: AggregatedFindingOutput) => <FindingSource sources={finding.finding_sources?.sort((a, b) => a.injector_name.localeCompare(b.injector_name))} />,
+    },
     {
       field: 'finding_created_at',
       label: 'First seen',

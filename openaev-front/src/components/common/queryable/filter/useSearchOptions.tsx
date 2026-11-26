@@ -99,6 +99,7 @@ const useSearchOptions = () => {
       case 'action_injectors':
       case 'injector_contract_injectors':
       case 'inject_injector_contract':
+      case 'finding_sources':
         searchInjectorsByNameAsOption(search, contextId).then((response) => {
           setOptions(response.data);
         });

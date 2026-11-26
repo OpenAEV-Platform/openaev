@@ -1,7 +1,5 @@
 package io.openaev.database.model;
 
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -13,15 +11,17 @@ import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.Getter;
 import org.hibernate.annotations.*;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.time.Instant.now;
 
 @Data
 @Entity
@@ -308,5 +308,18 @@ public class Finding implements TenantBase {
     return getAssets().stream()
         .flatMap(asset -> asset.getAssetGroups().stream())
         .collect(Collectors.toSet());
+  }
+
+  @JsonProperty("finding_sources")
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "occurrences.inject.injector.id")
+  public List<Injector> getInjectors() {
+    return getInjects().stream()
+        .map(Inject::getInjector)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
   }
 }

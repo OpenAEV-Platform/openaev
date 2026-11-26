@@ -1,5 +1,6 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.injector.dto.InjectorSimple;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
@@ -11,10 +12,7 @@ import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TargetType;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -145,6 +143,17 @@ public class FindingMapper {
         .assets(
             relatedAssets.stream()
                 .map(endpointMapper::toEndpointSimple)
+                .collect(Collectors.toSet()))
+        .sources(
+            finding.getInjects().stream()
+                .filter(inject -> !Objects.isNull(inject.getInjector()))
+                .map(
+                    inject ->
+                        InjectorSimple.builder()
+                            .id(inject.getInjector().getId())
+                            .name(inject.getInjector().getName())
+                            .type(inject.getInjector().getType())
+                            .build())
                 .collect(Collectors.toSet()))
         .build();
   }

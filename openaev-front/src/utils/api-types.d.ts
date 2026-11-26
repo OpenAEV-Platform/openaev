@@ -205,6 +205,11 @@ export interface AggregatedFindingOutput {
    */
   finding_id: string;
   /**
+   * Injectors that detected the finding, across every occurrence of its (type, value) group
+   * @uniqueItems true
+   */
+  finding_sources?: InjectorSimple[];
+  /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
    */
@@ -8369,6 +8374,27 @@ export interface InjectorRegistration {
   listen?: string;
 }
 
+export interface InjectorSimple {
+  /**
+   * Injector id
+   * @minLength 1
+   * @example "49229430-b5b5-431f-ba5b-f36f599b0233"
+   */
+  injector_id: string;
+  /**
+   * Injector name
+   * @minLength 1
+   * @example "Nuclei"
+   */
+  injector_name: string;
+  /**
+   * Injector type
+   * @minLength 1
+   * @example "openaev_nuclei"
+   */
+  injector_type: string;
+}
+
 export interface InjectorUpdateInput {
   injector_category?: string;
   injector_contracts?: InjectorContractInput[];
@@ -11835,6 +11861,11 @@ export interface RelatedFindingOutput {
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
+  /**
+   * Injectors that detected the finding, across every occurrence of its (type, value) group
+   * @uniqueItems true
+   */
+  finding_sources?: InjectorSimple[];
   /**
    * Teams linked to the finding occurrence
    * @uniqueItems true

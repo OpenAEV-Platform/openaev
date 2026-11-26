@@ -21,7 +21,6 @@ const Findings = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [loading, setLoading] = useState<boolean>(true);
-  // Owned here (not in the hero) so the list/grid switch starts on the mode saved in the local storage.
   const { viewMode, handleViewModeChange } = useMarketplaceView('findings:view-mode');
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -32,6 +31,7 @@ const Findings = () => {
     'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
+    'finding_sources',
   ];
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
