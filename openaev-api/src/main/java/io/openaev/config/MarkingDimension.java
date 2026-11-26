@@ -94,6 +94,39 @@ public final class MarkingDimension implements ScopeDimension {
    */
   private String predicate(String table, String alias, int depth) {
     MarkedTable marked = tables.get(table);
+    String own = ownPredicate(marked, alias, depth);
+    if (marked.namedAssetsColumn() == null) {
+      return own;
+    }
+    return "(" + own + " AND " + namedAssetsPredicate(marked, alias, depth) + ")";
+  }
+
+  /**
+   * Hidden when one of the ids held in the array is a hidden asset; ids of anything else (teams,
+   * players) match no asset and change nothing:
+   *
+   * <pre>{@code
+   * NOT EXISTS (SELECT 1 FROM assets mka0_assets
+   *             WHERE mka0_assets.asset_id = ANY(t.execution_context_identifiers)
+   *               AND NOT <the asset's own predicate on mka0_assets>)
+   * }</pre>
+   */
+  private String namedAssetsPredicate(MarkedTable marked, String alias, int depth) {
+    String assetAlias = "mka" + depth + "_assets";
+    return "NOT EXISTS (SELECT 1 FROM assets "
+        + assetAlias
+        + " WHERE "
+        + assetAlias
+        + ".asset_id = ANY("
+        + alias
+        + "."
+        + marked.namedAssetsColumn()
+        + ") AND NOT "
+        + predicate("assets", assetAlias, depth + 1)
+        + ")";
+  }
+
+  private String ownPredicate(MarkedTable marked, String alias, int depth) {
     if (marked.linkRows() != null) {
       return linkRowsPredicate(marked.linkRows(), alias, depth);
     }

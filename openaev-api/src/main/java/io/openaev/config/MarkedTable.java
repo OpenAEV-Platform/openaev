@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -28,9 +29,15 @@ import java.util.regex.Pattern;
  *     {@code null} unless the table has its own column
  * @param parent the parent this table is marked through, or {@code null}
  * @param linkRows the link rows this table is marked through, or {@code null}
+ * @param namedAssetsColumn a {@code text[]} column of asset ids the row also names: the row is
+ *     hidden when one of them is a hidden asset; {@code null} when there is none
  */
 public record MarkedTable(
-    String table, String markingColumn, ParentLink parent, LinkRows linkRows) {
+    String table,
+    String markingColumn,
+    ParentLink parent,
+    LinkRows linkRows,
+    String namedAssetsColumn) {
 
   /** The column holding the marking ids of a marked row — the convention derivation relies on. */
   public static final String MARKING_COLUMN = "marking_ids";
@@ -89,6 +96,10 @@ public record MarkedTable(
     this(table, markingColumn, parent, null);
   }
 
+  public MarkedTable(String table, String markingColumn, ParentLink parent, LinkRows linkRows) {
+    this(table, markingColumn, parent, linkRows, null);
+  }
+
   public MarkedTable {
     table = table.toLowerCase(Locale.ROOT);
     int shapes =
@@ -99,6 +110,9 @@ public record MarkedTable(
     }
     if (markingColumn != null) {
       markingColumn = markingColumn.toLowerCase(Locale.ROOT);
+    }
+    if (namedAssetsColumn != null) {
+      namedAssetsColumn = identifier(namedAssetsColumn);
     }
   }
 
@@ -119,6 +133,11 @@ public record MarkedTable(
         identifier(table), null, null, new LinkRows(keyColumn, linkTable, linkForeignKeyColumn));
   }
 
+  /** The same table, also hidden when one of the asset ids held in {@code column} is hidden. */
+  public MarkedTable alsoNamingAssets(String column) {
+    return new MarkedTable(table, markingColumn, parent, linkRows, column);
+  }
+
   /** Whether the table is marked through another table rather than by a column of its own. */
   public boolean isLinked() {
     return parent != null || linkRows != null;
@@ -134,17 +153,19 @@ public record MarkedTable(
 
   /** The columns a link names, so they can be checked against the schema at startup. */
   public List<ColumnRef> linkedColumns() {
+    List<ColumnRef> columns = new ArrayList<>();
     if (parent != null) {
-      return List.of(
-          new ColumnRef(table, parent.foreignKeyColumn()),
-          new ColumnRef(parent.parentTable(), parent.parentKeyColumn()));
+      columns.add(new ColumnRef(table, parent.foreignKeyColumn()));
+      columns.add(new ColumnRef(parent.parentTable(), parent.parentKeyColumn()));
     }
     if (linkRows != null) {
-      return List.of(
-          new ColumnRef(table, linkRows.keyColumn()),
-          new ColumnRef(linkRows.linkTable(), linkRows.linkForeignKeyColumn()));
+      columns.add(new ColumnRef(table, linkRows.keyColumn()));
+      columns.add(new ColumnRef(linkRows.linkTable(), linkRows.linkForeignKeyColumn()));
     }
-    return List.of();
+    if (namedAssetsColumn != null) {
+      columns.add(new ColumnRef(table, namedAssetsColumn));
+    }
+    return List.copyOf(columns);
   }
 
   private static String identifier(String name) {

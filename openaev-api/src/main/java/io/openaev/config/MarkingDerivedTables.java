@@ -59,9 +59,10 @@ public final class MarkingDerivedTables {
           // expectations have no asset_id, so they stay visible.
           linkedTo("injects_expectations", "asset_id", "assets", "asset_id"),
           // An agent belongs to its asset, and a trace (the agent's output) to its agent.
-          // Traces with no agent are the inject's global traces and stay visible.
+          // A trace with no agent follows the assets it names (agentless scans).
           linkedTo("agents", "agent_asset", "assets", "asset_id"),
-          linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));
+          linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id")
+              .alsoNamingAssets("execution_context_identifiers"));
 
   /*
    * attackpath_execution is deliberately NOT derived: it is a frozen run snapshot whose ingestion
