@@ -829,13 +829,15 @@ class AttackPathExecutionIngestionServiceTest extends ProductionTablesIntegratio
                 expectationResult("Not Detected"),
                 expectationResult("Pending"),
                 expectationResult("Partially Detected")),
-            List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
+            List.of(expectationResult("Vulnerable"), expectationResult("Pending")),
+            List.of(expectationResult("Not Logged"), expectationResult("Logged"))));
 
     // Assert
     AttackPathExecution updated = findExecutionRow(tenant, executionId);
     assertThat(updated.getPreventionStatus()).isEqualTo("Prevented");
     assertThat(updated.getDetectionStatus()).isEqualTo("Partially Detected");
     assertThat(updated.getVulnerabilityStatus()).isEqualTo("Pending");
+    assertThat(updated.getLoggingStatus()).isEqualTo("Logged");
     // The stamp is what carries the verdict into the delta read: an unstamped row is invisible to
     // every polling client, which is the frozen-at-pending failure this feature removes (#6647).
     assertThat(updated.getRowVersion()).isEqualTo(currentVersion());
@@ -992,7 +994,7 @@ class AttackPathExecutionIngestionServiceTest extends ProductionTablesIntegratio
   private static AttackPathExecutionIngestionService.ExecutionExpectationResults prevention(
       String result) {
     return new AttackPathExecutionIngestionService.ExecutionExpectationResults(
-        List.of(expectationResult(result)), List.of(), List.of());
+        List.of(expectationResult(result)), List.of(), List.of(), List.of());
   }
 
   /**

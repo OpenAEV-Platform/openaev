@@ -4,7 +4,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import AttackPathLoggingContext from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-logging-context';
 import FindingDetailPanel, { type ProducingAction } from '../../../../../../admin/components/simulations/simulation/attack_path/FindingDetailPanel';
+import ThemeDark from '../../../../../../components/ThemeDark';
 
 // The execution-status badge does its own fetching (execution detail, then inject status): stub it and
 // assert the panel wires each producing action to it, rather than re-testing the badge here.
@@ -28,22 +30,24 @@ const action = (ref: string): ProducingAction => ({
   subtitle: 'agent · admin',
 });
 
-const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}): ReactElement => {
+const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}, showsLogging = false): ReactElement => {
   const element = (
-    <ThemeProvider theme={createTheme()}>
+    <ThemeProvider theme={createTheme(ThemeDark())}>
       <TooltipProvider>
-        <FindingDetailPanel
-          value="445"
-          type="port"
-          simulationId="sim-1"
-          endpointLabel="CORP-HOST"
-          endpointName="CORP-HOST"
-          actions={[action('exec-1')]}
-          activeRef={null}
-          onSelect={vi.fn()}
-          onClose={vi.fn()}
-          {...props}
-        />
+        <AttackPathLoggingContext value={showsLogging}>
+          <FindingDetailPanel
+            value="445"
+            type="port"
+            simulationId="sim-1"
+            endpointLabel="CORP-HOST"
+            endpointName="CORP-HOST"
+            actions={[action('exec-1')]}
+            activeRef={null}
+            onSelect={vi.fn()}
+            onClose={vi.fn()}
+            {...props}
+          />
+        </AttackPathLoggingContext>
       </TooltipProvider>
     </ThemeProvider>
   );
@@ -85,7 +89,7 @@ describe('FindingDetailPanel value clamping', () => {
     // The panel is not remounted between two findings: without a reset the second long value would
     // open already expanded because the first one's toggle left the state on.
     const panel = (value: string) => (
-      <ThemeProvider theme={createTheme()}>
+      <ThemeProvider theme={createTheme(ThemeDark())}>
         <TooltipProvider>
           <FindingDetailPanel
             value={value}
@@ -121,6 +125,36 @@ describe('FindingDetailPanel value clamping', () => {
       },
     });
     expect(screen.getByText('Show more')).toBeDefined();
+  });
+});
+
+describe('FindingDetailPanel verdict badges', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const expectations = {
+    prevention: 'failed',
+    detection: 'failed',
+    logging: 'success',
+    vulnerability: 'unknown',
+  } as const;
+
+  it('shows the logging verdict between detection and vulnerability when Logging is in play', () => {
+    renderPanel({ expectations }, true);
+
+    expect(screen.getAllByRole('img').map(badge => badge.getAttribute('aria-label'))).toEqual([
+      'Prevention: Failed',
+      'Detection: Failed',
+      'Logging: Success',
+      'Vulnerability: Unknown',
+    ]);
+  });
+
+  it('shows no logging verdict while Logging is not in play', () => {
+    renderPanel({ expectations });
+
+    expect(screen.queryByRole('img', { name: 'Logging: Success' })).toBeNull();
   });
 });
 
