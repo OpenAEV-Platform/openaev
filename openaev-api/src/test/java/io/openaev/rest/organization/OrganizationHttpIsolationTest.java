@@ -588,21 +588,20 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
       }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"plain", "header"})
+    @Test
     @DisplayName("Unprefixed collections never expose an unauthorized ambient default tenant")
-    void given_defaultOutsideScope_should_hideItInAllCollections(String route) throws Exception {
+    void given_defaultOutsideScope_should_hideItInAllCollections() throws Exception {
       // Arrange
       tenantHelper.attachCurrentUserToTenant(tenantA.getId());
 
-      // Act & Assert
+      // Act & Assert: with no selector the v2 scope is the caller's authorized tenants (A here),
+      // the same scope as the X-Tenant-Ids header selecting A, so both requests see the same rows
       for (var request : collectionRequests(ORGANIZATION_URI)) {
-        String result = response(scoped(request, route));
-        // Never the ambient default tenant the caller is not a member of, never another tenant.
-        assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
-        // Without a selector the v2 scope is the caller's authorized tenants (A here), like the
-        // X-Tenant-Ids header selecting A: the authorized tenant stays visible.
-        assertThat(result).contains(organizationA.getId());
+        for (String result : List.of(response(request), response(scoped(request, "header")))) {
+          // Never the ambient default tenant the caller is not a member of, never another tenant.
+          assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
+          assertThat(result).contains(organizationA.getId());
+        }
       }
     }
 
