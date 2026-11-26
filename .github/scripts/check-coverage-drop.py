@@ -117,6 +117,8 @@ def main() -> int:
         if base is not None:
             found_sha, base_xml = base
             base_covered, base_total = line_coverage(base_xml)
+            if base_total == 0:
+                raise ValueError("the report has no line")
     except (
         subprocess.CalledProcessError,
         KeyError,

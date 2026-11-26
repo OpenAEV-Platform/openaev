@@ -102,7 +102,7 @@ runs:
           --patch-log "$RUNNER_TEMP/patch-coverage.txt" \
           --project-outcome "$PROJECT_OUTCOME" \
           --project-log "$RUNNER_TEMP/project-coverage.txt" \
-          --exempt-reason "$EXEMPT_REASON"
+          --exempt-reason="$EXEMPT_REASON"
 
     # The rules block the merge through the Pipeline Gate, unless the pull request waives them.
     - name: Fail on a broken coverage rule
