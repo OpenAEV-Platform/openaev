@@ -1,6 +1,5 @@
-import * as R from 'ramda';
-
 import { type AttackPattern, type InjectorContractFullOutput } from '../api-types';
+import { isEmpty } from '../object';
 
 export const externalContractTypesWithFindings = ['openaev_nmap', 'openaev_nuclei', 'openaev_aws', 'openaev_netexec', 'openaev_phishing'];
 
@@ -12,7 +11,7 @@ const computeAttackPatterns = (attackPatternIds: InjectorContractFullOutput['inj
     }
     return [];
   }).filter(Boolean);
-  if (!R.isEmpty(attackPatternParents)) {
+  if (!isEmpty(attackPatternParents)) {
     return attackPatternParents;
   }
   return (attackPatternIds ?? []).map((attackPattern) => {
