@@ -35,7 +35,6 @@ import {
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import { isEmpty } from '../../../../utils/object';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
 import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
@@ -346,7 +345,7 @@ const Injects: FunctionComponent<Props> = ({
       event.stopPropagation();
       event.preventDefault();
     }
-    if (selectedElements && !isEmpty(selectedElements)) {
+    if (Object.keys(selectedElements).length > 0) {
       // Find the indexes of the first and last selected entities
       let firstIndex = injects.findIndex((n: InjectOutputType) => n.inject_id === Object.values(selectedElements)[0].inject_id);
       if (currentIndex > firstIndex) {

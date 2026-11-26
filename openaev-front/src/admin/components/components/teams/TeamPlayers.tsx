@@ -16,9 +16,9 @@ import { useHelper } from '../../../../store';
 import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { isEmpty } from '../../../../utils/object';
 import { type Option } from '../../../../utils/Option';
 import { ascendBy, descendBy } from '../../../../utils/Sorting';
+import { isEmptyField } from '../../../../utils/utils';
 import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
 import { type UserStore } from '../../teams/players/Player';
@@ -360,48 +360,45 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                       className={classes.bodyItem}
                       style={inlineStyles.user_options}
                     >
-                      {user.user_email === null || user.user_email === undefined
-                        || isEmpty(user.user_email) ? (
-                            <EmailOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <EmailOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
-                      {user.user_pgp_key === null || user.user_pgp_key === undefined
-                        || isEmpty(user.user_pgp_key) ? (
-                            <KeyOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <KeyOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
-                      {user.user_phone === null || user.user_phone === undefined
-                        || isEmpty(user.user_phone) ? (
-                            <SmartphoneOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <SmartphoneOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
+                      {isEmptyField(user.user_email) ? (
+                        <EmailOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <EmailOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
+                      {isEmptyField(user.user_pgp_key) ? (
+                        <KeyOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <KeyOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
+                      {isEmptyField(user.user_phone) ? (
+                        <SmartphoneOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <SmartphoneOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
                     </div>
                     <div
                       className={classes.bodyItem}

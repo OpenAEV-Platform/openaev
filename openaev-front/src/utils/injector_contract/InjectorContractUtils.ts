@@ -1,5 +1,4 @@
 import { type AttackPattern, type InjectorContractFullOutput } from '../api-types';
-import { isEmpty } from '../object';
 
 export const externalContractTypesWithFindings = ['openaev_nmap', 'openaev_nuclei', 'openaev_aws', 'openaev_netexec', 'openaev_phishing'];
 
@@ -11,7 +10,7 @@ const computeAttackPatterns = (attackPatternIds: InjectorContractFullOutput['inj
     }
     return [];
   }).filter(Boolean);
-  if (!isEmpty(attackPatternParents)) {
+  if (attackPatternParents.length > 0) {
     return attackPatternParents;
   }
   return (attackPatternIds ?? []).map((attackPattern) => {

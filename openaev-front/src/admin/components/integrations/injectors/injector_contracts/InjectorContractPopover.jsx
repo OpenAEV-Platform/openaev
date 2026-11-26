@@ -57,10 +57,10 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
       label: { en: data.injector_contract_name },
       fields: injectorContractContent.fields.map((field) => {
         const newField = { ...field };
-        if (fields[field.key]?.readOnly !== null && fields[field.key]?.readOnly !== undefined) {
+        if (fields[field.key]?.readOnly != null) {
           newField.readOnly = fields[field.key]?.readOnly;
         }
-        if (fields[field.key]?.defaultValue !== null && fields[field.key]?.defaultValue !== undefined) {
+        if (fields[field.key]?.defaultValue != null) {
           newField.defaultValue = field.cardinality === '1' ? fields[field.key]?.defaultValue : [fields[field.key]?.defaultValue];
         }
         return newField;

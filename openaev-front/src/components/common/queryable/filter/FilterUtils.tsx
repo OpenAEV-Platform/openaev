@@ -40,10 +40,8 @@ export const isExistingFilter = (filterGroup: FilterGroup, key: string) => {
 };
 
 export const isEmptyFilter = (filterGroup: FilterGroup, key: string) => {
-  if (isEmpty(filterGroup.filters)) {
-    return true;
-  }
-  return !filterGroup.filters?.find(f => f.key === key) || isEmpty(filterGroup.filters?.find(f => f.key === key)?.values);
+  const filter = filterGroup.filters?.find(f => f.key === key);
+  return !filter || isEmpty(filter.values);
 };
 
 export const craftedDocumentFilter = (item: RelatedEntityOutput, keyFilter: string, key: string) => {

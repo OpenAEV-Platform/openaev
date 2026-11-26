@@ -6,7 +6,7 @@ import { isEmpty } from './object';
 
 export const export_max_size = 50000;
 
-export const isNotEmptyField = <T>(field: T | null | undefined): field is T => !isEmpty(field) && (field !== null && field !== undefined);
+export const isNotEmptyField = <T>(field: T | null | undefined): field is T => field != null && !isEmpty(field);
 export const isEmptyField = <T>(
   field: T | null | undefined,
 ): field is null | undefined => !isNotEmptyField(field);
