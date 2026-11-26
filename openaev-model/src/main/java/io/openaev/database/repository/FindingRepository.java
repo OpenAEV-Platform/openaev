@@ -173,14 +173,25 @@ public interface FindingRepository
     String getValue();
   }
 
-  // One row PER FINDING: assets, and the injects, simulations, scenarios and fields of its
-  // occurrences, are aggregated. The previous per-(finding, asset) rows shared the same base_id, so
-  // multi-asset findings kept only one arbitrary asset in the search index (each bulk upsert
-  // overwrote the previous row) and the LIMIT applied to joined rows, not findings.
-  // Native: array_agg over the occurrences and assets. Read only, no side effect.
+  // One row PER FINDING: the injects, simulations, scenarios and fields of its occurrences are
+  // aggregated. The page CTE takes the batch off the cursor index first, so the joins and the
+  // GROUP BY only run on those findings: with the LIMIT after the GROUP BY, every batch of a
+  // re-feed from epoch joined and aggregated every finding after the cursor.
+  // Native: a CTE and array_agg. Read only, no side effect.
   @Query(
       value =
-          "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+          "WITH page AS ("
+              + "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + " f.finding_location_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
+              + "FROM findings f "
+              // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
+              // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
+              // resumes after its last id instead of skipping the rest of the group. A null id
+              // (first round, grace-window cap) re-serves the boundary group, idempotently.
+              + "WHERE (f.finding_updated_at > :from OR (f.finding_updated_at = :from"
+              + " AND (CAST(:fromId AS text) IS NULL OR f.finding_id > CAST(:fromId AS text)))) "
+              + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit) "
+              + "SELECT p.finding_id, p.finding_value, p.finding_value_display, p.finding_type,"
               + " array_agg(DISTINCT fo.finding_occurrence_field)"
               + " FILTER ( WHERE fo.finding_occurrence_field IS NOT NULL ) AS finding_fields,"
               + " array_agg(DISTINCT fo.finding_occurrence_inject_id)"
@@ -190,28 +201,18 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
-              + "FROM findings f "
-              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
+              + " p.finding_created_at, p.finding_updated_at, p.tenant_id "
+              + "FROM page p "
+              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = p.finding_id "
               + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
-              + "LEFT JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id "
-              // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
-              // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
-              // resumes after its last id instead of skipping the rest of the group. A null id
-              // (first round, grace-window cap) re-serves the boundary group, idempotently.
-              + "WHERE (f.finding_updated_at > :from OR (f.finding_updated_at = :from"
-              + " AND (CAST(:fromId AS text) IS NULL OR f.finding_id > CAST(:fromId AS text)))) "
-              // Every non-aggregated projected column, not just the id. Grouping on the id
-              // alone relies on PostgreSQL's functional-dependency rule, which only applies to
-              // BASE TABLES. Once findings is v2-active the tenant statement inspector rewrites
-              // "FROM findings f" into a derived table, the dependency can no longer be inferred,
-              // and this query stops being valid SQL: search indexing then fails outright instead
-              // of degrading. The array_agg(...) stay out, being aggregates.
-              + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + "LEFT JOIN finding_locations fl ON fl.finding_location_id = p.finding_location_id "
+              // Every non-aggregated projected column, not just the id: page is a CTE, not a base
+              // table, so PostgreSQL cannot infer that the other columns depend on the id.
+              + "GROUP BY p.finding_id, p.finding_value, p.finding_value_display, p.finding_type,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
-              + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
+              + " p.finding_created_at, p.finding_updated_at, p.tenant_id "
+              + "ORDER BY p.finding_updated_at, p.finding_id;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(
       @Param("from") Instant from, @Param("fromId") String fromId, @Param("limit") int limit);
