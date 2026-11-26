@@ -7,8 +7,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class InjectorContractContentUtils {
 
   private final ObjectMapper mapper;
+  private final ExpectationPropertiesConfig expectationPropertiesConfig;
 
   public static final String OUTPUTS = "outputs";
   public static final String FIELDS = "fields";
@@ -194,6 +197,50 @@ public class InjectorContractContentUtils {
       }
     }
     return List.of();
+  }
+
+  public void resetExpirationTimesInContractContent(InjectorContract contract) {
+    ObjectNode convertedContent = contract.getConvertedContent();
+    if (convertedContent == null
+        || !convertedContent.has(FIELDS)
+        || !convertedContent.get(FIELDS).isArray()) {
+      return;
+    }
+
+    for (JsonNode field : convertedContent.get(FIELDS)) {
+      String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
+      if (CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS.equals(key)) {
+        JsonNode available = field.get(AVAILABLE_EXPECTATIONS);
+        if (available != null && available.isArray()) {
+          StreamSupport.stream(available.spliterator(), false)
+              .filter(
+                  exp ->
+                      exp.has(IS_PREDEFINED_EXPECTATION)
+                          && exp.get(IS_PREDEFINED_EXPECTATION).asBoolean())
+              .forEach(exp -> overrideExpirationTimes(exp));
+        }
+      }
+    }
+  }
+
+  private JsonNode overrideExpirationTimes(JsonNode exp) {
+    if (exp.isObject()) {
+      ObjectNode objExp = (ObjectNode) exp;
+      JsonNode expTypeNode = objExp.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS_TYPE);
+      if (!(expTypeNode instanceof NullNode)) {
+        String expTypeString = expTypeNode.asText();
+        try {
+          BaseInjectExpectation.EXPECTATION_TYPE expType =
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(expTypeString);
+          objExp.put(
+              CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS_EXPIRATION_TIME,
+              expectationPropertiesConfig.getExpirationTimeByType(expType));
+        } catch (IllegalArgumentException e) {
+          log.debug("Expectation type '{}' is not valid", expTypeString, e);
+        }
+      }
+    }
+    return exp;
   }
 
   public BaseInjectExpectation.EXPECTATION_TYPE[] getPredefinedExpectations(

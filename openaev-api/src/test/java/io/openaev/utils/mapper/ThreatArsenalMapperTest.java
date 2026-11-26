@@ -15,6 +15,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
@@ -40,7 +41,8 @@ class ThreatArsenalMapperTest {
     // converted content, so no Spring context is needed.
     return new ThreatArsenalMapper(
         payloadMapper,
-        new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()),
+        new InjectorContractContentUtils(
+            ObjectMapperHelper.openAEVJsonMapper(), new ExpectationPropertiesConfig()),
         entityManager);
   }
 

@@ -6,6 +6,7 @@ import static java.util.Collections.emptyList;
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exception.UnprocessableContentException;
@@ -15,16 +16,19 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 @Service
 @RequiredArgsConstructor
 @Validated
+@Slf4j
 public class InjectAssistantService {
 
   public static final int MAX_NUMBER_INJECTS = 5;
@@ -38,6 +42,8 @@ public class InjectAssistantService {
   private final AiMetricCollector aiMetricCollector;
 
   private final InjectorContractRepository injectorContractRepository;
+  private final ExpectationPropertiesConfig expectationPropertiesConfig;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   // -- Used in Assistance AI
 
@@ -265,9 +271,13 @@ public class InjectAssistantService {
     if (!injectorContracts.isEmpty()) {
       return injectorContracts.stream()
           .map(
-              ic ->
-                  injectService.buildTechnicalInject(
-                      ic, attackPattern.getExternalId(), attackPattern.getName()))
+              ic -> {
+                // override expiration times in this path
+                InjectorContract cloned = ic.clone();
+                injectorContractContentUtils.resetExpirationTimesInContractContent(cloned);
+                return injectService.buildTechnicalInject(
+                    cloned, attackPattern.getExternalId(), attackPattern.getName());
+              })
           .toList();
     }
     return List.of(
@@ -506,9 +516,12 @@ public class InjectAssistantService {
           Inject inject =
               contractInjectMap.computeIfAbsent(
                   contract,
-                  k ->
-                      injectService.buildTechnicalInject(
-                          k, attackPattern.getExternalId(), attackPattern.getName()));
+                  k -> {
+                    InjectorContract cloned = k.clone();
+                    injectorContractContentUtils.resetExpirationTimesInContractContent(cloned);
+                    return injectService.buildTechnicalInject(
+                        cloned, attackPattern.getExternalId(), attackPattern.getName());
+                  });
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
     // Add manual injects
@@ -623,9 +636,12 @@ public class InjectAssistantService {
             Inject inject =
                 contractInjectMap.computeIfAbsent(
                     contract,
-                    k ->
-                        injectService.buildTechnicalInject(
-                            k, attackPattern.getExternalId(), attackPattern.getName()));
+                    k -> {
+                      InjectorContract cloned = k.clone();
+                      injectorContractContentUtils.resetExpirationTimesInContractContent(cloned);
+                      return injectService.buildTechnicalInject(
+                          cloned, attackPattern.getExternalId(), attackPattern.getName());
+                    });
             inject.getAssetGroups().add(group);
           });
 
