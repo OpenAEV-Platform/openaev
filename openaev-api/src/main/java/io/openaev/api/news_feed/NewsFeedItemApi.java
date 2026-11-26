@@ -42,7 +42,8 @@ public class NewsFeedItemApi {
   public static final String TENANT_NEWS_FEED_URI = TENANT_PREFIX + "/news-feed";
 
   private static final String CATEGORY_DESCRIPTION =
-      "Only the items of this category: the blogposts, or the resources (every other type)."
+      "Only the items of this category: the blogposts, the GitHub releases, or the resources (every"
+          + " other type)."
           + " All the items when absent";
 
   private final NewsFeedItemService newsFeedItemService;

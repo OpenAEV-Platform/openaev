@@ -65,6 +65,7 @@ public class NewsFeedItemService {
   private record TypedItem(ProvisionedNewsFeedItem item, NewsFeedType type) {}
 
   private static final String BLOG_POST_TYPE = NewsFeedType.BLOG_POST.name();
+  private static final String GITHUB_RELEASE_TYPE = NewsFeedType.GITHUB_RELEASE.name();
 
   // -- READ --
 
@@ -108,7 +109,10 @@ public class NewsFeedItemService {
   private static Specification<NewsFeedItem> inCategory(NewsFeedCategory category) {
     return switch (category) {
       case BLOG_POST -> (root, query, cb) -> cb.equal(root.get("type"), BLOG_POST_TYPE);
-      case RESOURCE -> (root, query, cb) -> cb.notEqual(root.get("type"), BLOG_POST_TYPE);
+      case GITHUB_RELEASE -> (root, query, cb) -> cb.equal(root.get("type"), GITHUB_RELEASE_TYPE);
+      case RESOURCE ->
+          (root, query, cb) ->
+              cb.not(root.get("type").in(List.of(BLOG_POST_TYPE, GITHUB_RELEASE_TYPE)));
     };
   }
 
