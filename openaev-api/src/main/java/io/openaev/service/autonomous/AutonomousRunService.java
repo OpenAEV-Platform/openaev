@@ -651,7 +651,7 @@ public class AutonomousRunService {
         scenarioService.scenarioTenantWithin(scenarioId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
     TxCtx scenarioCtx = TxCtx.forTenant(tenantId);
     tenantTx.setScopeOnCurrentTransaction(scenarioCtx);
-    return ambientTenantBridge.callInTenant(tenantId, () -> work.apply(scenarioCtx));
+    return work.apply(scenarioCtx);
   }
 
   private AutonomousRun launchInScenarioTenant(
