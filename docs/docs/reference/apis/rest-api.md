@@ -296,7 +296,7 @@ PUT /api/assets/bulk
 ```
 
 - **Selection**: `asset_ids_to_process`, or `search_pagination_input` with `asset_ids_to_ignore`.
-- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_tags_to_add`. A field left out is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
+- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_internet_facing` (`true` or `false`), `asset_tags_to_add`. A field left out (or null) is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
 - **Errors**: `400` when nothing is to be updated, for a subcategory without a category, or for a subcategory outside its category; `404` when a tag id is unknown in the Tenant. Nothing is written on an error.
 - **Access**: the right to manage Assets.
 - **Example**, reclassify every Asset carrying a tag:

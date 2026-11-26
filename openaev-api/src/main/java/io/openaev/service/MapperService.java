@@ -453,6 +453,7 @@ public class MapperService {
       endpointExport.setCategory(endpoint.getCategory());
       endpointExport.setSubcategory(endpoint.getSubcategory());
       endpointExport.setUrl(endpoint.getUrl());
+      endpointExport.setInternetFacing(endpoint.getInternetFacing());
       exports.add(endpointExport);
     }
     return exports;
@@ -661,6 +662,10 @@ public class MapperService {
       if (StringUtils.isNotBlank(endpointExportImport.getUrl())) {
         endpoint.setUrl(endpointExportImport.getUrl().trim());
       }
+      // An empty cell (or a file without the column) leaves the flag unknown.
+      if (endpointExportImport.getInternetFacing() != null) {
+        endpoint.setInternetFacing(endpointExportImport.getInternetFacing());
+      }
       // CSV import writes into the tenant the request selected, never the thread-local.
       // main plumbs the TxCtx down to this method; lot B made the tenant a REQUIRED argument of
       // createEndpoint, so a forgotten attribution is a compile error rather than a silent write
@@ -688,7 +693,8 @@ public class MapperService {
           "isEol",
           "category",
           "subcategory",
-          "url"
+          "url",
+          "internetFacing"
         };
     strategy.setColumnMapping(columns);
     return strategy;
