@@ -7,7 +7,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type NewsFeedItemOutput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { tint } from '../../../utils/tint';
-import { buildBlogPostHubUrl, buildConfiguredHubUrl, NEWS_FEED_BLOG_POST_TYPE } from '../profile/news_feed/newsFeedUtils';
+import { buildHubRedirectUrl, buildConfiguredHubUrl, NEWS_FEED_BLOG_POST_TYPE } from '../profile/news_feed/newsFeedUtils';
 import { useNewsFeedToastStyles } from './newsFeedToastSurface';
 
 export type NewsFeedToastData = Pick<NewsFeedItemOutput, 'news_feed_item_id' | 'news_feed_item_title' | 'news_feed_item_type' | 'news_feed_item_url_path'>;
@@ -35,7 +35,7 @@ const NewsFeedToastItem: FunctionComponent<Props> = ({ item }) => {
   }
   // A blogpost goes through the XTM Hub redirect, which is told the platform the reader comes from.
   const hubUrl = isBlogPost
-    ? buildBlogPostHubUrl(item.news_feed_item_url_path, settings.xtm_hub_url, settings.platform_id)
+    ? buildHubRedirectUrl(item.news_feed_item_url_path, settings.xtm_hub_url, settings.platform_id)
     : buildConfiguredHubUrl(item.news_feed_item_url_path, settings.xtm_hub_url);
 
   return (

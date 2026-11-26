@@ -4,8 +4,8 @@ import type { NewsFeedSettingsInput, SearchPaginationInput } from '../../utils/a
 const NEWS_FEED_URI = '/api/news-feed';
 const NEWS_FEED_SETTINGS_URI = '/api/news-feed-settings';
 
-/** The blogposts, or the resources (every other type): each category is read, and counted unread, on its own. */
-export type NewsFeedCategory = 'BLOG_POST' | 'RESOURCE';
+/** The blogposts, the GitHub releases, or the resources (every other type): each category is read, and counted unread, on its own. */
+export type NewsFeedCategory = 'BLOG_POST' | 'GITHUB_RELEASE' | 'RESOURCE';
 
 // Without a category, the request is the one of all the items.
 const categoryConfig = (category?: NewsFeedCategory) => (category ? { params: { category } } : undefined);

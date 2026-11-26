@@ -444,7 +444,7 @@ describe('NewsFeed page', () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: ENABLE_ALL }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }, false));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST', 'GITHUB_RELEASE'] }, false));
     });
 
     it('keeps the previous state when the save fails', async () => {
