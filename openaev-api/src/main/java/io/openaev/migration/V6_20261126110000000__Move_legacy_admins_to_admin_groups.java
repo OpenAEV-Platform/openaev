@@ -106,18 +106,19 @@ public class V6_20261126110000000__Move_legacy_admins_to_admin_groups extends Ba
   }
 
   /**
-   * Same resolution as {@code AdminPrivilegeService}: the well-known group of the tenant, else its
-   * group named Admin with a role granting {@code BYPASS}, never a group that only shares the name.
+   * The well-known group of the tenant or its group named Admin, the well-known one first, and only
+   * if one of its roles grants {@code BYPASS}: a group whose roles were edited does not count.
    */
   private static Optional<String> tenantAdminGroupId(Connection connection, String tenantId)
       throws SQLException {
     String wellKnownId = getUUIDFromName(ADMIN_ACCESS.groupId(), tenantId);
     return queryIds(
             connection,
-            "SELECT g.group_id FROM groups g WHERE g.tenant_id = ? AND (g.group_id = ?"
-                + " OR (g.group_name = ? AND EXISTS (SELECT 1 FROM groups_roles gr"
+            "SELECT g.group_id FROM groups g WHERE g.tenant_id = ?"
+                + " AND (g.group_id = ? OR g.group_name = ?)"
+                + " AND EXISTS (SELECT 1 FROM groups_roles gr"
                 + " JOIN roles_capabilities rc ON rc.role_id = gr.role_id"
-                + " WHERE gr.group_id = g.group_id AND rc.capability = ?)))"
+                + " WHERE gr.group_id = g.group_id AND rc.capability = ?)"
                 + " ORDER BY g.group_id = ? DESC, g.group_id LIMIT 1",
             tenantId,
             wellKnownId,
