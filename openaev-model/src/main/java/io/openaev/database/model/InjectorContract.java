@@ -504,6 +504,30 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
     return first != null ? first.getType() : null;
   }
 
+  /**
+   * Text search only (#9876): the free-text search also matches the name of a linked attack
+   * pattern ("Credentials from Web Browsers"), not only its external id ("T1555.003") declared on
+   * {@link #attackPatterns}. Kept off the field so the attack pattern filter keeps matching the
+   * external id alone. Neither filterable nor sortable; the search query groups by contract and
+   * counts distinct contracts, so several matching attack patterns never duplicate a row.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.name")
+  public List<String> getAttackPatternNames() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getName)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  /** Text search only (#9876): the free-text search also matches the payload description. */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "payload.description")
+  public String getPayloadDescription() {
+    return ofNullable(getPayload()).map(Payload::getDescription).orElse(null);
+  }
+
   @JsonIgnore
   @JsonProperty("injector_contract_kill_chain_phases")
   @Queryable(filterable = true, dynamicValues = true, path = "attackPatterns.killChainPhases.id")
