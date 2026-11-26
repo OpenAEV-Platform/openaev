@@ -15,44 +15,7 @@ checkNodeVersion();
 // imported once the version is checked: an older Node fails to load its TypeScript sources
 const { default: customRules } = await import('eslint-plugin-custom-rules');
 
-// Ramda is being removed, one pull request per family of functions. Files that still import it are
-// listed here: a pull request that cleans a file removes it from the list, so no new import comes in.
-const legacyRamdaFiles = [
-  'src/admin/components/common/injects/InjectDistributionByTeam.tsx',
-  'src/admin/components/common/injects/InjectDistributionByType.tsx',
-  'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
-  'src/admin/components/settings/attack_patterns/CreateAttackPattern.jsx',
-  'src/admin/components/settings/groups/tenant_groups/GroupPopover.jsx',
-  'src/admin/components/settings/tags/CreateTag.jsx',
-  'src/admin/components/settings/tags/TagPopover.jsx',
-  'src/admin/components/simulations/simulation/injects/QuickInject.jsx',
-  'src/admin/components/simulations/simulation/logs/LogPopover.jsx',
-  'src/admin/components/simulations/simulation/mails/MailDistributionByInject.tsx',
-  'src/admin/components/simulations/simulation/mails/MailDistributionByPlayer.tsx',
-  'src/admin/components/simulations/simulation/mails/MailDistributionByTeam.tsx',
-  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeChart.tsx',
-  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeLine.tsx',
-  'src/admin/components/simulations/simulation/overview/DistributionUtils.ts',
-  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreByTeamInPercentage.tsx',
-  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByInjectorContract.tsx',
-  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeam.tsx',
-  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeamInPercentage.tsx',
-  'src/admin/components/simulations/simulation/validation/Validations.jsx',
-  'src/admin/components/teams/organizations/OrganizationPopover.jsx',
-  'src/admin/components/teams/utils.ts',
-  'src/components/CountryField.jsx',
-  'src/components/ItemBoolean.jsx',
-  'src/components/ItemNumberDifference.jsx',
-  'src/components/KillChainPhaseField.jsx',
-  'src/components/OldAttackPatternField.jsx',
-  'src/components/OrganizationField.jsx',
-  'src/components/TagField.jsx',
-  'src/store.ts',
-  'src/utils/Action.ts',
-  'src/utils/BrowserLanguage.ts',
-];
-
-const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
+const restrictedImports = ({ extraPaths = [] } = {}) => [
   'error', {
     patterns: [
       {
@@ -69,12 +32,10 @@ const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
         importNames: ['*'],
         message: 'Do not use `import * as React from \'react\'`. Use `import {...} from \'react\'` instead.',
       },
-      ...(allowRamda
-        ? []
-        : [{
-            name: 'ramda',
-            message: 'Ramda is being removed: use native JavaScript instead.',
-          }]),
+      {
+        name: 'ramda',
+        message: 'Ramda is being removed: use native JavaScript instead.',
+      },
       ...extraPaths,
     ],
   },
@@ -183,7 +144,7 @@ export default [
           ignoreTemplateLiterals: true,
         },
       ],
-      'no-restricted-imports': restrictedImports({ allowRamda: false }),
+      'no-restricted-imports': restrictedImports(),
     },
     files: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx'],
     languageOptions: {
@@ -194,12 +155,6 @@ export default [
         process: true,
       },
     },
-  },
-
-  // files that still import Ramda (a later config replaces the rule's options, it does not merge them)
-  {
-    files: legacyRamdaFiles,
-    rules: { 'no-restricted-imports': restrictedImports({ allowRamda: true }) },
   },
 
   // unit tests config
@@ -230,7 +185,6 @@ export default [
     files: ['tests_e2e/tests/**/*'],
     rules: {
       'no-restricted-imports': restrictedImports({
-        allowRamda: false,
         extraPaths: [{
           name: '@playwright/test',
           importNames: ['test'],

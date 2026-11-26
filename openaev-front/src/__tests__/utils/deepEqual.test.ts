@@ -4,7 +4,7 @@ import { deepEqual } from '../../utils/object';
 import { buildDeepEqualCases } from './deepEqualCases';
 
 describe('deepEqual', () => {
-  // The expectations are the results of Ramda's `equals`, see deepEqualCases.ts
+  // The expectations are frozen, see deepEqualCases.ts
   it.each(buildDeepEqualCases())('given $name should return $expected, whatever the argument order', ({ a, b, expected, expectedSwapped }) => {
     // Act
     const result = deepEqual(a, b);

@@ -1,4 +1,4 @@
-// Same semantics as Ramda's `pick`: a key is copied when `key in obj` (inherited ones included),
+// A key is copied when `key in obj` (inherited ones included),
 // an absent key stays absent in the result (no `undefined` placeholder)
 export const pick = <T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Pick<T, K> => {
   const result = {} as Pick<T, K>;
@@ -10,8 +10,8 @@ export const pick = <T extends object, K extends keyof T>(obj: T, keys: readonly
   return result;
 };
 
-// A shallow copy without the given keys, `obj` is untouched. Unlike Ramda's `omit` / `dissoc` it copies own
-// enumerable properties only (not inherited ones), which is what plain JSON payloads and Redux state need
+// A shallow copy without the given keys, `obj` is untouched. It copies own enumerable properties only
+// (not inherited ones), which is what plain JSON payloads and Redux state need
 export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Omit<T, K> => {
   const result: Partial<T> = { ...obj };
   keys.forEach((key) => {
@@ -20,13 +20,13 @@ export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly
   return result as Omit<T, K>;
 };
 
-// Same semantics as Ramda's `isEmpty` for the JSON data of the application: `true` only for an empty string,
-// array, plain object, Map, Set, typed array or `arguments`. Known gaps with Ramda, none reachable with our
-// data: a sparse array like `[,]` (Ramda `true`, here `false`) and an empty BigInt64Array (Ramda `false`, here
-// `true`). `null` and `undefined` are NOT empty (unlike a `!value` check), and
-// neither are a number, a boolean, a function or a Date. Own enumerable string keys are what makes an object
-// non-empty (symbol keys and inherited ones are ignored). Ramda's `empty` hooks (a `fantasy-land/empty` or an
-// `empty` method on the value or its constructor) are not supported: none of our data carries them
+// Built for the JSON data of the application: `true` only for an empty string, array, plain object, Map, Set,
+// typed array or `arguments`. Edge cases, none reachable with our data: a sparse array like `[,]` is not empty
+// (its length is 1) and an empty BigInt64Array is empty. `null` and `undefined` are NOT empty (unlike a `!value`
+// check), and neither are a number, a boolean, a function or a Date. Own enumerable string keys are what makes
+// an object non-empty (symbol keys and inherited ones are ignored). Custom emptiness hooks (a
+// `fantasy-land/empty` or an `empty` method on the value or its constructor) are not supported: none of our
+// data carries them
 export const isEmpty = (value: unknown): boolean => {
   if (value === null || value === undefined) {
     return false;
@@ -52,7 +52,7 @@ export const isEmpty = (value: unknown): boolean => {
 
 type Loose = Record<PropertyKey, unknown>;
 
-// Ramda's `type`: the `Object.prototype.toString` tag, with `Null` and `Undefined` spelled out
+// The `Object.prototype.toString` tag, with `Null` and `Undefined` spelled out
 const tagOf = (value: unknown): string => {
   if (value === null) {
     return 'Null';
@@ -63,14 +63,14 @@ const tagOf = (value: unknown): string => {
   return Object.prototype.toString.call(value).slice(8, -1);
 };
 
-// Ramda's `keys`: own enumerable string keys, none for a primitive
+// Own enumerable string keys, none for a primitive
 const ownKeys = (value: unknown): string[] => (Object(value) !== value ? [] : Object.keys(value as object));
 
-// Ramda's `_functionName`: `class X {}` has no `function ` prefix, so its name is not found
+// The name of a function declared with the `function` keyword: `class X {}` has no `function ` prefix, so its name is not found
 const functionName = (fn: unknown): string => String(fn).match(/^function (\w*)/)?.[1] ?? '';
 
-// Ramda's `_uniqContentEquals`: every element of `a` has an equal one in `b` (the sizes are already equal).
-// It is not a multiset comparison, so [1, 1, 2] and [1, 2, 2] are "equal" as Set / Map contents (like Ramda)
+// Every element of `a` has an equal one in `b` (the sizes are already equal).
+// It is not a multiset comparison, so [1, 1, 2] and [1, 2, 2] are "equal" as Set / Map contents
 const sameContent = (a: unknown[], b: unknown[], equals: (itemA: unknown, itemB: unknown) => boolean): boolean => (
   a.every(itemA => b.some(itemB => equals(itemA, itemB)))
 );
@@ -194,7 +194,7 @@ const equalsWithStacks = (a: unknown, b: unknown, stackA: unknown[], stackB: unk
   return true;
 };
 
-// Port of Ramda's `equals` (0.32), which `useHelper` relied on: a deep structural equality where
+// Deep structural equality, used by `useHelper`:
 // - primitives compare with `Object.is` (NaN equals NaN, 0 differs from -0), a primitive never equals its wrapper;
 // - values of different `Object.prototype.toString` tags are different (an array is never a plain object);
 // - plain objects, arrays, arguments, typed arrays, boxed primitives compare their own enumerable string keys,
@@ -204,6 +204,6 @@ const equalsWithStacks = (a: unknown, b: unknown, stackA: unknown[], stackB: unk
 // - a cycle is equal to the other cycle when both come back to the same pair of values;
 // - any other type (function, symbol, bigint, promise, WeakMap, DataView...) is only equal to itself;
 // - an object with an `equals` / `fantasy-land/equals` method decides by itself, as long as both sides agree.
-// Known gaps with Ramda, none reachable with the JSON data of the store: the custom `equals` result is coerced to a
-// boolean (Ramda returns it as is), and a getter named `equals` is read once more than Ramda reads it
+// Edge cases, none reachable with the JSON data of the store: the result of a custom `equals` is coerced to a
+// boolean (not returned as is)
 export const deepEqual = (a: unknown, b: unknown): boolean => equalsWithStacks(a, b, [], []);

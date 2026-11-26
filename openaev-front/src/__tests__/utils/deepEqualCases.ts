@@ -9,8 +9,8 @@ export type DeepEqualCase = {
   expectedSwapped?: boolean;
 };
 
-// Expected values are the results of Ramda's `equals` (0.32), frozen here so that the test needs no Ramda: they
-// were checked against Ramda's `equals` in both argument orders when `deepEqual` replaced it.
+// Expected values are frozen here, so that the test needs no reference implementation: they were checked in both
+// argument orders when `deepEqual` was written.
 // Values are built by functions where a cycle or a non-trivial object is needed.
 const cycle = (value: number): Record<string, unknown> => {
   const node: Record<string, unknown> = { value };
