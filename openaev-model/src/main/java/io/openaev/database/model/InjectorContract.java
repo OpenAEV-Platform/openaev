@@ -505,11 +505,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   }
 
   /**
-   * Text search only (#9876): the free-text search also matches the name of a linked attack
-   * pattern ("Credentials from Web Browsers"), not only its external id ("T1555.003") declared on
-   * {@link #attackPatterns}. Kept off the field so the attack pattern filter keeps matching the
-   * external id alone. Neither filterable nor sortable; the search query groups by contract and
-   * counts distinct contracts, so several matching attack patterns never duplicate a row.
+   * Text search only (#9876): the free-text search also matches the name of a linked attack pattern
+   * ("Credentials from Web Browsers"), not only its external id ("T1555.003") declared on {@link
+   * #attackPatterns}. Kept off the field so the attack pattern filter keeps matching the external
+   * id alone. Neither filterable nor sortable; the search query groups by contract and counts
+   * distinct contracts, so several matching attack patterns never duplicate a row.
    */
   @JsonIgnore
   @Queryable(searchable = true, path = "attackPatterns.name")

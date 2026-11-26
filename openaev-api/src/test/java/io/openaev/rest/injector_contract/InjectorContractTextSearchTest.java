@@ -65,7 +65,8 @@ class InjectorContractTextSearchTest extends IntegrationTest {
     return attackPattern;
   }
 
-  private InjectorContract persistContract(String title, AttackPattern... attackPatterns) {
+  private InjectorContract persistContract(String title, AttackPattern... attackPatterns)
+      throws Exception {
     InjectorContract contract = InjectorContractFixture.createInjectorContract(Map.of("en", title));
     InjectorContractComposer.Composer composer =
         injectorContractComposer.forInjectorContract(contract);
