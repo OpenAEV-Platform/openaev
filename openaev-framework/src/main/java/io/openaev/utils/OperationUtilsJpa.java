@@ -408,7 +408,7 @@ public final class OperationUtilsJpa {
       value = paths;
     }
 
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (!canBeBlank(type)) {
       return cb.isNotNull(value);
     }
 
@@ -425,7 +425,7 @@ public final class OperationUtilsJpa {
     } else {
       value = paths;
     }
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (!canBeBlank(type)) {
       return cb.isNull(value);
     }
     return cb.or(cb.isNull(value), cb.equal(value, ""), cb.equal(value, " "));
@@ -573,5 +573,11 @@ public final class OperationUtilsJpa {
 
   private static boolean isArray(Class<?> type) {
     return type.isArray() || type.isAssignableFrom(List.class);
+  }
+
+  // Only text, arrays and collections can be blank; any other type is a plain null check.
+  static boolean canBeBlank(Class<?> type) {
+    return type != null
+        && (CharSequence.class.isAssignableFrom(type) || isArray(type) || isCollection(type));
   }
 }
