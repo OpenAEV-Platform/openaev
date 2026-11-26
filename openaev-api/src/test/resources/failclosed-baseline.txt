@@ -230,4 +230,7 @@ io.openaev.rest.inject.service.InjectService.doFindInScope tables=collector_type
 # The user of a url access token is loaded with its groups before the simulation is looked up, so
 # the empty scope of a route that names no tenant reaches the groups read as well.
 io.openaev.rest.helper.RestBehavior.impersonateUser tables=groups
+# The channel of the player articles route is read by id before the simulation, so the empty scope
+# of the url access token route that names no tenant finds no channel and the route answers 404
+# (PlayerUrlTokenRoutesTenantPathTest, the channel articles route on the non-prefixed route).
 io.openaev.service.ChannelService.validateArticles tables=channels
