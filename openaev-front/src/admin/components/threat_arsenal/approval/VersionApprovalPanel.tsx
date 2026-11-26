@@ -13,10 +13,10 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { APPROVAL_COMMENT_MAX_LENGTH } from './approvalStatusUtils';
+import { lastEdited } from './lastEdited';
 import PayloadVersionComparison from './PayloadVersionComparison';
 import useApprovalDecisionError from './useApprovalDecisionError';
 import useVersionChanges from './useVersionChanges';
-import useVersionDetails from './useVersionDetails';
 
 interface Props {
   version: PayloadVersionOutput;
@@ -49,11 +49,7 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
   useEffect(() => {
     dispatch(fetchMe());
   }, [actionId]);
-  const details = useVersionDetails(actionId);
-  const submittedBy = (() => {
-    if (details.authorName) return t('Submitted by {name}', { name: details.authorName });
-    return details.fromCollector ? t('Submitted by a collector') : null;
-  })();
+  const edited = lastEdited(version);
   const changes = useVersionChanges(actionId, baseline?.payload_action_id);
 
   const closeApprove = () => {
@@ -124,12 +120,13 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
     }}
     >
       {/* 1. Who and when, right under the version and its status (Law of Proximity): the person first
-          (design system Avatar, recognised at a glance, NN/g H6), the date as their second line. */}
-      {details.authorName
-        ? <Avatar size="md" name={details.authorName} showName description={[t('Submitted'), version.payload_created_at ? nsdt(version.payload_created_at) : null].filter(Boolean).join(' · ')} />
+          (design system Avatar, recognised at a glance, NN/g H6), the date as their second line. The
+          person is who last saved the version, not its first author (US1.2 AC11). */}
+      {edited.name
+        ? <Avatar size="md" name={edited.name} showName description={[t('Last edited'), edited.at ? nsdt(edited.at) : null].filter(Boolean).join(' · ')} />
         : (
             <Text variant="content-base" className="text-default-secondary">
-              {[submittedBy, version.payload_created_at ? nsdt(version.payload_created_at) : null].filter(Boolean).join(' · ')}
+              {[t('Last edited by {name}', { name: t('Unknown') }), edited.at ? nsdt(edited.at) : null].filter(Boolean).join(' · ')}
             </Text>
           )}
       {/* 2. The evidence: what this version changes, read before deciding. A first version (nothing

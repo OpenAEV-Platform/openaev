@@ -30,6 +30,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Instant;
 import java.util.*;
 import org.hibernate.Session;
 import org.junit.jupiter.api.*;
@@ -412,6 +413,33 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
 
       // Assert
       assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @DisplayName("a version fixed by someone else shows who fixed it and when, not its author")
+    void given_rejectedVersionFixedByAnother_should_showLastEditor() throws Exception {
+      // Arrange
+      String actionId = createAction(author);
+      reject(actionId);
+      String draftId = createDraft(approver, actionId, "echo fixed");
+
+      // Act
+      publish(approver, actionId, draftId, update(actionId, "echo fixed"));
+
+      // Assert
+      String versionsBody =
+          body(mvc.perform(get(url("/" + actionId + "/versions"))).andExpect(status().isOk()));
+      assertThat((String) JsonPath.read(versionsBody, "$[0].payload_last_modified_by_name"))
+          .contains("Approver");
+      Instant createdAt = Instant.parse(JsonPath.read(versionsBody, "$[0].payload_created_at"));
+      Instant lastEditedAt =
+          Instant.parse(JsonPath.read(versionsBody, "$[0].payload_last_edited_at"));
+      assertThat(lastEditedAt).isAfterOrEqualTo(createdAt);
+      String detail = detail(actionId);
+      assertThat((String) JsonPath.read(detail, "$.action_last_modified_by_name"))
+          .contains("Approver");
+      assertThat(Instant.parse(JsonPath.read(detail, "$.action_last_edited_at")))
+          .isEqualTo(lastEditedAt);
     }
 
     @Test

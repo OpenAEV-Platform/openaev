@@ -5109,10 +5109,6 @@
   "show them in the list": "목록에 표시",
   "Slice by": "분할 기준",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "\"{view}\"의 현재 검색, 필터 및 분할에서 시작합니다. 새 탭으로 열립니다.",
-  "Submitted": "제출일",
-  "Submitted by": "제출자",
-  "Submitted by {name}": "{name}이(가) 제출함",
-  "Submitted by a collector": "수집기가 제출함",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "새 버전으로 승인 요청했습니다. 승인자가 결정할 때까지 승인된 버전이 계속 실행됩니다.",
   "Submitted for approval. It can be used once an approver approves it.": "승인 요청했습니다. 승인자가 승인하면 사용할 수 있습니다.",
   "Submitted this version": "이 버전을 제출함",
@@ -5220,5 +5216,8 @@
   "Source IP": "출발지 IP",
   "Destination IP": "목적지 IP",
   "Source port": "출발지 포트",
-  "Destination port": "목적지 포트"
+  "Destination port": "목적지 포트",
+  "Last edited by": "마지막 편집자",
+  "Last edited by {name}": "마지막 편집자: {name}",
+  "Last edited": "마지막 편집"
 }

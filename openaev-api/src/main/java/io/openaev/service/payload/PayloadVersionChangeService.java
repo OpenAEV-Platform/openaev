@@ -25,6 +25,7 @@ import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.scenario.revision.ScenarioRevisionService;
 import io.openaev.utils.SemanticVersion;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -110,7 +111,16 @@ public class PayloadVersionChangeService {
             : usagesOf(injectorContractService.injectorContract(contractId)).size(),
         payload == null ? null : payload.getCreatedAt(),
         payload == null ? null : payload.getApprovalStatus(),
-        rejectionReason(payload));
+        rejectionReason(payload),
+        payload == null || payload.getLastModifiedBy() == null
+            ? null
+            : payload.getLastModifiedBy().getNameOrEmail(),
+        payload == null ? null : lastEditedAt(payload));
+  }
+
+  // When the version was last saved; its creation when no save is recorded.
+  private Instant lastEditedAt(Payload payload) {
+    return payloadApprovalService.lastSavedAt(payload.getId()).orElse(payload.getCreatedAt());
   }
 
   // The reason of the latest rejection of a rejected version (shown where it can be fixed).

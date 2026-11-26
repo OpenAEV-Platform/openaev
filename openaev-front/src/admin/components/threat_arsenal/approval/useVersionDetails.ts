@@ -4,22 +4,15 @@ import { fetchThreatArsenalActionApprovals } from '../../../../actions/threat_ar
 import { type PayloadApprovalOutput } from '../../../../utils/api-types';
 
 export interface VersionDetails {
-  /** Who created the version: the first entry of its approval history. */
-  authorName?: string;
-  /** Created by a collector (no person to name). */
-  fromCollector: boolean;
   /** Approval history of the version, newest first. */
   history: PayloadApprovalOutput[];
 }
 
-const EMPTY: VersionDetails = {
-  fromCollector: false,
-  history: [],
-};
+const EMPTY: VersionDetails = { history: [] };
 
 /**
- * Loads who submitted a version and its approval history: its author is the first entry of that
- * history. What the version changes is loaded apart ({@link useVersionChanges}).
+ * Loads the approval history of a version. Who last edited it comes with the version itself
+ * ({@link lastEdited}); what it changes is loaded apart ({@link useVersionChanges}).
  */
 const useVersionDetails = (actionId?: string): VersionDetails => {
   const [details, setDetails] = useState<VersionDetails>(EMPTY);
@@ -35,13 +28,7 @@ const useVersionDetails = (actionId?: string): VersionDetails => {
       .catch(() => [] as PayloadApprovalOutput[])
       .then((history) => {
         if (cancelled) return;
-        const sorted = [...history].sort((a, b) => b.approval_created_at.localeCompare(a.approval_created_at));
-        const creation = sorted[sorted.length - 1];
-        setDetails({
-          authorName: creation?.approval_origin === 'COLLECTOR' ? undefined : creation?.approval_actor_name,
-          fromCollector: creation?.approval_origin === 'COLLECTOR',
-          history: sorted,
-        });
+        setDetails({ history: [...history].sort((a, b) => b.approval_created_at.localeCompare(a.approval_created_at)) });
       });
     return () => {
       cancelled = true;

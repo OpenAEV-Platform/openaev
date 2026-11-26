@@ -174,6 +174,77 @@ class PayloadVariantTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Last modified by")
+  class LastModifiedBy {
+
+    // Catalogue versions carry no last modifier: whatever a variant shows was set by its write.
+    private List<Payload> unattributed(String... contents) {
+      List<Payload> released = catalogVersions(contents);
+      released.forEach(version -> version.setLastModifiedBy(null));
+      return released;
+    }
+
+    @Test
+    @DisplayName("Customizing records the user who customized")
+    @WithMockUser(isAdmin = true)
+    void given_customize_should_recordActingUser() {
+      // Arrange
+      Payload base = unattributed("echo base").getFirst();
+
+      // Act
+      VariantResult result = payloadVariantService.customize(base.getId());
+
+      // Assert
+      assertThat(result.payload().getLastModifiedBy()).isNotNull();
+      assertThat(result.payload().getLastModifiedBy().getId())
+          .isEqualTo(testUserHolder.get().getId());
+    }
+
+    @Test
+    @DisplayName("Changing a customized copy records the user who changed it")
+    @WithMockUser(isAdmin = true)
+    void given_overrides_should_recordActingUser() {
+      // Arrange
+      Payload base = unattributed("echo base").getFirst();
+      String identityId =
+          payloadVariantService.customize(base.getId()).payload().getIdentity().getId();
+
+      // Act
+      VariantResult changed =
+          payloadVariantService.updateOverrides(identityId, Map.of("command_content", "echo mine"));
+
+      // Assert
+      assertThat(changed.payload().getLastModifiedBy()).isNotNull();
+      assertThat(changed.payload().getLastModifiedBy().getId())
+          .isEqualTo(testUserHolder.get().getId());
+    }
+
+    @Test
+    @DisplayName("A rebase records the user who rebased")
+    @WithMockUser(isAdmin = true)
+    void given_rebase_should_recordActingUser() {
+      // Arrange
+      List<Payload> released = unattributed("echo base", "echo fixed");
+      String identityId =
+          payloadVariantService
+              .customize(released.getFirst().getId())
+              .payload()
+              .getIdentity()
+              .getId();
+      payloadVariantService.updateOverrides(
+          identityId, Map.of("payload_platforms", List.of("Linux", "Windows")));
+
+      // Act
+      VariantResult rebased = payloadVariantService.rebase(identityId, null, Map.of());
+
+      // Assert
+      assertThat(rebased.payload().getLastModifiedBy()).isNotNull();
+      assertThat(rebased.payload().getLastModifiedBy().getId())
+          .isEqualTo(testUserHolder.get().getId());
+    }
+  }
+
+  @Nested
   @DisplayName("Both sides changed the execution block")
   class Conflict {
 

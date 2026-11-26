@@ -5109,10 +5109,6 @@
   "show them in the list": "les afficher dans la liste",
   "Slice by": "Découper par",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "Part de « {view} » avec la recherche, les filtres et le découpage actuels. Elle s’ouvre dans un nouvel onglet.",
-  "Submitted": "Soumis",
-  "Submitted by": "Soumis par",
-  "Submitted by {name}": "Soumis par {name}",
-  "Submitted by a collector": "Soumis par un collecteur",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "Soumise à l'approbation en tant que nouvelle version. La version approuvée continue de s'exécuter jusqu'à la décision d'un approbateur.",
   "Submitted for approval. It can be used once an approver approves it.": "Soumise à l'approbation. Elle pourra être utilisée une fois approuvée.",
   "Submitted this version": "A soumis cette version",
@@ -5220,5 +5216,8 @@
   "Source IP": "IP source",
   "Destination IP": "IP de destination",
   "Source port": "Port source",
-  "Destination port": "Port de destination"
+  "Destination port": "Port de destination",
+  "Last edited by": "Dernière modification par",
+  "Last edited by {name}": "Dernière modification par {name}",
+  "Last edited": "Dernière modification"
 }

@@ -5109,10 +5109,6 @@
   "show them in the list": "一覧に表示",
   "Slice by": "分割基準",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "「{view}」の現在の検索、フィルター、分割から始まります。新しいタブとして開きます。",
-  "Submitted": "提出日",
-  "Submitted by": "提出者",
-  "Submitted by {name}": "{name} が提出",
-  "Submitted by a collector": "コレクターが提出",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "新しいバージョンとして承認に提出しました。承認者が判断するまで、承認済みのバージョンが実行され続けます。",
   "Submitted for approval. It can be used once an approver approves it.": "承認に提出しました。承認者が承認すると使用できます。",
   "Submitted this version": "このバージョンを提出",
@@ -5220,5 +5216,8 @@
   "Source IP": "送信元IP",
   "Destination IP": "宛先IP",
   "Source port": "送信元ポート",
-  "Destination port": "宛先ポート"
+  "Destination port": "宛先ポート",
+  "Last edited by": "最終編集者",
+  "Last edited by {name}": "最終編集者: {name}",
+  "Last edited": "最終編集"
 }

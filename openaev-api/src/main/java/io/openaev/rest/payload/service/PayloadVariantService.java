@@ -152,6 +152,8 @@ public class PayloadVariantService {
       first.setAuthorTeam(null);
       first.setAuthorOrganization(null);
     }
+    // compose copies the catalogue version: its last modifier is whoever customizes it.
+    first.setLastModifiedBy(user);
     Payload saved =
         payloadVersionService.addVersion(
             identity, first, PayloadVersionService.Numbering.fixed(Payload.FIRST_VERSION));
@@ -351,13 +353,15 @@ public class PayloadVariantService {
     candidate.setAuthorUser(current.getAuthorUser());
     candidate.setAuthorTeam(current.getAuthorTeam());
     candidate.setAuthorOrganization(current.getAuthorOrganization());
+    // A change of the overrides or a rebase: saved by the acting user. Null outside a request.
+    User user = userService.currentUserOrNull();
+    candidate.setLastModifiedBy(user);
     Payload saved =
         payloadVersionService.addVersion(
             identity,
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change));
-    payloadApprovalService.onWrite(
-        saved, userService.currentUserOrNull(), PayloadApproval.ORIGIN.UPDATE);
+    payloadApprovalService.onWrite(saved, user, PayloadApproval.ORIGIN.UPDATE);
     InjectorContract contract =
         synchronise(saved, previousContract != null ? previousContract : contractOf(base));
     if (previousContract != null && contract != null) {

@@ -5109,10 +5109,6 @@
   "show them in the list": "mostrarlas en la lista",
   "Slice by": "Dividir por",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "Parte de «{view}» con la búsqueda, los filtros y la división actuales. Se abre como una nueva pestaña.",
-  "Submitted": "Enviado",
-  "Submitted by": "Enviado por",
-  "Submitted by {name}": "Enviado por {name}",
-  "Submitted by a collector": "Enviado por un recolector",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "Enviada a aprobación como nueva versión. La versión aprobada sigue ejecutándose hasta que un aprobador decida.",
   "Submitted for approval. It can be used once an approver approves it.": "Enviada a aprobación. Se podrá usar cuando un aprobador la apruebe.",
   "Submitted this version": "Envió esta versión",
@@ -5220,5 +5216,8 @@
   "Source IP": "IP de origen",
   "Destination IP": "IP de destino",
   "Source port": "Puerto de origen",
-  "Destination port": "Puerto de destino"
+  "Destination port": "Puerto de destino",
+  "Last edited by": "Última edición por",
+  "Last edited by {name}": "Última edición por {name}",
+  "Last edited": "Última edición"
 }

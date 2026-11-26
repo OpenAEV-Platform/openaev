@@ -5109,10 +5109,6 @@
   "show them in the list": "in der Liste anzeigen",
   "Slice by": "Aufteilen nach",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "Startet von „{view}“ mit der aktuellen Suche, den Filtern und der Aufteilung. Sie öffnet sich als neuer Tab.",
-  "Submitted": "Eingereicht",
-  "Submitted by": "Eingereicht von",
-  "Submitted by {name}": "Eingereicht von {name}",
-  "Submitted by a collector": "Von einem Collector eingereicht",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "Als neue Version zur Genehmigung eingereicht. Die genehmigte Version läuft weiter, bis eine genehmigende Person entscheidet.",
   "Submitted for approval. It can be used once an approver approves it.": "Zur Genehmigung eingereicht. Sie kann verwendet werden, sobald sie genehmigt ist.",
   "Submitted this version": "Hat diese Version eingereicht",
@@ -5220,5 +5216,8 @@
   "Source IP": "Quell-IP",
   "Destination IP": "Ziel-IP",
   "Source port": "Quellport",
-  "Destination port": "Zielport"
+  "Destination port": "Zielport",
+  "Last edited by": "Zuletzt bearbeitet von",
+  "Last edited by {name}": "Zuletzt bearbeitet von {name}",
+  "Last edited": "Zuletzt bearbeitet"
 }

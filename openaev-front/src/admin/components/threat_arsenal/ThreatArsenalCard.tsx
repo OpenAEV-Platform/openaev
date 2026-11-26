@@ -44,7 +44,10 @@ interface Props {
     onClick: () => void;
   };
   /** On the review pages the card shows what a decision needs: who submitted which version, and when; no migration banner. */
-  review?: { submittedBy?: string };
+  review?: {
+    lastEditedBy?: string;
+    lastEditedAt?: string;
+  };
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
@@ -190,13 +193,14 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               label: t('Version'),
               value: version ? `v${version}` : '–',
             },
+            // Who last saved the version and when, not its first author (US1.2 AC11).
             {
-              label: t('Submitted by'),
-              value: review.submittedBy ?? action.action_author_name ?? '–',
+              label: t('Last edited by'),
+              value: review.lastEditedBy ?? t('Unknown'),
             },
             {
-              label: t('Submitted'),
-              value: nsd(action.injector_contract_updated_at),
+              label: t('Last edited'),
+              value: nsd(review.lastEditedAt ?? action.injector_contract_updated_at),
             },
           ]
         : [
