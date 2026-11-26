@@ -74,6 +74,17 @@ public interface InjectRepository
           + " where i.id = :injectId")
   Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
 
+  /** Projection of {@link #findContentsByIds(Collection)}. */
+  interface InjectContent {
+    String getId();
+
+    ObjectNode getContent();
+  }
+
+  /** The content of the given injects, without loading their associations. */
+  @Query("SELECT i.id AS id, i.content AS content FROM Inject i WHERE i.id IN :ids")
+  List<InjectContent> findContentsByIds(@Param("ids") Collection<String> ids);
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();
@@ -107,11 +118,11 @@ public interface InjectRepository
       @Param("updatedAt") Instant updatedAt);
 
   /**
-   * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
-   * background consumers that group a cross-tenant batch by tenant without an ambient {@code
-   * TenantContext} (mirrors {@code StepRepository.findTenantIdByStepId}, #6904). A native query is
-   * not rewritten by the Hibernate tenant {@code @Filter}, so the result is context-free. Each row
-   * is {@code [inject_id, tenant_id]}; an unknown inject is simply absent from the result.
+   * Resolves the owning tenant of each given inject in one query. {@code injects} is an active
+   * table, so the read is narrowed to the current tenant scope like any other: an inject outside it
+   * is absent from the result, exactly like an unknown one. A caller that must resolve owners
+   * across tenants, such as a background consumer grouping a mixed batch, runs it under {@code
+   * TxCtx.allTenants()}. Each row is {@code [inject_id, tenant_id]}.
    */
   @Query(
       value = "SELECT i.inject_id, i.tenant_id FROM injects i WHERE i.inject_id IN :injectIds",
@@ -273,8 +284,7 @@ public interface InjectRepository
           "select i.inject_id from injects i where i.inject_injector_contract = '"
               + CHALLENGE_PUBLISH_CONTRACT_ID
               + "'"
-              + " and i.inject_content like :challengeId"
-              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
+              + " and i.inject_content like :challengeId",
       nativeQuery = true)
   List<String> findAllIdsForChallengeId(@Param("challengeId") String challengeId);
 
@@ -449,7 +459,6 @@ public interface InjectRepository
     INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
     INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
     WHERE (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -466,7 +475,6 @@ public interface InjectRepository
     LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
     WHERE (i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
       AND (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -491,8 +499,7 @@ public interface InjectRepository
           "SELECT i.inject_exercise, i.inject_content FROM injects i "
               + "WHERE i.inject_exercise IN :exerciseIds "
               + "AND (i.inject_content LIKE '%\"ai_target\"%' "
-              + "OR i.inject_content LIKE '%\"target_selector\"%') "
-              + "AND i.tenant_id = :#{#tenantContext.currentTenant}",
+              + "OR i.inject_content LIKE '%\"target_selector\"%')",
       nativeQuery = true)
   List<Object[]> findContentTargetContentsByExerciseIds(Set<String> exerciseIds);
 
@@ -680,4 +687,15 @@ public interface InjectRepository
 
   @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
   List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
+
+  // -- PAYLOAD --
+
+  /** Scenario injects and atomic testings: a simulation keeps the version it ran. */
+  String OUTSIDE_SIMULATIONS = "i.inject_exercise IS NULL";
+
+  @Query(
+      "SELECT i FROM Inject i WHERE i.tenant.id = :tenantId"
+          + " AND i.injectorContract.compositeId.id = :injectorContractId AND i.exercise IS NULL")
+  List<Inject> findAllOutsideSimulationsByTenantIdAndInjectorContractId(
+      @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
 }

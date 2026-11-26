@@ -33,7 +33,6 @@ import { useHelper } from '../../../../store';
 import { type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type TenantGroupOutput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -74,9 +73,6 @@ const GroupDetail = () => {
   const { scope } = useSecurityScope();
   const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
   const markingEnabled = isFeatureEnabled('MARKING');
-  // Markings are tenant-groups-only (see task2/tech-design.md): a platform group has no
-  // group_markings field at all, so this must never fetch/render in that scope.
-  const markingDefinitions = useMarkingDefinitions({ skip: isPlatform || !markingEnabled });
 
   const [group, setGroup] = useState<TenantGroupOutput | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);
@@ -357,10 +353,7 @@ const GroupDetail = () => {
             </Section>
             {!isPlatform && markingEnabled && (
               <Section title={t('Markings')}>
-                <ItemMarkings
-                  markingIds={group?.group_markings ?? []}
-                  definitions={markingDefinitions}
-                />
+                <ItemMarkings markingIds={group?.group_markings} />
               </Section>
             )}
           </DetailSections>

@@ -5,6 +5,7 @@ import {
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
+  ComboboxHelperText,
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
@@ -16,7 +17,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '@mui/material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type GlobalError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -59,6 +59,8 @@ interface Props {
   style?: CSSProperties;
   disabled?: boolean;
   required?: boolean;
+  /** Help line under the field, always visible; an error message takes its place. */
+  helperText?: string;
 }
 
 const TagField: FunctionComponent<Props> = ({
@@ -69,6 +71,7 @@ const TagField: FunctionComponent<Props> = ({
   style = {},
   disabled = false,
   required = false,
+  helperText,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -103,10 +106,7 @@ const TagField: FunctionComponent<Props> = ({
       }) => {
         if (result.result) {
           const newTag = result.entities.tags[result.result];
-          const newTags = R.append(
-            newTag.tag_id,
-            fieldValue,
-          );
+          const newTags = [...fieldValue, newTag.tag_id];
           fieldOnChange(newTags);
           handleCloseTagCreation();
         }
@@ -169,6 +169,7 @@ const TagField: FunctionComponent<Props> = ({
           </ComboboxControls>
         </ComboboxField>
         <ComboboxContent />
+        {(error?.message || helperText) ? <ComboboxHelperText>{error?.message || helperText}</ComboboxHelperText> : null}
       </Combobox>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog

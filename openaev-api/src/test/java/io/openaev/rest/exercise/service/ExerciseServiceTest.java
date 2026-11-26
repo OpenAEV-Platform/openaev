@@ -150,7 +150,6 @@ class ExerciseServiceTest extends IntegrationTest {
         fileService,
         healthCheckUtils,
         eventPublisher,
-        attackPathExecutionService,
         autonomousRunRepository,
         permissionServiceProvider);
 

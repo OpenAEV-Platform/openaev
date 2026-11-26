@@ -2,7 +2,9 @@ package io.openaev.importer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Aggregated outcome of an import. Currently carries the actions that could not be recreated on the
@@ -13,15 +15,19 @@ import java.util.List;
  *
  * @param missingActions the actions skipped during import (never {@code null})
  * @param scenarioId the scenario the import created or filled, if any; for the caller, not the API
+ * @param packageInjectIds the ID each created inject has in the imported file, by created ID
  */
 public record ImportResult(
-    List<MissingImportedAction> missingActions, @JsonIgnore String scenarioId) {
+    List<MissingImportedAction> missingActions,
+    @JsonIgnore String scenarioId,
+    @JsonIgnore Map<String, String> packageInjectIds) {
   public ImportResult {
     missingActions = missingActions == null ? new ArrayList<>() : missingActions;
+    packageInjectIds = packageInjectIds == null ? Map.of() : packageInjectIds;
   }
 
   public ImportResult(List<MissingImportedAction> missingActions) {
-    this(missingActions, null);
+    this(missingActions, null, null);
   }
 
   public static ImportResult empty() {
@@ -31,6 +37,9 @@ public record ImportResult(
   public ImportResult and(ImportResult other) {
     List<MissingImportedAction> actions = new ArrayList<>(missingActions);
     actions.addAll(other.missingActions());
-    return new ImportResult(actions, scenarioId != null ? scenarioId : other.scenarioId());
+    Map<String, String> injectIds = new HashMap<>(packageInjectIds);
+    injectIds.putAll(other.packageInjectIds());
+    return new ImportResult(
+        actions, scenarioId != null ? scenarioId : other.scenarioId(), injectIds);
   }
 }

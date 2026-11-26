@@ -102,7 +102,7 @@ class XtmComposerConnectorInstancesCrossTenantTest extends IntegrationTest {
               .get();
       ConnectorInstancePersisted instance =
           connectorInstanceComposer
-              .forConnectorInstance(createDefaultConnectorInstance())
+              .forConnectorInstance(createDefaultConnectorInstance(tenantId))
               .withCatalogConnector(catalogConnectorComposer.forCatalogConnector(catalogConnector))
               .withConnectorInstanceConfiguration(
                   connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(

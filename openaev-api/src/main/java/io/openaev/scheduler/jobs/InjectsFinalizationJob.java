@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.scheduler.jobs.InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasValidResults;
 import static java.time.Instant.now;
 
@@ -21,6 +20,7 @@ import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.settings.InjectExecutionThresholdService;
 import io.openaev.utils.ExecutionTraceUtils;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,10 +46,6 @@ public class InjectsFinalizationJob implements Job {
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
-  @Value(
-      "${inject.execution.threshold.minutes:" + DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES + "}")
-  private Integer injectExecutionThreshold;
-
   private final InjectHelper injectHelper;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
@@ -60,6 +56,7 @@ public class InjectsFinalizationJob implements Job {
   private final WorkflowService workflowService;
   private final TenantScopedJobRunner tenantScopedJobRunner;
   private final InjectAgentResolverService injectAgentResolverService;
+  private final InjectExecutionThresholdService injectExecutionThresholdService;
 
   @Override
   @LogExecutionTime
@@ -179,6 +176,9 @@ public class InjectsFinalizationJob implements Job {
                                       .timestamp(Instant.now())
                                       .build(),
                                   delayForSimulationCompletedEvent));
+
+                  // the same event on the simulation itself, for its own triggers
+                  exercisesFinished.forEach(notificationEventService::sendSimulationCompleted);
                 }));
   }
 
@@ -194,19 +194,24 @@ public class InjectsFinalizationJob implements Job {
     // (PendingInjectAssetGroupScopeTest). Carrying the entities over instead would keep the eager
     // Inject.assets collection the sweep loaded, which comes back empty once assets is isolated,
     // and the finalization would see an agentless inject where there are agents.
+    //
+    // The threshold is a platform setting an administrator changes at runtime: it is read once per
+    // run (no restart), and the same value selects the injects and names the timeout traces.
+    int thresholdMinutes = injectExecutionThresholdService.thresholdMinutes();
     Map<String, List<String>> pendingIdsByTenant =
         tenantScopedJobRunner.supplyAcrossTenants(
             () ->
                 idsByTenant(
-                    injectHelper.getAllPendingInjectsWithThresholdMinutes(
-                        this.injectExecutionThreshold)));
+                    injectHelper.getAllPendingInjectsWithThresholdMinutes(thresholdMinutes)));
 
     pendingIdsByTenant.forEach(
         (tenantId, injectIds) ->
             tenantScopedJobRunner.runInTenant(
                 tenantId,
                 () ->
-                    injectRepository.findAllById(injectIds).forEach(this::finalizePendingInject)));
+                    injectRepository
+                        .findAllById(injectIds)
+                        .forEach(inject -> finalizePendingInject(inject, thresholdMinutes))));
   }
 
   private static Map<String, List<String>> idsByTenant(List<? extends TenantBase> rows) {
@@ -219,7 +224,7 @@ public class InjectsFinalizationJob implements Job {
     return idsByTenant;
   }
 
-  private void finalizePendingInject(Inject inject) {
+  private void finalizePendingInject(Inject inject, int thresholdMinutes) {
     InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     // Find agents that already have a COMPLETE trace
     Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
@@ -239,13 +244,13 @@ public class InjectsFinalizationJob implements Job {
           ExecutionTraceUtils.completeTraces(status.getTraces())
               .anyMatch(t -> !t.getStatus().isNotCounted());
       if (!hasCompleteTrace) {
-        ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
+        ExecutionTraceUtils.addAgentlessTimeoutTrace(status, thresholdMinutes);
       }
     } else {
       // Add a COMPLETE/TIMEOUT trace for each agent that never responded
       for (Agent agent : allAgents) {
         if (!completedAgentIds.contains(agent.getId())) {
-          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
+          ExecutionTraceUtils.addTimeoutTrace(status, agent, thresholdMinutes);
         }
       }
     }

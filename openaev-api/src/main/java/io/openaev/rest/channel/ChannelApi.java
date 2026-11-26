@@ -174,10 +174,8 @@ public class ChannelApi extends RestBehavior {
               scenario.getInjects(), publishedArticles, this.mapper);
       channelReader.setChannelArticles(articles);
     }
-    // The reader serializes raw entities after this transaction commits: load their document
-    // links here, under the request's tenant scope, or they come back empty once documents is
-    // tenant-active.
-    return channelService.withDocumentLinksInitialized(channelReader);
+    // Raw entities are serialized after the commit: see ChannelService.withLinksInitialized.
+    return channelService.withLinksInitialized(channelReader);
   }
 
   @GetMapping({
@@ -259,7 +257,9 @@ public class ChannelApi extends RestBehavior {
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     String ownerTenantId = exercise.getTenant().getId();
     Article article =
-        articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
+        articleRepository
+            .findByIdAndExerciseId(articleId, exerciseId)
+            .orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
@@ -306,7 +306,10 @@ public class ChannelApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForExercise(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String articleId) {
-    articleRepository.deleteById(articleId);
+    articleRepository.delete(
+        articleRepository
+            .findByIdAndExerciseId(articleId, exerciseId)
+            .orElseThrow(ElementNotFoundException::new));
   }
 
   // -- SCENARIOS --
@@ -371,7 +374,9 @@ public class ChannelApi extends RestBehavior {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String ownerTenantId = scenario.getTenant().getId();
     Article article =
-        articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
+        articleRepository
+            .findByIdAndScenarioId(articleId, scenarioId)
+            .orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
@@ -420,7 +425,10 @@ public class ChannelApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId) {
-    articleRepository.deleteById(articleId);
+    articleRepository.delete(
+        articleRepository
+            .findByIdAndScenarioId(articleId, scenarioId)
+            .orElseThrow(ElementNotFoundException::new));
   }
 
   @GetMapping({

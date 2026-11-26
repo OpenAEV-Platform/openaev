@@ -44,12 +44,11 @@ Scenario once, then choose at launch time whether to run it yourself (normal mod
 | Requirement | Why |
 |---|---|
 | **Enterprise Edition** | Autonomous Attack Chaining is an AI feature and, like every other AI capability in OpenAEV, is Enterprise Edition only. |
-| **`INJECT_CHAINING` feature enabled** | Autonomy is a launch-time mode of a chained Scenario, not a feature of its own, so it shares the chaining preview flag. Any tenant with chaining enabled can launch a chained Scenario in autonomous mode — there is no dedicated autonomous flag. |
 | **A registered XTM One platform** | The autonomous orchestrator (the AI "brain") runs in XTM One. OpenAEV is the execution and visualization substrate; it must be connected to an XTM One instance. |
 | **Installed injectors / collectors** | The AI can only execute techniques your installed arsenal supports. Gaps are surfaced as advice, not silent failures. |
 
-See [Enterprise editions](../../../administration/enterprise.md) and [Parameters](../../../administration/parameters.md) for
-how to enable the license and preview features.
+Autonomy is a launch-time mode of a chained Scenario, not a feature of its own: there is no dedicated flag to enable.
+See [Enterprise editions](../../../administration/enterprise.md) for how to enable the license.
 
 ## How it works
 

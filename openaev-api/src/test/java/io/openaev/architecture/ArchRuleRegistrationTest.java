@@ -108,13 +108,8 @@ class ArchRuleRegistrationTest {
               TenantBackgroundTransactionArchTest.class,
               "the runner wraps it in a frozen rule; the raw rule is what the fixtures test"),
           new Helper(
-              TenantBackgroundTransactionRules.class,
-              "noTenantFilterDisableOutsideBaseline",
-              TenantFilterDisableArchTest.class,
-              "parameterised by the baseline, so the runner checks it from a @Test"),
-          new Helper(
               WorkflowOwnerScopeCallerRules.class,
-              "ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION",
+              "ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION",
               WorkflowOwnerScopeCallerArchTest.class,
               "shared with WorkflowOwnerScopeCallerRulesTest, which proves it fires on fixtures"),
           new Helper(
@@ -127,6 +122,16 @@ class ArchRuleRegistrationTest {
               "scopeSetOnCurrentTransactionOnlyFrom",
               WorkflowOwnerScopeCallerArchTest.class,
               "parameterised by the baseline, so the runner builds it from the baseline names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "callerRightsLoadedOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "ambientCallerReadOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
           new Helper(
               TenantActiveTableAccessArchTest.class,
               "queryNamingTableIsCalledOnlyBy",

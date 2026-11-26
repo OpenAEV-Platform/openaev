@@ -12,6 +12,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.engine.query.*;
 import io.openaev.rest.custom_dashboard.CustomDashboardTenantService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.form.AssetFreshnessSettingsInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
@@ -99,6 +100,32 @@ public class TenantSettingsApi extends RestBehavior {
       TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_DARK, input);
     return tenantSettingsService.findSettings(tenantId);
+  }
+
+  // -- ASSET FRESHNESS --
+
+  @GetMapping("/asset-freshness")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  @Operation(
+      summary = "Get the asset freshness setting",
+      description =
+          "The number of days without an observation after which an asset turns stale (0 by"
+              + " default: the check is off).")
+  public AssetFreshnessSettingsInput assetFreshnessSettings(
+      TxCtx ctx, @PathVariable String tenantId) {
+    return tenantSettingsService.findAssetFreshnessSettings(tenantId);
+  }
+
+  @PutMapping("/asset-freshness")
+  @Transactional
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
+  @Operation(summary = "Update the asset freshness setting")
+  public AssetFreshnessSettingsInput updateAssetFreshnessSettings(
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @Valid @RequestBody AssetFreshnessSettingsInput input) {
+    return tenantSettingsService.updateAssetFreshnessSettings(tenantId, input);
   }
 
   // -- HOME DASHBOARD --

@@ -5,6 +5,7 @@ import { Subject, timer } from 'rxjs';
 import { debounce } from 'rxjs/operators';
 
 import type { PlatformSettings } from './api-types';
+import { pick } from './object';
 
 export interface Message {
   type: 'error' | 'message';
@@ -87,7 +88,7 @@ export const exportData = <T extends object>(
   scenariosMap: ScenariosMap = {},
 ): Record<string, string | undefined>[] => {
   return data
-    .map(d => R.pick(keys, d as Record<string, unknown>) as Record<string, unknown>)
+    .map(d => pick(d as Record<string, unknown>, keys) as Record<string, unknown>)
     .map((d) => {
       let entry = d;
 
@@ -97,47 +98,42 @@ export const exportData = <T extends object>(
 
       const tagsKey = `${type}_tags`;
       if (entry[tagsKey]) {
-        entry = R.assoc(
-          tagsKey,
-          (entry[tagsKey] as string[]).map(t => tagsMap[t]?.tag_name).filter(x => !!x),
-          entry,
-        );
+        entry = {
+          ...entry,
+          [tagsKey]: (entry[tagsKey] as string[]).map(t => tagsMap[t]?.tag_name).filter(x => !!x),
+        };
       }
 
       const exercisesKey = `${type}_exercises`;
       if (entry[exercisesKey]) {
-        entry = R.assoc(
-          exercisesKey,
-          (entry[exercisesKey] as string[]).map(e => exercisesMap[e]?.exercise_name).filter(x => !!x),
-          entry,
-        );
+        entry = {
+          ...entry,
+          [exercisesKey]: (entry[exercisesKey] as string[]).map(e => exercisesMap[e]?.exercise_name).filter(x => !!x),
+        };
       }
 
       const scenariosKey = `${type}_scenarios`;
       if (entry[scenariosKey]) {
-        entry = R.assoc(
-          scenariosKey,
-          (entry[scenariosKey] as string[]).map(e => scenariosMap[e]?.scenario_name).filter(x => !!x),
-          entry,
-        );
+        entry = {
+          ...entry,
+          [scenariosKey]: (entry[scenariosKey] as string[]).map(e => scenariosMap[e]?.scenario_name).filter(x => !!x),
+        };
       }
 
       const orgKey = `${type}_organization`;
       if (entry[orgKey]) {
-        entry = R.assoc(
-          orgKey,
-          organizationsMap[entry[orgKey] as string]?.organization_name || '',
-          entry,
-        );
+        entry = {
+          ...entry,
+          [orgKey]: organizationsMap[entry[orgKey] as string]?.organization_name || '',
+        };
       }
 
       if (entry.inject_content) {
-        entry = R.assoc(
-          'inject_content',
-          JSON.stringify(entry.inject_content),
-          entry,
-        );
+        entry = {
+          ...entry,
+          inject_content: JSON.stringify(entry.inject_content),
+        };
       }
-      return R.mapObjIndexed(escape, entry) as Record<string, string | undefined>;
+      return Object.fromEntries(Object.entries(entry).map(([key, value]) => [key, escape(value)])) as Record<string, string | undefined>;
     });
 };

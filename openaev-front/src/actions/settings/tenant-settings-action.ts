@@ -20,6 +20,14 @@ export const updateTenantSettings = (data: TenantSettingsUpdateInput) => {
   return simplePutCall(TENANT_SETTINGS_URI, data);
 };
 
+// -- ASSET FRESHNESS --
+
+// Read without the default error toast: a user who can list assets may lack the tenant settings
+// read right, and the Status column then shows the last seen date without the threshold.
+export const fetchAssetFreshnessSettings = () => {
+  return simpleCall(`${TENANT_SETTINGS_URI}/asset-freshness`, undefined, false);
+};
+
 // -- THEME --
 
 export const updateTenantLightTheme = (data: ThemeInput) => {

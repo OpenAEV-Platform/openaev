@@ -25,11 +25,9 @@ ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -10
 ```
 
 Verify for each new migration:
-- ☐ Name follows `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`
-- ☐ `yyyyMMddHHmmssSSS` timestamp block is present (17 digits)
-- ☐ `{description}` uses snake_case (letters, digits, underscores)
+- ☐ Name follows [migration.instructions.md › Naming Convention](../../../.github/instructions/migration.instructions.md#naming-convention)
 - ☐ Migration filename is unique
-- ☐ No existing migration file was modified (Flyway checksums will break)
+- ☐ No existing migration file was modified (Flyway checksums will break), unless it is the ADR-023 in-place-fix exception (step 6 covers it)
 
 ## Step 3 — Verify class structure
 
@@ -108,7 +106,25 @@ Any `DROP` without a prior deprecation migration = 🔴 CRITICAL.
 grep -n "UPDATE\|INSERT INTO\|DELETE FROM" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
-Large data migrations must be batched in chunks of 1000 rows.
+On a small or catalog-sized table, batching in chunks of 1000 rows is enough. On a large table, follow
+ADR-023 (`migration.instructions.md` rule 5) instead:
+- ☐ No primary-key-order batching on a random (UUID) primary key: it scatters each batch across the
+  whole table
+- ☐ No `VACUUM` call inside the migration
+- ☐ Default shape is a physical walk by `ctid` page ranges, one committed transaction per range,
+  paced against WAL archiving/replica lag. Compare against
+  `V6_20261112060000000__Add_tenant_id_to_execution_traces.java`, the reference implementation
+- ☐ Index built `CONCURRENTLY`, constraint added `NOT VALID` then `VALIDATE CONSTRAINT`, after the
+  backfill
+- ☐ Every lock request (`ALTER TABLE`, `LOCK TABLE`) under a short `lock_timeout` with retry
+- ☐ Every step resumable after a crash
+- ☐ If a background-job fill with a later `NOT NULL` migration is used in place of the walk, the
+  migration's Javadoc says why (startup delay unacceptable, or pacing against live traffic needed)
+- ☐ The later `NOT NULL` migration of a background-job fill fills the rows left with no value itself
+  (an upgrade can skip releases and run both migrations before the job starts)
+- ☐ If an existing released migration is modified in place rather than replaced with a new one, it is
+  only because it is dangerous and the new version reaches the same final state from any partial
+  state the old one can leave (the ADR-023 exception to "never modify an existing migration")
 
 ## Step 7 — Verify the search index rebuild
 

@@ -112,6 +112,20 @@ class StreamClearanceServiceTest {
     }
 
     @Test
+    @DisplayName("the first admin sees everything, even what the stream cannot read")
+    void given_firstAdmin_should_seeEverything() {
+      // Arrange
+      when(user.getId()).thenReturn(User.ADMIN_UUID);
+
+      // Act
+      MarkingCtx clearance = service(ASSETS_MARKED).clearanceFor(user, TENANT_ID);
+
+      // Assert
+      assertThat(clearance).isEqualTo(MarkingCtx.all());
+      verify(clearanceCache, never()).findClearance(any(), any());
+    }
+
+    @Test
     @DisplayName("a reader gets their clearance in the tenant")
     void given_clearance_should_returnIt() {
       // Arrange

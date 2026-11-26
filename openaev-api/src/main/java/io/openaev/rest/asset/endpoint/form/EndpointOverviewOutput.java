@@ -49,6 +49,17 @@ public class EndpointOverviewOutput {
   @JsonProperty("asset_url")
   private String url;
 
+  @Schema(
+      description =
+          "Reference of the asset in the system it was imported from (a link or an id), read by the"
+              + " cross-product pivots to mark that product as holding the asset")
+  @JsonProperty("asset_external_reference")
+  private String externalReference;
+
+  @Schema(description = "Source of the last observation of the asset (collector or product)")
+  @JsonProperty("asset_last_seen_source")
+  private String lastSeenSource;
+
   @Schema(description = "Platform")
   @JsonProperty("endpoint_platform")
   private Endpoint.PLATFORM_TYPE platform;

@@ -42,7 +42,7 @@ class HelperTargetSearchAdaptorTest {
             executionTraceRepository);
     Inject inject = new Inject();
     inject.setId("inject-id");
-    InjectTarget target = new EndpointTarget("endpoint-id", "endpoint", Set.of(), null);
+    InjectTarget target = new EndpointTarget("endpoint-id", "endpoint", Set.of(), Set.of(), null);
     when(injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
             "inject-id", "endpoint-id", "ASSETS"))
         .thenReturn(

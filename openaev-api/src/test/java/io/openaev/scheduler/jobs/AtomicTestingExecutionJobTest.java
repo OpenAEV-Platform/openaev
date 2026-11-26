@@ -33,6 +33,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
@@ -73,16 +74,17 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
 
   @AfterEach
   void cleanup() {
-    // Relaunch duplicates are new committed rows the composers never saw: sweep by title prefix.
-    List<Inject> leftovers =
-        injectRepository.findAll(InjectSpecification.isAtomicTesting()).stream()
-            .filter(
-                inject -> inject.getTitle() != null && inject.getTitle().startsWith(titlePrefix))
-            .toList();
-    injectRepository.deleteAll(leftovers);
     rowTenantScope.write(
         Tenant.DEFAULT_TENANT_UUID,
         () -> {
+          // Relaunch duplicates are new committed rows the composers never saw: sweep by title
+          // prefix, in the tenant that owns them so the read and the delete both reach them.
+          injectRepository.deleteAll(
+              injectRepository.findAll(InjectSpecification.isAtomicTesting()).stream()
+                  .filter(
+                      inject ->
+                          inject.getTitle() != null && inject.getTitle().startsWith(titlePrefix))
+                  .toList());
           agentRepository.deleteAll(
               agentRepository.findAllById(
                   agentComposer.generatedItems.stream().map(Agent::getId).toList()));
@@ -128,13 +130,28 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
     return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
   }
 
+  /** Reads back the fixture tenant's atomic testings, in its scope as the UI would. */
   private List<Inject> atomicTestingsWithRecurrence(String recurrence) {
-    return injectRepository
-        .findAll(InjectSpecification.isAtomicTesting().and(InjectSpecification.isRecurring()))
-        .stream()
-        .filter(inject -> recurrence.equals(inject.getRecurrence()))
-        .toList();
+    return inDefaultScope(
+        () ->
+            injectRepository
+                .findAll(
+                    InjectSpecification.isAtomicTesting().and(InjectSpecification.isRecurring()))
+                .stream()
+                .filter(inject -> recurrence.equals(inject.getRecurrence()))
+                .toList());
   }
+
+  private Optional<Inject> injectById(String injectId) {
+    return inDefaultScope(() -> injectRepository.findById(injectId));
+  }
+
+  /**
+   * Fires at second 0 of every minute, so the occurrence after any instant is the next minute
+   * whatever minute the job reads from the clock. A cron computed from a clock read of the test
+   * rolls past the job's own read when a minute ends in between.
+   */
+  private static final String EVERY_MINUTE_CRON = "0 * * * * *";
 
   /** Daily cron at now + the given amount of minutes (UTC). */
   private String dailyCronInMinutes(int minutes) {
@@ -161,7 +178,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Relaunch a recurring atomic testing due now, carrying the recurrence over")
   void given_cron_in_one_minute_should_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     // Truncate to seconds: PostgreSQL timestamps keep microseconds, not nanoseconds.
     Instant recurrenceEnd = Instant.now().plus(10, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
     Inject inject = persistAtomicTesting(cron, null, recurrenceEnd, null);
@@ -171,7 +188,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
     job.execute(null);
 
     // -- ASSERT: old inject replaced by a queued duplicate with the schedule carried over --
-    assertThat(injectRepository.findById(originalId)).isEmpty();
+    assertThat(injectById(originalId)).isEmpty();
     List<Inject> injects = atomicTestingsWithRecurrence(cron);
     assertThat(injects)
         .singleElement()
@@ -189,7 +206,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Not relaunch twice within the same occurrence (queued run dedup)")
   void given_cron_in_one_minute_should_not_relaunch_twice() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     persistAtomicTesting(cron, null, null, null);
 
     // -- EXECUTE --
@@ -209,7 +226,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Skip an atomic testing whose run is already in progress")
   void given_run_in_progress_should_not_relaunch() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(cron, null, null, InjectStatusFixture.createPendingInjectStatus());
 
@@ -226,7 +243,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Test
   @DisplayName("Self-clear the recurrence when the end date has passed")
   void given_end_date_in_the_past_should_clear_recurrence() throws JobExecutionException {
-    String cron = dailyCronInMinutes(1);
+    String cron = EVERY_MINUTE_CRON;
     Inject inject =
         persistAtomicTesting(
             cron,
@@ -238,7 +255,7 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
     job.execute(null);
 
     // -- ASSERT: inject kept, schedule cleared, no relaunch --
-    Inject reloaded = injectRepository.findById(inject.getId()).orElseThrow();
+    Inject reloaded = injectById(inject.getId()).orElseThrow();
     assertThat(reloaded.getRecurrence()).isNull();
     assertThat(reloaded.getRecurrenceStart()).isNull();
     assertThat(reloaded.getRecurrenceEnd()).isNull();

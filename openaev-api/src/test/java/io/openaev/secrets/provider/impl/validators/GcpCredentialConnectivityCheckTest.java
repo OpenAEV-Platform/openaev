@@ -6,6 +6,8 @@ import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERR
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.PERMISSION_DENIED;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
+import static io.openaev.utils.fixtures.GcpServiceAccountKeyFixture.GCP_KEY_FILE_TOKEN_URI;
+import static io.openaev.utils.fixtures.GcpServiceAccountKeyFixture.createServiceAccountKeyJson;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -14,13 +16,20 @@ import static org.mockito.Mockito.*;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.utils.helpers.MockCloudServer;
+import io.openaev.utils.helpers.TlsTestSupport;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
+import javax.net.ssl.SSLContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,11 +45,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 /**
  * Unit tests for the GCP credential probe.
  *
- * <p>No test here reaches the network: {@code projectId} is always null, which stops the probe
- * right after the token exchange. The resource-manager branch is deliberately NOT unit tested —
- * covering it would mean either a real outbound HTTPS call or an in-test HTTP server, and both make
- * the suite slow and flaky for a branch whose only logic (the status-code mapping) is already
- * exercised through {@link HttpResponseException} here.
+ * <p>Most tests stub the Google SDK and never reach the network: {@code projectId} is null, which
+ * stops the probe right after the token exchange. Only {@link SovereignEndpoints} goes through the
+ * real SDK and a real HTTP call, against a local server standing in for the sovereign or mocked
+ * cloud the overrides point to: that is the only way to prove the probe reaches them rather than
+ * the official Google endpoints.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("GcpCredentialConnectivityCheck tests")
@@ -55,7 +64,9 @@ class GcpCredentialConnectivityCheckTest {
   private GcpCredentialConnectivityCheck validator;
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws NoSuchAlgorithmException {
+    // Only read by the project read, which a stubbed test reaches when it names a project.
+    lenient().when(googleCredentialsFactory.sslContext()).thenReturn(SSLContext.getDefault());
     validator = new GcpCredentialConnectivityCheck(googleCredentialsFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
@@ -106,12 +117,13 @@ class GcpCredentialConnectivityCheckTest {
     @DisplayName("A service account whose token is granted is reported active")
     void given_grantedToken_should_returnActive() throws IOException {
       // Arrange
-      when(googleCredentialsFactory.forServiceAccount(any(), eq(GCP_SCOPE)))
+      when(googleCredentialsFactory.forServiceAccount(any(), eq(GCP_SCOPE), any()))
           .thenReturn(googleCredentials);
       givenTokenIsGranted();
 
       // Act
-      SecretConnectionResult result = validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null);
+      SecretConnectionResult result =
+          validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(ACTIVE);
@@ -121,13 +133,13 @@ class GcpCredentialConnectivityCheckTest {
     @DisplayName("An unparsable stored key is a configuration problem, not a rejection")
     void given_unparsableKey_should_returnFormatError() throws IOException {
       // Arrange
-      when(googleCredentialsFactory.forServiceAccount(any(), any()))
+      when(googleCredentialsFactory.forServiceAccount(any(), any(), any()))
           .thenThrow(new IOException("not a key file"));
 
       // Act
       SecretConnectionResult result =
           validator.validateServiceAccount(
-              "not-json".getBytes(StandardCharsets.UTF_8), GCP_SCOPE, null);
+              "not-json".getBytes(StandardCharsets.UTF_8), GCP_SCOPE, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -137,7 +149,8 @@ class GcpCredentialConnectivityCheckTest {
     @DisplayName("A missing key file is a configuration problem checked before any network call")
     void given_missingKey_should_returnFormatError() {
       // Arrange & Act
-      SecretConnectionResult result = validator.validateServiceAccount(null, GCP_SCOPE, null);
+      SecretConnectionResult result =
+          validator.validateServiceAccount(null, GCP_SCOPE, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -149,7 +162,7 @@ class GcpCredentialConnectivityCheckTest {
     void given_emptyKey_should_returnFormatError() {
       // Arrange & Act
       SecretConnectionResult result =
-          validator.validateServiceAccount(new byte[0], GCP_SCOPE, null);
+          validator.validateServiceAccount(new byte[0], GCP_SCOPE, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
@@ -162,10 +175,35 @@ class GcpCredentialConnectivityCheckTest {
     @DisplayName("A missing scope is a configuration problem")
     void given_missingScope_should_returnFormatError(String scope) {
       // Arrange & Act
-      SecretConnectionResult result = validator.validateServiceAccount(keyBytes(), scope, null);
+      SecretConnectionResult result =
+          validator.validateServiceAccount(keyBytes(), scope, null, null, null);
 
       // Assert
       assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      verifyNoInteractions(googleCredentialsFactory);
+    }
+
+    @ParameterizedTest(name = "projectId=\"{0}\"")
+    @ValueSource(
+        strings = {"..", "../other", "a/b", "project?x=1", "project#frag", "a b", "-project"})
+    @DisplayName("A project id that could change the path of the project read is refused")
+    void given_malformedProjectId_should_returnFormatError(String projectId) {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(keyBytes(), GCP_SCOPE, projectId, null, null);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              projectId,
+              null,
+              null);
+
+      // Assert
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
       verifyNoInteractions(googleCredentialsFactory);
     }
   }
@@ -179,13 +217,20 @@ class GcpCredentialConnectivityCheckTest {
               eq(GCP_OAUTH_CLIENT_ID),
               eq(GCP_OAUTH_CLIENT_SECRET),
               eq(GCP_OAUTH_REFRESH_TOKEN),
-              eq(GCP_SCOPE)))
+              eq(GCP_SCOPE),
+              any()))
           .thenReturn(googleCredentials);
     }
 
     private SecretConnectionResult validate() {
       return validator.validateOAuth2(
-          GCP_OAUTH_CLIENT_ID, GCP_OAUTH_CLIENT_SECRET, GCP_OAUTH_REFRESH_TOKEN, GCP_SCOPE, null);
+          GCP_OAUTH_CLIENT_ID,
+          GCP_OAUTH_CLIENT_SECRET,
+          GCP_OAUTH_REFRESH_TOKEN,
+          GCP_SCOPE,
+          null,
+          null,
+          null);
     }
 
     @Test
@@ -268,19 +313,37 @@ class GcpCredentialConnectivityCheckTest {
       assertThat(
               validator
                   .validateOAuth2(
-                      blank, GCP_OAUTH_CLIENT_SECRET, GCP_OAUTH_REFRESH_TOKEN, GCP_SCOPE, null)
+                      blank,
+                      GCP_OAUTH_CLIENT_SECRET,
+                      GCP_OAUTH_REFRESH_TOKEN,
+                      GCP_SCOPE,
+                      null,
+                      null,
+                      null)
                   .status())
           .isEqualTo(FORMAT_ERROR);
       assertThat(
               validator
                   .validateOAuth2(
-                      GCP_OAUTH_CLIENT_ID, blank, GCP_OAUTH_REFRESH_TOKEN, GCP_SCOPE, null)
+                      GCP_OAUTH_CLIENT_ID,
+                      blank,
+                      GCP_OAUTH_REFRESH_TOKEN,
+                      GCP_SCOPE,
+                      null,
+                      null,
+                      null)
                   .status())
           .isEqualTo(FORMAT_ERROR);
       assertThat(
               validator
                   .validateOAuth2(
-                      GCP_OAUTH_CLIENT_ID, GCP_OAUTH_CLIENT_SECRET, blank, GCP_SCOPE, null)
+                      GCP_OAUTH_CLIENT_ID,
+                      GCP_OAUTH_CLIENT_SECRET,
+                      blank,
+                      GCP_SCOPE,
+                      null,
+                      null,
+                      null)
                   .status())
           .isEqualTo(FORMAT_ERROR);
       assertThat(
@@ -290,6 +353,8 @@ class GcpCredentialConnectivityCheckTest {
                       GCP_OAUTH_CLIENT_SECRET,
                       GCP_OAUTH_REFRESH_TOKEN,
                       blank,
+                      null,
+                      null,
                       null)
                   .status())
           .isEqualTo(FORMAT_ERROR);
@@ -302,12 +367,13 @@ class GcpCredentialConnectivityCheckTest {
   class FailureMapping {
 
     private void givenServiceAccountFailsWith(Throwable failure) throws IOException {
-      when(googleCredentialsFactory.forServiceAccount(any(), any())).thenReturn(googleCredentials);
+      when(googleCredentialsFactory.forServiceAccount(any(), any(), any()))
+          .thenReturn(googleCredentials);
       givenTokenFailsWith(failure);
     }
 
     private SecretConnectionResult validate() {
-      return validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null);
+      return validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null, null, null);
     }
 
     @Test
@@ -380,7 +446,8 @@ class GcpCredentialConnectivityCheckTest {
     void given_hangingTokenExchange_should_returnTimeout() throws IOException {
       // Arrange: the Google SDK applies its own (much longer) timeouts and retries them, so the
       // probe has to bound the wait itself or a dead token endpoint would hold it for minutes.
-      when(googleCredentialsFactory.forServiceAccount(any(), any())).thenReturn(googleCredentials);
+      when(googleCredentialsFactory.forServiceAccount(any(), any(), any()))
+          .thenReturn(googleCredentials);
       CountDownLatch neverAnswers = new CountDownLatch(1);
       when(googleCredentials.refreshAccessToken())
           .thenAnswer(
@@ -419,7 +486,7 @@ class GcpCredentialConnectivityCheckTest {
     @DisplayName("No sensitive value ever reaches the returned detail")
     void given_rejection_should_notExposeAnySensitiveValue() throws IOException {
       // Arrange: the status is persisted and exposed, so it must stay a normalized enum value.
-      when(googleCredentialsFactory.forOAuth2(any(), any(), any(), any()))
+      when(googleCredentialsFactory.forOAuth2(any(), any(), any(), any(), any()))
           .thenReturn(googleCredentials);
       givenTokenFailsWith(oauthFailure("invalid_grant"));
 
@@ -430,6 +497,8 @@ class GcpCredentialConnectivityCheckTest {
               GCP_OAUTH_CLIENT_SECRET,
               GCP_OAUTH_REFRESH_TOKEN,
               GCP_SCOPE,
+              null,
+              null,
               null);
 
       // Assert
@@ -438,6 +507,411 @@ class GcpCredentialConnectivityCheckTest {
           .doesNotContain(GCP_OAUTH_CLIENT_SECRET)
           .doesNotContain(GCP_OAUTH_REFRESH_TOKEN)
           .doesNotContain("must never be surfaced");
+    }
+  }
+
+  @Nested
+  @DisplayName("Sovereign endpoints")
+  class SovereignEndpoints {
+
+    private static final String JSON = "application/json";
+    private static final String TOKEN_PATH = "/token";
+    private static final String PROJECTS_PATH = "/v1/projects/";
+    private static final String TOKEN_RESPONSE =
+        """
+        {"access_token": "%s", "expires_in": 3600, "token_type": "Bearer"}
+        """
+            .formatted(ACCESS_TOKEN);
+    private static final String INVALID_GRANT_RESPONSE =
+        """
+        {"error": "invalid_grant", "error_description": "Token has been expired or revoked."}
+        """;
+
+    /** Wider than the stubbed tests' budget: these make real local round trips. */
+    private static final int ROUND_TRIP_TIMEOUT_SECONDS = 5;
+
+    private MockCloudServer cloud;
+    private GcpCredentialConnectivityCheck cloudCheck;
+
+    @BeforeEach
+    void startCloud() throws IOException {
+      cloud = MockCloudServer.start();
+      cloudCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(cloudCheck, "timeoutSeconds", ROUND_TRIP_TIMEOUT_SECONDS);
+      // The mocked cloud listens on loopback: the on-premise opt-out is what lets the probe in.
+      ReflectionTestUtils.setField(cloudCheck, "allowInternalEndpoints", true);
+    }
+
+    @AfterEach
+    void stopCloud() {
+      cloud.close();
+    }
+
+    private SecretConnectionResult validateOAuth2(String customTokenUri, String customProjectsUri) {
+      return cloudCheck.validateOAuth2(
+          GCP_OAUTH_CLIENT_ID,
+          GCP_OAUTH_CLIENT_SECRET,
+          GCP_OAUTH_REFRESH_TOKEN,
+          GCP_SCOPE,
+          GCP_PROJECT_ID,
+          customTokenUri,
+          customProjectsUri);
+    }
+
+    @Test
+    @DisplayName("OAuth 2.0: the token exchange and the project read go to the overrides")
+    void given_oauth2Overrides_should_probeTheOverriddenEndpoints() {
+      // Arrange
+      cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE).respond(PROJECTS_PATH, 200, JSON, "{}");
+
+      // Act
+      SecretConnectionResult result =
+          validateOAuth2(cloud.url(TOKEN_PATH), cloud.url(PROJECTS_PATH));
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(cloud.requests())
+          .satisfiesExactly(
+              token -> assertThat(token.path()).isEqualTo(TOKEN_PATH),
+              project -> {
+                assertThat(project.path()).isEqualTo(PROJECTS_PATH + GCP_PROJECT_ID);
+                assertThat(project.authorization()).isEqualTo("Bearer " + ACCESS_TOKEN);
+              });
+    }
+
+    @Test
+    @DisplayName("A projects URI without a trailing slash still reads the right project")
+    void given_projectsUriWithoutTrailingSlash_should_readTheRightProject() {
+      // Arrange
+      cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE).respond(PROJECTS_PATH, 200, JSON, "{}");
+      String withoutTrailingSlash = cloud.url(PROJECTS_PATH).replaceAll("/$", "");
+
+      // Act
+      SecretConnectionResult result = validateOAuth2(cloud.url(TOKEN_PATH), withoutTrailingSlash);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(cloud.requests().getLast().path()).isEqualTo(PROJECTS_PATH + GCP_PROJECT_ID);
+    }
+
+    @Test
+    @DisplayName("Service account: the token is minted by the custom resource manager URI")
+    void given_serviceAccountOverrides_should_probeTheOverriddenEndpoints() {
+      // Arrange — the key file declares the official token server, which must NOT be called.
+      cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE).respond(PROJECTS_PATH, 200, JSON, "{}");
+
+      // Act
+      SecretConnectionResult result =
+          cloudCheck.validateServiceAccount(
+              createServiceAccountKeyJson(GCP_KEY_FILE_TOKEN_URI),
+              GCP_SCOPE,
+              GCP_PROJECT_ID,
+              cloud.url(TOKEN_PATH),
+              cloud.url(PROJECTS_PATH));
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(cloud.requests())
+          .satisfiesExactly(
+              token -> assertThat(token.path()).isEqualTo(TOKEN_PATH),
+              project -> assertThat(project.path()).isEqualTo(PROJECTS_PATH + GCP_PROJECT_ID));
+    }
+
+    @Test
+    @DisplayName("A rejection by the overridden token endpoint flags the credential")
+    void given_rejectionByOverriddenTokenEndpoint_should_returnAuthFailed() {
+      // Arrange
+      cloud.respond(TOKEN_PATH, 400, JSON, INVALID_GRANT_RESPONSE);
+
+      // Act
+      SecretConnectionResult result = validateOAuth2(cloud.url(TOKEN_PATH), null);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(AUTH_FAILED);
+    }
+
+    @Test
+    @DisplayName("An overridden token endpoint that does not answer is inconclusive")
+    void given_unreachableTokenOverride_should_returnInconclusiveStatus() throws IOException {
+      // Arrange
+      String unreachable = MockCloudServer.unreachableUrl(TOKEN_PATH);
+
+      // Act
+      SecretConnectionResult result = validateOAuth2(unreachable, null);
+
+      // Assert
+      assertThat(result.status()).isIn(TIMEOUT, NETWORK_ERROR);
+    }
+
+    @Test
+    @DisplayName("An overridden projects endpoint that does not answer is inconclusive")
+    void given_unreachableProjectsOverride_should_returnNetworkError() throws IOException {
+      // Arrange
+      cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE);
+      String unreachable = MockCloudServer.unreachableUrl(PROJECTS_PATH);
+
+      // Act
+      SecretConnectionResult result = validateOAuth2(cloud.url(TOKEN_PATH), unreachable);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+    }
+
+    @ParameterizedTest(name = "override=\"{0}\"")
+    @ValueSource(strings = {"http://not a host/token", "/token", "file:///tmp/token"})
+    @DisplayName("A malformed override is a configuration problem, whatever it overrides")
+    void given_malformedOverride_should_returnFormatError(String override) {
+      // Arrange
+      cloud.respond(TOKEN_PATH, 200, JSON, TOKEN_RESPONSE);
+
+      // Act & Assert
+      assertThat(validateOAuth2(override, null).status()).isEqualTo(FORMAT_ERROR);
+      assertThat(validateOAuth2(cloud.url(TOKEN_PATH), override).status()).isEqualTo(FORMAT_ERROR);
+      assertThat(
+              cloudCheck
+                  .validateServiceAccount(
+                      createServiceAccountKeyJson(GCP_KEY_FILE_TOKEN_URI),
+                      GCP_SCOPE,
+                      null,
+                      override,
+                      null)
+                  .status())
+          .isEqualTo(FORMAT_ERROR);
+      // Refused before any token is minted: nothing reached the cloud.
+      assertThat(cloud.requests()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "   ")
+    @DisplayName("Without a projects override the official resource manager is kept")
+    void given_noProjectsOverride_should_keepTheOfficialEndpoint(String customProjectsUri) {
+      // Arrange & Act & Assert
+      assertThat(GcpCredentialConnectivityCheck.projectsEndpoint(customProjectsUri))
+          .isEqualTo(GcpCredentialConnectivityCheck.PROJECT_ENDPOINT);
+    }
+  }
+
+  @Nested
+  @DisplayName("Internal endpoint overrides")
+  class InternalEndpointOverrides {
+
+    @ParameterizedTest(name = "projects override=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4566/",
+          "http://localhost:4566/",
+          "http://10.0.0.5/",
+          "http://169.254.169.254/",
+          "http://[::1]:8080/"
+        })
+    @DisplayName("A projects override inside the platform's network is refused, whatever the auth")
+    void given_internalProjectsOverride_should_returnFormatError(String projectsUri)
+        throws IOException {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(
+              keyBytes(), GCP_SCOPE, GCP_PROJECT_ID, null, projectsUri);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              GCP_PROJECT_ID,
+              null,
+              projectsUri);
+
+      // Assert — refused before any credential is built, so no token is minted either.
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
+      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
+      verify(googleCredentialsFactory, never()).forOAuth2(any(), any(), any(), any(), any());
+    }
+
+    @ParameterizedTest(name = "token override=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://127.0.0.1:4566/",
+          "http://localhost:4566/",
+          "http://10.0.0.5/",
+          "http://169.254.169.254/",
+          "http://[::1]:8080/"
+        })
+    @DisplayName("A token endpoint inside the platform's network is refused, whatever the auth")
+    void given_internalTokenOverride_should_returnFormatError(String tokenUri) throws IOException {
+      // Act
+      SecretConnectionResult serviceAccount =
+          validator.validateServiceAccount(keyBytes(), GCP_SCOPE, null, tokenUri, null);
+      SecretConnectionResult oauth2 =
+          validator.validateOAuth2(
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN,
+              GCP_SCOPE,
+              null,
+              tokenUri,
+              null);
+
+      // Assert
+      assertThat(serviceAccount.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(oauth2.status()).isEqualTo(FORMAT_ERROR);
+      verify(googleCredentialsFactory, never()).forServiceAccount(any(), any(), any());
+      verify(googleCredentialsFactory, never()).forOAuth2(any(), any(), any(), any(), any());
+    }
+
+    @ParameterizedTest(name = "extra key file field=\"{0}\"")
+    @ValueSource(strings = {"\"unused\": true", "\"unused\": TRUE"})
+    @DisplayName("A token_uri inside the platform's network, declared by the key file, is refused")
+    void given_internalTokenUriInKeyFile_should_sendNoRequest(String extraField)
+        throws IOException {
+      // Arrange — the real SDK, which reads the key file its own way, and a live local server named
+      // by the key file only: no override.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud.respond("/token", 200, "application/json", "{\"access_token\": \"t\"}");
+        String keyFile =
+            new String(createServiceAccountKeyJson(cloud.url("/token")), StandardCharsets.UTF_8);
+        byte[] keyFileWithExtraField =
+            (keyFile.substring(0, keyFile.lastIndexOf('}')) + ", " + extraField + "}")
+                .getBytes(StandardCharsets.UTF_8);
+
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateServiceAccount(keyFileWithExtraField, GCP_SCOPE, null, null, null);
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
+    @Test
+    @DisplayName("A token_uri java.net.URI gives no host for, such as 127.1, is refused too")
+    void given_shortFormLoopbackTokenUriInKeyFile_should_sendNoRequest() throws IOException {
+      // Arrange — the real SDK, which connects to "127.1" as the loopback address.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud.respond("/token", 200, "application/json", "{\"access_token\": \"t\"}");
+        String shortForm = cloud.url("/token").replace("127.0.0.1", "127.1");
+        assertThat(URI.create(shortForm).getHost()).isNull();
+        byte[] keyFile = createServiceAccountKeyJson(shortForm);
+
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateServiceAccount(keyFile, GCP_SCOPE, null, null, null);
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
+    @ParameterizedTest(name = "token_uri=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "https://oauth2.googleapis.com/token",
+          "https://accounts.google.com/o/oauth2/token",
+          "https://oauth2.europe-west3.rep.googleapis.com/token"
+        })
+    @DisplayName("Google's own token servers are never looked up, older key files included")
+    void given_googleTokenServer_should_notBeChecked(String tokenUri) {
+      // Arrange
+      ServiceAccountCredentials account = mock(ServiceAccountCredentials.class);
+      when(account.getTokenServerUri()).thenReturn(URI.create(tokenUri));
+
+      // Act & Assert
+      assertThat(GcpCredentialConnectivityCheck.declaredTokenUri(account)).isNull();
+    }
+
+    @ParameterizedTest(name = "token_uri=\"{0}\"")
+    @ValueSource(
+        strings = {
+          "http://accounts.google.com/o/oauth2/token",
+          "https://googleapis.com.attacker.example/token",
+          "https://10.0.0.5/token"
+        })
+    @DisplayName("Any other token server, a look-alike or a plain-http one included, is checked")
+    void given_otherTokenServer_should_beChecked(String tokenUri) {
+      // Arrange
+      ServiceAccountCredentials account = mock(ServiceAccountCredentials.class);
+      when(account.getTokenServerUri()).thenReturn(URI.create(tokenUri));
+
+      // Act & Assert
+      assertThat(GcpCredentialConnectivityCheck.declaredTokenUri(account)).isEqualTo(tokenUri);
+    }
+
+    @Test
+    @DisplayName("Nothing reaches an internal endpoint, so its status cannot be read back")
+    void given_internalEndpoints_should_sendNoRequest() throws IOException {
+      // Arrange — the real SDK, a live local server, and the default (no opt-out) configuration.
+      GcpCredentialConnectivityCheck defaultCheck =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(defaultCheck, "timeoutSeconds", 5);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud
+            .respond("/token", 200, "application/json", "{\"access_token\": \"t\"}")
+            .respond("/v1/projects/", 200, "application/json", "{}");
+
+        // Act
+        SecretConnectionResult result =
+            defaultCheck.validateOAuth2(
+                GCP_OAUTH_CLIENT_ID,
+                GCP_OAUTH_CLIENT_SECRET,
+                GCP_OAUTH_REFRESH_TOKEN,
+                GCP_SCOPE,
+                GCP_PROJECT_ID,
+                cloud.url("/token"),
+                cloud.url("/v1/projects/"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+        assertThat(cloud.requests()).isEmpty();
+      }
+    }
+
+    @Test
+    @DisplayName("The on-premise opt-out lets the probe reach an internal endpoint")
+    void given_optOut_should_probeTheInternalEndpoint() throws IOException {
+      // Arrange
+      GcpCredentialConnectivityCheck optedOut =
+          new GcpCredentialConnectivityCheck(
+              new DefaultGcpCredentialConnectivityCheckFactory(TlsTestSupport.jdkTrustManager()));
+      ReflectionTestUtils.setField(optedOut, "timeoutSeconds", 5);
+      ReflectionTestUtils.setField(optedOut, "allowInternalEndpoints", true);
+      try (MockCloudServer cloud = MockCloudServer.start()) {
+        cloud
+            .respond(
+                "/token",
+                200,
+                "application/json",
+                "{\"access_token\": \"t\", \"expires_in\": 3600, \"token_type\": \"Bearer\"}")
+            .respond("/v1/projects/", 200, "application/json", "{}");
+
+        // Act
+        SecretConnectionResult result =
+            optedOut.validateOAuth2(
+                GCP_OAUTH_CLIENT_ID,
+                GCP_OAUTH_CLIENT_SECRET,
+                GCP_OAUTH_REFRESH_TOKEN,
+                GCP_SCOPE,
+                GCP_PROJECT_ID,
+                cloud.url("/token"),
+                cloud.url("/v1/projects/"));
+
+        // Assert
+        assertThat(result.status()).isEqualTo(ACTIVE);
+        assertThat(cloud.requests()).hasSize(2);
+      }
     }
   }
 }

@@ -7,6 +7,7 @@ import {
   withEnabledExpectations,
 } from '../../../../../../admin/components/chaining/logic/drawer/ConfigureActionDetail.utils';
 import type { ActionDetailData } from '../../../../../../admin/components/chaining/logic/types';
+import type { InjectExpectationOutput } from '../../../../../../utils/api-types';
 import type { ContractElement } from '../../../../../../utils/api-types-custom';
 
 // Minimal ActionDetailData carrying only what mapFieldLinksToStepConditions reads.
@@ -193,7 +194,7 @@ describe('contract default values', () => {
   });
 
   describe('withEnabledExpectations', () => {
-    const expectation = (type: string) => ({
+    const expectation = (type: InjectExpectationOutput['inject_expectation_type']) => ({
       expectation_type: type,
       expectation_name: type,
       expectation_score: 100,

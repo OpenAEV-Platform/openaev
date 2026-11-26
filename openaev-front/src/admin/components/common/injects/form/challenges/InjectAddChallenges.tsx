@@ -78,7 +78,7 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
     } else if (injectChallengesIds.includes(challengeId)) {
       handleRemoveChallenge(challengeId);
     } else {
-      setChallengesIds(R.append(challengeId, challengesIds));
+      setChallengesIds([...challengesIds, challengeId]);
     }
   };
 
@@ -100,17 +100,11 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
       || (n.challenge_category || '')
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
-  const filteredChallenges = R.pipe(
-    R.filter(
-      (n: Challenge) => tags.length === 0
-        || R.any(
-          (filter: string) => R.includes(filter, n.challenge_tags),
-          R.pluck('id', tags),
-        ),
-    ),
-    R.filter(filterByKeyword),
-    R.take(20),
-  )(challenges);
+  const filteredChallenges = challenges
+    .filter((n: Challenge) => tags.length === 0
+      || tags.map(item => item.id).some((filter: string) => R.includes(filter, n.challenge_tags)))
+    .filter((n: Challenge) => filterByKeyword(n))
+    .slice(0, 20);
 
   const elements: SelectListPickerElements<Challenge> = useMemo(() => ({
     icon: { value: () => <EmojiEventsOutlined /> },

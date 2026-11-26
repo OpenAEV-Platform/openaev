@@ -16,7 +16,7 @@ jobs:
         if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          client-id: ${{ vars.OPENAEV_PR_CHECKS_CLIENT_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
       - name: "Detect a private related issue"
         id: related

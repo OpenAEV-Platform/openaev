@@ -90,7 +90,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act — reload and modify (triggers @PostLoad → snapshot, then @PreUpdate → diff)
+      // Act: reload and modify (triggers @PostLoad → snapshot, then @PreUpdate → diff), in a
+      // platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, group.getId());
       loaded.setName("UpdatedName");
       entityManager.flush(); // triggers @PreUpdate → computes diff
@@ -120,7 +122,8 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act
+      // Act: in a platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, group.getId());
       loaded.setDescription("New description");
       entityManager.flush();

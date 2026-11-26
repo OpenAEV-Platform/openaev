@@ -21,6 +21,9 @@ public interface MarkingDefinitionRepository
 
   List<MarkingDefinition> findAllByTenantId(String tenantId);
 
+  /** The definition of a tenant that carries this STIX id, the name OpenCTI gives the marking. */
+  Optional<MarkingDefinition> findByStixIdAndTenantId(String stixId, String tenantId);
+
   /** The marking definitions among the given ids that belong to the given tenant. */
   @NotNull
   List<MarkingDefinition> findAllByIdInAndTenantId(

@@ -121,14 +121,31 @@ public class XtmHubEmailService {
         baseUrl);
   }
 
+  /**
+   * Runs outside any transaction, on the scheduler thread. The roles joined by the lookup are read
+   * through the statement inspector, which returns the platform roles and those of the tenants in
+   * the transaction's scope only: scoped to the tenant, the lookup reads that tenant's roles and
+   * the platform's, never another tenant's.
+   */
   private List<User> findTenantAdmins(String tenantId) {
-    return userRepository.findTenantAdministrators(
-        tenantId, List.of(Capability.MANAGE_TENANT_SETTINGS, Capability.BYPASS));
+    return tenantTx.executeReadOnly(
+        TxCtx.forTenant(tenantId),
+        () ->
+            userRepository.findTenantAdministrators(
+                tenantId, List.of(Capability.MANAGE_TENANT_SETTINGS, Capability.BYPASS)));
   }
 
+  /**
+   * Platform administrators hold their capabilities through platform groups and platform roles,
+   * which are read in any scope: the platform default tenant carries the scope, as for the send of
+   * the platform email.
+   */
   private List<User> findPlatformAdmins() {
-    return userRepository.findPlatformAdministrators(
-        List.of(Capability.MANAGE_PLATFORM_SETTINGS, Capability.BYPASS));
+    return tenantTx.executeReadOnly(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () ->
+            userRepository.findPlatformAdministrators(
+                List.of(Capability.MANAGE_PLATFORM_SETTINGS, Capability.BYPASS)));
   }
 
   private String getTemplate() {

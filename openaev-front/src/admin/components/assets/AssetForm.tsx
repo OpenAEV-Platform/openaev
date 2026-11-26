@@ -1,7 +1,7 @@
 import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent } from 'react';
+import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import {
   Controller,
   FormProvider,
@@ -29,13 +29,16 @@ import { formatMacAddress } from '../../../utils/String';
 import { isFeatureEnabled } from '../../../utils/utils';
 import {
   ARCH_OPTIONS,
+  ASSET_EDITABLE_CATEGORIES,
   type AssetCategory,
   type AssetCategoryDef,
+  type AssetSubCategory,
   CLOUD_PROVIDERS,
   CRITICALITY_OPTIONS,
   getCategoryDef,
   getCloudNativeTypeSuggestions,
   humanizeEnum,
+  subcategoryBelongsTo,
 } from './asset-categories';
 import { withoutNullValues } from './asset-stream-values';
 
@@ -121,6 +124,16 @@ const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
     // no default initializer, so an endpoint with no markings assigned comes back as literal
     // `null` rather than `[]` - .optional() alone rejects that and silently blocked every submit.
     asset_markings: z.string().array().optional().nullable(),
+  }).superRefine((values, ctx) => {
+    // Same rule as the API (issue #9653): a subcategory always belongs to the asset's category.
+    const subcategory = values.asset_subcategory as AssetSubCategory | null | undefined;
+    if (subcategory && !subcategoryBelongsTo(subcategory, def.value)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['asset_subcategory'],
+        message: t('This subcategory does not belong to the category'),
+      });
+    }
   });
 };
 
@@ -169,6 +182,43 @@ const CloudNativeTypeField: FunctionComponent = () => {
   );
 };
 
+/**
+ * Category select of the edit form. A category change keeps every value the person typed, clears
+ * a subcategory that does not belong to the new category (the API refuses the pair, issue #9653)
+ * and gives a field the new category shows an empty value so its own validation applies.
+ */
+const CategoryField: FunctionComponent = () => {
+  const { t } = useFormatter();
+  const { getValues, setValue } = useFormContext<AssetFormValues>();
+  const category = useWatch<AssetFormValues, 'asset_category'>({ name: 'asset_category' });
+  useEffect(() => {
+    const def = getCategoryDef(category as AssetCategory);
+    const subcategory = getValues('asset_subcategory');
+    if (subcategory && !subcategoryBelongsTo(subcategory, def.value)) {
+      setValue('asset_subcategory', undefined, { shouldDirty: true });
+    }
+    if (def.fields.url !== 'hidden' && getValues('asset_url') == null) {
+      setValue('asset_url', '');
+    }
+    if (def.fields.ips !== 'hidden' && getValues('asset_ips') == null) {
+      setValue('asset_ips', []);
+    }
+  }, [category]);
+  const items = ASSET_EDITABLE_CATEGORIES.map(c => ({
+    value: c as string,
+    label: t(getCategoryDef(c).label),
+  }));
+  return (
+    <SelectFieldController
+      name="asset_category"
+      label={t('Category')}
+      items={items}
+      required
+      helperText={t('Decides which fields this asset shows; a subcategory of another category is cleared.')}
+    />
+  );
+};
+
 const AssetForm: FunctionComponent<Props> = ({
   category,
   onSubmit,
@@ -180,14 +230,14 @@ const AssetForm: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const def = getCategoryDef(category);
+  const initialDef = getCategoryDef(category);
 
   const normalizedMacs = initialValues.asset_mac_addresses?.map(mac => formatMacAddress(mac));
 
   let defaultPlatform: EndpointInput['endpoint_platform'];
-  if (def.value === 'HOST') {
+  if (initialDef.value === 'HOST') {
     defaultPlatform = 'Linux';
-  } else if (def.value === 'MOBILE_DEVICE') {
+  } else if (initialDef.value === 'MOBILE_DEVICE') {
     defaultPlatform = 'iOS';
   }
 
@@ -195,16 +245,16 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_name: '',
     asset_description: '',
     asset_tags: [],
-    asset_hostname: def.fields.hostname !== 'hidden' ? '' : undefined,
-    asset_url: def.fields.url !== 'hidden' ? '' : undefined,
-    asset_ips: def.fields.ips !== 'hidden' ? [] : undefined,
+    asset_hostname: initialDef.fields.hostname !== 'hidden' ? '' : undefined,
+    asset_url: initialDef.fields.url !== 'hidden' ? '' : undefined,
+    asset_ips: initialDef.fields.ips !== 'hidden' ? [] : undefined,
     endpoint_is_eol: false,
     asset_criticality: 'UNKNOWN',
-    asset_internet_facing: def.value === 'WEB_APPLICATION' ? true : undefined,
+    asset_internet_facing: initialDef.value === 'WEB_APPLICATION' ? true : undefined,
     endpoint_platform: defaultPlatform,
-    endpoint_arch: def.fields.arch !== 'hidden' ? 'x86_64' : undefined,
-    asset_cloud_native_type: def.fields.cloud ? '' : undefined,
-    asset_cloud_region: def.fields.cloud ? '' : undefined,
+    endpoint_arch: initialDef.fields.arch !== 'hidden' ? 'x86_64' : undefined,
+    asset_cloud_native_type: initialDef.fields.cloud ? '' : undefined,
+    asset_cloud_region: initialDef.fields.cloud ? '' : undefined,
     asset_linked_person: null,
     asset_metadata: undefined,
     asset_markings: [],
@@ -212,15 +262,24 @@ const AssetForm: FunctionComponent<Props> = ({
     ...withoutNullValues(initialValues),
     // Except this one: null is "not set" (a switch keeps it until toggled), not the creation default.
     ...(initialValues.asset_internet_facing === null ? { asset_internet_facing: null } : {}),
-    asset_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
-    asset_category: def.value,
+    asset_mac_addresses: initialDef.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
+    asset_category: initialDef.value,
   };
+
+  // The schema follows the category the form holds now: editing can move an asset to another
+  // category, whose required fields then apply.
+  const resolver: Resolver<AssetFormValues> = (values, context, options) => (
+    zodResolver(buildSchema(getCategoryDef(values.asset_category as AssetCategory), t)) as Resolver<AssetFormValues>
+  )(values, context, options);
 
   const methods = useForm<AssetFormValues>({
     mode: 'onTouched',
-    resolver: zodResolver(buildSchema(def, t)) as Resolver<AssetFormValues>,
+    resolver,
     defaultValues,
   });
+
+  const watchedCategory = methods.watch('asset_category') as AssetCategory | undefined;
+  const def = getCategoryDef(watchedCategory ?? category);
 
   const {
     handleSubmit,
@@ -327,6 +386,8 @@ const AssetForm: FunctionComponent<Props> = ({
       >
         <TextFieldController required name="asset_name" label={t('Name')} />
         <TextFieldController name="asset_description" label={t('Description')} multiline rows={2} />
+
+        {editing && <CategoryField />}
 
         {subcategoryItems.length > 0 && (
           <SelectFieldController

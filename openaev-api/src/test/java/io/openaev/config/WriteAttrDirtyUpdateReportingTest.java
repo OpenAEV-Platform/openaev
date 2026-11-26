@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -41,9 +42,17 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The production shape is {@code ReportingScheduleLoader.markLastRun}: a managed reload by id
  * and a setter, no save.
+ *
+ * <p>The class arms {@code import_mappers} only, a fixed table unrelated to this test's writes, not
+ * the production list: {@link WriteAttrDetectorTrigger#install} attaches the trigger to every table
+ * carrying {@code tenant_id} regardless of {@code active-tables}, so which other table is armed
+ * cannot change what it raises. The test drives an update that moves a row out of the scope the
+ * transaction runs under, which the statement inspector refuses once {@code reporting_schedules} is
+ * active; the detector path it pins needs that one table inactive, nothing else.
  */
 @Transactional
 @Import(WriteAttrDetectorTestConfig.class)
+@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution: a dirty-checked update is attributed to its loader, or reported")
 class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {

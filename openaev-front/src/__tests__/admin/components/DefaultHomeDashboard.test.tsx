@@ -26,6 +26,12 @@ vi.mock('usehooks-ts', () => ({ useLocalStorage: (_key: string, initialValue: un
 
 vi.mock('../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
 
+// The feature flags are read from the store, which these tests do not mount.
+vi.mock(import('../../../utils/utils'), async importOriginal => ({
+  ...await importOriginal(),
+  isFeatureEnabled: () => false,
+}));
+
 vi.mock('../../../utils/hooks/useDataLoader', () => ({
   default: (loader: () => void) => {
     loader();

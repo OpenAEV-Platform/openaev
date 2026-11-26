@@ -57,10 +57,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  * chained inject left, and a deleted one leaves no attack path behind.
  *
  * <p>The simulation lives in the default tenant. Each call is sent on the non-prefixed route by a
- * member of the simulation's tenant, and by a caller whose scope excludes it (a platform admin who
- * is a member of another tenant only). A by-id load is resolved in the request scope, so that
- * second caller answers "not found" and changes nothing: the workflow follows the simulation's
- * tenant for the callers that reach the simulation at all.
+ * member of the simulation's tenant, by a caller whose scope excludes it (a platform admin who is a
+ * member of another tenant only) and by a caller with no membership at all. A by-id load is
+ * resolved in the request scope, and an empty scope reaches nothing now that {@code exercises} is
+ * isolated, so neither of those two callers finds the simulation and neither changes anything: the
+ * workflow follows the simulation's tenant for the callers that reach the simulation at all.
  *
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, because the reset clears the persistence context, and removed after each
@@ -480,8 +481,8 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given no tenant membership should clear the run")
-    void given_noTenantMembership_should_clearTheRun() throws Exception {
+    @DisplayName("given no tenant membership should not reach the simulation")
+    void given_noTenantMembership_should_notReachTheSimulation() throws Exception {
       // Arrange
       ChainedSimulation rows =
           commitChainedSimulation(
@@ -493,7 +494,10 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
         int httpStatus = changeStatus(rows.simulationId(), ExerciseStatus.SCHEDULED);
 
         // Assert
-        assertResetReachedTheWorkflow(httpStatus, rows);
+        assertThat(httpStatus).isEqualTo(404);
+        assertThat(runStatuses(rows.simulationId()))
+            .as("the run of a simulation the caller cannot reach is left as it was")
+            .containsExactly(WorkflowStatus.END);
       } finally {
         remove(rows);
       }

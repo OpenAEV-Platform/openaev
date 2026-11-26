@@ -32,6 +32,9 @@ public abstract class ConnectorBase {
 
   @JsonIgnore private boolean registered = false;
 
+  // Only ever goes from false to true: once OpenCTI has returned jwks, never fall back without it.
+  @JsonIgnore private volatile boolean supportsJwks = false;
+
   @Override
   public boolean equals(Object obj) {
     if (obj == null) {

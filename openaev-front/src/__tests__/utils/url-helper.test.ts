@@ -596,6 +596,19 @@ describe('url-helper', () => {
       expect(result).toBe(`/api/tenants/${DEFAULT_TENANT_UUID}/player/simulations/${simulationId}/documents`);
     });
 
+    it('given the public comcheck page should call the comcheck route with no tenant', async () => {
+      // Arrange: the comcheck mail link carries no tenant, the status id names the comcheck
+      const statusId = faker.string.uuid();
+      setPathname(`/comcheck/${statusId}`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(`/api/comcheck/${statusId}`);
+
+      // Assert
+      expect(result).toBe(`/api/comcheck/${statusId}`);
+    });
+
     it('given xtmComposer API path should build scoped API URI', async () => {
       // Arrange
       setPathname(`/${VALID_UUID}/admin/tags`);

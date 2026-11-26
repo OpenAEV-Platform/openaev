@@ -17,26 +17,29 @@ import EEChip from '../common/entreprise_edition/EEChip';
 import { defaultPayloadExpectations } from '../common/injects/expectations/Expectation';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
+import FiligranValuesContext from './customization/FiligranValuesContext';
+import LockedFields from './customization/LockedFields';
 import CommandsFormTab from './form/CommandsFormTab';
 import GeneralFormTab from './form/GeneralFormTab';
 import OutputFormTab from './form/OutputFormTab';
 import RemediationFormTabs from './form/RemediationFormTabs';
+import { type ActionFormValues } from './utils/actionFormValues';
 import { useSnapshotRemediation } from './utils/useSnapshotRemediation';
 
 interface Props {
   onSubmit: SubmitHandler<ThreatArsenalActionCreateCustomInput>;
   handleClose: () => void;
   editing: boolean;
-  initialValues?: Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  };
+  initialValues?: ActionFormValues;
+  // A customized copy: only what it may change stays editable.
+  filigranValues?: ActionFormValues;
 }
 
 const ThreatArsenalActionForm = ({
   onSubmit,
   handleClose,
   editing,
+  filigranValues,
   initialValues = {
     action_id: '',
     // @ts-expect-error set payload type to null to get a controlled component from the start
@@ -307,58 +310,60 @@ const ThreatArsenalActionForm = ({
 
   return (
     <>
-      <FormProvider {...methods}>
-        <form
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: theme.spacing(2),
-          }}
-          id="actionForm"
-          noValidate // disabled tooltip
-          onSubmit={handleSubmitWithoutDefault}
-        >
-          <Tabs
-            entries={tabEntries}
-            currentTab={currentTab}
-            onChange={newValue => handleChangeTab(newValue)}
-          />
-
-          {currentTab === 'General' && (
-            <GeneralFormTab />
-          )}
-
-          {currentTab === 'Commands' && (
-            <CommandsFormTab disabledActionType={editing} />
-          )}
-
-          {currentTab === 'Output' && (
-            <OutputFormTab />
-          )}
-
-          {currentTab === 'Remediation' && (
-            <RemediationFormTabs actionId={initialValues?.action_id} />
-          )}
-
-          {/* In-flow action buttons right after the form content, like every
-              other drawer form in the app (no bottom-pinned footer). */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: theme.spacing(1),
-            marginTop: theme.spacing(1),
-            marginBottom: theme.spacing(2),
-          }}
+      <FiligranValuesContext.Provider value={filigranValues ?? null}>
+        <FormProvider {...methods}>
+          <form
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing(2),
+            }}
+            id="actionForm"
+            noValidate // disabled tooltip
+            onSubmit={handleSubmitWithoutDefault}
           >
-            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !isDirty}>
-              {editing ? t('Update') : t('Create')}
-            </Button>
-          </div>
-        </form>
-      </FormProvider>
+            <Tabs
+              entries={tabEntries}
+              currentTab={currentTab}
+              onChange={newValue => handleChangeTab(newValue)}
+            />
+
+            {currentTab === 'General' && (
+              <GeneralFormTab />
+            )}
+
+            {currentTab === 'Commands' && (
+              <CommandsFormTab disabledActionType={editing} />
+            )}
+
+            {currentTab === 'Output' && (
+              <LockedFields><OutputFormTab /></LockedFields>
+            )}
+
+            {currentTab === 'Remediation' && (
+              <LockedFields><RemediationFormTabs actionId={initialValues?.action_id} /></LockedFields>
+            )}
+
+            {/* In-flow action buttons right after the form content, like every
+                other drawer form in the app (no bottom-pinned footer). */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: theme.spacing(1),
+              marginTop: theme.spacing(1),
+              marginBottom: theme.spacing(2),
+            }}
+            >
+              <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !isDirty}>
+                {editing ? t('Update') : t('Create')}
+              </Button>
+            </div>
+          </form>
+        </FormProvider>
+      </FiligranValuesContext.Provider>
     </>
   );
 };

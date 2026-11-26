@@ -1,0 +1,9 @@
+io/openaev/api/news_feed/**/*Test.java
+io/openaev/api/notification/**/*Test.java
+io/openaev/api/snapshot/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/execution/**/*Test.java
+io/openaev/integration/**/*Test.java
+io/openaev/rest/comcheck/**/*Test.java
+io/openaev/rest/payload/**/*Test.java
+io/openaev/service/tenants/**/*Test.java

@@ -64,6 +64,13 @@ inputs:
       is then handed to downstream jobs as an artifact only.
     required: false
     default: "true"
+  cache-write:
+    description: >
+      Set to "true" in the scheduled layer cache refresh (docker-layer-cache.yml):
+      on main it builds every layer from scratch and saves them for PRs to restore.
+      Other runs on main, release tags included, use no layer cache.
+    required: false
+    default: "false"
   no-cache:
     description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
@@ -151,7 +158,17 @@ runs:
       id: commit
       env:
         CONTEXT: ${{ inputs.context }}
-      run: echo "sha=$(git -C "$CONTEXT" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        REF: ${{ github.ref }}
+      # build_commit is empty on a release tag: a release image reports its plain version to
+      # XTM One, any other build reports <version>-dev.<sha7> (XtmOneService#buildVersion).
+      run: |
+        sha="$(git -C "$CONTEXT" rev-parse HEAD)"
+        echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+        if [[ "$REF" == refs/tags/* ]]; then
+          echo "build_commit=" >> "$GITHUB_OUTPUT"
+        else
+          echo "build_commit=${sha}" >> "$GITHUB_OUTPUT"
+        fi
       shell: bash
 
     - name: Record build start time
@@ -160,8 +177,9 @@ runs:
       shell: bash
 
     # Layer cache roles, so that cached `apt-get upgrade` layers never reach a published image:
-    # - main only saves: it builds every layer from scratch and refreshes the shared cache;
-    # - PRs (and feature builds of PR code) only restore main's cache;
+    # - the scheduled refresh on main (cache-write) only saves: it builds every layer from scratch;
+    # - other builds on main use no cache, so a push does not pay the minutes-long cache export;
+    # - PRs (and feature builds of PR code) only restore the refreshed cache;
     # - release tags and no-cache runs use no cache at all.
     # An empty cache scope opts out image variants without PR consumers.
     - name: Resolve layer cache
@@ -169,6 +187,7 @@ runs:
       env:
         NO_CACHE: ${{ inputs.no-cache }}
         CACHE_SCOPE: ${{ inputs.cache-scope }}
+        CACHE_WRITE: ${{ inputs.cache-write }}
         RESOLVED_SCOPE: ${{ steps.names.outputs.cache_scope }}
         UNTRUSTED: ${{ inputs.untrusted-context }}
         REF: ${{ github.ref }}
@@ -177,7 +196,9 @@ runs:
         cache_to=""
         if [ "$NO_CACHE" != "true" ] && [ -n "$CACHE_SCOPE" ] && [[ "$REF" != refs/tags/* ]]; then
           if [ "$REF" = "refs/heads/main" ] && [ "$UNTRUSTED" != "true" ]; then
-            cache_to="type=gha,mode=max,scope=${RESOLVED_SCOPE}"
+            if [ "$CACHE_WRITE" = "true" ]; then
+              cache_to="type=gha,mode=max,scope=${RESOLVED_SCOPE}"
+            fi
           else
             cache_from="type=gha,scope=${RESOLVED_SCOPE}"
           fi
@@ -204,6 +225,7 @@ runs:
         # BUILDKIT_SYNTAX overrides the Dockerfile's `# syntax=` directive
         build-args: |
           OPENAEV_COMMIT=${{ steps.commit.outputs.sha }}
+          OPENAEV_BUILD_COMMIT=${{ steps.commit.outputs.build_commit }}
           ${{ inputs.untrusted-context == 'true' && 'BUILDKIT_SYNTAX=docker/dockerfile:1' || '' }}
         cache-from: ${{ steps.cache.outputs.cache_from }}
         cache-to: ${{ steps.cache.outputs.cache_to }}

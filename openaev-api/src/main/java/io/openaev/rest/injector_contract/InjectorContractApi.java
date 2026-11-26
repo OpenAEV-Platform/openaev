@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
@@ -23,6 +24,8 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInitializer;
+import io.openaev.service.threat_arsenal.ProvidingFilterSpecificationBuilder;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +36,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,6 +49,7 @@ public class InjectorContractApi extends RestBehavior {
 
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @Operation(
@@ -87,18 +92,27 @@ public class InjectorContractApi extends RestBehavior {
   // InjectorContractService#mapFull), which resolves against the activated injectors table.
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    // injector_contract_providing is matched by the dedicated builder (payload output parsers, or
+    // the outputs declared in the content of a contract without payload), never by the generic
+    // equality over the whole content JSON, which no native contract can satisfy.
+    ProvidingFilterSpecificationBuilder.ProvidingFilterContext providing =
+        providingFilterSpecificationBuilder.extractProvidingFilter(handleArchitectureFilter(input));
+    Specification<InjectorContract> searchSpecification =
+        computeSearchJpa(providing.searchInput().getTextSearch());
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                providingFilterSpecificationBuilder.combine(spec, providing, searchSpecification),
+                providingFilterSpecificationBuilder.combine(
+                    specCount, providing, searchSpecification),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
                     : InjectorContractService.OutputMode.BASE,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        handleArchitectureFilter(input),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
+        providing.searchInput(),
         InjectorContract.class);
   }
 
@@ -298,11 +312,13 @@ public class InjectorContractApi extends RestBehavior {
   }
 
   /**
-   * See {@link AttackPatternInitializer}: the contract's attack patterns are serialized after the
-   * scoped transaction closed, so they are hydrated here while the scope is still set.
+   * See {@link AttackPatternInitializer} and {@link ContractOutputElementInitializer}: the
+   * contract's attack patterns and the tags of its payload's output elements are serialized after
+   * the scoped transaction closed, so they are hydrated here while the scope is set.
    */
   private InjectorContract hydrated(InjectorContract injectorContract) {
     AttackPatternInitializer.initializeFromContract(injectorContract);
+    ContractOutputElementInitializer.initializeFromContract(injectorContract);
     return injectorContract;
   }
 }

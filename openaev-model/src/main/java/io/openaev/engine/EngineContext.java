@@ -4,31 +4,30 @@ import io.openaev.engine.model.EsBase;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EngineContext {
 
-  private ApplicationContext context;
+  private final List<Handler<?>> handlers;
 
-  @Autowired
-  public void setContext(ApplicationContext context) {
-    this.context = context;
+  // Constructor injection: a handler in a bean cycle fails startup instead of being skipped.
+  public EngineContext(List<Handler<?>> handlers) {
+    this.handlers = handlers;
   }
 
+  @SuppressWarnings("unchecked")
   public <T extends EsBase> List<EsModel<T>> getModels() {
-    return context.getBeansOfType(Handler.class).entrySet().stream()
+    return handlers.stream()
         .map(
-            entry -> {
-              Handler<T> handler = entry.getValue();
-              Class<T> clazz = resolveGenericType(handler);
+            handler -> {
+              Handler<T> typedHandler = (Handler<T>) handler;
+              Class<T> clazz = resolveGenericType(typedHandler);
               if (clazz == null) {
                 throw new IllegalStateException(
-                    "Cannot resolve generic type for handler " + entry.getKey());
+                    "Cannot resolve generic type for handler " + handler.getClass().getName());
               }
-              return new EsModel<>(clazz, handler);
+              return new EsModel<>(clazz, typedHandler);
             })
         .toList();
   }

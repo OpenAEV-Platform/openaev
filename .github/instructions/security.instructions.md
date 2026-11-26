@@ -43,8 +43,8 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
 
 ## Tenant Isolation
 
-- Every `TenantBase` entity must have `@Filter(name = "tenantFilter")`
-- Native `@Query` bypasses the Hibernate filter — always add `WHERE tenant_id = :tenantId`
+- No entity declares a Hibernate `@Filter` (`TenantFilterRemovedArchTest`); a table in `openaev.tenant.active-tables` is scoped by the statement inspector and its entrypoints carry a `TxCtx`
+- Native queries and `tenant_id`: [multi-tenancy › Critical Rules](multi-tenancy.instructions.md#critical-rules) 1 and 2
 - Never return `tenant_id` in API responses — use `@JsonIgnore` on the tenant relation
 - Never assign platform-only capabilities to tenant roles or vice versa
 - **Dual-scope entities** (Settings, User, Role, Group): `PlatformXxxApi` must require platform-admin capabilities; `TenantXxxApi` must require tenant-scoped capabilities — never share `@AccessControl` between the two
@@ -55,5 +55,4 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
 - Never send raw error messages/stack traces to clients
 - Never bypass `@AccessControl` without explicit `skipRBAC = true` and a comment explaining why
 - Never return `tenant_id` in API responses
-- Never use native `@Query` without `WHERE tenant_id = ...`
 - Never assign platform-only capabilities to tenant roles or vice versa

@@ -9,7 +9,6 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
@@ -20,6 +19,7 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.GroupFixtureWriter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -42,7 +42,7 @@ class UserServiceTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantComposer tenantComposer;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private TokenRepository tokenRepository;
   @Autowired private TestUserHolder testUserHolder;
   @PersistenceContext private EntityManager entityManager;
@@ -350,7 +350,7 @@ class UserServiceTest extends IntegrationTest {
     group.setName(name);
     group.setDefaultUserAssignation(true);
     group.setTenant(tenant);
-    return groupRepository.save(group);
+    return groupFixtureWriter.save(group);
   }
 
   // -- READ --

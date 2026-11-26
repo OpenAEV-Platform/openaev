@@ -9,7 +9,7 @@ export interface CatalogFacetFilters {
   deployment: string[];
 }
 
-export type CatalogSort = 'name_asc' | 'name_desc' | 'deployed_desc';
+export type CatalogSort = 'name_asc' | 'name_desc' | 'deployed_asc' | 'deployed_desc';
 
 export const EMPTY_FACET_FILTERS: CatalogFacetFilters = {
   types: [],
@@ -37,9 +37,15 @@ export interface ConnectorItem {
   /** Number of deployed instances (used by the deployed-count chip and sorting). */
   deployedCount: number;
   logoSrc?: string;
+  version?: string;
+  lastVerifiedAt?: string;
+  /** Last contact of a deployed connector, as shown. */
+  lastSeen?: string;
   /** Card link target; a card without a detail page is not clickable. */
   detailUrl?: string;
 }
+
+export const catalogConnectorUrl = (catalogConnectorId: string) => `/admin/integrations/catalog/${catalogConnectorId}`;
 
 export const fromCatalogConnector = (connector: CatalogConnectorOutput): ConnectorItem => ({
   id: connector.catalog_connector_id,
@@ -56,7 +62,9 @@ export const fromCatalogConnector = (connector: CatalogConnectorOutput): Connect
   logoSrc: connector.catalog_connector_logo_url
     ? `/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`
     : undefined,
-  detailUrl: `/admin/integrations/catalog/${connector.catalog_connector_id}`,
+  version: connector.catalog_connector_container_version,
+  lastVerifiedAt: connector.catalog_connector_last_verified_date,
+  detailUrl: catalogConnectorUrl(connector.catalog_connector_id),
 });
 
 export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR', 'EXECUTOR', 'SECRETS_PROVIDER'];
@@ -78,37 +86,15 @@ export const prettifyUseCase = (useCase: string): string => {
   return lowered.charAt(0).toUpperCase() + lowered.slice(1);
 };
 
-const matchesGroup = (
-  item: ConnectorItem,
-  groupId: FacetGroupId,
-  selectedValues: string[],
-): boolean => {
-  if (selectedValues.length === 0) {
-    return true;
-  }
-  switch (groupId) {
-    case 'types':
-      return selectedValues.includes(item.type);
-    case 'useCases':
-      return item.useCases.some(useCase => selectedValues.includes(useCase));
-    case 'status':
-      return selectedValues.some((value) => {
-        if (value === STATUS_FILIGRAN) {
-          return item.verified;
-        }
-        return !item.verified;
-      });
-    case 'deployment':
-      return selectedValues.some((value) => {
-        if (value === DEPLOYMENT_EXTERNAL) {
-          return item.external;
-        }
-        return !item.external;
-      });
-    default:
-      return true;
-  }
+const GROUP_MATCHERS: Record<FacetGroupId, (item: ConnectorItem, value: string) => boolean> = {
+  types: (item, value) => item.type === value,
+  useCases: (item, value) => item.useCases.includes(value),
+  status: (item, value) => item.verified === (value === STATUS_FILIGRAN),
+  deployment: (item, value) => item.external === (value === DEPLOYMENT_EXTERNAL),
 };
+
+const matchesGroup = (item: ConnectorItem, groupId: FacetGroupId, selectedValues: string[]): boolean => selectedValues.length === 0
+  || selectedValues.some(value => GROUP_MATCHERS[groupId](item, value));
 
 const matchesSearch = (item: ConnectorItem, keyword: string): boolean => {
   if (!keyword) {
@@ -148,21 +134,14 @@ export const countByPredicate = (
   predicate: (item: ConnectorItem) => boolean,
 ): number => items.filter(predicate).length;
 
-export const sortConnectors = (
-  items: ConnectorItem[],
-  sort: CatalogSort,
-): ConnectorItem[] => {
-  const sorted = [...items];
-  switch (sort) {
-    case 'name_desc':
-      sorted.sort((a, b) => b.title.localeCompare(a.title));
-      break;
-    case 'deployed_desc':
-      sorted.sort((a, b) => b.deployedCount - a.deployedCount || a.title.localeCompare(b.title));
-      break;
-    default:
-      sorted.sort((a, b) => a.title.localeCompare(b.title));
-      break;
-  }
-  return sorted;
+const byTitle = (a: ConnectorItem, b: ConnectorItem) => a.title.localeCompare(b.title);
+
+const SORT_COMPARATORS: Record<CatalogSort, (a: ConnectorItem, b: ConnectorItem) => number> = {
+  name_asc: byTitle,
+  name_desc: (a, b) => byTitle(b, a),
+  deployed_asc: (a, b) => a.deployedCount - b.deployedCount || byTitle(a, b),
+  deployed_desc: (a, b) => b.deployedCount - a.deployedCount || byTitle(a, b),
 };
+
+export const sortConnectors = (items: ConnectorItem[], sort: CatalogSort): ConnectorItem[] => [...items]
+  .sort(SORT_COMPARATORS[sort]);

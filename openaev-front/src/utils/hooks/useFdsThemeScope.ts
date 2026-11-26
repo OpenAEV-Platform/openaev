@@ -167,7 +167,10 @@ export const FdsThemeContext = createContext<{
 
 export const useFdsTheme = () => useContext(FdsThemeContext);
 
-const useFdsThemeScope = (mode: FdsThemeMode, custom: FdsCustomTheme = {}): FdsThemeMode => {
+const useFdsThemeScope = (
+  mode: FdsThemeMode,
+  custom: FdsCustomTheme = {},
+): FdsThemeMode => {
   const { background, paper, nav, primary, secondary, accent, text } = custom;
 
   useEffect(() => {

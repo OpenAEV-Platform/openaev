@@ -2,8 +2,7 @@ package io.openaev.service.attackpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
@@ -49,8 +48,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -60,15 +57,9 @@ import org.springframework.transaction.annotation.Transactional;
  * lookups).
  */
 @Transactional
-class AttackPathGraphServiceTest extends IntegrationTest {
+class AttackPathGraphServiceTest extends ProductionTablesIntegrationTest {
 
   private static final String SIM = "SIM-GRAPH";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;

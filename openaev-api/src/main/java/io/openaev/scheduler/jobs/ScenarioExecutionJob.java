@@ -15,7 +15,6 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -24,7 +23,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -41,7 +39,6 @@ public class ScenarioExecutionJob implements Job {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final WorkflowService workflowService;
-  private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
   private final TenantRepository tenantRepository;
 
@@ -62,7 +59,6 @@ public class ScenarioExecutionJob implements Job {
     executeInTenant(
         tenantId,
         () -> {
-          enableV1TenantFilter(tenantId);
           // Find each scenario with cron where now is between start and end date
           List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
           // Filter on valid cron scenario -> Start date on cron is in 1 minute
@@ -136,21 +132,10 @@ public class ScenarioExecutionJob implements Job {
     }
   }
 
-  private void enableV1TenantFilter(String tenantId) {
-    // MT v1 compatibility: the tenant filter must be active for now
-    // we ust enable the filter here for lack of the @Transactional aspect
-    // (forbidden by usage of the TenantScopedTransaction)
-    entityManager
-        .unwrap(Session.class)
-        .enableFilter("tenantFilter")
-        .setParameter("tenantId", tenantId);
-  }
-
   private void cleanOutdatedRecurringScenario(String tenantId) {
     executeInTenant(
         tenantId,
         () -> {
-          enableV1TenantFilter(tenantId);
           // Find each scenario with cron is outdated:
           List<Scenario> scenarios =
               this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());

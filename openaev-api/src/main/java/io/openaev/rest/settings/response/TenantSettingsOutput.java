@@ -14,4 +14,6 @@ public record TenantSettingsOutput(
     @JsonProperty("platform_dark_theme") ThemeInput platformDarkTheme,
     @JsonProperty("platform_light_theme") ThemeInput platformLightTheme,
     @JsonProperty("xtm_opencti_enable") Boolean xtmOpenctiEnable,
-    @JsonProperty("xtm_opencti_url") String xtmOpenctiUrl) {}
+    @JsonProperty("xtm_opencti_url") String xtmOpenctiUrl,
+    @JsonProperty("xtm_opencrq_enable") Boolean xtmOpencrqEnable,
+    @JsonProperty("xtm_opencrq_url") String xtmOpencrqUrl) {}

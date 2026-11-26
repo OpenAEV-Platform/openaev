@@ -98,6 +98,21 @@ public class ExecutionTraceUtils {
         null);
   }
 
+  /**
+   * Adds an agentless COMPLETE/INTERRUPTED trace recording that a user stopped a running atomic
+   * testing, and who did.
+   *
+   * @param status the status of the atomic testing being stopped
+   * @param stoppedBy the name (or email) of the user who stopped it
+   */
+  public static void addAtomicTestingStoppedTrace(InjectStatus status, String stoppedBy) {
+    status.addTrace(
+        ExecutionTraceStatus.INTERRUPTED,
+        "Atomic testing stopped by " + stoppedBy + ".",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
   public static void addSimulationNoMoreProgressTrace(InjectStatus status) {
     status.addTrace(
         ExecutionTraceStatus.INTERRUPTED,

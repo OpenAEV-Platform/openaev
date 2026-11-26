@@ -374,7 +374,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun pause(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.pause(runId);
+    return autonomousRunService.pause(ctx, runId);
   }
 
   @Operation(summary = "Resume a paused run and its chained simulation")
@@ -386,7 +386,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun resume(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.resume(runId);
+    return autonomousRunService.resume(ctx, runId);
   }
 
   @Operation(summary = "Cancel a run and its chained simulation")
@@ -398,7 +398,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun cancel(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.cancel(runId);
+    return autonomousRunService.cancel(ctx, runId);
   }
 
   @Operation(
@@ -415,7 +415,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun restart(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.restart(runId);
+    return autonomousRunService.restart(ctx, runId);
   }
 
   @Operation(
@@ -434,7 +434,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun promote(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.promoteToRealRun(runId);
+    return autonomousRunService.promoteToRealRun(ctx, runId);
   }
 
   @Operation(
@@ -458,7 +458,7 @@ public class AutonomousRunApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousConvertToManualInput input) {
-    Scenario scenario = autonomousRunService.convertToManual(runId, input.getMode());
+    Scenario scenario = autonomousRunService.convertToManual(ctx, runId, input.getMode());
     return new AutonomousConvertToManualOutput(scenario.getId());
   }
 
@@ -707,7 +707,8 @@ public class AutonomousRunApi extends RestBehavior {
       description =
           "Turns a discovered finding (an IP / hostname / asset-type finding) into a real endpoint"
               + " asset the orchestrator can target with the next chained step - the"
-              + " lateral-movement pivot. The ORIGINAL finding is kept and linked to the new asset."
+              + " lateral-movement pivot. The original finding is kept, and its value is recorded"
+              + " as a finding on the new asset."
               + " Returns the created asset id to use as the inject target.")
   @PostMapping("/{runId}/findings/{findingId}/promote-to-asset")
   @Transactional
@@ -721,7 +722,7 @@ public class AutonomousRunApi extends RestBehavior {
       @PathVariable String runId,
       @PathVariable String findingId,
       @RequestParam(name = "acting_agent_id", required = false) String actingAgentId) {
-    return autonomousRunService.promoteFindingToAsset(runId, findingId, actingAgentId);
+    return autonomousRunService.promoteFindingToAsset(ctx, runId, findingId, actingAgentId);
   }
 
   @Operation(

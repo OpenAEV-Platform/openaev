@@ -5,6 +5,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.utils.fixtures.composers.ComposerBase;
 import io.openaev.utils.fixtures.composers.InnerComposerBase;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class PlatformGroupComposer extends ComposerBase<Group> {
 
   @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
 
   public class Composer extends InnerComposerBase<Group> {
 
@@ -33,7 +35,7 @@ public class PlatformGroupComposer extends ComposerBase<Group> {
     @Override
     public PlatformGroupComposer.Composer persist() {
       roleComposers.forEach(PlatformRoleComposer.Composer::persist);
-      groupRepository.save(group);
+      groupFixtureWriter.save(group);
       return this;
     }
 

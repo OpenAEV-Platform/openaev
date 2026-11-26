@@ -98,6 +98,15 @@ export const useAuthorFacetOptions = (
   );
 };
 
+// Every author, loaded once and sorted by name: a facet listed without counts.
+export const useAuthorOptions = (fetchAuthors: () => Promise<AuthorOption[]>): AuthorOption[] => {
+  const [authors, setAuthors] = useState<AuthorOption[]>([]);
+  useEffect(() => {
+    fetchAuthors().then(loaded => setAuthors([...loaded].sort((a, b) => a.label.localeCompare(b.label))));
+  }, []);
+  return authors;
+};
+
 /**
  * The author filter is polymorphic: it holds either a set of author ids
  * (operator `eq`) OR the special "no author" state (operator `empty`). The two
