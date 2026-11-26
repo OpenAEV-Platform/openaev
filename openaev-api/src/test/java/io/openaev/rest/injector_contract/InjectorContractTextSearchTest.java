@@ -220,8 +220,7 @@ class InjectorContractTextSearchTest extends IntegrationTest {
               child(parent, "T1547.001", "Registry Run Keys / Startup Folder"));
       InjectorContract second =
           persistContract(
-              "Winlogon " + UUID.randomUUID(),
-              child(parent, "T1547.004", "Winlogon Helper DLL"));
+              "Winlogon " + UUID.randomUUID(), child(parent, "T1547.004", "Winlogon Helper DLL"));
 
       // The fixture suffixes the external id, so the parent id is no prefix of its children's ids:
       // only the parent path can match them.
