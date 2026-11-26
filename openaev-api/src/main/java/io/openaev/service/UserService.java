@@ -232,8 +232,7 @@ public class UserService {
    * Collection)} once the tenant is attached (SSO).
    */
   @Transactional(rollbackFor = Exception.class)
-  public User createInternalUser(
-      String email, String firstname, String lastname, String token) {
+  public User createInternalUser(String email, String firstname, String lastname, String token) {
     if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
       throw new DataIntegrityViolationException("User with email " + email + " already exists");
     }

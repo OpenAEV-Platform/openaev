@@ -37,9 +37,7 @@ public class V6_20261126110000000__Move_legacy_admins_to_admin_groups extends Ba
     Connection connection = context.getConnection();
     List<String> legacyAdmins =
         queryIds(
-            connection,
-            "SELECT user_id FROM users WHERE user_admin AND user_id <> ?",
-            ADMIN_UUID);
+            connection, "SELECT user_id FROM users WHERE user_admin AND user_id <> ?", ADMIN_UUID);
     if (legacyAdmins.isEmpty()) {
       return;
     }
