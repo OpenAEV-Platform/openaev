@@ -358,9 +358,10 @@ describe('ScenarioVersions', () => {
   });
 
   it.each([
-    [400, 'The update didn\'t apply. Nothing was changed.', 'Try again'],
-    [409, 'The scenario changed since this preview. Nothing was changed.', 'Show the latest preview'],
-  ])('given_anUpdateRefused_should_showOnlyTheErrorAndWhatToDo (%s)', async (status, title, next) => {
+    [500, 'The update didn\'t apply. Nothing was changed.', 'Try again, or contact your administrator if it keeps failing.', 'Try again'],
+    [400, 'The update didn\'t apply. Nothing was changed.', 'Refused', undefined],
+    [409, 'The scenario changed since this preview. Nothing was changed.', 'See the latest preview before applying.', 'Show the latest preview'],
+  ])('given_anUpdateRefused_should_showOnlyTheErrorAndWhatToDo (%s)', async (status, title, description, next) => {
     // Arrange
     const notifyError = vi.fn();
     setNotifyErrorHandler(notifyError);
@@ -380,8 +381,9 @@ describe('ScenarioVersions', () => {
     // Assert
     const failed = await screen.findByText(title);
     expect(failed).toBeInTheDocument();
+    expect(screen.getByText(description)).toBeInTheDocument();
     expect(screen.queryByText('What changes (2)')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: next })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(Try again|Show the latest preview)$/ })?.textContent).toBe(next);
     // The footer's Close, beside the dialog's own close cross.
     expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(2);
     expect(notifyError).not.toHaveBeenCalled();

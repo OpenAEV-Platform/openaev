@@ -61,7 +61,7 @@ import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioRevisionRepository;
-import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ConflictException;
 import io.openaev.service.VariableService;
 import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService;
 import io.openaev.service.catalog.scenario.update.InstalledScenario;
@@ -932,8 +932,8 @@ class ScenarioUpdateApiTest extends IntegrationTest {
               () ->
                   catalogScenarioUpdateService.apply(
                       TxCtx.forTenant(DEFAULT_TENANT_UUID), stale, Map.of(), Map.of(), Map.of()))
-          .isInstanceOf(BadRequestException.class)
-          .hasMessage(CHANGED_MEANWHILE);
+          .isInstanceOf(ConflictException.class)
+          .hasFieldOrPropertyWithValue("reason", CHANGED_MEANWHILE);
       assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
     }
 

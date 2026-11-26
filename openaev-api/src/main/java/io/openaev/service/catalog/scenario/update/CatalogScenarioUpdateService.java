@@ -7,6 +7,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.event.ContentChangePublisher;
@@ -109,7 +110,7 @@ public class CatalogScenarioUpdateService {
   private Scenario unchanged(TxCtx ctx, ScenarioUpdate update) {
     Scenario scenario = scenarioService.scenario(ctx, update.installed().scenarioId());
     if (!Objects.equals(scenario.getCatalogVersion(), update.installed().version())) {
-      throw new BadRequestException(CHANGED_MEANWHILE);
+      throw new ConflictException(CHANGED_MEANWHILE);
     }
     return scenario;
   }

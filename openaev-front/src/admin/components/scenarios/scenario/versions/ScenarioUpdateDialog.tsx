@@ -129,19 +129,18 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
   // A kept edit shows its value, not a diff: a red / green diff reads like a change.
   const [shownKept, setShownKept] = useState<string | null>(null);
 
-  // A 400 gives its reason and no retry: the same request would be refused again.
-  if (applyError || refusal !== null) {
-    let title = target.failedTitle;
+  const failure = refusal ?? applyError;
+  if (failure !== null) {
+    let title = refusal !== null ? String(t('The preview didn\'t load. Nothing was changed.')) : target.failedTitle;
     let description = String(t('Try again, or contact your administrator if it keeps failing.'));
-    let next: ReactNode = <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>;
-    if (refusal !== null) {
-      title = String(t('The preview didn\'t load. Nothing was changed.'));
-      next = <Button onClick={update.retryPreview}>{t('Try again')}</Button>;
-      if (refusal.status === 400) {
-        description = refusal.message || String(t('This change cannot be made. Contact your administrator if you need it.'));
-        next = null;
-      }
-    } else if (applyError === 'changed') {
+    let next: ReactNode = refusal !== null
+      ? <Button onClick={update.retryPreview}>{t('Try again')}</Button>
+      : <Button onClick={update.apply} loading={update.applying}>{t('Try again')}</Button>;
+    // A 400 gives its reason and no retry: the same request would be refused again.
+    if (failure.status === 400) {
+      description = failure.message || String(t('This change cannot be made. Contact your administrator if you need it.'));
+      next = null;
+    } else if (failure.status === 409) {
       title = String(t('The scenario changed since this preview. Nothing was changed.'));
       description = String(t('See the latest preview before applying.'));
       next = <Button onClick={update.showLatestPreview}>{t('Show the latest preview')}</Button>;
