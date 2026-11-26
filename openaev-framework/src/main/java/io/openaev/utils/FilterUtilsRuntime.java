@@ -33,6 +33,8 @@ import java.util.function.Predicate;
  *   <li>{@code not_contains} - Does not contain substring
  *   <li>{@code starts_with} - Starts with prefix (case-insensitive)
  *   <li>{@code not_starts_with} - Does not start with prefix
+ *   <li>{@code ends_with} - Ends with suffix (case-insensitive)
+ *   <li>{@code not_ends_with} - Does not end with suffix
  *   <li>{@code empty} - Is null or blank
  *   <li>{@code not_empty} - Is not null or blank
  * </ul>
@@ -155,6 +157,8 @@ public final class FilterUtilsRuntime {
       case contains -> OperationUtilsRuntime::containsTexts;
       case not_starts_with -> OperationUtilsRuntime::notStartWithTexts;
       case starts_with -> OperationUtilsRuntime::startWithTexts;
+      case not_ends_with -> OperationUtilsRuntime::notEndWithTexts;
+      case ends_with -> OperationUtilsRuntime::endWithTexts;
       case not_eq -> OperationUtilsRuntime::notEqualsTexts;
       case empty -> (value, texts) -> OperationUtilsRuntime.empty(value);
       case not_empty -> (value, texts) -> OperationUtilsRuntime.notEmpty(value);

@@ -617,8 +617,7 @@
         "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx",
         "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateSummary.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
       ]
     },
     {
@@ -713,7 +712,6 @@
         "openaev-front/src/admin/components/common/injects/form/InjectContentForm.tsx",
         "openaev-front/src/admin/components/common/injects/form/InjectForm.tsx",
         "openaev-front/src/admin/components/common/injects/status/traces/TraceMessage.tsx",
-        "openaev-front/src/admin/components/common/matrix/AttackPatternBox.tsx",
         "openaev-front/src/admin/components/common/scheduling/SchedulingDialog.tsx",
         "openaev-front/src/admin/components/components/challenges/ChallengeForm.tsx",
         "openaev-front/src/admin/components/components/challenges/ChallengePopover.tsx",

@@ -33,6 +33,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -46,6 +47,9 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 @Service
 public class AssetService {
+
+  /** Ids per query in {@link #visibleAssetIds}: well under the bind-parameter limit. */
+  private static final int VISIBLE_IDS_CHUNK = 1000;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -67,6 +71,22 @@ public class AssetService {
   /** The assets among the given ids that belong to the given tenant. */
   public List<Asset> assets(@NotNull final List<String> assetIds, @NotBlank final String tenantId) {
     return this.assetRepository.findAllByIdInTenant(assetIds, tenantId);
+  }
+
+  /**
+   * The ids, among {@code assetIds}, of the assets the current transaction can read: the tenant and
+   * the reader's marking clearance apply, so an asset the reader is not cleared for is absent. One
+   * query per chunk and no entity loaded, so a caller can ask about every asset a page names.
+   */
+  public Set<String> visibleAssetIds(@NotNull final Collection<String> assetIds) {
+    Set<String> visible = new HashSet<>();
+    List<String> distinct = assetIds.stream().filter(Objects::nonNull).distinct().toList();
+    for (int from = 0; from < distinct.size(); from += VISIBLE_IDS_CHUNK) {
+      List<String> chunk =
+          distinct.subList(from, Math.min(from + VISIBLE_IDS_CHUNK, distinct.size()));
+      visible.addAll(this.assetRepository.findIdsByIdIn(chunk));
+    }
+    return visible;
   }
 
   public List<Asset> assets() {

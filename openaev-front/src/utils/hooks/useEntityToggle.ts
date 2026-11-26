@@ -1,4 +1,3 @@
-import * as R from 'ramda';
 import { type SyntheticEvent, useState } from 'react';
 
 import { omit } from '../object';
@@ -9,7 +8,7 @@ export interface UseEntityToggle<T> {
   selectAll: boolean;
   numberOfSelectedElements: number;
   onToggleEntity: (
-    entity: T,
+    entity: T | T[],
     _?: SyntheticEvent,
     forceRemove?: T[],
   ) => void;
@@ -34,7 +33,7 @@ const useEntityToggle = <T extends Record<string, any>>(
   >({});
   const [selectAll, setSelectAll] = useState(false);
   const onToggleEntity = (
-    entity: T,
+    entity: T | T[],
     event?: SyntheticEvent,
     forceRemove: T[] = [],
   ) => {
@@ -44,14 +43,15 @@ const useEntityToggle = <T extends Record<string, any>>(
     }
     if (Array.isArray(entity)) {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      const currentIds = R.values(selectedElements).map((n: Record<string, any>) => n[`${prefix}_id`]);
+      const currentIds = Object.values(selectedElements).map((n: Record<string, any>) => n[`${prefix}_id`]);
       const givenIds = entity.map(n => n[`${prefix}_id`]);
       const addedIds = givenIds.filter(n => !currentIds.includes(n));
       let newSelectedElements = {
         ...selectedElements,
-        ...R.indexBy(
-          R.prop(`${prefix}_id`),
-          entity.filter(n => addedIds.includes(n[`${prefix}_id`])),
+        ...Object.fromEntries(
+          entity
+            .filter(n => addedIds.includes(n[`${prefix}_id`]))
+            .map(n => [n[`${prefix}_id`], n]),
         ),
       };
       if (forceRemove.length > 0) {

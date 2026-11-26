@@ -131,11 +131,7 @@ public class PayloadService {
     // rows. Narrow to the payload's own tenant before picking the reference injector and building
     // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
     // another tenant's injector or fail on the injectors_injector_contracts FK.
-    String payloadTenantId = payload.getTenant().getId();
-    List<Injector> injectors =
-        this.injectorRepository.findAllByPayloads(true).stream()
-            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
-            .toList();
+    List<Injector> injectors = payloadInjectors(payload.getTenant().getId());
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
@@ -167,6 +163,34 @@ public class PayloadService {
         injectorIds, injectorContractSaved.getCompositeId().getId());
 
     return injectorContractSaved;
+  }
+
+  /** Without an injector running payloads in the tenant, no payload contract can be rebuilt. */
+  public boolean hasPayloadInjector(String tenantId) {
+    return !payloadInjectors(tenantId).isEmpty();
+  }
+
+  private List<Injector> payloadInjectors(String tenantId) {
+    return this.injectorRepository.findAllByPayloads(true).stream()
+        .filter(injector -> tenantId.equals(injector.getTenantId()))
+        .toList();
+  }
+
+  /**
+   * Saves the payload and rebuilds its contract, keeping the attack patterns, domains and tags of
+   * the contract. Empty when the payload has no contract, or no payload injector to rebuild it.
+   */
+  public Optional<InjectorContract> saveAndRebuildContract(Payload payload) {
+    Payload saved = payloadRepository.save(payload);
+    return injectorContractRepository
+        .findInjectorContractByPayload(saved)
+        .map(
+            contract ->
+                synchroniseInjectorContractBasedOnPayload(
+                    saved,
+                    contract.getAttackPatterns(),
+                    contract.getDomains(),
+                    contract.getTags()));
   }
 
   private void setInjectorContractPropertyBasedOnPayload(
@@ -394,6 +418,10 @@ public class PayloadService {
     return payloadRepository
         .findByIdAndTenantId(payloadId, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+  }
+
+  public List<Payload> findAllBySource(String tenantId, Payload.PAYLOAD_SOURCE source) {
+    return payloadRepository.findAllByTenantIdAndIdentitySource(tenantId, source);
   }
 
   /** Every version of a payload in the tenant. */

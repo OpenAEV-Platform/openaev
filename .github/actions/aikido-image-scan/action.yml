@@ -5,7 +5,8 @@ description: >
   request adds, compared with its base branch; on a push the release gate counts the open issues
   of the image. Each scan is kept in Aikido under a fixed image name, and issues ignored in Aikido
   do not count. The issues at or above the threshold are listed in the job summary and uploaded
-  with the JSON results and the scanner output as the aikido-image-scan artifact. The action
+  with the JSON results, the scanner output and results.tsv (issue count per image, read by the
+  release workflow and the nightly alert) as the aikido-image-scan artifact. The action
   stays green on issues and posts no check on the pull request. A scanner error, or a report that
   cannot be produced, fails it, and the Pipeline Gate with it. Without
   the scanner token (pull requests from forks) the scan is skipped with a notice, except on main,
@@ -118,6 +119,9 @@ runs:
         set +e -uo pipefail
         out=aikido-image-scan
         mkdir -p "$out"
+        # results.tsv lists the images whose report was produced: <label> <issues> <report>. The
+        # release workflow and the nightly n8n alert read it from the artifact.
+        : > "$out/results.tsv"
         failed=0
         for entry in "standard openaev:ci" "ubi9 openaev-ubi9:ci"; do
           read -r label image <<< "$entry"
@@ -146,11 +150,12 @@ runs:
             failed=1
             continue
           fi
-          if ! python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$out/$label.json" \
-            "$image" "$THRESHOLD" "$out/$label.md" > /dev/null; then
+          if ! issues=$(python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$out/$label.json" \
+            "$image" "$THRESHOLD" "$out/$label.md"); then
             failed=1
             continue
           fi
+          printf '%s\t%s\t%s\n' "$label" "${issues#issues=}" "$out/$label.md" >> "$out/results.tsv"
           cat "$out/$label.md" >> "$GITHUB_STEP_SUMMARY" || failed=1
         done
         exit "$failed"

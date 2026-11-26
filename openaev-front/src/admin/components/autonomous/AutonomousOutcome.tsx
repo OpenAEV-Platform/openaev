@@ -2,7 +2,6 @@ import { Button, Chip, Paper } from '@filigran/design-system';
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutlineOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { Alert, Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchAutonomousTimeline } from '../../../actions/autonomous/autonomous-actions';
@@ -28,8 +27,8 @@ const extractTags = (...texts: (string | null | undefined)[]): {
   cves: string[];
 } => {
   const joined = texts.filter(Boolean).join(' ');
-  const techniques = R.uniq(joined.match(TECHNIQUE_RE) ?? []);
-  const cves = R.uniq((joined.match(CVE_RE) ?? []).map(value => value.toUpperCase()));
+  const techniques = [...new Set(joined.match(TECHNIQUE_RE) ?? [])];
+  const cves = [...new Set((joined.match(CVE_RE) ?? []).map(value => value.toUpperCase()))];
   return {
     techniques,
     cves,

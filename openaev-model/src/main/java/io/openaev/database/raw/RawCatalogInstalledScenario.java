@@ -7,5 +7,7 @@ public interface RawCatalogInstalledScenario {
 
   String getExternalId();
 
+  String getVersion();
+
   String getScenarioId();
 }

@@ -5,20 +5,26 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.RequirePreviewFeature;
+import io.openaev.api.scenario.dto.ScenarioCatalogStateOutput;
 import io.openaev.api.scenario.dto.ScenarioRevisionOutput;
 import io.openaev.api.scenario.dto.ScenarioUpdateInput;
 import io.openaev.api.scenario.dto.ScenarioUpdatePreviewOutput;
 import io.openaev.api.scenario.dto.ScenarioVersionsOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.scenario.form.GetScenariosInput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater;
 import io.openaev.service.catalog.scenario.update.InstalledScenarioService;
 import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Propagation;
@@ -66,6 +72,20 @@ public class ScenarioUpdateApi {
     return ScenarioUpdateMapper.toOutput(installedScenarioService.versions(ctx, scenarioId));
   }
 
+  @Operation(summary = "Catalogue state of these scenarios, by id")
+  @PostMapping(TENANT_SCENARIO_URI + "/catalog-states")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
+  public Map<String, ScenarioCatalogStateOutput> catalogStates(
+      @RequireTenantSelector TxCtx ctx, @RequestBody GetScenariosInput input) {
+    Map<String, ScenarioCatalogStateOutput> states = new HashMap<>();
+    installedScenarioService
+        .catalogStates(ctx, TxCtxScopeUtils.requireOneTenantOfScope(ctx), input.getScenarioIds())
+        .forEach(
+            (scenarioId, state) -> states.put(scenarioId, ScenarioUpdateMapper.toOutput(state)));
+    return states;
+  }
+
   @LogExecutionTime
   @Operation(
       summary = "What updating to a catalogue version changes",
@@ -102,7 +122,9 @@ public class ScenarioUpdateApi {
   @LogExecutionTime
   @Operation(
       summary = "Update a catalogue scenario to a version",
-      description = "Refused while a conflict has no side chosen. Keeps a revision first.")
+      description =
+          "Refused (409) when the scenario changed since the preview or a conflict has no side"
+              + " chosen. Keeps a revision first.")
   @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
@@ -115,13 +137,16 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String version,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogScenarioUpdater.update(ctx, scenarioId, version, input.choices(), input.edits());
+    catalogScenarioUpdater.update(
+        ctx, scenarioId, version, input.fromVersion(), input.choices(), input.edits());
   }
 
   @LogExecutionTime
   @Operation(
       summary = "Roll a catalogue scenario back to a revision",
-      description = "Refused while a conflict has no side chosen. Keeps a revision first.")
+      description =
+          "Refused (409) when the scenario changed since the preview or a conflict has no side"
+              + " chosen. Keeps a revision first.")
   @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(propagation = Propagation.SUPPORTS)
@@ -134,6 +159,7 @@ public class ScenarioUpdateApi {
       @PathVariable String scenarioId,
       @PathVariable String revisionId,
       @Valid @RequestBody ScenarioUpdateInput input) {
-    catalogScenarioUpdater.rollback(ctx, scenarioId, revisionId, input.choices(), input.edits());
+    catalogScenarioUpdater.rollback(
+        ctx, scenarioId, revisionId, input.fromVersion(), input.choices(), input.edits());
   }
 }

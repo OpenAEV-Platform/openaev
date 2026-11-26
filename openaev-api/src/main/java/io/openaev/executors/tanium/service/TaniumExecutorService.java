@@ -3,7 +3,6 @@ package io.openaev.executors.tanium.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -69,20 +68,12 @@ public class TaniumExecutorService implements Runnable {
 
   @Override
   public void run() {
-    try {
-      tenantTx.execute(
-          TxCtx.forTenant(executor.getTenantId()),
-          () -> {
-            // This Runnable executes on the shared scheduler thread pool outside any HTTP
-            // request. TenantBaseListener stamps the tenant of every persisted row from
-            // TenantContext, which falls back to the default tenant when nothing sets it.
-            TenantContext.setCurrentTenant(executor.getTenantId());
-            doRun();
-            return null;
-          });
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
   }
 
   private void doRun() {

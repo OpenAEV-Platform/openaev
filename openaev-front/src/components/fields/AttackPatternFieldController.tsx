@@ -13,7 +13,6 @@ import {
 } from '@filigran/design-system';
 import { AddOutlined, RouteOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -96,7 +95,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
 
   const attackPatternsOptions = attackPatterns.map(
     (n: AttackPattern) => {
-      const killChainPhase = R.head(n.attack_pattern_kill_chain_phases);
+      const killChainPhase = n.attack_pattern_kill_chain_phases![0];
       const killChainName = killChainPhase ? killChainPhasesMap[killChainPhase]?.phase_kill_chain_name ?? null : null;
       return {
         id: n.attack_pattern_id,

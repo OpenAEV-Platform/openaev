@@ -134,6 +134,6 @@ export const exportData = <T extends object>(
           inject_content: JSON.stringify(entry.inject_content),
         };
       }
-      return R.mapObjIndexed(escape, entry) as Record<string, string | undefined>;
+      return Object.fromEntries(Object.entries(entry).map(([key, value]) => [key, escape(value)])) as Record<string, string | undefined>;
     });
 };

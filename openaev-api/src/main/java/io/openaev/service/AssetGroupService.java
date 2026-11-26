@@ -505,6 +505,14 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
    */
   @Transactional(readOnly = true)
   public Set<String> dynamicAssetIds(@NotNull final AssetGroup assetGroup) {
+    return dynamicAssetIdsOf(assetGroup);
+  }
+
+  /**
+   * Body of {@link #dynamicAssetIds(AssetGroup)}, callable from another method of this class
+   * without self-invoking a {@code @Transactional} method (the caller's transaction applies).
+   */
+  private Set<String> dynamicAssetIdsOf(final AssetGroup assetGroup) {
     if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
       return Set.of();
     }
@@ -525,6 +533,24 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
                   cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE),
                   cb.equal(root.get("tenant").get("id"), tenantId));
       ids.addAll(idsOf(Asset.class, assetFilter.and(nonEndpointOfTenant)));
+    }
+    return ids;
+  }
+
+  /**
+   * The ids of every member of the given groups, static (listed in the group) and dynamic (matched
+   * by the group's filter, same rules as {@link #dynamicAssetIds(AssetGroup)}). An unknown or
+   * out-of-scope group id contributes nothing.
+   */
+  @Transactional(readOnly = true)
+  public Set<String> memberAssetIds(@NotNull final Collection<String> assetGroupIds) {
+    Set<String> ids = new LinkedHashSet<>();
+    if (assetGroupIds.isEmpty()) {
+      return ids;
+    }
+    for (AssetGroup group : this.assetGroupRepository.findAllById(assetGroupIds)) {
+      group.getAssets().forEach(asset -> ids.add(asset.getId()));
+      ids.addAll(dynamicAssetIdsOf(group));
     }
     return ids;
   }

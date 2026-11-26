@@ -40,15 +40,36 @@ public class AggregatedFindingOutput {
   @NotBlank
   private String value;
 
-  @Schema(description = "First time the finding was seen")
+  @Schema(
+      description =
+          "When the finding row was created (earliest across the group in distinct mode). A"
+              + " storage time, not a detection: read finding_first_seen for that.")
   @JsonProperty("finding_created_at")
   @NotNull
   private Instant creationDate;
 
-  @Schema(description = "Last time the finding was seen")
+  @Schema(
+      description =
+          "When the finding row was last written (latest across the group in distinct mode). Any"
+              + " write moves it (status, asset link, migration): read finding_last_seen for the"
+              + " last detection.")
   @JsonProperty("finding_updated_at")
   @NotNull
   private Instant updateDate;
+
+  @Schema(
+      description =
+          "First time the finding was detected (earliest across the group in distinct mode);"
+              + " the creation time when the detection time is unknown")
+  @JsonProperty("finding_first_seen")
+  private Instant firstSeen;
+
+  @Schema(
+      description =
+          "Last time the finding was detected (latest across the group in distinct mode); the"
+              + " last write time when the detection time is unknown")
+  @JsonProperty("finding_last_seen")
+  private Instant lastSeen;
 
   @Schema(description = "Assets linked to the finding (any asset type, not only endpoints)")
   @JsonProperty("finding_assets")

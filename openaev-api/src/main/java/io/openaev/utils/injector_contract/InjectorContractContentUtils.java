@@ -339,6 +339,74 @@ public class InjectorContractContentUtils {
     return fields;
   }
 
+  /** The keys of the contract's fields of the given type, in contract order. */
+  public List<String> fieldKeysOfType(InjectorContract injectorContract, ContractFieldType type) {
+    List<String> keys = new ArrayList<>();
+    fields(injectorContract)
+        .forEach(
+            (key, field) -> {
+              if (type.label.equals(field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())) {
+                keys.add(key);
+              }
+            });
+    return keys;
+  }
+
+  /**
+   * The ids an inject content holds under a field key: one id for a cardinality 1 field, the list
+   * for a cardinality n one; blank values are left out.
+   */
+  public static List<String> idsOf(JsonNode content, String key) {
+    List<String> ids = new ArrayList<>();
+    if (content == null) {
+      return ids;
+    }
+    JsonNode value = content.get(key);
+    if (value == null || value.isNull()) {
+      return ids;
+    }
+    if (value.isArray()) {
+      value.forEach(
+          item -> {
+            if (item.isTextual() && !item.asText().isBlank()) {
+              ids.add(item.asText());
+            }
+          });
+    } else if (value.isTextual() && !value.asText().isBlank()) {
+      ids.add(value.asText());
+    }
+    return ids;
+  }
+
+  /**
+   * Rewrites the reference fields of an imported inject content in place: a tags field keeps the
+   * ids of the imported tags, given by importedTagId (an id with no imported tag is dropped), and
+   * an asset group reference field is cleared, since asset groups are not part of the export and an
+   * id of another platform names nothing here; the form's required rule then asks for it again.
+   */
+  public void remapImportedReferenceFields(
+      InjectorContract injectorContract,
+      ObjectNode content,
+      Function<String, Optional<String>> importedTagId) {
+    if (content == null) {
+      return;
+    }
+    for (String key : fieldKeysOfType(injectorContract, ContractFieldType.Tags)) {
+      if (!content.has(key)) {
+        continue;
+      }
+      ArrayNode remapped = mapper.createArrayNode();
+      idsOf(content, key).stream()
+          .map(importedTagId)
+          .flatMap(Optional::stream)
+          .forEach(remapped::add);
+      content.set(key, remapped);
+    }
+    for (String key : fieldKeysOfType(injectorContract, ContractFieldType.AssetGroupReference)) {
+      content.remove(key);
+    }
+  }
+
   /**
    * Ensures the inject content has expectations populated.
    *

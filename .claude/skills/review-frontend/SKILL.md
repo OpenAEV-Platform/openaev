@@ -62,7 +62,9 @@ Rules: `frontend.instructions.md` → *Design System & Layout*.
 
 - `t()` called early — pass translated strings to child components
 - Keys = English text: `t('Organization name')`, not `t('organization_name')`
-- No missing translations:
+- Every new string has its English key in `src/utils/lang/en.json`
+- No missing translations (when keys are missing in the other languages, ask the author to run
+  `yarn auto-translation:all`; do not write those files yourself):
   ```bash
   cd openaev-front && yarn i18n-checker 2>&1 | tail -20
   ```

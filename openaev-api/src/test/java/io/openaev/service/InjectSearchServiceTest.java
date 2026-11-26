@@ -15,6 +15,7 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
+import io.openaev.service.InjectVisibleStatusService.StoredStatus;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -45,6 +46,7 @@ class InjectSearchServiceTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private HealthCheckUtils healthCheckUtils;
   @Mock private EntityManager entityManager;
+  @Mock private InjectVisibleStatusService injectVisibleStatusService;
 
   @Mock(answer = org.mockito.Answers.RETURNS_DEEP_STUBS)
   private HibernateCriteriaBuilder criteriaBuilder;
@@ -159,6 +161,17 @@ class InjectSearchServiceTest {
     @BeforeEach
     void setUpCriteriaBuilder() {
       when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
+      // Every agent is visible: the reader is shown the stored statuses. Lenient: a page with no
+      // inject never asks.
+      lenient()
+          .when(injectVisibleStatusService.visibleStatuses(anyMap()))
+          .thenAnswer(
+              invocation -> {
+                Map<String, StoredStatus> stored = invocation.getArgument(0);
+                Map<String, ExecutionStatus> shown = new HashMap<>();
+                stored.forEach((injectId, status) -> shown.put(injectId, status.name()));
+                return shown;
+              });
     }
 
     @Test

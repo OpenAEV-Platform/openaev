@@ -32,12 +32,11 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const teamsColors = computeTeamsColors(teams, theme);
   const sortedTeamsByCommunicationNumber = R.pipe(
-    R.map((a: Team) => ({
+    (teamsList: Team[]) => teamsList.map((a: Team) => ({
       ...a,
       team_communications_number: a.team_communications?.length,
     })),
-    (items: Array<Team & { team_communications_number: number | undefined }>) => items.toSorted(descendBy('team_communications_number')),
-    R.take(10),
+    (items: Array<Team & { team_communications_number: number | undefined }>) => items.toSorted(descendBy('team_communications_number')).slice(0, 10),
   )(teams || []);
   const totalMailsByTeamData = [
     {
