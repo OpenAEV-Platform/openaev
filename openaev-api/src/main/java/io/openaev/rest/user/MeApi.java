@@ -4,13 +4,14 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
+import static org.springframework.util.StringUtils.hasLength;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -30,9 +31,11 @@ import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -58,6 +61,7 @@ public class MeApi extends RestBehavior {
   private final UserService userService;
   private final PermissionService permissionService;
   private final TenantService tenantService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
@@ -70,7 +74,8 @@ public class MeApi extends RestBehavior {
     return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(user, ctx));
   }
 
-  // The tenant variant scopes the organization: a user holds one organization per tenant.
+  // A user holds one organization per tenant. Setting one needs the single tenant of the request's
+  // scope; an empty organization clears the one of the tenant the scope pins, if it pins one.
   @PutMapping({ME_URI + "/profile", TENANT_ME_URI + "/profile"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
@@ -81,11 +86,19 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
-    String tenantId = TenantContext.getCurrentTenant();
-    userRepository.assignOrganization(
-        user,
-        tenantId,
-        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
+    String organizationId = input.getOrganizationId();
+    if (hasLength(organizationId)) {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      userRepository.assignOrganization(
+          user,
+          tenantId,
+          resolveTenantOrganization(organizationId, tenantId, organizationRepository));
+    } else {
+      Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+      if (scope.size() == 1) {
+        userRepository.assignOrganization(user, scope.iterator().next(), null);
+      }
+    }
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));

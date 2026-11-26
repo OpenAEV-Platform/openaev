@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -81,7 +82,7 @@ public class InjectTestStatusService {
    * @return the list of inject test status
    */
   public List<InjectTestStatusOutput> bulkTestInjects(
-      final Specification<Inject> searchSpecifications) {
+      final TxCtx ctx, final Specification<Inject> searchSpecifications) {
     List<Inject> searchResult = this.injectRepository.findAll(searchSpecifications);
     if (searchResult.isEmpty()) {
       throw new BadRequestException("No inject ID is testable");
@@ -92,7 +93,7 @@ public class InjectTestStatusService {
             .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
     List<InjectTestStatus> results = new ArrayList<>();
-    String operationId = bulkOperationMonitor.start("test", "injects", searchResult.size());
+    String operationId = bulkOperationMonitor.start(ctx, "test", "injects", searchResult.size());
     try {
       for (Inject inject : searchResult) {
         results.add(testInject(inject, user));

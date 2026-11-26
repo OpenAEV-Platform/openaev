@@ -23,7 +23,6 @@ import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
@@ -98,13 +97,6 @@ public class MapperService {
     // on the v1 listener's default. The query inspector does not attribute INSERT ... VALUES.
     importMapper.setTenant(new Tenant(tenantId));
     return importMapperRepository.save(importMapper);
-  }
-
-  // No write scope resolved (e.g. the transient test-import dry run): fall back to the
-  // thread-local.
-  // The persisted create/import paths pass the resolved tenant via the overload below.
-  public ImportMapper createImportMapper(ImportMapperAddInput importMapperAddInput) {
-    return createImportMapper(importMapperAddInput, TenantContext.getCurrentTenant());
   }
 
   public ImportMapper createImportMapper(

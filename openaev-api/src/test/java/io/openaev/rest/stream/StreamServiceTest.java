@@ -692,6 +692,37 @@ public class StreamServiceTest {
     verify(sink, never()).next(any());
   }
 
+  @Test
+  public void given_bulkOperationWithNoTenant_should_reachEveryTenantStreamOfItsLauncher()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+    FluxSink<Object> sinkOfTenantB =
+        registerConsumerOfTenant("launcher-session-b", OTHER_TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA).next(any());
+    verify(sinkOfTenantB).next(any());
+    verify(mockSink).next(any());
+  }
+
+  @Test
+  public void given_bulkOperationWithNoTenant_when_consumerIsNotOwner_should_notReceiveIt()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, OTHER_USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA, never()).next(any());
+    verify(mockSink, never()).next(any());
+  }
+
   private static BulkOperation bulkOperation(String tenantId, String userId) {
     return new BulkOperation(
         "bulk-operation-id",
