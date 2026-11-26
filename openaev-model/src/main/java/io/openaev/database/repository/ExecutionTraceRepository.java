@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ExecutionTrace;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -63,10 +64,32 @@ public interface ExecutionTraceRepository
       @Param("injectId") String injectId, @Param("targetId") String targetId);
 
   /**
+   * The status and agent of every COMPLETE trace of the given injects, one row per trace the reader
+   * may see: {@code [injectId, ExecutionTraceStatus, agentId or null]}. The marking filter on
+   * {@code execution_traces} drops the traces of agents above the reader's clearance.
+   *
+   * <p>The action is a literal, not a parameter, so the planner can always use the partial index
+   * {@code idx_execution_traces_complete_inject_status}: a cached generic plan does not know the
+   * value of a parameter, and so cannot prove the index's {@code WHERE execution_action =
+   * 'COMPLETE'}.
+   */
+  @Query(
+      "SELECT s.inject.id, t.status, t.agent.id FROM ExecutionTrace t JOIN t.injectStatus s"
+          + " WHERE s.inject.id IN :injectIds"
+          + " AND t.action = io.openaev.database.model.ExecutionTraceAction.COMPLETE")
+  List<Object[]> findCompleteStatusesAndAgentsByInjectIds(
+      @Param("injectIds") Collection<String> injectIds);
+
+  /**
    * Deletes one bounded batch of execution traces older than the given threshold. Batched so the
    * retention job never holds a long transaction or large lock set on this hot-write table.
    *
-   * @param threshold traces created strictly before this instant are deleted
+   * <p>COMPLETE traces are kept: one per agent, they are the evidence the status of an inject is
+   * computed from, and the status a reader sees reads a missing one as an agent their clearance
+   * hides ({@code InjectStatusUtils.visibleStatus}).
+   *
+   * @param threshold traces created strictly before this instant are deleted, COMPLETE ones
+   *     excepted
    * @param batchSize maximum number of traces deleted in this batch
    * @return the number of deleted traces
    */
@@ -76,7 +99,8 @@ public interface ExecutionTraceRepository
       value =
           "DELETE FROM execution_traces WHERE execution_trace_id IN ("
               + "SELECT execution_trace_id FROM execution_traces "
-              + "WHERE execution_created_at < :threshold LIMIT :batchSize)",
+              + "WHERE execution_created_at < :threshold AND execution_action <> 'COMPLETE'"
+              + " LIMIT :batchSize)",
       nativeQuery = true)
   int deleteBatchOlderThan(
       @Param("threshold") Instant threshold, @Param("batchSize") int batchSize);

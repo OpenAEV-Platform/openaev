@@ -807,6 +807,10 @@ public class ConnectorInstanceService implements AuditLoggedService {
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
+    // An older composer omits the digest: keep the last one reported rather than erase it.
+    if (input.getImageDigest() != null && !input.getImageDigest().isBlank()) {
+      instance.setImageDigest(input.getImageDigest());
+    }
 
     Map<String, Object> after = new HashMap<>();
     after.put("inRebootLoop", instance.isInRebootLoop());

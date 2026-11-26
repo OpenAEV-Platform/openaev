@@ -1,11 +1,11 @@
 import { Input, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { searchTeams } from '../../../../actions/teams/team-actions';
-import SearchAutocompleteField from '../../../../components/fields/SearchAutocompleteField';
+import OptionSearchField from '../../../../components/fields/OptionSearchField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type AssetGroupOutput,
@@ -57,38 +57,6 @@ const ofKind = (kind: string, options: Option[]) => options
     ...option,
     id: option.id.substring(kind.length),
   }));
-
-interface TargetFieldProps {
-  label: string;
-  value: Option[];
-  onChange: (value: Option[]) => void;
-  search: (text: string) => Promise<Option[]>;
-}
-
-const TargetField: FunctionComponent<TargetFieldProps> = ({ label, value, onChange, search }) => {
-  const { t } = useFormatter();
-  const [found, setFound] = useState<Option[]>([]);
-  const [text, setText] = useState('');
-
-  useEffect(() => {
-    search(text).then(setFound).catch(() => setFound([]));
-  }, [text]);
-
-  // The chosen targets stay among the options, so their chips keep their names whatever the search finds.
-  const options = [...value, ...found.filter(option => !value.some(chosen => chosen.id === option.id))];
-  return (
-    <SearchAutocompleteField
-      multiple
-      label={label}
-      labelPosition="none"
-      placeholder={t('Search')}
-      options={options}
-      value={value.map(option => option.id)}
-      onChange={(ids: string[]) => onChange(ids.flatMap(id => options.filter(option => option.id === id)))}
-      onInputChange={setText}
-    />
-  );
-};
 
 interface TargetRowProps {
   kind: TargetKind;
@@ -147,7 +115,8 @@ const ScenarioTargetsFields: FunctionComponent<Props> = ({ intro, value, onChang
       <TargetsGroup>
         {takes('ASSETS', 'ASSET_GROUPS') && (
           <TargetRow key="assets" kind="ASSETS" title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
-            <TargetField
+            <OptionSearchField
+              labelPosition="none"
               label={t('Assets and asset groups')}
               value={[...tagged(ASSET_GROUP, value.assetGroups), ...tagged(ASSET, value.assets)]}
               onChange={chosen => change({
@@ -170,7 +139,8 @@ const ScenarioTargetsFields: FunctionComponent<Props> = ({ intro, value, onChang
         )}
         {takes('TEAMS') && (
           <TargetRow key="teams" kind="TEAMS" title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
-            <TargetField
+            <OptionSearchField
+              labelPosition="none"
               label={t('Teams and players')}
               value={value.teams}
               onChange={teams => change({ teams })}

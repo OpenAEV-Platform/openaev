@@ -6,6 +6,8 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
 import io.openaev.service.stream.StreamMarkingRules.EntityRule;
 import io.openaev.service.stream.StreamMarkingRules.RowSource;
 import jakarta.persistence.EntityManager;
@@ -71,11 +73,19 @@ public class StreamVisibilityService {
       return StreamVisibility.UNFILTERED;
     }
     ObjectNode payload = mapper.valueToTree(event.getInstance());
+    Integer expectedAgentCount = expectedAgentCountOf(event.getInstance());
     Map<String, Set<String>> referenced =
-        new StreamVisibility(rules, rule, payload, Map.of()).referencedIds();
+        new StreamVisibility(rules, rule, payload, Map.of(), expectedAgentCount).referencedIds();
     Map<String, Map<String, Set<String>>> markings =
         referenced.isEmpty() || tenantId == null ? Map.of() : read(referenced, tenantId);
-    return new StreamVisibility(rules, rule, payload, markings);
+    return new StreamVisibility(rules, rule, payload, markings, expectedAgentCount);
+  }
+
+  /** Read from the entity: the count is not serialized, so the payload cannot carry it. */
+  private static Integer expectedAgentCountOf(Object instance) {
+    return Hibernate.unproxy(instance) instanceof Inject inject
+        ? inject.getStatus().map(InjectStatus::getExpectedAgentCount).orElse(null)
+        : null;
   }
 
   private Map<String, Map<String, Set<String>>> read(

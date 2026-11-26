@@ -304,8 +304,39 @@ public class InjectService {
       inject.setContent(
           injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
+    checkAssetGroupReferences(injectorContract, inject.getContent(), parentTenantId);
 
     return inject;
+  }
+
+  /**
+   * Refuses an inject content whose asset group reference fields name a group that is not an asset
+   * group of the inject's tenant: an unknown id and a group of another tenant are answered alike.
+   * The form only offers the tenant's groups; this holds the same rule for an API write.
+   *
+   * @throws BadRequestException naming the field and the ids not found
+   */
+  void checkAssetGroupReferences(
+      @Nullable final InjectorContract injectorContract,
+      @Nullable final JsonNode content,
+      @NotBlank final String tenantId) {
+    for (String key :
+        injectorContractContentUtils.fieldKeysOfType(
+            injectorContract, ContractFieldType.AssetGroupReference)) {
+      List<String> ids = InjectorContractContentUtils.idsOf(content, key);
+      if (ids.isEmpty()) {
+        continue;
+      }
+      Set<String> found =
+          assetGroupService.assetGroups(ids, tenantId).stream()
+              .map(AssetGroup::getId)
+              .collect(Collectors.toSet());
+      List<String> missing = ids.stream().filter(id -> !found.contains(id)).distinct().toList();
+      if (!missing.isEmpty()) {
+        throw new BadRequestException(
+            "Field " + key + ": asset group not found: " + String.join(", ", missing));
+      }
+    }
   }
 
   /**
@@ -1150,6 +1181,8 @@ public class InjectService {
       input.setDependsDuration(inject.getDependsDuration());
     }
     inject.setUpdateAttributes(input);
+    checkAssetGroupReferences(
+        inject.getInjectorContract().orElse(null), inject.getContent(), inject.getTenant().getId());
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {

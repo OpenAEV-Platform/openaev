@@ -842,6 +842,29 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     assertThatJson(response).inPath("$.connector_instance_started_at").isPresent();
     assertThatJson(response).inPath("$.connector_instance_restart_count").isEqualTo(3);
     assertThatJson(response).inPath("$.connector_instance_is_in_reboot_loop").isEqualTo(true);
+    // No digest reported yet: the field is absent, not null
+    assertThatJson(response).inPath("$.connector_instance_image_digest").isAbsent();
+  }
+
+  @Test
+  @DisplayName("Given a reported image digest should expose it in the connector instance read")
+  void givenReportedImageDigest_shouldExposeItInTheRead() throws Exception {
+    CatalogConnector catalogConnector = getCatalogConnector();
+    ConnectorInstancePersisted instance = getConnectorInstance(catalogConnector, new HashSet<>());
+    String digest = "sha256:" + "b".repeat(64);
+    instance.setImageDigest(digest);
+    connectorInstanceRepository.save(instance);
+    String response =
+        mvc.perform(
+                get(CONNECTOR_INSTANCE_URI + "/" + instance.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThatJson(response).inPath("$.connector_instance_image_digest").isEqualTo(digest);
   }
 
   @Test

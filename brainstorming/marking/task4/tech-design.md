@@ -839,3 +839,391 @@ sequenceDiagram
   (implementation plan, Chunk 5 §3).
 
 Tested by `StreamMarkingRulesTest` (rules per entity, a table out of the registry not filtered).
+
+## Values shown to a reader with less clearance (Chunks 10 and 11)
+
+The marking filter hides rows. It cannot fix a value **computed once and stored**: that value was computed
+over every row, hidden ones included. Two such values show on inject screens:
+
+| Value | Stored in | Computed | Filtered for the reader? |
+|---|---|---|---|
+| Inject status (EXECUTED / PARTIAL / ERROR) | `injects_statuses.status_name` | Once, when the last agent completes (`InjectStatusService.updateFinalInjectStatus` → `InjectStatusUtils.computeStatus`) | No |
+| "Distributing inject to N agent(s) across M endpoint(s)" | `execution_traces.execution_message` of an agent-less trace | Once, at dispatch (`ExecutionExecutorService.saveDistributionTrace`) | No: agent-less traces are global |
+| End date / duration | `injects_statuses.tracking_end_date` | When the last agent completes | No |
+| Per-target status | none, read from the target's traces (`useAgentStatus.ts`) | At read | Yes: `execution_traces → agents → assets` |
+| Global score | none, read from `injects_expectations` | At read | Yes: derived table |
+
+So, for a `TLP:AMBER` reader of an inject launched on a RED and a GREEN asset where RED succeeded and GREEN
+failed, the row reads: target GREEN, score from GREEN, status **PARTIAL**.
+
+### What `injects_statuses.status_name` stores: the system verdict, unchanged
+
+Options considered:
+
+| | Keeps storing | Pros | Cons |
+|---|---|---|---|
+| **A. System verdict + recompute at read (✅ chosen)** | The verdict over every executed agent, as today | No migration; background consumers keep their semantics; the launcher and admins read the stored value as is | Every screen displaying the status must recompute; the list filter on status still matches the stored verdict |
+| B. Lifecycle only (QUEUING / EXECUTING / PENDING / FINISHED), verdict always computed | No verdict | One truth: the traces | Breaking: enum and API contract (`status_name` read by clients and connectors), ES `inject_status`, every background consumer would recompute; SQL filters and dashboards lose their column |
+| C. One verdict per clearance | A verdict per marking combination | Read path stays a join | Combinations grow with the markings; re-marking an asset invalidates them; contradicts "the marked row stays the single source of truth" (`MarkingDerivedTables`) |
+
+**Because** the stored verdict is read by the system, not by a person, and the system acts on every target:
+
+| Consumer | Reads | Needs |
+|---|---|---|
+| Inject dependencies (`InjectsExecutionJob:312`, condition "Execution") | `parent.getStatus().getName()` not ERROR | The real outcome: a child must not start because a hidden failure is invisible to someone |
+| Chaining engine (`InjectExecutionStep:660`) | `isSuccess() \|\| isError()` | That the inject is closed |
+| Simulation auto-finish (`ExerciseRepository.thatMustBeFinished`) | `status_name` in SQL | Closed, and ERROR or not |
+| Expiration, `InjectHelper` (QUEUING) | Lifecycle values | Lifecycle |
+| ES (`InjectHandler` → `EsInject.inject_status`) | `inject_status_name` | Chunk 13 decides |
+
+The stored verdict is the launcher's: targets outside the launcher's clearance were never executed and carry an
+`ASSET_CLEARANCE_RESTRICTED` trace, which is not counted (`ExecutionTraceStatus.NOT_COUNTED`). A reader whose
+clearance covers every executed target reads the same value as the recompute; only a reader with less
+clearance gets a different one.
+
+### Where the status reaches a reader: five places
+
+Every read that shows the status to a person goes through one of these five places, so the recompute goes
+there, not endpoint by endpoint.
+
+| # | Place | Screens | Status read from | Recompute | Cost |
+|---|---|---|---|---|---|
+| 1 | `InjectSearchService.execInjects` + `setComputedAttribute` | Atomic testing list, simulation inject list, injects of an asset / asset group / team / player / organization | Criteria join `inject → status`, `status.name` | One batched JPQL query on the COMPLETE traces of the page's closed injects dispatched to agents | +1 query per page, only when the page holds such an inject |
+| 2 | `InjectStatusMapper` (`toInjectStatusSimple`, `toInjectStatusOutput`, `toInjectStatusOutputWithAllTraces`) | Atomic testing header and target results (`InjectResultOverviewOutput`), Execution details, `GET /injects/status`, attack path badge | `status.getName()` | From `status.getTraces()`, loaded in the reader's transaction, so already filtered | None |
+| 3 | `AttackPathGraphService.applyExecutionStatuses` → `InjectStatusRepository.findStatusNamesByInjectIds`, and `executionDetail` | Simulation attack path: node status, execution detail panel | JPQL `istatus.name`; the status row | Same batched query as #1 (`InjectVisibleStatusService`); the detail from the status row's traces and E | +1 query per graph, only with such an inject |
+| 4 | JPA entity `Inject` serialized (`inject_status`) | Simulation timeline (`GET /exercises/{id}/injects`): ExecutionBoard, ExecutionOverview (error count), ExecutionFlowStrip; the inject edit drawer (`GET /injects/{id}`) and the single-inject responses of `SimulationInjectApi` (activation, trigger, status, teams), which refresh the same front store | Jackson on `InjectStatus.name` | `InjectMapper.toJsonWithVisibleStatus`: the entity is serialized in the reader's transaction, then `inject_status.status_name` is replaced in the JSON, as the stream does (#5). The entity is not changed (#7092) and gets no computed getter; the OpenAPI schema stays `Inject`, so the front and the API types do not change. The `Inject` shape is a public contract (Swagger, collectors), so a smaller output comes with new endpoints ([#9439](https://github.com/OpenAEV-Platform/openaev/issues/9439)) | None: the traces are already loaded for `status_traces` |
+| 5 | SSE stream | Live updates of the timeline (`publishInjectStatusUpdate`) | The publisher's payload, built at full clearance | In `StreamVisibility.payloadFor(clearance)`, after `inject_status.status_traces` is pruned for the reader: pure JSON, no query | None |
+
+Not recomputed: the system consumers above, `InjectTestStatus` (a test sent to the user themselves, no asset),
+ES and reports (Chunk 13).
+
+All five share one rule, `InjectStatusUtils.visibleStatus` (next section), so they cannot disagree.
+
+### The rule: recompute only when the reader misses agents
+
+The marking filter removes rows without saying it removed any: from inside the reader's transaction, "the traces
+are hidden from me" and "there are no traces" look the same. And the stored status is not always computed from the
+traces: a manual status update (`SimulationInjectApi` → `InjectStatusService.updateInjectStatus`),
+`failInjectStatus` and the simulation stop (`WorkflowEndService` → `finalizeAsError`) set it directly. A rule that
+only looks at the visible traces would therefore change what an admin sees, or show "not visible" where nothing is
+hidden.
+
+The rule compares the visible traces with a count the marking filter does not hide:
+`injects_statuses.status_expected_agent_count` (E), the agents the inject was dispatched to, stored at launch
+(`ExecutionExecutorService`: dispatched agents + agents above the launcher's clearance). Null for the injects launched before
+`V5_22`, which added the column: the closed ones are backfilled (row 2).
+
+**Why E is exact.** Every agent counted in E ends with exactly one COMPLETE trace of its own: its result, a
+`TIMEOUT` written by `InjectsFinalizationJob` when it does not answer, `ASSET_CLEARANCE_RESTRICTED` when it is above
+the launcher's clearance, or the dispatch error. A late COMPLETE is stored as an EXECUTION. The only exception is a
+close by the platform (`failInjectStatus`, simulation stop), which writes a COMPLETE error trace **with no agent**,
+visible to everyone.
+
+With V = the number of distinct agents whose COMPLETE trace the reader sees:
+
+| # | Condition | Shown | Why |
+|---|---|---|---|
+| 1 | Stored QUEUING / EXECUTING / PENDING / DRAFT | stored | Lifecycle, not a verdict |
+| 2 | E is null or 0 | stored | No agent dispatched (manual, mail, agentless injectors): the marking filter hides nothing. Injects launched before `V5_22` had no E: `V6_20261120120000000` backfills the closed ones with their distinct agents with a COMPLETE trace, the agents the stored verdict was computed from |
+| 3 | V = E | stored | The reader sees every agent: same as the admin, including for statuses set directly |
+| 4 | No visible COMPLETE trace counts | `NOT_VISIBLE` | Every agent is hidden: say nothing about them |
+| 5 | Otherwise | recomputed from the visible COMPLETE traces, the platform's (no agent) included | Some agents are hidden |
+
+No other shortcut returns the stored verdict. A COMPLETE error of the platform can close an inject whose stored
+verdict also counts hidden agents (an injector reporting with no agent while hidden agents already completed: a
+hidden EXECUTED plus the platform's ERROR is stored PARTIAL), so it is recomputed with the rest (row 5). V > E means
+an agent reported without being dispatched (the callback accepts an agent whose asset is a target, dispatched or
+not), so the count no longer proves that none is hidden: row 5 too, not row 3.
+
+Examples, RED admin and AMBER reader:
+
+| Inject | Stored | Admin (V = E) | AMBER |
+|---|---|---|---|
+| 2 RED agents, both succeed | EXECUTED | EXECUTED (row 3) | `NOT_VISIBLE` (row 4) |
+| RED succeeds, GREEN fails | PARTIAL | PARTIAL (row 3) | ERROR (row 5) |
+| Status set by hand, no agent | EXECUTED | EXECUTED (row 2) | EXECUTED (row 2) |
+| Simulation stopped before the agents answered | ERROR | ERROR (row 5: no agent completed, the platform's trace) | ERROR (row 5) |
+| RED succeeds, then the platform closes with an error | PARTIAL | PARTIAL (row 3) | ERROR (row 5) |
+
+`NOT_VISIBLE` is a display value: it is never stored, `status_name` keeps the system verdict.
+
+**Deleted traces.** The rule reads a missing COMPLETE trace as hidden. Two paths delete them, for every reader:
+
+- **Agent deletion**: `execution_traces.execution_agent_id` is `ON DELETE CASCADE`. An agent goes with its endpoint
+  or its executor (cascade), when it leaves its endpoint (`orphanRemoval`), or in the Caldera stale-agent cleanup.
+- **Retention** (`ExecutionTraceRetentionJob`, off by default): it deleted every trace older than N days, so every
+  old inject showed `NOT_VISIBLE` to everyone. It now keeps the COMPLETE traces, one per agent (about one trace in
+  six): the evidence the status is computed from. The START / EXECUTION traces and their outputs still go.
+
+After an agent deletion E is unchanged, so every reader, the admin included, sees the status computed from the
+remaining targets (row 5), or `NOT_VISIBLE` when none remains. It matches the target list, where a deleted endpoint
+no longer shows. The stored verdict keeps the full outcome for the system, the dashboards and the index.
+`NOT_VISIBLE`'s tooltip names both causes: the reader's clearance, or deleted targets.
+
+| Inject, then | Stored | Admin | AMBER |
+|---|---|---|---|
+| GREEN fails, RED succeeds; the GREEN endpoint is deleted | PARTIAL | EXECUTED (row 5) | `NOT_VISIBLE` (row 4) |
+| One RED agent succeeds; its endpoint is deleted | EXECUTED | `NOT_VISIBLE` (row 4) | `NOT_VISIBLE` (row 4) |
+
+Rejected:
+
+- **Lower E when an agent is deleted** (a trigger on `agents`): the admin keeps the stored verdict, but a reader for
+  whom the deleted agent was the only hidden one gets it too, with that agent's outcome; a single RED agent deleted
+  drops E to 0, and row 2 then shows the stored verdict to everyone.
+- **Lower E and keep the deleted agent's markings on the status**, checked against the reader's clearance: exact,
+  but a column, two triggers (the endpoint's markings are gone by the time its agents cascade) and a clearance
+  check in the four mappers and the batched query, for a history whose target no longer exists.
+
+**Before Chunk 4**: an agent-less COMPLETE trace naming a RED asset (agentless injector) is still visible. It
+is counted in row 5 like the others, and E is 0 for those injects (row 2), so it does not change the result.
+
+**Inputs per place.** The REST places need E and the agent of each visible COMPLETE trace: `InjectStatus` carries E
+(`@JsonIgnore`, read on the entity) and its traces; the batched query of #1 and #3 returns `(inject id, trace
+status, agent id, E)` for the closed injects of the page. The stream (#5) does not need E: it has the publisher's
+payload before pruning, so it compares the COMPLETE traces before and after.
+
+### Write path: unchanged
+
+```mermaid
+sequenceDiagram
+    participant AG as Agent / injector callback
+    participant ISS as InjectStatusService
+    participant U as InjectStatusUtils
+    participant DB as injects_statuses
+    participant SYS as Dependencies · chaining · auto-finish · ES
+    AG->>ISS: COMPLETE trace (RED: EXECUTED)
+    AG->>ISS: COMPLETE trace (GREEN: ERROR)
+    Note over ISS: last expected agent completed<br/>(status_expected_agent_count)
+    ISS->>U: computeStatus(every COMPLETE trace)
+    Note over ISS,U: background, system clearance: RED and GREEN both counted
+    U-->>ISS: PARTIAL
+    ISS->>DB: status_name = PARTIAL, tracking_end_date = now
+    DB-->>SYS: system verdict
+```
+
+### Read path: one list page
+
+```mermaid
+sequenceDiagram
+    actor R as Reader (TLP:AMBER)
+    participant API as AtomicTestingApi / SimulationInjectApi / ...
+    participant S as InjectSearchService
+    participant TR as ExecutionTraceRepository
+    participant INS as Statement inspector (marking)
+    participant U as InjectStatusUtils
+    R->>API: search injects (page of 20)
+    API->>S: injectResults(spec, pageable)
+    S->>S: page query, joins inject → status (stored PARTIAL)
+    S->>S: setComputedAttribute(page): targets, expectations (already filtered)
+    alt the page holds a closed inject with E > 0
+        S->>TR: COMPLETE traces of those injects (JPQL)
+        TR->>INS: select inject, status, agent, E
+        INS-->>TR: adds the derived-table predicate:<br/>trace → agent → asset cleared for AMBER
+        TR-->>S: [(inject, ERROR, green agent, E = 2)] (RED trace dropped)
+        loop each such row
+            S->>U: visibleStatus(PARTIAL, E = 2, visible = [ERROR from 1 agent])
+            U-->>S: ERROR (0 < V < E)
+        end
+    end
+    S-->>API: rows: target GREEN, score GREEN, status ERROR
+    API-->>R: page
+```
+
+- **Cost**: one extra query per page, only when it holds a closed inject dispatched to agents: an `IN` over those
+  inject ids, one row per COMPLETE trace, on the partial COMPLETE index (see "Measured" below). Never one query
+  per row.
+- **MARKING preview feature off**: every place shows the stored status, with no query and no recompute
+  (`InjectVisibleStatusService`, on the switch the stream uses).
+- **Single rule**: `computeStatus(List<ExecutionTrace>)` and `visibleStatus` both delegate to
+  `computeStatusFromTraceStatuses(List<ExecutionTraceStatus>)`, so a stored and a recomputed verdict can only
+  differ by the traces they see.
+- **Nothing visible**: `NOT_VISIBLE` (row 4 of the rule), which says nothing about the hidden targets.
+- **Filter on status**: the lists' filter is an SQL predicate on `status.name`, so it matches the stored verdict
+  and leaks it ("status = PARTIAL" returns an inject the reader sees as ERROR: a hidden target succeeded), as
+  the sort does. To be addressed in [#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538).
+  Recomputing it in SQL: see "Filtering and sorting on the reader's status" below.
+
+### Filtering and sorting on the reader's status: server-side impact
+
+**Who uses it.** No screen filters or sorts the inject lists on the status: the status filter is not in
+`availableFilterNames` of `InjectResultList.tsx` (atomic testings, simulation overview, asset, asset group, team,
+person, organization) nor of `common/injects/Injects.tsx`, and the status column is `isSortable: false`. The
+filter and sort exist in the API only (`@Queryable(filterable, sortable, path = "status.name")` on
+`Inject.status`), for API clients. Dashboards filter on the status in ES (Chunk 13), not here.
+
+**SQL shape.** The generic `status.name` path is replaced, for the `inject_status` key only, by an expression of
+the reader's status:
+
+```sql
+CASE WHEN s.status_name NOT IN ('EXECUTED', 'PARTIAL', 'ERROR')
+       OR coalesce(s.status_expected_agent_count, 0) = 0 THEN s.status_name     -- rows 1, 2
+     ELSE (SELECT <rows 3 to 5 from: count(DISTINCT agent),
+                   bool_or(counted success), bool_or(counted error), s.status_expected_agent_count>
+           FROM execution_traces t
+           WHERE t.execution_inject_status_id = s.status_id
+             AND t.execution_action = 'COMPLETE')
+END
+```
+
+The statement inspector rewrites `execution_traces` inside a WHERE, scalar or EXISTS subquery too
+(`TenantStatementInspectorTest`: `whereSubqueryFiltersBothTables`, `scalarSelectSubqueryFiltered`,
+`existsSubqueryFiltered`), so the derived predicate is added to each trace:
+`t.execution_agent_id IS NULL OR EXISTS (agents → assets AND is_marking_set_allowed(marking_ids))`.
+
+**Cost model.** Unlike the page recompute (20 rows, one query), a filter is evaluated on every row matching the
+other filters, not only the page, and twice (page query and `countQuery`). A sort computes it for every row.
+
+| Step | Per closed inject dispatched to agents | Index before the partial COMPLETE index |
+|---|---|---|
+| Find the traces of the status | every trace of the inject (≈ agents × ~6: START, job retrieval, EXECUTION…, COMPLETE) | `idx_execution_traces_inject_status` |
+| Keep COMPLETE | ≈ agents rows | none, filtered after the index scan |
+| Marking predicate | per COMPLETE row: 1 PK lookup `agents`, 1 PK lookup `assets`, 1 `is_marking_set_allowed` | PKs |
+
+Rows in flight or without agents cost nothing more (the `CASE` short-circuits).
+
+Order of magnitude, estimated before measuring: a tenant with 10,000 closed atomic testings, 50 agents each →
+10,000 × 300 ≈ 3,000,000 index entries read and 10,000 × 50 × 2 = 1,000,000 PK lookups per statement, two
+statements per request: likely several seconds, against tens of milliseconds for a filter on the stored status. Recomputing every closed
+inject (not only PARTIAL) is what `NOT_VISIBLE` costs here: the subquery can no longer be limited to PARTIAL rows.
+A tenant with few agents per inject barely notices.
+
+**Mitigations.**
+
+1. **Pay only when asked**: the expression is built only when the request filters or sorts on `inject_status`;
+   every other search is unchanged.
+2. **Partial covering index**: `CREATE INDEX ... ON execution_traces (execution_inject_status_id) INCLUDE
+   (execution_status, execution_agent_id) WHERE execution_action = 'COMPLETE'`. The scan reads one row per agent
+   instead of every trace (÷ ~6). Write cost: COMPLETE rows only (~1 insert in 6) on a hot-write table. Added
+   (`V6_20261120110000000__Add_complete_trace_index_on_execution_traces`): it also serves the page recompute.
+3. **Split the predicate**: `status = X` becomes `(<rows 1, 2> AND stored = X) OR (<closed with agents> AND
+   <subquery> = X)`, so the subquery never runs on in-flight injects or injects without agents.
+4. Not available: skipping the recompute for a reader who sees everything. Clearance is an explicit list of
+   markings (`MarkingScopeResolver`), not an "all" flag, so "this reader sees every asset" is not known up front.
+5. Rejected: storing per-marking verdicts on the status row. Re-marking an asset would make them stale; the marked
+   row must stay the single source of truth (`MarkingDerivedTables`).
+
+**Decision**: measured below. Filtering and sorting on the reader's status are not shipped: about 1.5 s per
+request, for a filter no screen offers. They wait for a cheaper marking check (conclusion 3). The filter and sort
+on the stored verdict leak it: to be addressed in
+[#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538)
+([ADR-024](../../../adr/ADR-024-inject-execution-status-computed-at-read-from-the-reader-s-clearance.md)).
+
+#### Measured
+
+Setup: a clone of the dev database, PostgreSQL 17 with default settings (`shared_buffers` 128MB, `work_mem` 4MB,
+`jit` on), 10,000 atomic testings (80% closed on A agents, 10% in flight, 10% without agent), about 6 traces per
+agent, half the assets RED; the statements written by hand in the shape the app emits, with the marking predicate
+of `MarkingDimension`. Best of 3 runs, AMBER reader. The admin costs the same: their clearance is an explicit list,
+so the marking predicate runs for them too (mitigation 4). Scripts and results:
+[`perf-11.11/`](perf-11.11/README.md).
+
+The time is given with JIT as configured (on) and without it, because JIT compilation adds 300–380 ms to any
+statement whose estimated cost crosses `jit_optimize_above_cost`, and the marking subqueries are estimated
+expensive.
+
+| Statement (ms, JIT on / off) | A = 10, no index | A = 50, no index | A = 50, partial COMPLETE index |
+|---|---|---|---|
+| **Every read**: extra query, page of 20 | 0.7 / 0.7 | 32 / 3 | 1.9 / 1.9 |
+| Extra query, page of 100 | 31 / 2.7 | 323 / 13 | 10 / 9 |
+| Extra query, 500 injects (simulation overview, attack path) | 34 / 14 | 362 / 68 | 78 / 46 |
+| Filter on the stored status, page + count | 2.5 | 2.8 | 2.6 |
+| Filter on the reader's status, page + count | 413 / 415 | 2,228 / 2,219 | 1,562 / 1,507 |
+| Same, split predicate (mitigation 3), page + count | 929 / 217 | 1,830 / 1,121 | 1,441 / 776 |
+| Same, on candidates only (stored ERROR or PARTIAL), page + count | 2,125 / 1,545 | 3,434 / 2,885 | 2,897 / 2,357 |
+| Sort on the stored status | 4.5 | 4.5 | 4.4 |
+| Sort on the reader's status | 498 / 204 | 1,406 / 1,096 | 1,044 / 772 |
+
+Insert of 100,000 traces (one in six COMPLETE): 1.10–1.31 s with or without the partial index, the difference
+within the noise between runs.
+
+What the plans show:
+
+- **The marking predicate is the cost, not the trace scan.** The filter on the reader's status checks it once per COMPLETE trace of every closed
+  inject matching the other filters: 400,000 checks at A = 50 (an `agents` and an `assets` index lookup each,
+  2.4M of the 2.43M buffers read), for 500 distinct agents. The predicate sits in an `OR` (`execution_agent_id IS
+  NULL OR EXISTS ...`), so PostgreSQL cannot turn it into a join and runs it row by row. The cost grows linearly
+  with the COMPLETE traces of closed injects: about 0.75 s per statement at A = 50 with the index, two statements
+  per request.
+- **The partial COMPLETE index** removes the scan of the non-COMPLETE traces (about 30% of the extra query without
+  JIT) and brings the extra query's estimated cost under the JIT threshold, which is most of its time without it. On the filter it
+  saves about 30%, the marking checks stay.
+- **The split predicate** (mitigation 3) makes the page fast (8–11 ms without JIT): the page stops at 20
+  matches. The count still checks every candidate row.
+- **The candidates prefilter** is slower: the planner underestimates the rows the `CASE` keeps and picks nested
+  loops. Dropped.
+- **JIT** dominates the cheap statements whose estimate is high: the extra query on a page of 100 at A = 50 runs
+  in 13 ms and compiles for 310 ms.
+
+Conclusions:
+
+1. **Every read** (the reader's status in the lists): fine with the partial COMPLETE index (2 ms for a page of 20,
+   10 ms for 100, 46–78 ms for a simulation of 500 injects at A = 50). Without it, JIT can add about 300 ms to a
+   page of 100 or a simulation overview. The index is worth adding whether or not the status filter ships.
+2. **Filtering on the reader's status costs about 1.5 s per request at A = 50** (0.4 s at A = 10), most of it in the count, for an admin as for
+   a restricted reader. Acceptable only for an API filter nobody uses from a screen; not for a screen.
+3. **To make that filter cheaper**, the marking check would have to run once per agent rather than once per trace (for
+   example: the agents the reader can see, computed once and joined). That changes the shape the statement
+   inspector generates, so it is a change to the marking rewrite, not to this filter.
+
+### Read path: inject page, header and execution details
+
+The inject page and the atomic testing header already load the inject's traces, filtered: the recompute is
+`visibleStatus(status.getName(), completeTraces(visibleTraces))` in `InjectStatusMapper`, with no extra query.
+The execution details tab rebuilds the distribution message from the agents the reader can see (Chunk 10):
+
+```mermaid
+sequenceDiagram
+    actor R as Reader (TLP:AMBER)
+    participant API as InjectApi GET /injects/status
+    participant M as InjectStatusMapper
+    participant AR as agents (filtered by marking)
+    R->>API: injectId
+    API->>M: toInjectStatusOutput(status, visible traces)
+    Note over M: distribution trace carries<br/>distributed_agent_ids = [RED agent, GREEN agent]
+    M->>AR: agents among those ids
+    AR-->>M: [GREEN agent] → 1 agent, 1 endpoint
+    M->>M: message "Distributing inject to 1 agent(s) across 1 endpoint(s)"
+    M->>M: end date = latest visible COMPLETE trace
+    M-->>API: InjectStatusOutput
+    API-->>R: execution details
+```
+
+The agent ids go in `execution_structured_output`, not in `execution_context_identifiers`: Chunk 4 hides an
+agent-less trace when that array names a restricted asset, which would hide the whole distribution trace.
+
+### Stream: the reader's copy of the payload (place #5)
+
+The stream payload is the publisher's, built once at full clearance. `StreamVisibility.payloadFor(clearance)`
+already removes, per reader, the traces of `inject_status.status_traces` the reader cannot see
+(`StreamVisibilityServiceTest`: AMBER keeps the global trace only). The status is recomputed right after, on that
+copy:
+
+```mermaid
+sequenceDiagram
+    participant ISS as InjectStatusService
+    participant S as StreamService (@Async)
+    participant V as StreamVisibility
+    participant U as InjectStatusUtils
+    actor R as Reader (TLP:AMBER)
+    ISS-->>S: Inject event (status PARTIAL, traces RED + GREEN), after commit
+    S->>V: payloadFor(AMBER)
+    V->>V: prune listings and embedded rows (existing):<br/>status_traces keeps GREEN + global
+    V->>U: visibleStatus(PARTIAL, agents with a COMPLETE before (E) and after pruning (V))
+    U-->>V: ERROR (0 < V < E)
+    V->>V: inject_status.status_name = ERROR (reader's copy only)
+    S-->>R: payload: GREEN only, status ERROR
+```
+
+- Pure JSON on the reader's copy: no query, the stored row and the publisher's payload are untouched.
+- `payloadFor` is only called for a restricted reader (`StreamService`: `filtersPayload()` and a clearance that is
+  not `MarkingCtx.All`); every other reader gets the publisher's payload as is.
+- The recompute is one step after the pruning (`StreamVisibility.showVisibleInjectStatus`), a no-op on a payload
+  with no `inject_status`: only `Inject` is streamed with its status (`InjectStatusService.publishInjectStatusUpdate`).
+
+### Dashboards
+
+ES indexes the stored verdict (`EsInject.inject_status`), and ES queries apply no marking yet
+(`ElasticService`, `TODO issue/3768`). After Chunk 11, the lists and the dashboards disagree for a restricted
+reader until Chunk 13. A single verdict per inject cannot be filtered per reader in ES: a dashboard that
+respects clearance has to aggregate per-target documents (`EsInjectExpectation.base_asset_side`), not
+`inject_status`.
