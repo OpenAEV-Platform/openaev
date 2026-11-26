@@ -204,6 +204,8 @@ public class ScopeSnapshotService {
     if (notVisible.isEmpty()) {
       return Set.of();
     }
+    // Refilter at system clearance to know whether the asset is not visible because of clearance or
+    // has been deleted, return only the filtered assets because of user's clearance
     return atSystemClearance(tenantId, () -> assetService.visibleAssetIds(notVisible));
   }
 

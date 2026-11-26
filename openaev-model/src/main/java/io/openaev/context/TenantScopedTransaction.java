@@ -345,11 +345,13 @@ public class TenantScopedTransaction {
    * touched: {@code ctx} must name exactly the tenants already in scope, so only the marking
    * dimension widens, and only for {@code work}.
    *
-   * <p>The one HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
+   * <p>The HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
    * relaunch, scenario launch) that must keep the targets the requester is not cleared for. It
    * joins the request's transaction rather than opening one, so it sees what the request already
-   * wrote. The persistence context is flushed and cleared on both sides of {@code work}: nothing
-   * loaded under one clearance is reused under the other, and the caller reloads what it needs.
+   * wrote. Work that only needs committed data reaches system clearance through {@link #executeNew}
+   * instead (ADR-024). The persistence context is flushed and cleared on both sides of {@code
+   * work}: nothing loaded under one clearance is reused under the other, and the caller reloads
+   * what it needs.
    *
    * <p>If {@code work} fails, the clearance is still restored when the transaction can run one more
    * statement. When it cannot (a failed statement aborted it), it can only roll back, and reads

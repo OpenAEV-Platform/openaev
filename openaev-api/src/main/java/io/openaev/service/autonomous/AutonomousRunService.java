@@ -86,6 +86,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -634,6 +635,27 @@ public class AutonomousRunService {
     }
     // Before any read or write keyed on the scenario id alone
     scenarioService.existsInScope(ctx, scenarioId);
+    return inScenarioTenant(
+        ctx, scenarioId, scenarioCtx -> launchInScenarioTenant(scenarioCtx, scenarioId, input));
+  }
+
+  /**
+   * Narrows the current transaction to the tenant of {@code scenarioId}, which must lie within the
+   * request scope, and runs {@code work} with the narrowed scope, as {@link #create} does. The
+   * non-prefixed legacy routes carry no {@code X-Tenant-Ids}, so the request scope is every tenant
+   * of the caller: the scope rules written onto the scenario's workflow are re-read in the
+   * workflow's own tenant, which a transaction left on a wider scope refuses.
+   */
+  private <T> T inScenarioTenant(TxCtx ctx, String scenarioId, Function<TxCtx, T> work) {
+    String tenantId =
+        scenarioService.scenarioTenantWithin(scenarioId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx));
+    TxCtx scenarioCtx = TxCtx.forTenant(tenantId);
+    tenantTx.setScopeOnCurrentTransaction(scenarioCtx);
+    return ambientTenantBridge.callInTenant(tenantId, () -> work.apply(scenarioCtx));
+  }
+
+  private AutonomousRun launchInScenarioTenant(
+      TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -694,6 +716,14 @@ public class AutonomousRunService {
     // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
     // scope of its own, so it must not decide the answer for a scenario outside the request scope.
     Scenario scenario = scenarioService.scenario(ctx, scenarioId);
+    return inScenarioTenant(
+        ctx,
+        scenarioId,
+        scenarioCtx -> planInScenarioTenant(scenarioCtx, scenarioId, scenario, input));
+  }
+
+  private AutonomousRun planInScenarioTenant(
+      TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput input) {
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,

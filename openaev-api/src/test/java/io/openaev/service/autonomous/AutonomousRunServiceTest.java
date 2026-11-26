@@ -25,6 +25,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
@@ -55,6 +56,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -100,6 +102,7 @@ class AutonomousRunServiceTest {
   @Mock private OpenAEVConfig openAEVConfig;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private AmbientTenantBridge ambientTenantBridge;
   // Only exercised by resolveLaunchedBy(), reached from the restart() tests below.
   @Mock private UserRepository userRepository;
 
@@ -113,6 +116,11 @@ class AutonomousRunServiceTest {
   @BeforeEach
   void stubTenantWriteScope() {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
+    lenient().when(scenarioService.scenarioTenantWithin(any(), any())).thenReturn("tenant-1");
+    // The ambient tenant switch is not under test: run the work as given.
+    lenient()
+        .when(ambientTenantBridge.callInTenant(any(), any()))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
     // resolveLaunchedBy() reads the live caller via SessionHelper.currentUser() - not every test
     // reaches it (only restart(), via stubRestartCollaborators()), so both stubs are lenient.
     DefaultOpenAEVPrincipal principal =
@@ -1529,6 +1537,44 @@ class AutonomousRunServiceTest {
               assertThat(rule.getRuleSource()).isEqualTo(ScopeRuleSource.ASSET_GROUP);
               assertThat(rule.getRuleValue()).isEqualTo("asset-group-1");
             });
+  }
+
+  @Test
+  @DisplayName(
+      "planScenario narrows a multi-tenant request scope to the scenario's tenant before writing"
+          + " the scope rules, so the realign reads the workflow in its own tenant")
+  void given_multiTenantScope_should_narrowTransactionBeforeWritingScopeRules() {
+    // Arrange - the legacy route carries no X-Tenant-Ids: the scope is every tenant of the caller
+    TxCtx wide = TxCtx.forTenants(List.of("tenant-1", "tenant-2"));
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
+    when(scenarioService.scenario(wide, "scenario-1")).thenReturn(scenario);
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun r = invocation.getArgument(0);
+              r.setId("plan-run-wide");
+              savedHolder[0] = r;
+              return r;
+            });
+    when(runRepository.findById("plan-run-wide"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+    input.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "asset-group-1")));
+
+    // Act
+    service.planScenario(wide, "scenario-1", input);
+
+    // Assert
+    var order = inOrder(tenantTx, workflowService);
+    order.verify(tenantTx).setScopeOnCurrentTransaction(TxCtx.forTenant("tenant-1"));
+    order.verify(workflowService).writeScopeRules(eq("scenario-1"), isNull(), anyList());
   }
 
   @Test

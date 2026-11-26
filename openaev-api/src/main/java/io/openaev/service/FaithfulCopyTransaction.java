@@ -30,8 +30,9 @@ import org.springframework.stereotype.Component;
  *       and the caller does not reuse an entity loaded before it (now detached).
  * </ul>
  *
- * <p>This is the one HTTP-side door to the system clearance; its callers are an allow-list ({@code
- * FaithfulCopyCallersArchTest}).
+ * <p>This is the door to use when the work must see what the request has just written. Work that
+ * only reads committed data goes through {@code TenantScopedTransaction#executeNew} instead
+ * (ADR-024). Callers of this class are an allow-list ({@code FaithfulCopyCallersArchTest}).
  */
 @Component
 @RequiredArgsConstructor
