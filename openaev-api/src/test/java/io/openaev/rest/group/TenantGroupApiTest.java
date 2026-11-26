@@ -43,6 +43,7 @@ import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
@@ -68,6 +69,7 @@ public class TenantGroupApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
   @MockitoBean private PreviewFeatureService previewFeatureService;
@@ -1225,19 +1227,13 @@ public class TenantGroupApiTest extends IntegrationTest {
       TenantGroupCreateInput input = new TenantGroupCreateInput();
       input.setName("Isolated Group");
 
-      // Seeded directly (native insert), not through the create endpoint: creating under tenant
-      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
-      // the read call below sets it to Y - the aspect refuses a scope change within one
-      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      String groupId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO groups (group_id, group_name, tenant_id)"
-                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
-          .setParameter("id", groupId)
-          .setParameter("name", input.getName())
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
+      // Seeded as a fixture in tenant X's scope, not through the create endpoint: creating under
+      // tenant X's path would set the tenant scope (TxCtx) to X on this test's wrapping
+      // transaction, and the read call below sets it to Y - the aspect refuses a scope change
+      // within one transaction (see TenantScopeTransactionAspect).
+      Group seeded = TenantGroupFixture.getGroup(input.getName());
+      seeded.setTenant(tenantX);
+      String groupId = groupFixtureWriter.save(seeded).getId();
       entityManager.flush();
       entityManager.clear();
 

@@ -116,8 +116,8 @@ public class PayloadUpsertService {
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
-    payloadUtils.copyProperties(input, payload, false);
     payload.setTenant(new Tenant(tenantId));
+    payloadUtils.copyProperties(input, payload, false);
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
@@ -127,10 +127,12 @@ public class PayloadUpsertService {
     }
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
+    payloadUtils.validateDocumentArguments(payload, tenantId);
 
     Payload saved = payloadRepository.save(payload);
     payloadService.synchroniseInjectorContractBasedOnPayload(
@@ -160,6 +162,17 @@ public class PayloadUpsertService {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
+    // Resolved from the existing payload's own tenant, not the request's write-scope tenant
+    // (mirrors PayloadUpdateService#update): the upsert's lookup by external id carries no tenant
+    // predicate, so the two can diverge, and an update must never attribute or link anything to a
+    // tenant other than the one this payload already belongs to.
+    tenantId = existingPayload.getTenant().getId();
+    // Validated against the request's own arguments, before copyProperties: copyProperties sets
+    // the arguments straight onto the managed entity below, so a refusal after that point would
+    // still leave Hibernate's dirty checking holding the cross-tenant value to flush.
+    payloadUtils.validateDocumentArguments(
+        input.getArguments(), existingPayload.getArguments(), tenantId);
+
     Payload payload = (Payload) Hibernate.unproxy(existingPayload);
     payloadUtils.copyProperties(input, payload, true);
 
@@ -180,9 +193,10 @@ public class PayloadUpsertService {
     final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains(), tenantId);
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
     }
 
     Payload saved = payloadRepository.save(payload);

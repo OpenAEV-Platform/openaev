@@ -176,6 +176,9 @@ public class InjectsFinalizationJob implements Job {
                                       .timestamp(Instant.now())
                                       .build(),
                                   delayForSimulationCompletedEvent));
+
+                  // the same event on the simulation itself, for its own triggers
+                  exercisesFinished.forEach(notificationEventService::sendSimulationCompleted);
                 }));
   }
 

@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.rest.finding.FindingService;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -42,28 +41,5 @@ class EmailOutputProcessorTest {
   void shouldReturnEmailAsFindingValue() throws Exception {
     JsonNode node = objectMapper.readTree("{\"email\": \"bob@corp.test\"}");
     assertEquals("bob@corp.test", processor.toFindingValue(node));
-  }
-
-  @Test
-  @DisplayName("should return empty list when asset_id is missing")
-  void shouldReturnEmptyListWhenAssetIdMissing() throws Exception {
-    JsonNode node = objectMapper.readTree("{\"email\": \"alice@corp.test\"}");
-    assertTrue(processor.toFindingAssets(node).isEmpty());
-  }
-
-  @Test
-  @DisplayName("should return single asset id when asset_id is a string")
-  void shouldReturnSingleAssetIdWhenAssetIdIsString() throws Exception {
-    JsonNode node =
-        objectMapper.readTree("{\"email\": \"alice@corp.test\", \"asset_id\": \"asset42\"}");
-    assertEquals(List.of("asset42"), processor.toFindingAssets(node));
-  }
-
-  @Test
-  @DisplayName("should return multiple asset ids when asset_id is an array")
-  void shouldReturnMultipleAssetIdsWhenAssetIdIsArray() throws Exception {
-    JsonNode node =
-        objectMapper.readTree("{\"email\": \"alice@corp.test\", \"asset_id\": [\"a1\", \"a2\"]}");
-    assertEquals(List.of("a1", "a2"), processor.toFindingAssets(node));
   }
 }

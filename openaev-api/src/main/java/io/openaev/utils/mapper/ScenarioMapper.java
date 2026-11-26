@@ -1,5 +1,6 @@
 package io.openaev.utils.mapper;
 
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.rest.document.form.RelatedEntityOutput;
@@ -115,6 +116,13 @@ public class ScenarioMapper {
                 : 0)
         .workflowId(workflowId)
         .autonomous(rawScenario.getScenario_autonomous())
+        .scheduledBy(
+            UserSimple.of(
+                rawScenario.getScenario_scheduled_by(),
+                rawScenario.getScenario_scheduled_by_firstname(),
+                rawScenario.getScenario_scheduled_by_lastname(),
+                rawScenario.getScenario_scheduled_by_email()))
+        .catalogVersion(rawScenario.getScenario_catalog_version())
         .build();
   }
 

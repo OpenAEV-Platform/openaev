@@ -2,7 +2,6 @@ import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } fr
 import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Avatar, Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
@@ -34,6 +33,7 @@ import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
 import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
+import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
 import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
@@ -52,6 +52,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { ascendBy } from '../../../../utils/Sorting';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
@@ -84,6 +85,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
   const theme = useTheme();
   const { t } = useFormatter();
   const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
+  // The live OpenCTI threat card belongs to the exploration graph preview feature (off by default);
+  // off, the threat link is the external-URL button shipped before it.
+  const isExplorationGraphEnabled = isFeatureEnabled('EXPLORATION_GRAPH');
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
   const ability = useAbility();
   const dispatch = useAppDispatch();
@@ -103,7 +107,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
-  const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
+  const sortByOrder = (items: KillChainPhase[]) => items.toSorted(ascendBy('phase_order'));
 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
@@ -236,11 +240,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     };
   }, [scenarioId, areAnyExercisesInScenario]);
 
-  const lastAttackPatternIds = R.uniq(
+  const lastAttackPatternIds = [...new Set(
     (lastInjectResults ?? [])
       .filter(injectResult => !!injectResult.inject_attack_pattern)
       .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-  );
+  )];
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 
@@ -566,7 +570,17 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                   <KillChainTimeline phases={killChainPhases} />
                 </Field>
               </Box>
-              {!isScenarioChaining && hasExternalUrl && (
+              {/* Threat intelligence: a scenario generated from OpenCTI keeps the source object's id
+                  in its external reference; the OpenCTI emblem (contract v3) opens it, its preview
+                  names it, greyed with its tooltip when not found or not connected. */}
+              {isExplorationGraphEnabled && !isScenarioChaining && !isEmptyField(scenario.scenario_external_reference) && (
+                <Box sx={{ gridColumn: '1 / -1' }}>
+                  <Field label={t('Threat intelligence')}>
+                    <OpenCtiPivot kind="threats" objectKey={scenario.scenario_external_reference} />
+                  </Field>
+                </Box>
+              )}
+              {!isScenarioChaining && (!isExplorationGraphEnabled || isEmptyField(scenario.scenario_external_reference)) && hasExternalUrl && (
                 <Box sx={{ gridColumn: '1 / -1' }}>
                   <Field label={t('Threat intelligence')}>
                     <Button asChild priority="secondary" size="sm">

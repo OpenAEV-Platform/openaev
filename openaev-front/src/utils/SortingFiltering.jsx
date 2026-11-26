@@ -1,8 +1,8 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
-import * as R from 'ramda';
 import { useState } from 'react';
 
 import { useFormatter } from '../components/i18n';
+import { compare } from './Sorting';
 
 const useSearchAndFilter = (
   schema,
@@ -18,10 +18,10 @@ const useSearchAndFilter = (
   const [keyword, setKeyword] = useState(options?.defaultKeyword ?? '');
   const [tags, setTags] = useState([]);
   const handleAddTag = (value) => {
-    setTags(R.uniq(R.append(value, tags)));
+    setTags(tags.some(tag => tag.id === value.id) ? tags : [...tags, value]);
   };
   const handleRemoveTag = (value) => {
-    const remainingTags = R.filter(n => n.id !== value, tags);
+    const remainingTags = tags.filter(n => n.id !== value);
     setTags(remainingTags);
   };
   const handleSearch = value => setKeyword(value);
@@ -63,24 +63,20 @@ const useSearchAndFilter = (
         .reduce((a, b) => a || b);
       return isEmptyKeyword || isKnownColumn;
     };
-    const sort = R.sortWith(
-      order.orderAsc
-        ? [R.ascend(R.propOr('', order.sortBy))]
-        : [R.descend(R.propOr('', order.sortBy))],
+    // A missing value sorts as '', unlike ascendBy where it compares equal to every value
+    const sortValue = e => e[order.sortBy] ?? '';
+    const compareElements = (a, b) => (order.orderAsc
+      ? compare(sortValue(a), sortValue(b))
+      : compare(sortValue(b), sortValue(a)));
+    const sort = items => items.toSorted(compareElements);
+    if (!defaultSortKey) {
+      return elements.filter(n => filterByKeyword(n));
+    }
+    return sort(
+      elements
+        .filter(n => tags.length === 0 || tags.some(tag => (n[`${schema}_tags`] || []).includes(tag.id)))
+        .filter(n => filterByKeyword(n)),
     );
-    return defaultSortKey
-      ? R.pipe(
-          R.filter(
-            n => tags.length === 0
-              || R.any(
-                filter => R.includes(filter, n[`${schema}_tags`] || []),
-                R.pluck('id', tags),
-              ),
-          ),
-          R.filter(filterByKeyword),
-          sort,
-        )(elements)
-      : R.pipe(R.filter(filterByKeyword))(elements);
   };
   return {
     keyword,

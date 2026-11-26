@@ -1,117 +1,64 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type MouseEvent, useState } from 'react';
 
 import {
+  customizeThreatArsenalAction,
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
   exportThreatArsenalAction,
-  fetchThreatArsenalAction,
-  updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
-import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
-import {
-  type ThreatArsenalAction,
-  type ThreatArsenalActionFullOutput,
-  type ThreatArsenalActionUpdateInput,
-} from '../../../utils/api-types';
-import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
+import { type ThreatArsenalAction } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { download } from '../../../utils/utils';
-import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
-import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
-import ThreatArsenalActionForm from './ThreatArsenalActionForm';
-import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
+import { download, isFeatureEnabled } from '../../../utils/utils';
+import useCanUpdateAction from './hook/useCanUpdateAction';
+import { type OpenedTab } from './hook/useOpenedAction';
+import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
+import usePayloadRevocation from './revocation/usePayloadRevocation';
+import ThreatArsenalActionEditDrawer from './ThreatArsenalActionEditDrawer';
+import { isCustomizedCopy } from './utils/threatArsenalStatusUtils';
+import useAfterNewVersion from './versions/useAfterNewVersion';
 
 interface PayloadPopoverNewProps {
   action: ThreatArsenalAction;
-  onUpdate?: (action: ThreatArsenalAction) => void;
+  onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
   onDelete?: () => void;
   onDuplicate?: (action: ThreatArsenalAction) => void;
+  onShowVersions?: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
-
-const buildInitialValues
-  = (action: ThreatArsenalActionFullOutput, actionName: string): Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  } => {
-    const remediations: Record<string, DetectionRemediationForm> = {};
-    action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_security_platform ?? ''] = {
-        content: remediation.detection_remediation_values ?? '',
-        remediationId: remediation.detection_remediation_id ?? '',
-        author_rule: remediation.author_rule,
-      };
-    });
-
-    return {
-      action_id: action.action_id,
-      action_name: actionName,
-      action_description: action.action_description,
-      action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
-      command_executor: action.command_executor as string | undefined,
-      command_content: action.command_content as string | undefined,
-      dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-      action_arguments: action.action_arguments?.map(arg => ({
-        ...arg,
-        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
-        description: arg.description ?? undefined,
-        separator: arg.separator ?? undefined,
-      })),
-      action_prerequisites: action.action_prerequisites,
-      file_drop_file: action.file_drop_file as string | undefined,
-      action_attack_patterns: action.action_attack_patterns,
-      action_tags: action.action_tags as string[] | undefined,
-      action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
-      action_expected_security_platforms: action.action_expected_security_platforms ?? {},
-      action_execution_arch: action.action_execution_arch,
-      action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
-      action_platforms: action.action_platforms,
-      executable_file: action.executable_file as string | undefined,
-      action_cleanup_executor: action.action_cleanup_executor ?? '',
-      action_cleanup_command: action.action_cleanup_command ?? '',
-      remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
-      action_domains: action.action_domains,
-    } as Partial<ThreatArsenalActionCreateCustomInput> & {
-      action_id?: string;
-      payload_id?: string;
-    };
-  };
-
-const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
-
-const handleCleanupExecutorValue = (executor: string, command: string): string | null => {
-  if (executor !== '' && handleCleanupCommandValue(command) !== null) return executor;
-  return null;
-};
 
 const ThreatArsenalActionPopover = ({
   action,
   onUpdate,
   onDuplicate,
   onDelete,
+  onShowVersions,
 }: PayloadPopoverNewProps) => {
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [openEdit, setOpenEdit] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The action whose edit drawer is open: this one, or the copy Customize just made.
+  const [editing, setEditing] = useState<ThreatArsenalAction | null>(null);
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
-  const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
 
   const actionId = action.injector_contract_id;
+  const afterSave = useAfterNewVersion(actionId, onUpdate, saved => onShowVersions?.(saved, 'saved'));
   const payloadId = action.action_payload?.payload_id ?? '';
   const grantResourceId = action.action_grant_resource_id;
   const name = tPick(action.action_labels);
   // Dummy injectors were removed (#6779): an action whose injector is not registered has no injector type.
   const isUnregistered = action.action_injector_type == null;
   const isFromCollector = action.action_payload?.payload_collector_type != null;
+  const catalog = isFeatureEnabled('CATALOG');
+  const customized = isCustomizedCopy(action);
   const disableUpdate = isFromCollector || isUnregistered;
   const disableDuplicate = action.action_payload == null || isUnregistered;
   const disableJsonExport = action.action_payload == null || isUnregistered;
@@ -119,64 +66,11 @@ const ThreatArsenalActionPopover = ({
   const disableDelete = !isUnregistered
     && (action.action_payload == null || (isFromCollector && action.action_payload.payload_status !== 'DEPRECATED'));
 
-  // -- Popover --
-  const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
-  const handlePopoverClose = () => setAnchorEl(null);
-
   // -- Edit --
-  const handleOpenEdit = async () => {
-    handlePopoverClose();
-    const response = await fetchThreatArsenalAction(actionId);
-    setFetchedAction(response.data as ThreatArsenalActionFullOutput);
-    setOpenEdit(true);
-  };
-
-  const handleCloseEdit = () => {
-    setOpenEdit(false);
-    setFetchedAction(null);
-  };
-
-  const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
-    const inputValues: ThreatArsenalActionUpdateInput = {
-      ...data,
-      action_cleanup_executor: handleCleanupExecutorValue(
-        data.action_cleanup_executor as string ?? '',
-        data.action_cleanup_command as string ?? '',
-      ),
-      action_cleanup_command: handleCleanupCommandValue(data.action_cleanup_command as string ?? ''),
-      action_detection_remediations: Object.entries(data.remediations ?? {})
-        .filter(([, value]) => value)
-        .map(([key, value]) => {
-          const remediation = value as unknown as DetectionRemediationForm;
-          return {
-            detection_remediation_security_platform: key,
-            detection_remediation_values: remediation.content,
-            detection_remediation_id: remediation.remediationId,
-            author_rule: remediation.author_rule,
-          };
-        }),
-    } as ThreatArsenalActionUpdateInput;
-
-    const response = await updateThreatArsenalAction(actionId, inputValues);
-    if (response.data && onUpdate) {
-      onUpdate(response.data as ThreatArsenalAction);
-    }
-    handleCloseEdit();
-  };
-
-  const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
-    const updatedDataInput: ThreatArsenalActionCreateCustomInput = {
-      ...fetchedAction,
-      action_name: fetchedAction?.action_labels ? tPick(fetchedAction?.action_labels) : '',
-      action_tags: data.injector_contract_tags,
-      action_attack_patterns: data.injector_contract_attack_patterns,
-      action_domains: data.injector_contract_domains,
-    } as ThreatArsenalActionCreateCustomInput;
-    onSubmitEdit(updatedDataInput);
-  };
+  // A new copy has no older version in use: its card is replaced at once.
+  const editSaved = (saved: ThreatArsenalAction) => (editing === action
+    ? afterSave(saved)
+    : onUpdate?.(saved, editing?.injector_contract_id));
 
   // -- Delete --
   const handleOpenDelete = () => setDeletion(true);
@@ -194,10 +88,7 @@ const ThreatArsenalActionPopover = ({
   };
 
   // -- Duplicate --
-  const handleOpenDuplicate = () => {
-    setOpenDuplicate(true);
-    handlePopoverClose();
-  };
+  const handleOpenDuplicate = () => setOpenDuplicate(true);
   const handleCloseDuplicate = () => setOpenDuplicate(false);
 
   const submitDuplicate = async () => {
@@ -208,18 +99,38 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
+  // -- Customize --
+  const submitCustomize = async () => {
+    const response = await customizeThreatArsenalAction(actionId);
+    if (response.data) {
+      const copy = response.data as ThreatArsenalAction;
+      onDuplicate?.(copy);
+      MESSAGING$.notifySuccess(t('Customized copy created: it keeps receiving Filigran updates'));
+      setEditing(copy);
+    }
+  };
+
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, grantResourceId);
+  const hasUpdateCapability = useCanUpdateAction(action);
+  const canCustomize = hasDuplicateCapability && catalog && !!action.action_payload_managed && !action.action_payload_revoked;
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, grantResourceId);
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;
   const deleteOff = !hasDeleteCapability || !!disableDelete;
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff;
+  // -- Revocation --
+  const { canRevoke, revocable, liftable, revocation, openRevocation, closeRevocation, revocationDone } = usePayloadRevocation(
+    action,
+    menuOpen,
+    (changed) => {
+      onUpdate?.(changed);
+      onShowVersions?.(changed);
+    },
+  );
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !canRevoke && !canCustomize;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
-    handlePopoverClose();
     const response = await exportThreatArsenalAction(actionId);
     const match = (response.headers['content-disposition'] as string).match(/filename="?([^"]+)"?/);
     const filename = match?.[1] ?? 'payload.zip';
@@ -228,31 +139,52 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton
-        icon={<MoreVert fontSize="small" />}
-        aria-label={t('More actions')}
-        onClick={handlePopoverOpen}
-        aria-haspopup="true"
-        disabled={allDisabled}
-        priority="tertiary"
-        size="sm"
-      />
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handlePopoverClose}
-      >
-        {hasDuplicateCapability && (
-          <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
-        )}
-        <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
-        {hasUpdateCapability && (
-          <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
-        )}
-        {hasDeleteCapability && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        )}
+      <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+        <MenuTrigger asChild>
+          <IconButton
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+            disabled={allDisabled}
+            priority="tertiary"
+            size="sm"
+          />
+        </MenuTrigger>
+        {/* The card behind opens its drawer on click: a click in the menu stays in the menu. */}
+        <MenuContent align="end" onClick={event => event.stopPropagation()}>
+          {hasDuplicateCapability && (
+            <MenuItem onSelect={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
+          )}
+          {canCustomize && (
+            <MenuItem onSelect={submitCustomize}>{t('Customize')}</MenuItem>
+          )}
+          <MenuItem onSelect={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
+          {hasUpdateCapability && (
+            <MenuItem onSelect={() => setEditing(action)} disabled={disableUpdate}>{customized ? t('Edit customization') : t('Update')}</MenuItem>
+          )}
+          {hasDeleteCapability && (
+            <MenuItem onSelect={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
+          )}
+          {(revocable.length > 0 || liftable.length > 0) && <MenuSeparator />}
+          {revocable.length > 0 && (
+            <MenuItem onSelect={() => openRevocation('revoke')}>{t('Revoke')}</MenuItem>
+          )}
+          {liftable.length > 0 && (
+            <MenuItem onSelect={() => openRevocation('lift')}>{t('Lift revocation')}</MenuItem>
+          )}
+        </MenuContent>
       </Menu>
+
+      <PayloadRevocationDialog
+        open={revocation !== null}
+        name={name}
+        lift={revocation === 'lift'}
+        versions={revocation === 'lift' ? liftable : revocable}
+        currentPayloadId={payloadId}
+        actionId={actionId}
+        onClose={closeRevocation}
+        onDone={revocationDone}
+      />
 
       <DialogDelete
         open={deletion}
@@ -278,39 +210,7 @@ const ThreatArsenalActionPopover = ({
         </DialogActions>
       </Dialog>
 
-      <Drawer
-        open={openEdit}
-        handleClose={handleCloseEdit}
-        title={`${t('Update the action :')} ${name}`}
-      >
-        <>
-          {fetchedAction && !!payloadId && (
-            <SnapshotRemediationProvider>
-              <ThreatArsenalActionForm
-                onSubmit={onSubmitEdit}
-                handleClose={handleCloseEdit}
-                editing
-                initialValues={{
-                  ...buildInitialValues(fetchedAction, tPick(fetchedAction.action_labels)),
-                  payload_id: payloadId,
-                }}
-              />
-            </SnapshotRemediationProvider>
-          )}
-          {fetchedAction && !payloadId && (
-            <InjectorContractForm
-              initialValues={{
-                injector_contract_attack_patterns: fetchedAction.action_attack_patterns,
-                injector_contract_domains: fetchedAction.action_domains,
-                injector_contract_tags: fetchedAction.action_tags,
-              }}
-              editing
-              onSubmit={onSubmitInjectorContractEdit}
-              handleClose={handleCloseEdit}
-            />
-          )}
-        </>
-      </Drawer>
+      <ThreatArsenalActionEditDrawer action={editing} onClose={() => setEditing(null)} onSaved={editSaved} />
     </>
   );
 };

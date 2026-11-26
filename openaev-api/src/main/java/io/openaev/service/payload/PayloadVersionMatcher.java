@@ -6,7 +6,6 @@ import io.openaev.database.model.Payload;
 import io.openaev.service.hash.CanonicalContent;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -42,14 +41,7 @@ public class PayloadVersionMatcher {
     if (identical.isPresent() || hasEveryHashedField(imported, exported)) {
       return identical;
     }
-    return highest(versions);
-  }
-
-  public Optional<Payload> highest(List<Payload> versions) {
-    return versions.stream()
-        .max(
-            Comparator.comparing(
-                Payload::getVersion, Comparator.nullsFirst(SemanticVersion.ORDER)));
+    return SemanticVersion.highest(versions, Payload::getVersion);
   }
 
   private boolean hasEveryHashedField(Payload imported, JsonNode exported) {

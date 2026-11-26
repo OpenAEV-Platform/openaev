@@ -1,7 +1,6 @@
 import { InsightsOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
@@ -92,13 +91,13 @@ const SimulationComponent = () => {
     fetchExerciseInjectExpectationResults(exerciseId).then((result: { data: InjectExpectationResultsByAttackPattern[] }) => setInjectResults(result.data));
   }, [exerciseId]);
 
-  let resultAttackPatternIds = [];
+  let resultAttackPatternIds: string[] = [];
   if (injectResults) {
-    resultAttackPatternIds = R.uniq(
+    resultAttackPatternIds = [...new Set(
       injectResults
         .filter(injectResult => !!injectResult.inject_attack_pattern)
         .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-    );
+    )];
   }
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('simulation-injects-results', buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }));

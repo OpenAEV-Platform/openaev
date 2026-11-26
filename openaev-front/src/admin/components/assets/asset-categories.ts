@@ -286,6 +286,19 @@ export const ASSET_CATEGORY_DEFS: Record<string, AssetCategoryDef> = {
     // model / token), not the network-field carrier, so no generic fields are shown here.
     fields: { ...noFields },
   },
+  SOURCE_CODE: {
+    value: 'SOURCE_CODE',
+    label: 'Source code',
+    description: 'Code repository, pipeline or package your teams build and ship.',
+    domain: 'To classify',
+    subcategories: ['CODE_REPOSITORY', 'CI_CD_PIPELINE', 'PACKAGE_REGISTRY', 'SOFTWARE_PACKAGE', 'CODE_OTHER'],
+    subcategoryRequired: false,
+    fields: {
+      ...noFields,
+      url: 'optional',
+      internetFacing: true,
+    },
+  },
   GENERIC_ASSET: {
     value: 'GENERIC_ASSET',
     label: 'Generic asset',
@@ -315,8 +328,19 @@ export const ASSET_FORM_CATEGORIES: AssetCategory[] = [
   'IDENTITY',
   'SAAS_APPLICATION',
   'AI_TARGET',
+  'SOURCE_CODE',
   'GENERIC_ASSET',
 ];
+
+/**
+ * Categories an existing asset can be moved to from the edit form and the bulk edit: AI targets
+ * have their own form (provider, endpoint, model, token), so they are neither a source nor a target.
+ */
+export const ASSET_EDITABLE_CATEGORIES: AssetCategory[] = ASSET_FORM_CATEGORIES.filter(c => c !== 'AI_TARGET');
+
+/** Whether a subcategory belongs to a category: the same mapping the API enforces (issue #9653). */
+export const subcategoryBelongsTo = (subcategory: AssetSubCategory, category?: AssetCategory | null): boolean =>
+  !!category && (ASSET_CATEGORY_DEFS[category]?.subcategories ?? []).includes(subcategory);
 
 export const getCategoryDef = (category?: AssetCategory | null): AssetCategoryDef =>
   (category && ASSET_CATEGORY_DEFS[category]) || ASSET_CATEGORY_DEFS.GENERIC_ASSET;
@@ -338,6 +362,12 @@ const SPECIAL_LABELS: Record<string, string> = {
   IAC_TEMPLATE: 'IaC template',
   CLOUD_OTHER: 'Other',
   NETWORK_OTHER: 'Other',
+  SOURCE_CODE: 'Source code',
+  CODE_REPOSITORY: 'Code repository',
+  CI_CD_PIPELINE: 'CI/CD pipeline',
+  PACKAGE_REGISTRY: 'Package registry',
+  SOFTWARE_PACKAGE: 'Software package',
+  CODE_OTHER: 'Other code asset',
   WIRELESS_AP: 'Wireless AP',
   POINT_OF_SALE: 'Point of sale',
   SCADA_HISTORIAN: 'SCADA / Historian',

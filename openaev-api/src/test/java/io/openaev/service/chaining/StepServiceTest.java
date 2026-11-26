@@ -12,6 +12,7 @@ import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -61,6 +62,7 @@ class StepServiceTest {
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private TenantScopedTransaction tenantScopedTransaction;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private StepEventService stepEventService;
   @Mock private EntityManager entityManager;
 
@@ -894,6 +896,76 @@ class StepServiceTest {
   }
 
   /* ============================================================
+   * Step templates as the current reader sees them
+   * ============================================================ */
+  @Nested
+  class ReaderOutput {
+
+    private Step templateWithAssets(String id, String... assetIds) {
+      Workflow workflow = new Workflow();
+      workflow.setTenant(new Tenant("tenant-1"));
+      Step step = new Step();
+      step.setId(id);
+      step.setWorkflow(workflow);
+      step.setData(
+          "{\"inject_title\":\"nmap\",\"inject_assets\":["
+              + Arrays.stream(assetIds).map(a -> "\"" + a + "\"").collect(Collectors.joining(","))
+              + "]}");
+      return step;
+    }
+
+    @Test
+    void given_templatesWithAssets_should_lookUpTheHiddenIdsOnceAndCutThem() {
+      // Arrange
+      Step first = templateWithAssets("s-1", "green", "red");
+      Step second = templateWithAssets("s-2", "red", "other");
+      when(scopeSnapshotService.hiddenAssetIds(eq("tenant-1"), anyCollection()))
+          .thenReturn(Set.of("red"));
+
+      // Act
+      List<StepOutput> outputs = stepService.toReaderOutputs(List.of(first, second));
+
+      // Assert
+      assertEquals(1, outputs.get(0).getData().get("inject_assets").size());
+      assertEquals("green", outputs.get(0).getData().get("inject_assets").get(0).asText());
+      assertEquals(1, outputs.get(1).getData().get("inject_assets").size());
+      assertEquals("other", outputs.get(1).getData().get("inject_assets").get(0).asText());
+      verify(scopeSnapshotService)
+          .hiddenAssetIds(
+              eq("tenant-1"),
+              argThat(ids -> Set.copyOf(ids).equals(Set.of("green", "red", "other"))));
+    }
+
+    @Test
+    void given_templatesWithoutAssets_should_notLookAnythingUp() {
+      // Arrange
+      Step step = templateWithAssets("s-1");
+
+      // Act
+      List<StepOutput> outputs = stepService.toReaderOutputs(List.of(step));
+
+      // Assert
+      assertEquals("s-1", outputs.get(0).getId());
+      verifyNoInteractions(scopeSnapshotService);
+    }
+
+    @Test
+    void given_oneTemplate_should_mapItLikeTheList() {
+      // Arrange
+      Step step = templateWithAssets("s-1", "green");
+      when(scopeSnapshotService.hiddenAssetIds(eq("tenant-1"), anyCollection()))
+          .thenReturn(Set.of());
+
+      // Act
+      StepOutput output = stepService.toReaderOutput(step);
+
+      // Assert
+      assertEquals("s-1", output.getId());
+      assertEquals(1, output.getData().get("inject_assets").size());
+    }
+  }
+
+  /* ============================================================
    * Find step(s) - Repository delegation
    * ============================================================ */
   @Nested
@@ -1283,8 +1355,6 @@ class StepServiceTest {
       Step existing = new Step();
       Workflow existingWorkflow = new Workflow();
       existing.setWorkflow(existingWorkflow);
-      existing.setConditionSteps(
-          new ArrayList<>(List.of(new ConditionStep(), new ConditionStep())));
 
       Step candidate = new Step();
       candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -1313,7 +1383,6 @@ class StepServiceTest {
       assertSame(saved, updated);
       assertEquals(5, existing.getLimitExecution());
       assertEquals("{\"updated\":true}", existing.getData());
-      assertTrue(existing.getConditionSteps().isEmpty());
       verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);

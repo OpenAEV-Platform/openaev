@@ -41,6 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -722,6 +723,83 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
         String otherTestMessage = JsonPath.read(otherTestBody, "$.message");
         assertThat(otherTestMessage)
             .isEqualTo(unknownTestMessage.replace(unknownTestId, otherTestId));
+      }
+    }
+
+    @Nested
+    @DisplayName("Through the path of another scenario or simulation")
+    class ThroughOtherPath {
+
+      @Test
+      @DisplayName(
+          "given an inject of a scenario when testing it through the path of another scenario then it is not found")
+      @WithMockUser(isAdmin = true)
+      void given_injectOfOtherScenario_should_answerNotFound() throws Exception {
+        // Arrange
+        Scenario otherScenario =
+            scenarioComposer
+                .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+                .persist()
+                .get();
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                get(
+                        SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                        otherScenario.getId(),
+                        inject1Wrapper.get().getId())
+                    .with(csrf()));
+
+        // Assert
+        result.andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName(
+          "given an inject of a scenario when testing it through the path of a simulation then it is not found")
+      @WithMockUser(isAdmin = true)
+      void given_injectOfScenario_should_answerNotFoundThroughSimulationPath() throws Exception {
+        // Arrange
+        Exercise simulation =
+            simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                get(
+                        EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                        simulation.getId(),
+                        inject1Wrapper.get().getId())
+                    .with(csrf()));
+
+        // Assert
+        result.andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName(
+          "given a scenario id in the path of a simulation when bulk testing its injects then none is tested")
+      @WithMockUser(isAdmin = true)
+      void given_scenarioIdInSimulationPath_should_testNoInject() throws Exception {
+        // Arrange
+        String scenarioId = scenarioWrapper.get().getId();
+        InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+        input.setInjectIDsToProcess(List.of(inject1Wrapper.get().getId()));
+        input.setSimulationOrScenarioId(scenarioId);
+
+        // Act
+        ResultActions result =
+            mvc.perform(
+                post(EXERCISE_URI + "/{simulationId}/injects/test", scenarioId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()));
+
+        // Assert
+        result
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("No inject ID is testable"));
       }
     }
 

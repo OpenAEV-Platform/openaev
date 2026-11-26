@@ -3,6 +3,7 @@ package io.openaev.api.groups;
 import static io.openaev.api.groups.dto.PlatformGroupMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.PlatformWrite;
 import io.openaev.api.groups.dto.PlatformGroupInput;
 import io.openaev.api.groups.dto.PlatformGroupMapper;
 import io.openaev.api.groups.dto.PlatformGroupOutput;
@@ -40,6 +41,7 @@ public class PlatformGroupApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
+  @PlatformWrite
   public PlatformGroupOutput create(TxCtx ctx, @Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
         platformGroupService.createPlatformGroup(
@@ -106,6 +108,7 @@ public class PlatformGroupApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}")
   @Transactional
+  @PlatformWrite
   public PlatformGroupOutput update(
       TxCtx ctx,
       @PathVariable String platformGroupId,
@@ -123,6 +126,7 @@ public class PlatformGroupApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/users")
   @Transactional
+  @PlatformWrite
   public List<String> updateUsers(
       TxCtx ctx,
       @PathVariable String platformGroupId,
@@ -138,6 +142,7 @@ public class PlatformGroupApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/platform-roles")
   @Transactional
+  @PlatformWrite
   public Set<String> updatePlatformRoles(
       TxCtx ctx,
       @PathVariable String platformGroupId,
@@ -156,6 +161,7 @@ public class PlatformGroupApi extends RestBehavior {
   @DeleteMapping("/{platformGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
+  @PlatformWrite
   public void delete(TxCtx ctx, @PathVariable String platformGroupId) {
     platformGroupService.delete(platformGroupId);
   }

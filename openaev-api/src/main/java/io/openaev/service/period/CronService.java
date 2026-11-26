@@ -46,12 +46,17 @@ public class CronService implements PeriodExpressionHandler {
   }
 
   @Override
-  public Optional<Instant> getNextOccurrence(
-      Instant _seed /* unused */, Instant currentTime, String expression) {
+  public Optional<Instant> getNextOccurrence(Instant seed, Instant currentTime, String expression) {
     if (StringUtils.isBlank(expression)) {
       return Optional.empty();
     }
-    return this.getNextExecutionFromInstant(currentTime, UTC, expression);
+    Instant reference = currentTime;
+    if (seed != null && seed.isAfter(currentTime)) {
+      // nextExecution is exclusive, so step back one nanosecond to keep a cron
+      // instant that falls exactly on the recurrence start.
+      reference = seed.minusNanos(1);
+    }
+    return this.getNextExecutionFromInstant(reference, UTC, expression);
   }
 
   public String getCronExpression(ScheduleFrequency scheduling, Instant seed) {

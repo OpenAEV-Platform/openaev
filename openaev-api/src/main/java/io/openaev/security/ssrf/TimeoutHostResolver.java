@@ -32,6 +32,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class TimeoutHostResolver implements HostResolver {
 
+  /**
+   * A lookup that could not be answered in time, as opposed to a host that does not exist. Still an
+   * {@link UnknownHostException} for the callers that treat both alike.
+   */
+  public static final class LookupTimeoutException extends UnknownHostException {
+    private LookupTimeoutException(final String message) {
+      super(message);
+    }
+  }
+
   private static final AtomicInteger POOL_ID = new AtomicInteger();
 
   private final HostResolver delegate;
@@ -76,14 +86,14 @@ public final class TimeoutHostResolver implements HostResolver {
     try {
       lookup = this.lookups.submit(() -> this.delegate.resolve(host));
     } catch (RejectedExecutionException e) {
-      throw new UnknownHostException(
+      throw new LookupTimeoutException(
           "Too many host lookups are already waiting on DNS, refusing to look up " + host);
     }
     try {
       return lookup.get(this.timeout.toMillis(), TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
       lookup.cancel(true);
-      throw new UnknownHostException(
+      throw new LookupTimeoutException(
           "Lookup of " + host + " timed out after " + this.timeout.toMillis() + " ms");
     } catch (InterruptedException e) {
       lookup.cancel(true);

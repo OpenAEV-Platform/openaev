@@ -23,6 +23,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -121,7 +122,8 @@ class InjectStatusServiceTest {
               Optional.empty(),
               eventPublisher,
               objectMapper,
-              entityManager);
+              entityManager,
+              mock(io.openaev.service.finding.FindingRetestSettlement.class));
 
       // Two cleared agents are expected, the restricted one got its not-targeted trace at launch
       inject = new Inject();
@@ -197,6 +199,31 @@ class InjectStatusServiceTest {
       assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.EXECUTED);
       assertThat(injectStatus.getTrackingEndDate()).isNotNull();
       verify(injectAuthorisationRepository).deleteAllByInjectId("inject-mixed-clearance");
+    }
+
+    @Test
+    @DisplayName(
+        "given legacy status without expected count should persist the completed agents on close")
+    void given_legacyStatusWithoutExpectedCount_should_persistCompletedAgentsOnClose() {
+      // Arrange: launched before the count was persisted, still PENDING when the backfill ran
+      injectStatus.setExpectedAgentCount(null);
+      injectStatus.getTraces().clear();
+      Agent firstAgent = agent("agent-1");
+      Agent secondAgent = agent("agent-2");
+      injectStatus
+          .getTraces()
+          .add(completeTrace(injectStatus, firstAgent, ExecutionTraceStatus.EXECUTED));
+      when(injectAgentResolverService.getAgentsByInject(inject))
+          .thenReturn(List.of(firstAgent, secondAgent));
+
+      // Act
+      injectStatusService.updateInjectStatus(inject, secondAgent, completeInput(), null);
+
+      // Assert
+      assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.EXECUTED);
+      assertThat(injectStatus.getExpectedAgentCount()).isEqualTo(2);
+      verify(executionTraceRepositoryHelper)
+          .updateInjectStatus(eq("status-mixed-clearance"), eq("EXECUTED"), any(), eq(2));
     }
   }
 
@@ -289,7 +316,8 @@ class InjectStatusServiceTest {
                 Optional.of(auditLogger),
                 eventPublisher,
                 objectMapper,
-                entityManager);
+                entityManager,
+                mock(io.openaev.service.finding.FindingRetestSettlement.class));
       }
 
       @Test
@@ -620,7 +648,8 @@ class InjectStatusServiceTest {
               Optional.of(auditLogger),
               eventPublisher,
               objectMapper,
-              entityManager);
+              entityManager,
+              mock(io.openaev.service.finding.FindingRetestSettlement.class));
     }
 
     private Agent agent(String id) {
@@ -669,7 +698,8 @@ class InjectStatusServiceTest {
 
     // A late trace never changes the status: nothing is recomputed, written back nor streamed
     private void verifyStatusNotRecomputed() {
-      verify(executionTraceRepositoryHelper, never()).updateInjectStatus(any(), any(), any());
+      verify(executionTraceRepositoryHelper, never())
+          .updateInjectStatus(any(), any(), any(), any());
       verify(injectRepository, never()).updateUpdatedAt(any(), any());
       verify(eventPublisher, never()).publishEvent(any());
     }
@@ -995,7 +1025,8 @@ class InjectStatusServiceTest {
 
       // Assert
       assertThat(injectStatus.getName()).isEqualTo(ExecutionStatus.EXECUTED);
-      verify(executionTraceRepositoryHelper).updateInjectStatus(any(), eq("EXECUTED"), any());
+      verify(executionTraceRepositoryHelper)
+          .updateInjectStatus(any(), eq("EXECUTED"), any(), eq(1));
     }
   }
 }

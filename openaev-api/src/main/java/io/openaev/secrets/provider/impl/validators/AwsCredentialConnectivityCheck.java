@@ -3,9 +3,11 @@ package io.openaev.secrets.provider.impl.validators;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -58,6 +60,17 @@ public class AwsCredentialConnectivityCheck {
 
   private final AwsCredentialConnectivityCheckFactory awsCredentialsFactory;
 
+  @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
+  private int timeoutSeconds;
+
+  /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
   /**
    * Validates an AWS access key credential by calling STS {@code GetCallerIdentity}.
    *
@@ -65,15 +78,26 @@ public class AwsCredentialConnectivityCheck {
    * @param accessKeyId access key id
    * @param secretAccessKey decrypted secret access key
    * @param sessionToken optional decrypted session token
+   * @param endpointUrl optional STS endpoint of a sovereign or mocked cloud
    * @return a definitive active/inactive outcome
    */
   public SecretConnectionResult validateAccessKey(
-      AwsRegion region, String accessKeyId, String secretAccessKey, String sessionToken) {
+      AwsRegion region,
+      String accessKeyId,
+      String secretAccessKey,
+      String sessionToken,
+      String endpointUrl) {
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
     AwsCredentials credentials =
         awsCredentialsFactory.forAccessKey(accessKeyId, secretAccessKey, sessionToken);
 
     try (StsClient verifyClient =
-        awsCredentialsFactory.stsClient(region, StaticCredentialsProvider.create(credentials))) {
+        awsCredentialsFactory.stsClient(
+            region, StaticCredentialsProvider.create(credentials), endpointUrl)) {
       verifyClient.getCallerIdentity(GetCallerIdentityRequest.builder().build());
       return SecretConnectionResult.active();
     } catch (RuntimeException e) {
@@ -90,6 +114,7 @@ public class AwsCredentialConnectivityCheck {
    * @param sourceIdentityType source identity type
    * @param sourceProfileAccessKeyId static source access key id
    * @param sourceProfileSecretAccessKey static source secret access key
+   * @param endpointUrl optional STS endpoint of a sovereign or mocked cloud, used for both calls
    * @return a definitive active/inactive outcome
    */
   public SecretConnectionResult validateAssumeRole(
@@ -98,12 +123,19 @@ public class AwsCredentialConnectivityCheck {
       String externalId,
       AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE sourceIdentityType,
       String sourceProfileAccessKeyId,
-      String sourceProfileSecretAccessKey) {
+      String sourceProfileSecretAccessKey,
+      String endpointUrl) {
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, endpointUrl);
+    if (refused.isPresent()) {
+      return refused.get();
+    }
     AwsCredentialsProvider sourceProvider =
         awsCredentialsFactory.getSourceCredentialsProvider(
             sourceIdentityType, sourceProfileAccessKeyId, sourceProfileSecretAccessKey);
 
-    try (StsClient assumeRoleClient = awsCredentialsFactory.stsClient(region, sourceProvider)) {
+    try (StsClient assumeRoleClient =
+        awsCredentialsFactory.stsClient(region, sourceProvider, endpointUrl)) {
       AssumeRoleResponse assumeRoleResponse =
           assumeRoleClient.assumeRole(awsCredentialsFactory.assumeRoleRequest(roleArn, externalId));
       AwsSessionCredentials sessionCredentials =
@@ -115,7 +147,7 @@ public class AwsCredentialConnectivityCheck {
 
       try (StsClient verifyClient =
           awsCredentialsFactory.stsClient(
-              region, StaticCredentialsProvider.create(sessionCredentials))) {
+              region, StaticCredentialsProvider.create(sessionCredentials), endpointUrl)) {
         verifyClient.getCallerIdentity(GetCallerIdentityRequest.builder().build());
         return SecretConnectionResult.active();
       }

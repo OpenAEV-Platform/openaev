@@ -2,6 +2,7 @@ package io.openaev.service.attackpath;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
@@ -34,6 +35,8 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
+import io.openaev.service.InjectVisibleStatusService;
+import io.openaev.service.InjectVisibleStatusService.StoredStatus;
 import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -151,6 +154,7 @@ public class AttackPathGraphService {
   private final ConditionRepository conditionRepository;
   private final AssetRepository assetRepository;
   private final InjectStatusRepository injectStatusRepository;
+  private final InjectVisibleStatusService injectVisibleStatusService;
   private final InjectRepository injectRepository;
   private final PayloadRepository payloadRepository;
 
@@ -355,12 +359,12 @@ public class AttackPathGraphService {
         e.getDetectionStatus(),
         e.getVulnerabilityStatus(),
         // Same resolution as the graph feed's (see applyExecutionStatuses), for the single row
-        // here.
+        // here: the status as the reader sees it.
         injectId == null
             ? null
             : injectStatusRepository
                 .findByInjectId(injectId)
-                .map(InjectStatus::getName)
+                .map(injectVisibleStatusService::visibleStatus)
                 .map(Enum::name)
                 .orElse(null),
         e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
@@ -1462,16 +1466,19 @@ public class AttackPathGraphService {
         injectIdByStepId.put(stepId, injectId);
       }
     }
-    Map<String, String> statusByInjectId = new HashMap<>();
+    Map<String, StoredStatus> storedByInjectId = new HashMap<>();
     if (!injectIdByStepId.isEmpty()) {
       for (Object[] row :
-          injectStatusRepository.findStatusNamesByInjectIds(
+          injectStatusRepository.findStatusNamesAndExpectedAgentCountsByInjectIds(
               new HashSet<>(injectIdByStepId.values()))) {
-        if (row[0] instanceof String injectId && row[1] != null) {
-          statusByInjectId.put(injectId, row[1].toString());
+        if (row[0] instanceof String injectId && row[1] instanceof ExecutionStatus status) {
+          storedByInjectId.put(injectId, new StoredStatus(status, (Integer) row[2]));
         }
       }
     }
+    // The stored status is over every agent: the node shows the reader's
+    Map<String, ExecutionStatus> statusByInjectId =
+        injectVisibleStatusService.visibleStatuses(storedByInjectId);
     for (AttackPathExecutionRow e : executions) {
       AttackPathNodeDTO node = feedByExecutionId.get(e.id());
       if (node == null) {
@@ -1483,7 +1490,8 @@ public class AttackPathGraphService {
         continue;
       }
       node.setInjectId(injectId);
-      node.setExecutionStatus(statusByInjectId.get(injectId));
+      ExecutionStatus status = statusByInjectId.get(injectId);
+      node.setExecutionStatus(status == null ? null : status.name());
     }
   }
 

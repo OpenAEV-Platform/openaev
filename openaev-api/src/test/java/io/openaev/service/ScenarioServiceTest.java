@@ -136,7 +136,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
   @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
-  @Autowired private io.openaev.service.finding.FindingDetachService findingDetachService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -183,8 +182,7 @@ class ScenarioServiceTest extends IntegrationTest {
         workflowExportInitializer,
         bulkDeleteExecutor,
         autonomousRunServiceProvider,
-        permissionServiceProvider,
-        findingDetachService);
+        permissionServiceProvider);
   }
 
   @AfterAll

@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -29,7 +28,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "secret_references")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "secret_reference_type", discriminatorType = DiscriminatorType.STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 // secret_references is fully on v2 (inspector + can_access_tenant); no v1 @Filter
 public class SecretReference implements TenantBase {
 

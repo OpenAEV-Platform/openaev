@@ -1,5 +1,10 @@
 # Tenant shadow runs: distance to green
 
+> **Superseded by `*`.** Production arms every tenant table with `openaev.tenant.active-tables=*`, so
+> there is no list left to activate table by table and no distance to measure against it. The numbers
+> below are historical: they describe the runs of the days named in each section, not the platform
+> today. A table added from now on is armed by `*` on the day it exists.
+
 The Nightly pipeline runs the API suite twice more than the pipeline itself does, under a different
 `openaev.tenant.active-tables`:
 

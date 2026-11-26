@@ -24,4 +24,11 @@ public class ConnectorInstanceHealthInput {
   @Schema(description = "The connector instance id")
   @JsonProperty("connector_instance_is_in_reboot_loop")
   private boolean isInRebootLoop;
+
+  @Schema(
+      description =
+          "Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent"
+              + " when the engine does not report it")
+  @JsonProperty("connector_instance_image_digest")
+  private String imageDigest;
 }

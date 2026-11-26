@@ -18,6 +18,7 @@ import { type FunctionComponent, type MouseEvent, type ReactNode, useState } fro
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { AttackPathSimSummaryRow } from '../../../../../utils/api-types';
+import ExploreInGraphButton from '../../../graph/ExploreInGraphButton';
 import { attackPathChokepointColor } from './attack-path-colors';
 import { type AttackPathFreshness } from './useAttackPathLiveGraph';
 
@@ -217,6 +218,8 @@ interface Props {
   // PNG export of the whole graph (graph view only; omitted when there is nothing to export).
   onExportPng?: () => void;
   exportingPng?: boolean;
+  // The run shown: its attack-path steps open in the exploration graph (#9447).
+  graphSimulationId?: string;
   // Search (endpoint / injector / finding type).
   searchOptions: SearchOption[];
   searchInput: string;
@@ -253,6 +256,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   onToggleFullscreen,
   onExportPng,
   exportingPng,
+  graphSimulationId,
   searchOptions,
   searchInput,
   onSearchInputChange,
@@ -655,6 +659,9 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           <TooltipContent>{t('Table')}</TooltipContent>
         </Tooltip>
       </ButtonGroup>
+      {/* The run's attack-path steps (ATTACK_STEP edges) in the exploration graph, where they
+          pivot to the identities, groups and findings of each asset on the chain (#9447). */}
+      {graphSimulationId && <ExploreInGraphButton type="SIMULATION" entityId={graphSimulationId} />}
       {/* Action, not a state — the library's secondary outline is the band's own,
           so it no longer has to be hand-rolled. Only the graph can be rasterized:
           the table has its own CSV export. */}

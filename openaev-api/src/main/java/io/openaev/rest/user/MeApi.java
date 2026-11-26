@@ -27,6 +27,7 @@ import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,16 +56,18 @@ public class MeApi extends RestBehavior {
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final TenantService tenantService;
 
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
-    return hydrateUserForResponse(
+    User user =
         userRepository
             .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(user, ctx));
   }
 
   // The tenant variant scopes the organization: a user holds one organization per tenant.
@@ -85,7 +88,7 @@ public class MeApi extends RestBehavior {
         resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return hydrateUserForResponse(savedUser);
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   // Tenant variant: the response carries the organization of the tenant it is read in.
@@ -101,7 +104,7 @@ public class MeApi extends RestBehavior {
     user.setUpdateAttributes(input);
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return hydrateUserForResponse(savedUser);
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @PutMapping({ME_URI + "/password", TENANT_ME_URI + "/password"})
@@ -111,7 +114,7 @@ public class MeApi extends RestBehavior {
   public User updatePassword(
       TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return hydrateUserForResponse(
+    User savedUser =
         doSecuritySensitiveUpdate(
             currentUser().getId(),
             input.getCurrentPassword(),
@@ -119,7 +122,8 @@ public class MeApi extends RestBehavior {
               user.setPassword(userService.encodeUserPassword(input.getPassword()));
               return user;
             },
-            httpRequest.getSession().getId()));
+            httpRequest.getSession().getId());
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @PutMapping({ME_URI + "/email", TENANT_ME_URI + "/email"})
@@ -129,7 +133,7 @@ public class MeApi extends RestBehavior {
   public User updateEmail(
       TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return hydrateUserForResponse(
+    User savedUser =
         doSecuritySensitiveUpdate(
             currentUser().getId(),
             input.getCurrentPassword(),
@@ -137,7 +141,8 @@ public class MeApi extends RestBehavior {
               userService.requestEmailChange(user, input.getEmail());
               return user;
             },
-            httpRequest.getSession().getId()));
+            httpRequest.getSession().getId());
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")

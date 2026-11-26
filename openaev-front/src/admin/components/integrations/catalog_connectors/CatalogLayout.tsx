@@ -1,11 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 
-import {
-  fetchCatalogConnectors,
-  fetchConnector,
-  isXtmComposerIsReachable,
-} from '../../../../actions/catalog/catalog-actions';
+import { fetchCatalogConnectors, fetchConnector } from '../../../../actions/catalog/catalog-actions';
 import { type CatalogConnectorsHelper } from '../../../../actions/catalog/catalog-helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
@@ -13,6 +8,7 @@ import { useHelper } from '../../../../store';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useXtmComposerReachable from '../common/useXtmComposerReachable';
 
 export type CatalogContextType = {
   catalogConnectors: CatalogConnectorOutput[];
@@ -24,7 +20,7 @@ const CatalogLayout = () => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { catalogConnectorId } = useParams() as { catalogConnectorId: CatalogConnectorOutput['catalog_connector_id'] };
-  const [isXtmComposerUp, setIsXtmComposerUp] = useState<boolean>(false);
+  const isXtmComposerUp = useXtmComposerReachable() === true;
 
   const { catalogConnector, catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({
     catalogConnector: helper.getCatalogConnector(catalogConnectorId),
@@ -37,11 +33,6 @@ const CatalogLayout = () => {
       dispatch(fetchConnector(catalogConnectorId));
     }
   });
-  useEffect(() => {
-    isXtmComposerIsReachable().then(({ data }) => {
-      setIsXtmComposerUp(data);
-    });
-  }, []);
 
   // Keep the trail short: "Integrations / <connector>" - the Integrations
   // crumb links back to the catalog tab the user came from.

@@ -267,6 +267,28 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.findById(ctx, relaunchedId);
   }
 
+  @PostMapping("/{atomicTestingId}/stop")
+  @Transactional
+  @AccessControl(
+      resourceId = "#atomicTestingId",
+      actionPerformed = Action.LAUNCH,
+      resourceType = ResourceType.INJECT)
+  @Operation(
+      summary = "Stop a running atomic testing",
+      description =
+          "Withdraws the agent jobs not picked up yet and ends the atomic testing in ERROR with an"
+              + " INTERRUPTED trace naming who stopped it. Answers 400 when it is not running.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The stopped atomic testing"),
+        @ApiResponse(responseCode = "400", description = "The atomic testing is not running"),
+        @ApiResponse(responseCode = "404", description = "Atomic testing not found")
+      })
+  public InjectResultOverviewOutput stopAtomicTesting(
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
+    return atomicTestingService.stop(ctx, atomicTestingId);
+  }
+
   // -- RECURRENCE --
 
   @PutMapping("/{injectId}/recurrence")

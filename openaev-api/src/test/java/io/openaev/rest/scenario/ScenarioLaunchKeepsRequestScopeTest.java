@@ -7,8 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Scenario;
@@ -34,8 +33,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,18 +54,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(ScenarioLaunchKeepsRequestScopeTest.LaunchScopeProbe.class)
 @WithMockUser(isAdmin = false)
 @DisplayName("Launching a simulation from a scenario keeps the request's scope")
-class ScenarioLaunchKeepsRequestScopeTest extends IntegrationTest {
+class ScenarioLaunchKeepsRequestScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String RUNNING_EXERCISE = "/{scenarioId}/exercise/running";
   private static final Set<Capability> LAUNCH =
       Set.of(Capability.ACCESS_ASSESSMENT, Capability.LAUNCH_ASSESSMENT);
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

@@ -31,9 +31,10 @@ public final class TenantDecisionScopeAssertions {
       final PermissionService permissionService, final String... expectedTenantIds) {
     ArgumentCaptor<TxCtx> filtered = ArgumentCaptor.forClass(TxCtx.class);
     ArgumentCaptor<TxCtx> listed = ArgumentCaptor.forClass(TxCtx.class);
-    verify(permissionService, atLeast(0)).filterInEachTenant(filtered.capture(), any(), any());
     verify(permissionService, atLeast(0))
-        .listInEachTenant(listed.capture(), any(), any(), any(), any(), any());
+        .filterInEachTenant(filtered.capture(), any(), any(), any());
+    verify(permissionService, atLeast(0))
+        .listInEachTenant(listed.capture(), any(), any(), any(), any(), any(), any());
     List<TxCtx> scopes =
         Stream.concat(filtered.getAllValues().stream(), listed.getAllValues().stream()).toList();
     assertThat(scopes).isNotEmpty();

@@ -44,6 +44,7 @@ public final class CredentialMapper {
         .azureTenantId(secretMetadata.azureTenantId())
         .azureSubscriptionId(secretMetadata.azureSubscriptionId())
         .azureAuthorityHostUri(secretMetadata.azureAuthorityHostUri())
+        .azureScope(secretMetadata.azureScope())
         .azureRequestsCertificateDefined(secretMetadata.azureRequestsCertificateDefined())
         .gcpScope(secretMetadata.gcpScope())
         .gcpProjectId(secretMetadata.gcpProjectId())

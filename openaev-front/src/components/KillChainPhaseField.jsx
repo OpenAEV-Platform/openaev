@@ -47,13 +47,14 @@ class KillChainPhaseFieldComponent extends Component {
     this.props.addKillChainPhase(data).then((result) => {
       if (result.result) {
         const newKillChainPhase = result.entities.killchainphases[result.result];
-        const killChainPhases = R.append(
+        // Ramda's append treated a missing field value as an empty list
+        const killChainPhases = [
+          ...(values[name] || []),
           {
             id: newKillChainPhase.phase_id,
             label: `[${newKillChainPhase.phase_kill_chain_name}] ${newKillChainPhase.phase_name}`,
           },
-          values[name],
-        );
+        ];
         setFieldValue(name, killChainPhases);
         return this.handleCloseKillChainPhaseCreation();
       }

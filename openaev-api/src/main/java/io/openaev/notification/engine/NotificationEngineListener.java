@@ -14,6 +14,8 @@ import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.StreamService;
+import io.openaev.service.stream.StreamVisibilityService;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,7 @@ public class NotificationEngineListener {
 
   private final NotificationEngineService notificationEngineService;
   private final UserRepository userRepository;
+  private final StreamVisibilityService streamVisibilityService;
 
   @Async("notificationEngineExecutor")
   @TransactionalEventListener
@@ -50,6 +53,12 @@ public class NotificationEngineListener {
     try {
       NotificationTriggerEventType eventType = EVENT_TYPE_MAPPING.get(event.getType());
       if (eventType == null || event.getInstance() == null) {
+        return;
+      }
+      // A grant-managed root deletion is delivered from the readers captured before the delete
+      // (NotificationReadersCaptureListener): checked here, after commit, its grants are gone and
+      // every grant reader would be denied the deleted event.
+      if (StreamService.isGrantManagedRootDeletion(event)) {
         return;
       }
       Optional<NotificationResourceCatalog> entry =
@@ -62,10 +71,30 @@ public class NotificationEngineListener {
       // Users are not tenant-scoped entities: fan the event out once per tenant the user
       // belongs to, so a tenant's PLAYER triggers never see another tenant's users.
       for (String tenantId : resolveTenantIds(event.getInstance())) {
-        notificationEngineService.handleEvent(entry.get(), entityId, tenantId, eventType, label);
+        notificationEngineService.handleEvent(
+            entry.get(),
+            entityId,
+            tenantId,
+            eventType,
+            label,
+            () -> streamVisibilityService.visibilityOrUnresolved(event, tenantId));
       }
     } catch (Exception e) {
       log.error("Notification engine failed to process entity event", e);
+    }
+  }
+
+  /**
+   * Delivers, after the change committed, what it took away from the readers captured before it (a
+   * deletion, a grant or a membership removed). Nothing is sent for a rolled back change.
+   */
+  @Async("notificationEngineExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onReadersSnapshot(NotificationReadersSnapshot snapshot) {
+    try {
+      notificationEngineService.deliverSnapshot(snapshot);
+    } catch (Exception e) {
+      log.error("Notification engine failed to deliver a readers snapshot", e);
     }
   }
 
@@ -106,7 +135,7 @@ public class NotificationEngineListener {
    * Extracts a human-readable label from the event's serialized entity snapshot: first {@code
    * *_name} / {@code *_title} / {@code *_email} property, falling back to the entity id.
    */
-  private String resolveLabel(BaseEvent event) {
+  static String resolveLabel(BaseEvent event) {
     if (event.getInstance() instanceof User user) {
       return user.getNameOrEmail();
     }

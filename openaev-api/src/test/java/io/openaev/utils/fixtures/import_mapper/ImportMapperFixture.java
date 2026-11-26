@@ -9,6 +9,7 @@ import static io.openaev.utils.fixtures.import_mapper.RuleAttributeFixture.creat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
+import io.openaev.database.model.Tenant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +36,7 @@ public class ImportMapperFixture {
   /** A mapper with no importers: no injector contract to persist alongside it. */
   public static ImportMapper createDefaultImportMapper() {
     ImportMapper importMapper = new ImportMapper();
+    importMapper.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     importMapper.setName(DEFAULT_MAPPER_NAME);
     importMapper.setInjectTypeColumn(DEFAULT_INJECT_TYPE_COLUMN);
     return importMapper;
@@ -59,6 +61,7 @@ public class ImportMapperFixture {
   public static ImportMapper createImportMapper(
       String mapperName, String injectTypeValue, String injectTypeColumn) {
     ImportMapper importMapper = new ImportMapper();
+    importMapper.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     importMapper.setName(mapperName);
     importMapper.setInjectTypeColumn(injectTypeColumn);
     importMapper.setInjectImporters(new HashSet<>());

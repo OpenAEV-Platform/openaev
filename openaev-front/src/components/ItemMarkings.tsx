@@ -1,72 +1,55 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useMemo } from 'react';
 
+import { type MarkingDefinitionHelper } from '../actions/marking_definitions/marking-definition-helper';
+import { useHelper } from '../store';
 import { type MarkingDefinitionOutput } from '../utils/api-types';
 import { collapseToHighestPerType, markingLabel } from '../utils/markings';
-import MarkingChip from './common/MarkingChip';
 
 interface Props {
-  /** Marking definition ids carried by the entity, as returned in `asset_markings`. */
   markingIds?: string[];
-  /**
-   * Resolved definitions, keyed by id. Passed in rather than fetched here so a 50-row list issues
-   * one request for the whole page instead of one per row - see `useMarkingDefinitions`.
-   */
-  definitions: Record<string, MarkingDefinitionOutput>;
-  variant?: 'list';
   limit?: number;
 }
 
-const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) => {
-  // Sized like MarkingChip so the overflow counter lines up with the markings next to it.
-  const remainingChipSx = {
-    height: variant === 'list' ? 20 : 25,
-    fontSize: 12,
-    margin: 0,
-    borderRadius: 1,
-  };
+const ItemMarkings = ({ markingIds, limit = 2 }: Props) => {
+  const { definitions } = useHelper((helper: MarkingDefinitionHelper) => ({ definitions: helper.getMarkingDefinitionsMap() }));
 
-  // Only the highest-order marking of each type is kept (e.g. TLP:CLEAR/GREEN/AMBER collapse to
-  // TLP:AMBER) - see collapseToHighestPerType.
-  const resolved = useMemo(
-    () => collapseToHighestPerType(
-      (markingIds ?? [])
-        .map(id => definitions[id])
-        .filter((marking): marking is MarkingDefinitionOutput => !!marking),
-    ),
-    [markingIds, definitions],
-  );
-
-  // Sliced directly rather than through the String helpers used by ItemTags: those accept
-  // nullable inputs and so return nullable results, which `resolved` never is.
-  const visible = resolved.slice(0, limit);
-  const remaining = resolved.length - visible.length;
-  const tooltipLabel = resolved.slice(limit).map(marking => markingLabel(marking)).join(', ');
+  const resolved = useMemo(() => collapseToHighestPerType(
+    (markingIds ?? [])
+      .map(id => definitions[id])
+      .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+  ), [markingIds, definitions]);
 
   if (resolved.length === 0) {
     return <span>-</span>;
   }
 
+  const visible = resolved.slice(0, limit);
+  const hidden = resolved.slice(limit);
+
   return (
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      flexWrap: 'wrap',
+      flexWrap: 'nowrap',
+      overflow: 'hidden',
       gap: 6,
     }}
     >
-      {visible.map((marking: MarkingDefinitionOutput) => (
-        <Tooltip key={marking.marking_definition_id} title={<span style={{ textTransform: 'none' }}>{markingLabel(marking)}</span>}>
-          <MarkingChip
-            marking={marking}
-            variant={variant}
-            maxLabelLength={variant === 'list' ? 15 : 20}
-          />
+      {visible.map(marking => (
+        <Tooltip key={marking.marking_definition_id}>
+          <TooltipTrigger asChild>
+            <Chip label={markingLabel(marking)} color={marking.marking_definition_color} style={{ maxWidth: '100%' }} />
+          </TooltipTrigger>
+          <TooltipContent>{markingLabel(marking)}</TooltipContent>
         </Tooltip>
       ))}
-      {remaining > 0 && (
-        <Tooltip title={<span style={{ textTransform: 'none' }}>{tooltipLabel}</span>}>
-          <Chip variant="outlined" sx={remainingChipSx} label={`+${remaining}`} />
+      {hidden.length > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={`+${hidden.length}`} />
+          </TooltipTrigger>
+          <TooltipContent>{hidden.map(markingLabel).join(', ')}</TooltipContent>
         </Tooltip>
       )}
     </div>

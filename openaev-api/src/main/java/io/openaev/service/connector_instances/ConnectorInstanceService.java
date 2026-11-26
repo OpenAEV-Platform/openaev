@@ -683,11 +683,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
       String tenantId) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
-    // Explicit write attribution: today TenantBaseListener's @PrePersist stamps tenant_id from
-    // TenantContext as a fallback, but that listener is removed once connector_instances goes
-    // fully v2 (it is a v1 pattern with no place in the v2 model). Stamp it here so creation stays
-    // correct after that removal; tenantId was already resolved and validated by the caller via
-    // TenantWriteScopeResolver#tenantForWrite.
+    // Explicit write attribution: the caller resolved and validated tenantId through
+    // TenantWriteScopeResolver#tenantForWrite, and no listener stamps it.
     newInstance.setTenant(new Tenant(tenantId));
     List<ConnectorInstanceConfiguration> configurations =
         getConnectorInstanceConfigurationsFromInput(
@@ -810,6 +807,10 @@ public class ConnectorInstanceService implements AuditLoggedService {
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
+    // An older composer omits the digest: keep the last one reported rather than erase it.
+    if (input.getImageDigest() != null && !input.getImageDigest().isBlank()) {
+      instance.setImageDigest(input.getImageDigest());
+    }
 
     Map<String, Object> after = new HashMap<>();
     after.put("inRebootLoop", instance.isInRebootLoop());

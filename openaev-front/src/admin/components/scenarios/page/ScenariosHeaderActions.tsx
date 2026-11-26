@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import ExportButton from '../../../../components/common/ExportButton';
@@ -16,10 +16,11 @@ interface Props {
 
 const ScenariosHeaderActions: FunctionComponent<Props> = ({ totalElements, scenarios, onImported }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   return (
-    <Box sx={{
+    <div style={{
       display: 'flex',
-      gap: 1,
+      gap: theme.spacing(1),
     }}
     >
       <ExportButton
@@ -42,7 +43,7 @@ const ScenariosHeaderActions: FunctionComponent<Props> = ({ totalElements, scena
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
         <ImportUploaderScenario refresh={onImported} />
       </Can>
-    </Box>
+    </div>
   );
 };
 

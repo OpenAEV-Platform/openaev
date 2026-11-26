@@ -2,11 +2,9 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
@@ -21,7 +19,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @Entity
 @DiscriminatorValue(SecretReference.SECRET_REFERENCE_TYPE.CREDENTIAL_VALUE)
-@EntityListeners(ModelBaseListener.class)
 public class CredentialSecretReference extends SecretReference {
 
   private static final Map<CREDENTIAL_TYPE, EnumSet<CREDENTIAL_AUTH_METHOD>>

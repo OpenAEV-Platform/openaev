@@ -27,6 +27,7 @@ import {
   type Inject,
   type InjectBulkUpdateOperation,
   type InjectExportFromSearchRequestInput,
+  type InjectInput,
   type InjectTestStatusOutput,
   type SearchPaginationInput,
   type Team,
@@ -293,7 +294,7 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
-  const onUpdateInject = async (data: Inject) => {
+  const onUpdateInject = async (data: InjectInput) => {
     if (selectedInjectId) {
       await injectContext.onUpdateInject(selectedInjectId, data).then((result: {
         result: string;
@@ -340,17 +341,14 @@ const Injects: FunctionComponent<Props> = ({
     onToggleEntity,
     numberOfSelectedElements,
   } = useEntityToggle<InjectOutputType>('inject', injects, queryableHelpers.paginationHelpers.getTotalElements());
-  const onRowShiftClick = (currentIndex: number, currentEntity: { inject_id: string }, event: SyntheticEvent | null = null) => {
+  const onRowShiftClick = (currentIndex: number, currentEntity: InjectOutputType, event?: SyntheticEvent) => {
     if (event) {
       event.stopPropagation();
       event.preventDefault();
     }
     if (selectedElements && !R.isEmpty(selectedElements)) {
       // Find the indexes of the first and last selected entities
-      let firstIndex = R.findIndex(
-        (n: Inject) => n.inject_id === R.head(R.values(selectedElements)).inject_id,
-        injects,
-      );
+      let firstIndex = injects.findIndex((n: InjectOutputType) => n.inject_id === Object.values(selectedElements)[0].inject_id);
       if (currentIndex > firstIndex) {
         let entities: InjectOutputType[] = [];
         while (firstIndex <= currentIndex) {
@@ -358,11 +356,9 @@ const Injects: FunctionComponent<Props> = ({
 
           firstIndex++;
         }
-        const forcedRemove = R.values(selectedElements).filter(
-          (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
+        const forcedRemove = Object.values(selectedElements).filter(
+          (n: InjectOutputType) => !entities.map(o => o.inject_id).includes(n.inject_id),
         );
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
         return onToggleEntity(entities, event, forcedRemove);
       }
       let entities: InjectOutputType[] = [];
@@ -371,15 +367,11 @@ const Injects: FunctionComponent<Props> = ({
 
         firstIndex--;
       }
-      const forcedRemove = R.values(selectedElements).filter(
-        (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
+      const forcedRemove = Object.values(selectedElements).filter(
+        (n: InjectOutputType) => !entities.map(o => o.inject_id).includes(n.inject_id),
       );
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
       return onToggleEntity(entities, event, forcedRemove);
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     return onToggleEntity(currentEntity, event);
   };
 
@@ -407,7 +399,7 @@ const Injects: FunctionComponent<Props> = ({
       operationsToPerform.push({
         operation: action.type.toLowerCase(),
         field: action.field,
-        values: R.uniq(action.values.map(n => n.value)),
+        values: [...new Set(action.values.map(n => n.value))],
       } as InjectBulkUpdateOperation); // Cast is necessary because typeof enum don't work with operation and fields
     }
     await injectContext.onBulkUpdateInject({

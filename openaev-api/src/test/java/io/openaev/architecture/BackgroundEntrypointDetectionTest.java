@@ -414,18 +414,24 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
-  @DisplayName("a waiver on a table '*' does not activate (dual-scope) does NOT expire under '*'")
-  void dualScopeWaiverDoesNotExpireUnderWildcard() {
-    // 'groups' is a dual-scope table; '*' activates strict tables only, so a waiver named against a
-    // dual-scope table must not be treated as expired the moment '*' appears.
+  @DisplayName("a waiver on a dual-scope table expires under '*', which activates it")
+  void dualScopeWaiverExpiresUnderWildcard() {
+    // 'groups' is a dual-scope table; '*' activates it like a strict one, so a waiver named
+    // against it must expire the moment '*' appears, and not before: a table '*' leaves out
+    // holds on to its waiver.
     Map<String, String> baseline =
         Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:groups");
     assertTrue(
         BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("*"), Set.of("reporting_schedules", "injects"))
+                baseline, Set.of("*"), Set.of("groups", "reporting_schedules"))
+            .stream()
+            .anyMatch(s -> s.contains("io.openaev.Fixture")),
+        "'*' activates 'groups', so its waiver must expire");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
+                baseline, Set.of("*"), Set.of("reporting_schedules"))
             .isEmpty(),
-        "'*' does not activate dual-scope tables, so a waiver on 'groups' must not spuriously"
-            + " expire");
+        "a waiver on a table '*' does not activate must not expire");
   }
 
   @Test
@@ -846,38 +852,6 @@ class BackgroundEntrypointDetectionTest {
       } else {
         System.setProperty(key, previous);
       }
-    }
-  }
-
-  @Test
-  @DisplayName("a v1-scoped background path names every table it reaches outside the primitive")
-  void v1ScopedWaiversNameEveryTableTheyReach() {
-    // A path that runs under the v1 TenantContext, not the v2 primitive, turns its reads and
-    // writes into wrong-tenant accesses the day a table it reaches outside the primitive is
-    // activated. So it carries an until-active tag for every such table: the day one activates,
-    // the expiry check fails and forces the conversion. A revert to an incomplete reason fails
-    // here. The pattern is pinned on the waiver of that shape left in the baseline; a new one is
-    // held by no_baseline_waiver_outlives_its_table, which fails on any until-active tag whose
-    // table is active, but the completeness of its tags is only this test's, so add it here.
-    Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(baseline, "io.openaev.scheduler.jobs.InjectsFinalizationJob", "injects");
-  }
-
-  private static void assertUntilActive(
-      Map<String, String> baseline, String fqcn, String... tables) {
-    String reason = baseline.get(fqcn);
-    assertTrue(reason != null, fqcn + " must be listed in the baseline");
-    Set<String> tagged = BackgroundEntrypointTenantScopeArchTest.untilActiveTables(reason);
-    for (String table : tables) {
-      assertTrue(
-          tagged.contains(table),
-          fqcn
-              + " reaches '"
-              + table
-              + "' outside the primitive and must carry until-active:"
-              + table
-              + ", got: "
-              + reason);
     }
   }
 }
