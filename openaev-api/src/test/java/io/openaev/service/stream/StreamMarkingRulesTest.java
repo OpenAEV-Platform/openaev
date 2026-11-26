@@ -1,6 +1,7 @@
 package io.openaev.service.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.config.MarkedTable;
 import io.openaev.config.MarkedTables;
@@ -143,6 +144,18 @@ class StreamMarkingRulesTest {
         .containsExactly("inject_expectations");
     assertThat(rules.forEntity(Scenario.class).isEmpty()).isTrue();
     assertThat(rules(MarkedTables.EMPTY).forEntity(Inject.class).isEmpty()).isTrue();
+  }
+
+  @Test
+  @DisplayName("a marked table whose entity cannot report its marking changes is refused")
+  void given_markedTableOfAnEntityNotMarked_should_refuseToStart() {
+    // Arrange: tags carry no MarkedEntity, as a newly marked table would before adopting it
+    MarkedTables tagsMarked = new MarkedTables(Map.of("tags", new MarkedTable("tags")));
+
+    // Act & Assert
+    assertThatThrownBy(() -> rules(tagsMarked))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("MarkedEntity");
   }
 
   private static List<Class<?>> entities() {

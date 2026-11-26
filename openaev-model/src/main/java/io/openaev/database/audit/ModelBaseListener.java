@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.annotation.AuditDiffTracked;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.MarkedEntity;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
 import java.util.Map;
@@ -75,6 +76,7 @@ public class ModelBaseListener {
    */
   @PostLoad
   void postLoad(Object base) {
+    rememberMarkings(base);
     if (!shouldCaptureAuditDiff(base)) return;
     Base instance = (Base) base;
     if (instance.getId() == null) return;
@@ -102,6 +104,7 @@ public class ModelBaseListener {
     Base instance = (Base) base;
     BaseEvent event = new BaseEvent(DATA_PERSIST, instance, mapper);
     appPublisher.publishEvent(event);
+    rememberMarkings(base);
 
     if (!shouldCaptureAuditDiff(base)) return;
     try {
@@ -159,6 +162,19 @@ public class ModelBaseListener {
     Base instance = (Base) base;
     BaseEvent event = new BaseEvent(DATA_UPDATE, instance, mapper);
     appPublisher.publishEvent(event);
+    rememberMarkings(base);
+  }
+
+  /**
+   * Remembers the markings a row was loaded or written with: the event of its next write compares
+   * them with the new ones, so that a marking change reaches the stream (see {@link MarkedEntity}).
+   * A copy, so that a change made in place is seen too.
+   */
+  private static void rememberMarkings(Object base) {
+    if (base instanceof MarkedEntity marked) {
+      String[] markingIds = marked.getMarkingIds();
+      marked.setLoadedMarkingIds(markingIds == null ? null : markingIds.clone());
+    }
   }
 
   /**

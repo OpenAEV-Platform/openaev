@@ -26,7 +26,8 @@ import java.util.stream.StreamSupport;
 public final class StreamVisibility {
 
   /** An event the marking rules do not apply to: sent to every reader as it is. */
-  public static final StreamVisibility UNFILTERED = new StreamVisibility(null, null, null, null);
+  public static final StreamVisibility UNFILTERED =
+      new StreamVisibility(null, null, null, null, null);
 
   /** Stands for markings that could not be read: no clearance but the unrestricted one holds it. */
   private static final Set<String> UNRESOLVED = Set.of("unresolved-marking");
@@ -36,20 +37,25 @@ public final class StreamVisibility {
   private final ObjectNode payload;
   private final Map<String, Map<String, Set<String>>> markingsByTable;
 
+  /** The row's own markings before this update changed them, null when it did not. */
+  private final Set<String> markingsBefore;
+
   StreamVisibility(
       StreamMarkingRules rules,
       EntityRule rule,
       ObjectNode payload,
-      Map<String, Map<String, Set<String>>> markingsByTable) {
+      Map<String, Map<String, Set<String>>> markingsByTable,
+      Set<String> markingsBefore) {
     this.rules = rules;
     this.rule = rule;
     this.payload = payload;
     this.markingsByTable = markingsByTable;
+    this.markingsBefore = markingsBefore;
   }
 
   /** An event whose visibility could not be computed: sent only to unrestricted readers. */
   public static StreamVisibility unresolved() {
-    return new StreamVisibility(null, null, null, Map.of());
+    return new StreamVisibility(null, null, null, Map.of(), null);
   }
 
   public boolean isUnfiltered() {
@@ -61,6 +67,21 @@ public final class StreamVisibility {
       return true;
     }
     return rule != null && rowVisible(rule.row(), payload, clearance);
+  }
+
+  /**
+   * Whether the row was visible under this clearance before this update changed its own markings: a
+   * reader for whom this differs from {@link #visibleUnder} gains or loses sight of the row. The
+   * same as {@link #visibleUnder} when the markings did not change, and for a row marked through
+   * another one, whose readers re-read it through the filtered API.
+   */
+  public boolean wasVisibleUnder(MarkingCtx clearance) {
+    boolean ownMarkingsChanged =
+        markingsBefore != null
+            && rule != null
+            && rule.row() != null
+            && rule.row().markingsProperty() != null;
+    return ownMarkingsChanged ? clearance.allows(markingsBefore) : visibleUnder(clearance);
   }
 
   /** Whether the payload lists or embeds rows to remove for a restricted reader. */

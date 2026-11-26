@@ -53,6 +53,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -177,6 +178,39 @@ class StreamVisibilityServiceTest {
       assertThat(visibility.visibleUnder(AMBER)).isFalse();
       assertThat(visibility.visibleUnder(RED)).isTrue();
       verify(entityManager, never()).createQuery(anyString(), any(Class.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"tlp-green, tlp-red, true, false", "tlp-red, tlp-green, false, true"})
+    @DisplayName("an asset whose markings changed was shown by the ones it had before")
+    void given_assetMarkingsChanged_should_haveBeenShownByThePreviousOnes(
+        String before, String now, boolean wasVisible, boolean visible) {
+      // Arrange
+      Endpoint asset = endpoint("a", now);
+      asset.setLoadedMarkingIds(new String[] {before});
+
+      // Act
+      StreamVisibility visibility = visibilityOf(asset);
+
+      // Assert
+      assertThat(visibility.wasVisibleUnder(AMBER)).isEqualTo(wasVisible);
+      assertThat(visibility.visibleUnder(AMBER)).isEqualTo(visible);
+    }
+
+    @Test
+    @DisplayName("a row whose own markings did not change was shown as it is now")
+    void given_noOwnMarkingChange_should_haveBeenShownAsNow() {
+      // Arrange: an asset loaded with its markings, an agent marked through its asset
+      Endpoint unchanged = endpoint("r", "tlp-red");
+      unchanged.setLoadedMarkingIds(new String[] {"tlp-red"});
+      Agent agent = agentOn("agent-on-r", endpoint("r", "tlp-red"));
+
+      // Act & Assert
+      for (Base row : List.of(unchanged, agent)) {
+        StreamVisibility visibility = visibilityOf(row);
+        assertThat(visibility.wasVisibleUnder(AMBER)).as(row.getClass().getSimpleName()).isFalse();
+        assertThat(visibility.wasVisibleUnder(RED)).as(row.getClass().getSimpleName()).isTrue();
+      }
     }
 
     @Test

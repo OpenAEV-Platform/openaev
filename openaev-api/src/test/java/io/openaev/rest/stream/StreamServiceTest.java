@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
@@ -738,13 +739,19 @@ public class StreamServiceTest {
     when(streamClearanceService.clearanceFor(eq(user), any())).thenReturn(clearance);
   }
 
-  /** Visible to every clearance but AMBER's, with no payload to filter. */
-  private StreamVisibility hiddenFromAmber() {
+  /** Visible to every clearance but AMBER's, before and after, with no payload to filter. */
+  private void hiddenFromAmber() {
+    visibleToAmber(false, false);
+  }
+
+  /** Visible to every clearance; to AMBER's as given, before and after the write. */
+  private void visibleToAmber(boolean before, boolean now) {
     StreamVisibility visibility = mock(StreamVisibility.class);
     when(visibility.visibleUnder(any())).thenReturn(true);
-    when(visibility.visibleUnder(AMBER)).thenReturn(false);
+    when(visibility.visibleUnder(AMBER)).thenReturn(now);
+    when(visibility.wasVisibleUnder(any())).thenReturn(true);
+    when(visibility.wasVisibleUnder(AMBER)).thenReturn(before);
     when(streamVisibilityService.visibilityOf(any(), any())).thenReturn(visibility);
-    return visibility;
   }
 
   @ParameterizedTest
@@ -914,6 +921,7 @@ public class StreamServiceTest {
     stubRead(admin, inject, true);
     StreamVisibility visibility = mock(StreamVisibility.class);
     when(visibility.visibleUnder(any())).thenReturn(true);
+    when(visibility.wasVisibleUnder(any())).thenReturn(true);
     when(visibility.filtersPayload()).thenReturn(true);
     ObjectNode amberPayload = jsonMapper.createObjectNode().put("inject_title", "for amber");
     when(visibility.payloadFor(AMBER)).thenReturn(amberPayload);
@@ -931,6 +939,55 @@ public class StreamServiceTest {
     assertEquals(
         inject.getTitle(),
         captureWireEvent(adminSink, jsonMapper).path("instance").path("inject_title").asText());
+  }
+
+  // Seen from a reader, a marking change is a creation or a deletion when it crosses their
+  // clearance, so the lists they display add or drop the row.
+  @ParameterizedTest
+  @CsvSource({
+    "true, false, " + DATA_DELETE,
+    "false, true, " + DATA_PERSIST,
+    "true, true, " + DATA_UPDATE,
+  })
+  public void given_markingsChanged_should_sendEachReaderTheChangeAsTheySeeIt(
+      boolean visibleBefore, boolean visibleNow, String expectedType) throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    stubRead(admin, endpoint, true);
+    visibleToAmber(visibleBefore, visibleNow);
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+    BaseEvent event = new BaseEvent(DATA_UPDATE, endpoint, jsonMapper);
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    assertEquals(expectedType, captureWireEvent(mockSink, jsonMapper).path("event_type").asText());
+    assertEquals(DATA_UPDATE, captureWireEvent(adminSink, jsonMapper).path("event_type").asText());
+    assertEquals(DATA_UPDATE, event.getType());
+  }
+
+  @Test
+  public void given_assetMovedAboveTheReadersClearance_should_sendTheDeletionWithTheIdOnly() {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    Endpoint endpoint = restrictedEndpoint();
+    stubRead(mockUser, endpoint, true);
+    visibleToAmber(true, false);
+    readerHolds(mockUser, AMBER);
+    BaseEvent event = new BaseEvent(DATA_UPDATE, endpoint, jsonMapper);
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    ObjectNode idOnly = jsonMapper.createObjectNode().put(event.getAttributeId(), RESOURCE_ID);
+    assertEquals(idOnly, captureWireEvent(mockSink, jsonMapper).path("instance"));
   }
 
   @Test
