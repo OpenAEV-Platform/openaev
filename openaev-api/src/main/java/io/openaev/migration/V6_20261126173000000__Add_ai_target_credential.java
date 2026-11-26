@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261125100000000__Add_ai_target_credential extends BaseJavaMigration {
+public class V6_20261126173000000__Add_ai_target_credential extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
