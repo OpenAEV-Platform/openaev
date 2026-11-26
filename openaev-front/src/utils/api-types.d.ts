@@ -8441,6 +8441,8 @@ export interface InstalledInjector {
 }
 
 export interface Internal {
+  draft_id?: string;
+  trigger?: string;
   /** @minLength 1 */
   work_id: string;
 }
