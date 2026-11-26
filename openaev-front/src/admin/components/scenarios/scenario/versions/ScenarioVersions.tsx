@@ -16,7 +16,7 @@ import useScenarioVersions from './useScenarioVersions';
 
 // The catalogue versions to update to, the content kept to roll back to, then what happened to the scenario.
 const ScenarioVersions: FunctionComponent = () => {
-  const { t } = useFormatter();
+  const { t, fsd } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: string };
   const dispatch = useAppDispatch();
   const theme = useTheme();
@@ -55,7 +55,7 @@ const ScenarioVersions: FunctionComponent = () => {
               <ScenarioRevisionsTable
                 revisions={revisions}
                 canManage={canManage}
-                onRollBack={revision => setTarget(rollbackTarget(scenarioId, revision, installedVersion, t))}
+                onRollBack={revision => setTarget(rollbackTarget(scenarioId, revision, installedVersion, t, fsd(revision.scenario_revision_created_at)))}
               />
             )
           : <Skeleton className="h-24" />}

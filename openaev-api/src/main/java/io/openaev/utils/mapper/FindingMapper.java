@@ -46,9 +46,9 @@ public class FindingMapper {
 
   /**
    * Group-wide impact counts of a finding, resolved by the service and handed over as one value so
-   * four positional {@code long} arguments cannot be silently swapped.
+   * three positional {@code long} arguments cannot be silently swapped.
    */
-  public record FindingImpactCounts(long assets, long teams, long users, long assetGroups) {}
+  public record FindingImpactCounts(long assets, long teams, long users) {}
 
   /**
    * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
@@ -79,7 +79,6 @@ public class FindingMapper {
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())
         .usersCount(counts.users())
-        .assetGroupsCount(counts.assetGroups())
         .build();
   }
 

@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { SECTION_LABEL_SX } from '../../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../../components/i18n';
-import { attackPathCausalColor, attackPathChokepointColor } from './attack-path-colors';
+import { attackPathCausalColor, attackPathChokepointColor, attackPathStatusLabel } from './attack-path-colors';
+import { useAttackPathShowsLogging } from './attack-path-logging-context';
 
 interface Props {
   // Bumped by the parent whenever a side panel opens, so the legend folds away to avoid competing
@@ -29,6 +30,7 @@ const legendSectionSx = {
 const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
   const [open, setOpen] = useState(false);
 
   // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening
@@ -63,7 +65,7 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
     },
   ];
 
-  // The three verdict colours form the minimal key that stays visible even when the legend is folded.
+  // The verdict colours form the minimal key that stays visible even when the legend is folded.
   const verdictColors: {
     color: string;
     label: string;
@@ -73,12 +75,18 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
       label: t('Prevented (all endpoints)'),
     },
     {
-      color: theme.palette.warning.main,
+      color: theme.palette.designSystem.alert.warning.primary,
       label: t('Detected / partial'),
     },
+    ...(showsLogging
+      ? [{
+          color: theme.palette.designSystem.alert.alert.primary,
+          label: t('Logged only'),
+        }]
+      : []),
     {
       color: theme.palette.error.main,
-      label: t('Neither prevented nor detected'),
+      label: t(attackPathStatusLabel('RED', showsLogging)),
     },
   ];
   const colors: {

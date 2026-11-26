@@ -9,6 +9,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData } from '../../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../../attack-path-logging-context';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
 const FindingClusterCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
   const isOverflow = data.clusterKind === 'overflow';
   const isTypeOverflow = data.clusterKind === 'typeOverflow';
   const expanded = data.expanded ?? false;
@@ -51,7 +53,7 @@ const FindingClusterCard = ({ data, selected = false }: Props) => {
       rows={data.status
         ? [{
             label: t('Status'),
-            value: t(attackPathStatusLabel(data.status)),
+            value: t(attackPathStatusLabel(data.status, showsLogging)),
           }]
         : []}
       accentColor={data.status ? verdict : undefined}

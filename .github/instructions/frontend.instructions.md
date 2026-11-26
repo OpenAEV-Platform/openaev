@@ -87,6 +87,11 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 - Call `t()` as early as possible — pass translated strings, not raw keys
 - Null-check backend strings before `t()` (crashes on null/undefined)
 - Keys = English text: `t('Tenant name')`
+- **A new or changed user-facing string gets its English key in `src/utils/lang/en.json`**: `yarn extract-translation`
+  adds the plain `t('…')` calls, add the others by hand (placeholders, double quotes, `.ts` files, texts passed as props)
+- **Never write the eight other language files yourself**: translation runs through DeepL, which an agent cannot reach.
+  Once the English keys are in, tell the user to run `SUBSCRIPTION_KEY=<DeepL key> yarn auto-translation:all`, which
+  translates the missing keys and sorts the files, then `yarn i18n-checker`. Steps and rules: `docs/docs/development/translations.md`
 - Reuse the product's existing terms in every language (the same word as OpenCTI): "marquage", not "balisage"
 
 ## Data Loading & State

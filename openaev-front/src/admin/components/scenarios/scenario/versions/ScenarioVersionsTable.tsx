@@ -20,6 +20,11 @@ const NOT_OFFERED: Partial<Record<ScenarioVersionOutput['scenario_version_status
     label: 'Revoked',
     severity: 'critical',
   },
+  // Kept while this scenario runs it, though the catalogue no longer lists it.
+  UNLISTED: {
+    label: 'No longer listed',
+    severity: 'medium',
+  },
 };
 
 interface Props {
