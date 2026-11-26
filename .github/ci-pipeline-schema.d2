@@ -123,12 +123,12 @@ style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                     
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-bcov: "🔎 Backend Coverage Check\ntimeout 15 min · pull requests only\n≥ 80% of changed lines covered\ncounted like Codecov\nline coverage drop ≤ 0.1 point vs base\nadvisory in the Gate" {class: quality}
+bcov: "🔎 Backend Coverage Check\ntimeout 15 min · pull requests only\n≥ 80% of changed lines covered\ncounted like Codecov\nline coverage drop ≤ 0.1 point vs base\nblocking, unless waived in the PR" {class: quality}
 
 wave0.tests -> bcov: "needs: green API Tests\nbuilds its own report, next to the upload" {class: needs}
-bcov -> gate: "advisory" {class: needs}
+bcov -> gate: "blocking" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 19 jobs  ·  Coverage upload excluded" {
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 20 jobs  ·  Coverage upload excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 

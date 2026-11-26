@@ -1633,6 +1633,134 @@ class EndpointApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("POST /api/endpoints/search - end of life filter and sort")
+  @WithMockUser(isAdmin = true)
+  class EndOfLifeFilter {
+
+    private static final String PREFIX = "eol-filter-";
+
+    private Endpoint persistEndpoint(String name, boolean endOfLife) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setEoL(endOfLife);
+      return endpointRepository.save(endpoint);
+    }
+
+    private Filters.FilterGroup eolFilter(String value) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("endpoint_is_eol");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>(List.of(value)));
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(new ArrayList<>(List.of(filter)));
+      return group;
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal")
+    void given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("true"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(eol.getId()).doesNotContain(supported.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_eqFalse_should_returnOnlySupportedEndpoints")
+    void given_eqFalse_should_returnOnlySupportedEndpoints() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("false"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId()).doesNotContain(eol.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast")
+    void given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .sorts(
+                  List.of(
+                      io.openaev.utils.pagination.SortField.builder()
+                          .property("endpoint_is_eol")
+                          .direction("asc")
+                          .build()))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId(), eol.getId());
+    }
+
+    @Test
+    @DisplayName("given_unknownFilterKey_should_stillAnswerBadRequest")
+    void given_unknownFilterKey_should_stillAnswerBadRequest() throws Exception {
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "endpoint_not_a_field", "true", Filters.FilterOperator.eq);
+
+      mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
   @DisplayName("DELETE /api/assets - bulk delete")
   class BulkDeleteAssets {
 

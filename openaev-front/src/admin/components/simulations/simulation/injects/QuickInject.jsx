@@ -741,7 +741,7 @@ class QuickInjectComponent extends Component {
       .filter(f => !builtInFields.includes(f.key) && !f.expectation)
       .forEach((field) => {
         if (field.cardinality && field.cardinality === '1') {
-          let defaultValue = R.head(field.defaultValue);
+          let defaultValue = field.defaultValue[0];
           if (
             field.type === 'textarea'
             && field.richText
@@ -835,7 +835,7 @@ class QuickInjectComponent extends Component {
       .forEach((field) => {
         if (!initialValues[field.key]) {
           if (field.cardinality && field.cardinality === '1') {
-            initialValues[field.key] = R.head(field.defaultValue);
+            initialValues[field.key] = field.defaultValue[0];
           } else {
             initialValues[field.key] = field.defaultValue;
           }

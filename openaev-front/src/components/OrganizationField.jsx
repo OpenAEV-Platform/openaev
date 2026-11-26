@@ -48,7 +48,7 @@ class OrganizationFieldComponent extends Component {
     const { name, setFieldValue } = this.props;
     const inputValues = {
       ...data,
-      organization_tags: R.pluck('id', data.organization_tags),
+      organization_tags: data.organization_tags.map(item => item.id),
     };
     this.props.addOrganization(inputValues).then((result) => {
       if (result.result) {
@@ -66,12 +66,11 @@ class OrganizationFieldComponent extends Component {
 
   render() {
     const { t, name, organizations, classes } = this.props;
-    const organizationsOptions = R.map(
+    const organizationsOptions = organizations.map(
       n => ({
         id: n.organization_id,
         label: n.organization_name,
       }),
-      organizations,
     );
     return (
       <>

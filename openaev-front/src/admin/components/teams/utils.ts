@@ -7,9 +7,8 @@ import { colors } from '../../../utils/Charts';
 export const getTeamsColors: (teams: Team[]) => Record<string, string> = (teams: Team[]) => {
   const theme = useTheme();
 
-  const mapIndexed = R.addIndex(R.map);
   return R.pipe(
-    mapIndexed((a: Team, index: number) => [
+    (teamsList: Team[]) => teamsList.map((a: Team, index: number) => [
       a.team_id,
       colors(theme.palette.mode === 'dark' ? 400 : 600)[index],
     ]),
