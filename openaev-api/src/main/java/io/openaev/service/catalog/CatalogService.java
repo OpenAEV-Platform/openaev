@@ -198,11 +198,11 @@ public class CatalogService {
             isNew));
   }
 
-  // A version a scenario still runs stays, unlisted: updating or rolling it back reads it.
+  // A version a scenario runs or can roll back to stays, unlisted: updating it reads it.
   private void removeItemsNotIn(String tenantId, CatalogRelease release, CatalogManifest manifest) {
     Set<String> listed = manifest.keys();
     Set<String> installed =
-        catalogScenarioService.installedVersionKeys(tenantId, release.getRepository());
+        catalogScenarioService.versionKeysInUse(tenantId, release.getRepository());
     List<CatalogItem> removed = new ArrayList<>();
     for (CatalogItem item :
         catalogItemRepository.findAllByReleaseRepository(release.getRepository())) {

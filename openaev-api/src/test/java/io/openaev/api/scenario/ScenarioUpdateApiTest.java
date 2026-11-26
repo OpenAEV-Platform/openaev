@@ -815,6 +815,25 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "keeps the version before an update that a release drops, so the rollback can update again")
+    void given_releaseWithoutTheVersionBeforeAnUpdate_should_keepItForTheRollback()
+        throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      String revisionId = revisionId(scenario, ScenarioRevision.Reason.UPDATE);
+      publish("2026.11.21", Map.of(NEWER, scenarioPackage(RELEASED.file(), newer())));
+
+      // Act
+      rollback(scenario, revisionId).andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+      previewUpdate(scenario, NEWER).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("removes the inject, the link and the value a later version brought")
     void given_versionAddingALinkedInject_should_writeItThenRollItBack() throws Exception {
       // Arrange

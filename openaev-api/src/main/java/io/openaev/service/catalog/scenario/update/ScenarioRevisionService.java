@@ -1,6 +1,8 @@
 package io.openaev.service.catalog.scenario.update;
 
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TxCtx;
@@ -18,6 +20,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,17 @@ public class ScenarioRevisionService {
     return numbered(
         scenarioRevisionRepository.findRowsByTenantIdAndScenarioIdIn(
             scenario.getTenant().getId(), List.of(scenario.getId())));
+  }
+
+  /** The catalogue versions the revisions of each scenario hold: a rollback goes back to one. */
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> catalogVersions(String tenantId, Collection<String> scenarioIds) {
+    return scenarioRevisionRepository
+        .findRowsByTenantIdAndScenarioIdIn(tenantId, scenarioIds)
+        .stream()
+        .collect(
+            groupingBy(
+                RevisionRow::getScenarioId, mapping(RevisionRow::getCatalogVersion, toSet())));
   }
 
   /** The newest revision of each scenario, when an update kept it. */
