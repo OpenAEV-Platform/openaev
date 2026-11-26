@@ -42,6 +42,7 @@ Everything below is on the branch of #8916 (which contains #8737). Later lots re
 | ✅ | A marking change crosses a reader's clearance: they get a deletion (id only) or a creation, so their lists drop or add the row. Generic for every table with its own markings (`MarkedEntity`, checked at startup) | `f586d57ff8`: `MarkedEntity`, `ModelBaseListener`, `BaseEvent`, `StreamVisibility.wasVisibleUnder`, `StreamService` |
 | ✅ | A clearance change tells the users concerned to re-read (`clearance-changed`, empty payload); the frontend resets its live queries | `c00a62cd5f`: `MarkingClearanceChangedEvent`, `MarkingClearanceCacheManager`, `StreamService`, `streamClient.onClearanceChange` |
 | ✅ | Skill to migrate an entity, with the pitfalls of the assets migration | `c6260c0776`: `.claude/skills/migrate-to-live-query/` |
+| ✅ | The marking definitions behind every marking chip and picker are a live query: a clearance change resets them with the rows, so a marking the reader was just cleared for resolves without a reload (uncommitted) | `useMarkingDefinitions`, `marking-definition-queries.ts`, `useMarkingDefinitions.test.tsx` |
 | ⏳ | Integration test `AssetMarkingsApiTest` (needs Docker) and the two-browser marking checks | — |
 
 ## Not in this PR
@@ -96,6 +97,9 @@ What lot 1 still has to do (detail in 3.1):
 4. The CSV import describes its change instead of reloading the page.
 5. Out of feature, kept on Redux: the inject forms' endpoint list, the simulation validation and timeline readers,
    the security platform logos of atomic testing results, `Scenario.tsx` agent health.
+6. ✅ The marking definitions the asset screens resolve their chips and pickers from (`useMarkingDefinitions`)
+   are a live query. Moved from lot 6: a reader cleared for a new marking saw the rows come back with an empty
+   chip until a reload. The marking definitions list page itself stays in lot 6.
 
 ## Order of the next lots
 
@@ -196,7 +200,7 @@ proven. Paths are relative to `openaev-front/src/`.
 | 5 | Custom dashboards, notifications, triggers, news feed | `customdashboards`, `widgets`… | none | ⚠️ lists and pages; ✅ top bar bell; ⛔ widget data | no store key: deletes dropped |
 | 6 | Groups, roles | `groups`, `roles` | same | ⚠️ tenant; ⛔ platform | platform rows never streamed |
 | 6 | Tags, kill chain phases, attack patterns | same as store | same | ⚠️ lists (`PaginationComponent` V1); ✅ readers elsewhere | loaded globally by `admin/Index.tsx` |
-| 6 | Marking definitions | `markingdefinitions` | `marking_definitions` (**mismatch**, unread) | ⛔ | readers use a one-shot fetch |
+| 6 | Marking definitions | `markingdefinitions` | `marking_definitions` (**mismatch**, unread) | 🟢 chips and pickers (moved to lot 1); ⛔ settings list | the settings list page is left |
 | 6 | Integrations: injectors, collectors, executors, connectors | same, `catalogconnectors` | `catalog_connectors` (**mismatch**) | ✅ injectors, collectors (executors, instances: admins only); ⛔ catalog, secrets providers | executors and connectors reach admins only; DTO vs entity shapes |
 | 6 | Platform tenants, platform settings | `tenants`, `settings` | `tenants` (unread), `platformParameters` | ⚠️ tenants list (admins); ⛔ settings | platform rows never streamed; tenant settings land in the platform bucket |
 | — | Credentials, payloads, threat arsenal, vulnerabilities, tokens, secrets providers | none, by design | various | — | not in the matrix; their lists move to `usePaginatedQuery` for the pagination fix (section 2) |
@@ -224,6 +228,7 @@ The migration of the lot fixes them; they can also be fixed alone.
 |---|---|---|
 | Lost update on asset group membership: the full id list is sent from a copy the stream never refreshes | `AssetGroupManagement`, `AssetGroupPopover`, `AssetPopover` | 2 |
 | Endpoint update drawer: endless loader when another user deletes the endpoint | `EndpointUpdate.tsx` | 1 |
+| ✅ Fixed: after a clearance change (AMBER → RED), the rows above the old clearance come back with an empty marking chip, and the picker does not offer the new markings, until a reload: the definitions were a one-shot fetch filtered by the old clearance | `useMarkingDefinitions` (assets list, asset details, `MarkingField`) | 1 |
 | The simulation inject result page never refreshes while the simulation runs | `InjectIndex` | 4 |
 | `MailDistributionByInject` reads `getScenarioInjects(exerciseId)`: always empty for a simulation | `MailDistributionByInject` | 4 |
 | Duplicate from the phishing lists does not show the copy | phishing landing pages and email templates lists | 5 |
@@ -856,8 +861,8 @@ Stream schema reference (from `BaseEvent.schemaNameFor` + `@EntityListeners(Mode
 | Live | Screen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Reads / writes today&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | How to test after migration&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Possible regressions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Files |
 |:-:|---|---|---|---|---|
 | ⛔ | Marking definitions list + create | **Reads:** `PaginationComponentV2` → `searchMarkingDefinitions` → local<br>**Writes:** `dispatch(createMarkingDefinition)` → Redux `marking_definitions` (never read) + local upsert<br>**Status:** schema `markingdefinitions` ≠ key; nobody reads either | 1. A on Security > Marking definitions<br>2. B creates, reorders, deletes a definition<br>3. A follows<br>4. **Other session**: create / order change / delete → `evictAll` → `clearance-changed` to every user → their live queries reset (rows above new clearance disappear) | `extractMarkingDefinitionFromStoreResult` and Redux key become dead | `settings/marking_definitions/MarkingDefinitions.tsx`<br>`MarkingDefinitionForm.tsx`<br>`MarkingDefinitionStoreHelper.ts` |
-| ⛔ | Update / delete | **Reads:** row prop<br>**Writes:** `dispatch(update/deleteMarkingDefinition)` | 1. A edits color of M<br>2. Chips everywhere (other screens) refresh only if `useMarkingDefinitions` becomes a query | Protected definitions: keep UI guard | `MarkingDefinitionPopover.tsx` (assigned check `fetchMarkingDefinitionAssigned`) |
-| ⛔ | Out of feature: readers | **Reads:** one-shot `useEffect` fetch (all or `assignable`)<br>**Writes:** — | n/a | Turning the hook into a query makes every marking chip live in one move | `utils/hooks/useMarkingDefinitions.ts` used by `TenantGroupsTab.tsx`<br>`GroupManageMarkings.tsx`<br>`GroupDetail.tsx`<br>`assets/endpoints/Endpoints.tsx`<br>`assets/asset/AssetDetail.tsx`<br>`components/ItemMarkings.tsx`<br>`fields/MarkingField.tsx` |
+| ⛔ | Update / delete | **Reads:** row prop<br>**Writes:** `dispatch(update/deleteMarkingDefinition)` | 1. A edits color of M<br>2. Chips everywhere refresh: at once for readers holding the marking definition capability (stream), at the next refetch for the others; an order change resets everyone (`evictAll`) | Protected definitions: keep UI guard | `MarkingDefinitionPopover.tsx` (assigned check `fetchMarkingDefinitionAssigned`) |
+| 🟢 | Out of feature: readers (done, lot 1) | **Reads:** `markingDefinitionQueries.list(assignableOnly)` (refs and collections `markingdefinitions`; reset by a clearance change)<br>**Writes:** — | 1. Browser 1: admin (RED); browser 2: AMBER user on the assets list<br>2. Browser 1 creates asset a3 marked TLP:RED → browser 2 does not see it<br>3. Browser 1 adds the AMBER user to a RED group → browser 2 shows a3 with its TLP:RED chip, no reload<br>4. Browser 2 opens an asset drawer → TLP:RED is offered in the marking picker<br>5. Reverse: remove the user from the group → a3 leaves the list, TLP:RED leaves the picker | the chips flash to `-` while the reset refetches the definitions; a renamed definition reaches a reader without the capability only at the next refetch | `utils/hooks/useMarkingDefinitions.ts` used by `TenantGroupsTab.tsx`<br>`GroupManageMarkings.tsx`<br>`GroupDetail.tsx`<br>`assets/endpoints/Endpoints.tsx`<br>`assets/asset/AssetDetail.tsx`<br>`components/ItemMarkings.tsx`<br>`fields/MarkingField.tsx` |
 
 ### Notifiers — stream `notifiers` · Redux store none · listened: yes (NOTIFIER open; `notifier_configuration` nulled for users without capability)
 
