@@ -21,14 +21,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 @Service
 @RequiredArgsConstructor
 @Validated
-@Slf4j
 public class InjectAssistantService {
 
   public static final int MAX_NUMBER_INJECTS = 5;
