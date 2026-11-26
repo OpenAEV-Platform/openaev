@@ -176,7 +176,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
   @AfterEach
   void cleanStoredObjects() throws Exception {
     String target = FileFixture.getPlainTextFileContent().getFileName();
-    fileService.deleteFile(target);
+    fileService.deleteFile(Tenant.DEFAULT_TENANT_UUID, target);
     try {
       minioService.deleteFileForTenant(tenantB, target);
     } catch (Exception e) {

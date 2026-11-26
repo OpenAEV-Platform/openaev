@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.collectors.expiration_manager;
 
 import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
+import static io.openaev.collectors.utils.CollectorsUtils.FAKE_DETECTOR;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
@@ -24,7 +25,6 @@ import org.springframework.stereotype.Service;
 @Service
 @Profile("!test")
 public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFactory {
-  private static final String FAKE_DETECTOR_COLLECTOR_TYPE = "openaev_fake_detector";
   private static final String FAKE_DETECTOR_COLLECTOR_NAME = "Expectations Expiration Manager";
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CollectorService collectorService;
@@ -57,7 +57,7 @@ public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFacto
     collectorService.register(
         tenantId,
         expectationsExpirationManagerConfig.getId(),
-        FAKE_DETECTOR_COLLECTOR_TYPE,
+        FAKE_DETECTOR,
         FAKE_DETECTOR_COLLECTOR_NAME,
         false,
         0,

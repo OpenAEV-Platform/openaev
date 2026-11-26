@@ -7,7 +7,6 @@ import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
@@ -20,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -65,20 +65,8 @@ public class MinioService implements DependenciesManager {
 
   // -- CREATE/UPDATE --
 
-  public String uploadFileInTenantPath(
-      String fileName, InputStream data, long size, String contentType) throws Exception {
-    minioClient.putObject(
-        PutObjectArgs.builder().bucket(bucket()).object(getTenantPath(fileName)).stream(
-                data, size, -1)
-            .contentType(contentType)
-            .build());
-    return getTenantPath(fileName);
-  }
-
   /**
-   * Uploads a file under an explicitly named tenant path rather than the ambient {@link
-   * TenantContext}. Use this when the write tenant is resolved from the request scope, so the
-   * object lands under the same tenant the row is attributed to.
+   * Uploads a file under the path of the named tenant, the tenant of the row the object belongs to.
    *
    * @param tenantId the tenant whose path the object is written under
    * @param fileName the target file path/name in the bucket
@@ -99,22 +87,9 @@ public class MinioService implements DependenciesManager {
     return objectKey;
   }
 
-  public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
-      throws Exception {
-    minioClient.putObject(
-        PutObjectArgs.builder()
-            .bucket(bucket())
-            .object(getTenantPath(fileName))
-            .userMetadata(Map.of("filename", name))
-            .stream(data, -1, 10 * 1024 * 1024)
-            .build());
-    return getTenantPath(fileName);
-  }
-
   /**
-   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
-   * TenantContext}. Use this when the write tenant is resolved from the request or job scope, so
-   * the object lands under the same tenant the owning row is attributed to.
+   * Uploads a stream under the path of the named tenant, the tenant of the row the object belongs
+   * to.
    *
    * @param tenantId the tenant whose path the object is written under
    * @param fileName the target file path/name in the bucket
@@ -158,20 +133,8 @@ public class MinioService implements DependenciesManager {
 
   // -- READ --
 
-  public Optional<InputStream> getFilePathInTenant(String name) {
-    try {
-      GetObjectResponse objectStream =
-          minioClient.getObject(
-              GetObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
-      InputStreamResource streamResource = new InputStreamResource(objectStream);
-      return Optional.of(streamResource.getInputStream());
-    } catch (Exception e) {
-      log.error("Error during file access", e);
-      return Optional.empty();
-    }
-  }
-
   public Optional<InputStream> getFilePathForTenant(String tenantId, String name) {
+    requireTenant(tenantId);
     try {
       GetObjectResponse objectStream =
           minioClient.getObject(
@@ -216,30 +179,16 @@ public class MinioService implements DependenciesManager {
     }
   }
 
-  public Optional<FileContainer> getFileContainerInTenant(String fileTarget) {
-    try {
-      StatObjectResponse response = objectExists(getTenantPath(fileTarget));
-      String filename = response.userMetadata().get("filename");
-      Optional<InputStream> inputStream = getFilePathInTenant(fileTarget);
-      FileContainer fileContainer =
-          new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
-      return Optional.of(fileContainer);
-    } catch (Exception e) {
-      log.error("Error during file container access", e);
-      return Optional.empty();
-    }
-  }
-
   /**
-   * Reads a file container under an explicitly named tenant path rather than the ambient {@link
-   * TenantContext}. Use this when the owning row's tenant is known, so the object is read from the
-   * same path it was written to, whatever scope the caller runs under.
+   * Reads a file container under the path of the named tenant, the tenant of the row the object
+   * belongs to.
    *
    * @param tenantId the tenant whose path the object is read from
    * @param fileTarget the target file path
    * @return the file container, or empty if the object does not exist under that tenant's path
    */
   public Optional<FileContainer> getFileContainerForTenant(String tenantId, String fileTarget) {
+    requireTenant(tenantId);
     try {
       StatObjectResponse response = objectExists(getPathForTenant(tenantId, fileTarget));
       String filename = response.userMetadata().get("filename");
@@ -255,16 +204,8 @@ public class MinioService implements DependenciesManager {
 
   // -- DELETE --
 
-  public void deleteFileInTenantPath(String name) throws Exception {
-    minioClient.removeObject(
-        RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
-  }
-
   /**
-   * Deletes a file under an explicitly named tenant path rather than the ambient {@link
-   * TenantContext}. The delete-side counterpart of {@link #uploadFileForTenant}: use it when the
-   * owning row's tenant is known, so the object is removed from the same path it was written to,
-   * whatever scope the caller runs under.
+   * Deletes a file under the path of the named tenant, the tenant of the row the object belongs to.
    *
    * @param tenantId the tenant whose path the object is removed from
    * @param name the object name to delete
@@ -278,23 +219,15 @@ public class MinioService implements DependenciesManager {
             .build());
   }
 
-  public void deleteDirectoryInTenantPath(String directory) {
-    try {
-      deleteObjectsByPrefix(getTenantPath(directory), false);
-    } catch (Exception e) {
-      log.error("Error deleting directory {} for tenant", directory, e);
-    }
-  }
-
   /**
-   * Deletes a directory under an explicitly named tenant path rather than the ambient {@link
-   * TenantContext}. Use this when the owning row's tenant is known, so the objects are removed from
-   * the same path they were written to, whatever scope the caller runs under.
+   * Deletes a directory under the path of the named tenant, the tenant of the rows the objects
+   * belong to.
    *
    * @param tenantId the tenant whose path the directory is removed from
    * @param directory the directory prefix to delete
    */
   public void deleteDirectoryForTenant(String tenantId, String directory) {
+    requireTenant(tenantId);
     try {
       deleteObjectsByPrefix(getPathForTenant(tenantId, directory), false);
     } catch (Exception e) {
@@ -304,16 +237,15 @@ public class MinioService implements DependenciesManager {
 
   // -- HELPERS --
 
-  public void checkStorageAccessible() throws Exception {
-    checkStorageAccessible(minioClient);
-  }
-
   /**
    * Verifies the object storage is reachable, the credentials are valid and the bucket is listable.
    *
    * <p>A tenant path is only a key prefix, not an object: statting it fails whenever the tenant has
    * no file yet, and plain S3 has no directory markers at all. A one-key listing proves access
    * without requiring anything to be stored, and succeeds on an empty tenant.
+   *
+   * <p>The probe lists the default tenant's prefix: the probe runs on a scheduled thread that
+   * belongs to no tenant, and the default tenant exists on every platform.
    *
    * <p>Takes the client as a parameter so callers (e.g. health checks) can pass one configured with
    * short timeouts.
@@ -324,7 +256,7 @@ public class MinioService implements DependenciesManager {
             .listObjects(
                 ListObjectsArgs.builder()
                     .bucket(bucket())
-                    .prefix(getTenantPath(""))
+                    .prefix(getPathForTenant(Tenant.DEFAULT_TENANT_UUID, ""))
                     .maxKeys(1)
                     .build())
             .iterator();
@@ -381,16 +313,6 @@ public class MinioService implements DependenciesManager {
             .recursive(true)
             .includeVersions(includeVersions)
             .build());
-  }
-
-  @VisibleForTesting
-  public int countObjectsForCurrentTenant(String prefix) {
-    Iterable<Result<Item>> results = listObjects(getTenantPath(prefix), false);
-    int count = 0;
-    for (Result<Item> ignored : results) {
-      count++;
-    }
-    return count;
   }
 
   @VisibleForTesting
@@ -469,13 +391,16 @@ public class MinioService implements DependenciesManager {
     return minioConfig.getBucket();
   }
 
-  /** Returns the tenant-prefixed path for the given object name. */
-  private String getTenantPath(String objectName) {
-    String tenantId = TenantContext.getCurrentTenant();
-    return getPathForTenant(tenantId, objectName);
+  /** Refuses a null or blank tenant: the key would sit outside every tenant's prefix. */
+  private static void requireTenant(String tenantId) {
+    Objects.requireNonNull(tenantId, "tenantId");
+    if (tenantId.isBlank()) {
+      throw new IllegalArgumentException("A storage object key needs a tenant");
+    }
   }
 
   private String getPathForTenant(String tenantId, String objectName) {
+    requireTenant(tenantId);
     if (objectName.startsWith("/")) {
       return tenantId + objectName;
     }

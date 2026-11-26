@@ -98,6 +98,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
         return;
       }
       fileService.uploadStream(
+          tenantId,
           FileService.SECRETS_PROVIDERS_IMAGES_ICONS_BASE_PATH,
           SecretsProviderType.LOCAL.type + FileService.EXT_PNG,
           iconStream);

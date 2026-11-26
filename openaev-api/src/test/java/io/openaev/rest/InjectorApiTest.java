@@ -794,11 +794,15 @@ public class InjectorApiTest extends IntegrationTest {
   @DisplayName("Injector image")
   class InjectorImage {
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given existing injector image should return image")
     void given_existingInjectorImage_should_returnImage() throws Exception {
       // -- Arrange --
       String injectorType = "test-injector-type";
       fileService.uploadStream(
+          Tenant.DEFAULT_TENANT_UUID,
           FileService.INJECTORS_IMAGES_BASE_PATH,
           injectorType + FileService.EXT_PNG,
           new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
@@ -808,6 +812,9 @@ public class InjectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given missing injector image should return 404")
     void given_missingInjectorImage_should_return404() throws Exception {
       // -- Act / Assert --

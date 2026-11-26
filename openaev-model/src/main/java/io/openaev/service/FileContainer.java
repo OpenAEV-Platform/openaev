@@ -8,7 +8,7 @@ import java.io.InputStream;
  * <p>This class holds the file content along with its name and MIME type, making it suitable for
  * returning files from API endpoints with proper Content-Disposition and Content-Type headers.
  *
- * @see FileService#getFileContainer(String)
+ * @see FileService#getFileContainer(String, String)
  */
 public class FileContainer {
 

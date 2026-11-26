@@ -132,7 +132,7 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   void clearContext() throws Exception {
     if (importedDocumentTenant != null) {
       String target = FileFixture.getPlainTextFileContent().getFileName();
-      fileService.deleteFile(target);
+      fileService.deleteFile(Tenant.DEFAULT_TENANT_UUID, target);
       try {
         minioService.deleteFileForTenant(importedDocumentTenant, target);
       } catch (Exception e) {

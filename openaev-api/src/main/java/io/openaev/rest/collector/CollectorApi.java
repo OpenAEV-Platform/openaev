@@ -1,6 +1,7 @@
 package io.openaev.rest.collector;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
@@ -139,8 +140,9 @@ public class CollectorApi extends RestBehavior {
   @Operation(summary = "Get collector image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getCollectorImage(
-      TxCtx ctx, @PathVariable String collectorType) {
-    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorType) {
+    return this.fileService.getConnectorImage(
+        requireOneTenantOfScope(ctx), ConnectorType.COLLECTOR, collectorType);
   }
 
   @GetMapping(
@@ -161,7 +163,8 @@ public class CollectorApi extends RestBehavior {
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collector.get().getType());
+    return this.fileService.getConnectorImage(
+        tenantId, ConnectorType.COLLECTOR, collector.get().getType());
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})

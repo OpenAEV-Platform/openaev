@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -198,8 +199,9 @@ public class InjectorApi extends RestBehavior {
   @Operation(summary = "Get injector image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getInjectorImage(
-      TxCtx ctx, @PathVariable String injectorType) {
-    return this.fileService.getConnectorImage(ConnectorType.INJECTOR, injectorType);
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorType) {
+    return this.fileService.getConnectorImage(
+        requireOneTenantOfScope(ctx), ConnectorType.INJECTOR, injectorType);
   }
 
   @DeleteMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})

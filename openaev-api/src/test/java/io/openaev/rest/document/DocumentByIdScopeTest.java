@@ -84,8 +84,7 @@ class DocumentByIdScopeTest extends IntegrationTest {
   void clearContext() {
     for (String[] object : seededObjects) {
       try {
-        TenantContext.setCurrentTenant(object[0]);
-        fileService.deleteFile(object[1]);
+        fileService.deleteFile(object[0], object[1]);
       } catch (Exception e) {
         // best-effort cleanup: a missing object must not fail teardown
       }
@@ -432,13 +431,12 @@ class DocumentByIdScopeTest extends IntegrationTest {
   /** Seeds a document owned by tenant B whose bytes are written under B's storage prefix. */
   private String seedBDocumentWithObject(byte[] content) throws Exception {
     String target = UUID.randomUUID() + ".txt";
-    TenantContext.setCurrentTenant(tenantB);
-    try {
-      fileService.uploadFile(
-          target, new ByteArrayInputStream(content), content.length, MediaType.TEXT_PLAIN_VALUE);
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    fileService.uploadFile(
+        tenantB,
+        target,
+        new ByteArrayInputStream(content),
+        content.length,
+        MediaType.TEXT_PLAIN_VALUE);
     seededObjects.add(new String[] {tenantB, target});
     Document document = new Document();
     document.setName("doc-scope-" + UUID.randomUUID());

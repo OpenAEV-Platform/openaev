@@ -218,11 +218,14 @@ public class ExecutorApi extends RestBehavior {
       // Upload icon
       if (icon.isPresent() && "image/png".equals(icon.get().getContentType())) {
         fileService.uploadFile(
-            FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png", icon.get());
+            tenantId,
+            FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png",
+            icon.get());
       }
       // Upload banner
       if (banner.isPresent() && "image/png".equals(banner.get().getContentType())) {
         fileService.uploadFile(
+            tenantId,
             FileService.EXECUTORS_IMAGES_BANNERS_BASE_PATH + input.getType() + ".png",
             banner.get());
       }

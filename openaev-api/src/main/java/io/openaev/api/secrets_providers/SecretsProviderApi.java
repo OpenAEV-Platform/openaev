@@ -1,9 +1,11 @@
 package io.openaev.api.secrets_providers;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.secrets_providers.form.SecretsProviderOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ConnectorType;
@@ -99,7 +101,8 @@ public class SecretsProviderApi extends RestBehavior {
   @Operation(summary = "Get secrets provider image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getSecretsProviderImage(
-      TxCtx ctx, @PathVariable String secretProviderType) {
-    return fileService.getConnectorImage(ConnectorType.SECRETS_PROVIDER, secretProviderType);
+      @RequireTenantSelector TxCtx ctx, @PathVariable String secretProviderType) {
+    return fileService.getConnectorImage(
+        requireOneTenantOfScope(ctx), ConnectorType.SECRETS_PROVIDER, secretProviderType);
   }
 }

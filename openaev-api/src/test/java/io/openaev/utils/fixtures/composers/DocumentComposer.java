@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Executable;
@@ -80,8 +81,18 @@ public class DocumentComposer extends ComposerBase<Document> {
         try (ByteArrayInputStream bais =
             new ByteArrayInputStream(companionFile.getContentBytes())) {
           MultipartFile mmf = new MockMultipartFile(document.getTarget(), bais.readAllBytes());
+          // The object goes under the tenant the row is saved in: its own, or the one the
+          // listener stamps from the thread.
+          String tenantId =
+              document.getTenant() != null
+                  ? document.getTenant().getId()
+                  : TenantContext.getCurrentTenant();
           fileService.uploadFile(
-              document.getTarget(), mmf.getInputStream(), mmf.getSize(), document.getType());
+              tenantId,
+              document.getTarget(),
+              mmf.getInputStream(),
+              mmf.getSize(),
+              document.getType());
         }
       }
       documentRepository.save(document);

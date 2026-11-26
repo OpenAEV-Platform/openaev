@@ -196,10 +196,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     // Save imgs
     if (iconData != null) {
-      fileService.uploadStream(EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
+      fileService.uploadStream(
+          tenantId, EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
     }
     if (bannerData != null) {
-      fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
+      fileService.uploadStream(
+          tenantId, EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
     Executor executor = executorRepository.findByExecutorId(id).orElse(null);

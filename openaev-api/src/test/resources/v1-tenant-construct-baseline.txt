@@ -109,7 +109,6 @@ io.openaev.scheduler.jobs.SecurityCoverageJob#execute | TenantContext.setCurrent
 io.openaev.search.FullTextSearchService#searchSpecification | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.InjectExpectationService#findAllByInjectId | TenantContext.getCurrentTenant | 1 | service method scopes the technical expectation lookup of an inject with the ambient tenant
 io.openaev.service.LogService#buildBaseAuditLog | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
-io.openaev.service.MinioService#getTenantPath | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
 io.openaev.service.PermissionService#checkedResource | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
 io.openaev.service.PermissionService#inTenant | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
 io.openaev.service.autonomous.AutonomousRunService#create | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables

@@ -1,7 +1,7 @@
 package io.openaev.rest.tenancy;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -302,9 +302,36 @@ class DocumentAttachmentScopeTest extends IntegrationTest {
               .getContentAsByteArray();
 
       // -- Assert --
-      assertTrue(
-          zipHasEntry(zip, exportable.inScopeTarget),
-          "the export must include the same-tenant attachment's bytes");
+      assertArrayEquals(exportable.inScopeContent, zipEntry(zip, exportable.inScopeTarget));
+    }
+
+    @Test
+    @DisplayName(
+        "given only a same-tenant attachment when exporting on the header route then its bytes"
+            + " are bundled")
+    void
+        given_only_a_same_tenant_attachment_when_exporting_on_the_header_route_then_its_bytes_are_bundled()
+            throws Exception {
+      // -- Arrange --
+      ExportableInject exportable = buildExportableInject(false);
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // -- Act --
+      byte[] zip =
+          mvc.perform(
+                  post("/api/injects/{id}/inject_export", exportable.injectId)
+                      .header(TENANT_HEADER, exportable.injectTenant)
+                      .content("{}")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      // -- Assert --
+      assertArrayEquals(exportable.inScopeContent, zipEntry(zip, exportable.inScopeTarget));
     }
   }
 
@@ -413,7 +440,8 @@ class DocumentAttachmentScopeTest extends IntegrationTest {
 
   // region helpers
 
-  private record ExportableInject(String injectId, String injectTenant, String inScopeTarget) {}
+  private record ExportableInject(
+      String injectId, String injectTenant, String inScopeTarget, byte[] inScopeContent) {}
 
   private String createTenant(String name) throws Exception {
     String id = tenantHelper.createTenantWithCurrentUser(name).getId();
@@ -465,16 +493,12 @@ class DocumentAttachmentScopeTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    return new ExportableInject(inject.getId(), injectTenant, inScopeTarget);
+    return new ExportableInject(
+        inject.getId(), injectTenant, inScopeTarget, inScopeFile.getContentBytes());
   }
 
-  private boolean zipHasEntry(byte[] zip, String entryName) {
-    try {
-      ZipUtils.getZipEntry(zip, entryName, ZipUtils::streamToBytes);
-      return true;
-    } catch (IOException e) {
-      return false;
-    }
+  private byte[] zipEntry(byte[] zip, String entryName) throws IOException {
+    return ZipUtils.getZipEntry(zip, entryName, ZipUtils::streamToBytes);
   }
 
   private String uploadObject(String tenantId, byte[] content) throws Exception {
