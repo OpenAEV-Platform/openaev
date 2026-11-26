@@ -5,8 +5,6 @@ import { Controller, useFormContext } from 'react-hook-form';
 interface Props {
   label: React.ReactNode;
   name: string;
-  // Kept for callers: the library Switch has a single size.
-  size?: 'small' | 'medium';
   required?: boolean;
   disabled?: boolean;
 }
