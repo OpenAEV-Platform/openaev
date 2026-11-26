@@ -45,6 +45,7 @@ Rules in `frontend.instructions.md`; severity per check:
 | **New MUI import replaced by the library** | [Design System & Layout](../instructions/frontend.instructions.md#design-system--layout) | 🟠 HIGH |
 | **Navigation by click handler, unnamed icon control, library prop misuse** | [Library components](../instructions/frontend.instructions.md#library-components--rules-that-are-easy-to-get-wrong) | 🟠 HIGH |
 | **Ramda** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟠 HIGH |
+| **Raw docs URL** (instead of `docsUrl('<key>')`) | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟠 HIGH |
 | **Component size** | Hint, not a rule: a component file over 300 lines is worth a look | 🟢 LOW |
 | **`any`, `@ts-ignore`, dead props** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |
 | **Mutable export** (also flag a new `eslint-disable` of `custom-rules/no-mutable-exports`) | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |

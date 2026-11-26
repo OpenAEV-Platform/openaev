@@ -1,6 +1,5 @@
 import type { HealthCheck } from '../../../../utils/api-types';
-
-const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
+import docsUrl, { type DocsLinkKey } from '../../../../utils/docsUrl';
 
 // A page of the platform (to), or a documentation page (href).
 interface HealthcheckFixLink {
@@ -14,18 +13,18 @@ export interface HealthcheckOwner {
 }
 
 const ownerPage = (page: string) => ({ scenarioId, exerciseId }: HealthcheckOwner): HealthcheckFixLink => ({ to: exerciseId ? `/admin/simulations/${exerciseId}/${page}` : `/admin/scenarios/${scenarioId}/${page}` });
-const documentation = (path: string) => (): HealthcheckFixLink => ({ href: `${DOCUMENTATION_ROOT_URL}${path}` });
+const documentation = (key: DocsLinkKey) => (): HealthcheckFixLink => ({ href: docsUrl(key) });
 
 const FIX_LINKS: Partial<Record<HealthCheck['type'], (owner: HealthcheckOwner) => HealthcheckFixLink>> = {
-  SMTP: documentation('/latest/deployment/configuration/?h=smtp#mail-services'),
-  IMAP: documentation('/latest/deployment/configuration/?h=smtp#imap'),
+  SMTP: documentation('configuration_mail_services'),
+  IMAP: documentation('configuration_imap'),
   AGENT_OR_EXECUTOR: () => ({ to: '/admin/agents' }),
-  SECURITY_SYSTEM_COLLECTOR: documentation('/latest/usage/collectors/?h=collector'),
+  SECURITY_SYSTEM_COLLECTOR: documentation('collectors'),
   INJECT: ownerPage('injects'),
   PAYLOAD: ownerPage('injects'),
   TEAMS: ownerPage('injects'),
-  NMAP: documentation('/latest/usage/injectors'),
-  NUCLEI: documentation('/latest/usage/injectors'),
+  NMAP: documentation('injectors'),
+  NUCLEI: documentation('injectors'),
   SCOPE_DEFINITION: ownerPage('scope'),
 };
 

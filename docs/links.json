@@ -23,7 +23,9 @@
     "run_modes": "deployment/platform/run-modes/",
     "scenarios_and_simulations": "usage/get-started/foundations/scenarios-and-simulations/",
     "teams": "usage/build/people/#teams",
-    "users_and_rbac": "administration/users-and-rbac/"
+    "users_and_rbac": "administration/users-and-rbac/",
+    "xtm_one": "integrations/xtm-suite/xtm-one/",
+    "xtm_suite_connector": "integrations/xtm-suite/xtm-suite-connector/"
   },
   "retired": [
     "administration/parameters/",

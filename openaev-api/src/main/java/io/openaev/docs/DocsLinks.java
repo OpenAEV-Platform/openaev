@@ -101,5 +101,13 @@ public final class DocsLinks {
   public static final String USERS_AND_RBAC =
       "https://docs.openaev.io/latest/administration/users-and-rbac/";
 
+  /** Key {@code xtm_one}. */
+  public static final String XTM_ONE =
+      "https://docs.openaev.io/latest/integrations/xtm-suite/xtm-one/";
+
+  /** Key {@code xtm_suite_connector}. */
+  public static final String XTM_SUITE_CONNECTOR =
+      "https://docs.openaev.io/latest/integrations/xtm-suite/xtm-suite-connector/";
+
   private DocsLinks() {}
 }
