@@ -245,9 +245,7 @@ class InjectorContractTextSearchTest extends IntegrationTest {
 
       SearchPaginationInput input =
           PaginationFixture.simpleSearchWithAndOperator(
-              "injector_contract_attack_patterns",
-              parent.getExternalId(),
-              Filters.FilterOperator.eq);
+              "injector_contract_attack_patterns", parent.getId(), Filters.FilterOperator.eq);
       mvc.perform(
               post("/api/injector_contracts/search")
                   .contentType(MediaType.APPLICATION_JSON)
