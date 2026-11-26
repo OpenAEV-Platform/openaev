@@ -662,10 +662,7 @@ public class MapperService {
       if (StringUtils.isNotBlank(endpointExportImport.getUrl())) {
         endpoint.setUrl(endpointExportImport.getUrl().trim());
       }
-      // An empty cell (or a file without the column) leaves the flag unknown.
-      if (endpointExportImport.getInternetFacing() != null) {
-        endpoint.setInternetFacing(endpointExportImport.getInternetFacing());
-      }
+      endpoint.setInternetFacing(endpointExportImport.getInternetFacing());
       // CSV import writes into the tenant the request selected, never the thread-local.
       // main plumbs the TxCtx down to this method; lot B made the tenant a REQUIRED argument of
       // createEndpoint, so a forgotten attribution is a compile error rather than a silent write

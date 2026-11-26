@@ -60,8 +60,6 @@ public class EndpointExportImport {
   @CsvBindByPosition(position = 11)
   private String url;
 
-  // Optional internet-facing flag: "true" or "false"; an empty cell (or a file without the
-  // column) leaves the flag unknown, never erases one.
   @CsvBindByName(column = "asset_internet_facing")
   @CsvBindByPosition(position = 12)
   private Boolean internetFacing;
