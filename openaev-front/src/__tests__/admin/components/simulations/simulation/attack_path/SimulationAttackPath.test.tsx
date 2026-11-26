@@ -20,6 +20,7 @@ type FlowProps = {
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
   onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
+  legend?: ReactNode;
 };
 
 // Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
@@ -36,11 +37,18 @@ const mocks = vi.hoisted(() => ({
   flowProps: { current: null as FlowProps | null },
   // Read by the useEnterpriseEdition mock below; a test flips it to exercise the unlicensed path.
   licenceValidated: true,
+  // Read by the isFeatureEnabled mock below: the LOGGING_EXPECTATION preview feature.
+  loggingFeature: false,
 }));
 
 // The exploration graph preview feature reads the platform settings from the store; the attack
 // path renders without one here, so the flag is read on.
 vi.mock('../../../../../../utils/hooks/useExplorationGraph', () => ({ default: () => true }));
+// The Logging preview feature is read from the settings store, absent here.
+vi.mock('../../../../../../utils/utils', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  isFeatureEnabled: () => mocks.loggingFeature,
+}));
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraph: mocks.fetchAttackPathGraph,
   fetchAttackPathGraphDelta: mocks.fetchAttackPathGraphDelta,
@@ -63,7 +71,7 @@ vi.mock('../../../../../../components/i18n', () => ({
 vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/canvas/AttackPathCanvas', () => ({
   default: (props: FlowProps) => {
     mocks.flowProps.current = props;
-    return <div data-testid="attack-path-flow" />;
+    return <div data-testid="attack-path-flow">{props.legend}</div>;
   },
 }));
 
@@ -149,8 +157,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 // One steady-state graph read plus a delta poll that reports "nothing changed": the default the tests
 // override when they exercise a live update.
-const setup = () => {
-  mocks.fetchAttackPathGraph.mockResolvedValue({ data: graphDto });
+const setup = (graph = graphDto) => {
+  mocks.fetchAttackPathGraph.mockResolvedValue({ data: graph });
   mocks.fetchAttackPathGraphDelta.mockResolvedValue({
     data: {
       sinceVersion: 0,
@@ -677,5 +685,46 @@ describe('SimulationAttackPath live delta updates', () => {
     mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(13, 'host-c'));
     await tick();
     expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(afterSecondGrowth);
+  });
+});
+
+describe('SimulationAttackPath logging verdicts', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    mocks.flowProps.current = null;
+    mocks.loggingFeature = false;
+  });
+
+  it('keeps the logged only legend entry for a verdict recorded while Logging was on', async () => {
+    // Arrange
+    setup({
+      ...graphDto,
+      attackPathNodes: graphDto.attackPathNodes.map(node => (node.id === ENDPOINT_NODE
+        ? {
+            ...node,
+            status: 'YELLOW',
+          }
+        : node)),
+    });
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: 'Toggle legend' }));
+
+    // Assert
+    expect(screen.getByText('Logged only')).toBeDefined();
+    expect(screen.getByText('Not prevented, detected or logged')).toBeDefined();
+  });
+
+  it('keeps the legend without Logging while the feature is off and nothing was logged only', async () => {
+    // Arrange
+    setup();
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: 'Toggle legend' }));
+
+    // Assert
+    expect(screen.queryByText('Logged only')).toBeNull();
+    expect(screen.getByText('Neither prevented nor detected')).toBeDefined();
   });
 });

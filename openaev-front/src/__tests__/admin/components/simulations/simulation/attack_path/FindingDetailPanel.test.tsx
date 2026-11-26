@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import AttackPathLoggingContext from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-logging-context';
 import FindingDetailPanel, { type ProducingAction } from '../../../../../../admin/components/simulations/simulation/attack_path/FindingDetailPanel';
 import ThemeDark from '../../../../../../components/ThemeDark';
 
@@ -21,13 +22,6 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/E
 
 vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 
-// The Logging badge follows the LOGGING_EXPECTATION preview feature, read from the settings store.
-const features = vi.hoisted(() => ({ logging: false }));
-vi.mock('../../../../../../utils/utils', async importOriginal => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  isFeatureEnabled: () => features.logging,
-}));
-
 const action = (ref: string): ProducingAction => ({
   ref,
   contract: `contract-${ref}`,
@@ -36,22 +30,24 @@ const action = (ref: string): ProducingAction => ({
   subtitle: 'agent · admin',
 });
 
-const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}): ReactElement => {
+const renderPanel = (props: Partial<Parameters<typeof FindingDetailPanel>[0]> = {}, showsLogging = false): ReactElement => {
   const element = (
     <ThemeProvider theme={createTheme(ThemeDark())}>
       <TooltipProvider>
-        <FindingDetailPanel
-          value="445"
-          type="port"
-          simulationId="sim-1"
-          endpointLabel="CORP-HOST"
-          endpointName="CORP-HOST"
-          actions={[action('exec-1')]}
-          activeRef={null}
-          onSelect={vi.fn()}
-          onClose={vi.fn()}
-          {...props}
-        />
+        <AttackPathLoggingContext value={showsLogging}>
+          <FindingDetailPanel
+            value="445"
+            type="port"
+            simulationId="sim-1"
+            endpointLabel="CORP-HOST"
+            endpointName="CORP-HOST"
+            actions={[action('exec-1')]}
+            activeRef={null}
+            onSelect={vi.fn()}
+            onClose={vi.fn()}
+            {...props}
+          />
+        </AttackPathLoggingContext>
       </TooltipProvider>
     </ThemeProvider>
   );
@@ -135,7 +131,6 @@ describe('FindingDetailPanel value clamping', () => {
 describe('FindingDetailPanel verdict badges', () => {
   afterEach(() => {
     cleanup();
-    features.logging = false;
   });
 
   const expectations = {
@@ -145,9 +140,8 @@ describe('FindingDetailPanel verdict badges', () => {
     vulnerability: 'unknown',
   } as const;
 
-  it('shows the logging verdict between detection and vulnerability when Logging is enabled', () => {
-    features.logging = true;
-    renderPanel({ expectations });
+  it('shows the logging verdict between detection and vulnerability when Logging is in play', () => {
+    renderPanel({ expectations }, true);
 
     expect(screen.getAllByRole('img').map(badge => badge.getAttribute('aria-label'))).toEqual([
       'Prevention: Failed',
@@ -157,7 +151,7 @@ describe('FindingDetailPanel verdict badges', () => {
     ]);
   });
 
-  it('shows no logging verdict while Logging is disabled', () => {
+  it('shows no logging verdict while Logging is not in play', () => {
     renderPanel({ expectations });
 
     expect(screen.queryByRole('img', { name: 'Logging: Success' })).toBeNull();

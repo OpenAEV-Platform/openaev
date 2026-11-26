@@ -3143,6 +3143,7 @@
   "Not planned": "계획되지 않음",
   "Not possible to update Asset Group directly": "애셋 그룹을 직접 업데이트할 수 없습니다",
   "Not Prevented": "방지되지 않음",
+  "Not prevented, detected or logged": "차단, 탐지, 로깅 모두 되지 않음",
   "not provisioned by any action.": "어떤 액션에서도 제공되지 않음.",
   "Not rendered yet": "아직 렌더링되지 않음",
   "Not responding": "응답 없음",

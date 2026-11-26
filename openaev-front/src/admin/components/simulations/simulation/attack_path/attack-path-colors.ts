@@ -20,8 +20,8 @@ const attackPathStatusColor = (theme: Theme, status?: string): string => {
 };
 
 // Text equivalent of the verdict colour, so status is never conveyed by colour alone (a11y). Returns
-// an English key; wrap in t() at the call site.
-export const attackPathStatusLabel = (status?: string): string => {
+// an English key; wrap in t() at the call site. With Logging in play, RED also means "not logged".
+export const attackPathStatusLabel = (status: string | undefined, showsLogging: boolean): string => {
   switch (status) {
     case 'GREEN':
       return 'Prevented';
@@ -30,7 +30,7 @@ export const attackPathStatusLabel = (status?: string): string => {
     case 'YELLOW':
       return 'Logged only';
     case 'RED':
-      return 'Neither prevented nor detected';
+      return showsLogging ? 'Not prevented, detected or logged' : 'Neither prevented nor detected';
     default:
       return 'No verdict';
   }

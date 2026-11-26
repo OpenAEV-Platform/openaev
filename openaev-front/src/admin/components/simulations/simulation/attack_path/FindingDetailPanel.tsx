@@ -6,10 +6,10 @@ import { useState } from 'react';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
-import { isFeatureEnabled } from '../../../../../utils/utils';
 import LogicNodeTooltip from '../../../chaining/logic/chaining_flow/NodeTooltip';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
+import { useAttackPathShowsLogging } from './attack-path-logging-context';
 import { ExecutionRowStatusBadge } from './ExecutionStatusBadge';
 
 export interface ProducingAction {
@@ -83,7 +83,7 @@ const FindingDetailPanel = ({
     setValueExpanded(false);
   }
   const isValueLong = value.length > VALUE_CLAMP_CHARS;
-  const expectationOrder: (keyof FindingExpectations)[] = isFeatureEnabled('LOGGING_EXPECTATION')
+  const expectationOrder: (keyof FindingExpectations)[] = useAttackPathShowsLogging()
     ? ['prevention', 'detection', 'logging', 'vulnerability']
     : ['prevention', 'detection', 'vulnerability'];
 
