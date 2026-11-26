@@ -4,7 +4,6 @@ import static io.openaev.context.TxCtx.forTenant;
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -23,12 +22,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @DisallowConcurrentExecution
@@ -117,18 +118,16 @@ public class ScenarioExecutionJob implements Job {
     }
   }
 
+  /**
+   * Runs one step of the pass in its tenant's transaction. A failure is logged and goes no further:
+   * the other steps of this tenant and the other tenants run all the same, as in {@code
+   * forEachTenant}.
+   */
   private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(tenantId);
     try {
       tenantTx.execute(forTenant(tenantId), work);
-    } finally {
-      if (previousTenant == null) {
-        TenantContext.clearCurrentTenant();
-      } else {
-        TenantContext.setCurrentTenant(previousTenant);
-      }
+    } catch (RuntimeException e) {
+      log.error("Scheduled scenario pass failed for tenant {}: {}", tenantId, e.getMessage(), e);
     }
   }
 
