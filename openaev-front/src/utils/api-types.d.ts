@@ -12714,6 +12714,7 @@ export interface ScenarioUpdateInput {
     "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
   >;
   scenario_update_edits?: Record<string, string>;
+  /** @minLength 1 */
   scenario_update_from_version: string;
 }
 
