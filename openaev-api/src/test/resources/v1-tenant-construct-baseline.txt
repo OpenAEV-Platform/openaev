@@ -142,11 +142,6 @@ io.openaev.service.MapperService#createImportMapper | TenantContext.getCurrentTe
 io.openaev.service.MinioService#getTenantPath | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
 io.openaev.service.PermissionService#checkedResource | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
 io.openaev.service.PermissionService#inTenant | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
-io.openaev.service.StreamService#listenAttackPathVersion | TenantContext.clearCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
-io.openaev.service.StreamService#listenAttackPathVersion | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
-io.openaev.service.StreamService#makeDataFlux | TenantContext.getCurrentTenant | 1 | stream consumer reads the ambient tenant as the subscriber tenant
-io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.clearCurrentTenant | 2 | stream consumer sets the ambient tenant of each event before reading it
-io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
 io.openaev.service.account.ReservedKeyValidator#validateRoleId | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
 io.openaev.service.autonomous.AutonomousRunService#create | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
@@ -186,8 +181,6 @@ io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.service.stream.StreamVisibilityService#read | TenantContext.clearCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
-io.openaev.service.stream.StreamVisibilityService#read | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
 io.openaev.service.threat_arsenal.ThreatArsenalService#bulkDelete | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.service.utils.BulkOperationMonitor#start | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.utils.InjectUtils#resolveInjector | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
