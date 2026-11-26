@@ -3,6 +3,7 @@ package io.openaev.xtmhub.collector;
 import jakarta.validation.constraints.NotBlank;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -86,18 +87,24 @@ public class XtmHubCollectorConfig {
   /**
    * The moment before which the news feed items are cleaned up: the age they are kept for before
    * the given moment, computed on the UTC calendar since an {@link Instant} has no month nor year.
-   * A retention too long to be represented keeps everything: nothing is older than the epoch.
+   * A cutoff before the epoch is kept as it is: the Hub dates can be older than 1970. Empty when
+   * the retention is too long for the cutoff to be represented, by an {@link Instant} or by the
+   * database: nothing can be that old, so there is nothing to clean.
    */
-  public Instant newsFeedCleanupCutoff(Instant now) {
+  public Optional<Instant> newsFeedCleanupCutoff(Instant now) {
     CleanupRetention retention = effectiveRetention();
     try {
       Instant cutoff =
           now.atZone(ZoneOffset.UTC).minus(retention.value(), retention.unit()).toInstant();
-      return cutoff.isBefore(Instant.EPOCH) ? Instant.EPOCH : cutoff;
+      return cutoff.isBefore(EARLIEST_STORED_DATE) ? Optional.empty() : Optional.of(cutoff);
     } catch (DateTimeException | ArithmeticException e) {
-      return Instant.EPOCH;
+      return Optional.empty();
     }
   }
+
+  // the earliest date a PostgreSQL timestamp stores (4713 BC), a cutoff before it cannot be queried
+  private static final Instant EARLIEST_STORED_DATE =
+      LocalDate.of(-4712, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
   private record CleanupRetention(int value, ChronoUnit unit) {}
 

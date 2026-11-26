@@ -2103,6 +2103,21 @@ class XtmHubServiceTest {
     }
 
     @Test
+    @DisplayName("Given a retention too long to have a cutoff, should clean nothing")
+    void given_retentionWithoutCutoff_should_cleanNothing() {
+      // Arrange
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalValue("2147483647");
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalUnit("years");
+      givenRegistrations();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService, never()).cleanOldItems(any());
+    }
+
+    @Test
     @DisplayName("Given the cleanup fails, should not fail")
     void given_cleanupFails_should_notFail() {
       // Arrange

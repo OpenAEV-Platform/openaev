@@ -365,6 +365,9 @@ public class NewsFeedItemService {
   }
 
   private int deleteRows(List<NewsFeedItem> rows) {
+    if (rows.isEmpty()) {
+      return 0;
+    }
     newsFeedItemRepository.deleteAll(rows);
     // Flushed here, not at commit, so that a failure surfaces to the retry.
     newsFeedItemRepository.flush();
@@ -377,6 +380,7 @@ public class NewsFeedItemService {
             newsFeedItemRepository.findIdsByHubItemIdAfter(
                 hubItemId, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
         "the news feed item " + hubItemId,
+        newsFeedItemRepository::findAllWithUserByIdIn,
         action);
   }
 
@@ -389,12 +393,15 @@ public class NewsFeedItemService {
    * @param idsAfter the ids of at most {@link #USER_CHUNK_SIZE} rows after the given id, in id
    *     order
    * @param rowsDescription what the rows are, for the log of a failing chunk
+   * @param loadRows loads, in the chunk's transaction, the rows of the paged ids that the action
+   *     may still handle: the ids were read in another transaction, so a row can have changed since
    * @param action handles the rows of one chunk and returns how many it changed
    * @return how many rows the actions changed
    */
   private int forEachChunk(
       Function<String, List<String>> idsAfter,
       String rowsDescription,
+      Function<List<String>, List<NewsFeedItem>> loadRows,
       ToIntFunction<List<NewsFeedItem>> action) {
     int handled = 0;
     String afterId = "";
@@ -412,10 +419,7 @@ public class NewsFeedItemService {
             withRetry(
                 () ->
                     tenantTx.execute(
-                        TxCtx.allTenants(),
-                        () ->
-                            action.applyAsInt(
-                                newsFeedItemRepository.findAllWithUserByIdIn(chunkIds))));
+                        TxCtx.allTenants(), () -> action.applyAsInt(loadRows.apply(chunkIds))));
       } catch (Exception e) {
         log.error(
             "Could not handle {} rows of {}: {}",
@@ -444,7 +448,9 @@ public class NewsFeedItemService {
    *
    * <p>The rows are deleted through the session, {@link #USER_CHUNK_SIZE} at a time and each chunk
    * in its own transaction, as the rows of a deleted Hub item: a failing chunk is logged and the
-   * others are still deleted.
+   * others are still deleted. The ids are read in a transaction of their own, so a chunk reloads
+   * its rows under a row lock and checks the cutoff and the type again: a row another node turned
+   * into a blog post in the meantime is left alone, on the retry too.
    *
    * @return how many rows were deleted
    */
@@ -454,6 +460,9 @@ public class NewsFeedItemService {
             newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
                 cutoff, BLOG_POST_TYPE, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
         "the news feed items created before " + cutoff,
+        ids ->
+            newsFeedItemRepository.findForUpdateByIdInCreatedBeforeExcludingType(
+                ids, cutoff, BLOG_POST_TYPE),
         this::deleteRows);
   }
 

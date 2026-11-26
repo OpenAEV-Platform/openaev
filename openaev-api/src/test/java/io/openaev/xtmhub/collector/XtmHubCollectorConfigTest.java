@@ -3,6 +3,7 @@ package io.openaev.xtmhub.collector;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,6 +33,10 @@ class XtmHubCollectorConfigTest {
     "6,months,2027-09-30T10:15:30Z",
     "1,years,2027-03-31T10:15:30Z",
     "4,years,2024-03-31T10:15:30Z",
+    "58,years,1970-03-31T10:15:30Z",
+    "59,years,1969-03-31T10:15:30Z",
+    "2000,years,0028-03-31T10:15:30Z",
+    "6000,years,-3972-03-31T10:15:30Z",
     "6,MONTHS,2027-09-30T10:15:30Z",
     "' 6 ',' Months ',2027-09-30T10:15:30Z"
   })
@@ -41,11 +46,11 @@ class XtmHubCollectorConfigTest {
     XtmHubCollectorConfig config = config(value, unit);
 
     // Act
-    Instant cutoff = config.newsFeedCleanupCutoff(NOW);
+    Optional<Instant> cutoff = config.newsFeedCleanupCutoff(NOW);
 
-    // Assert
+    // Assert: a cutoff before the epoch is kept, the Hub dates can be older than 1970
     assertThat(config.isNewsFeedCleanupIntervalValid()).isTrue();
-    assertThat(cutoff).isEqualTo(expectedCutoff);
+    assertThat(cutoff).contains(expectedCutoff);
   }
 
   @ParameterizedTest(name = "Given value {0} and unit {1}, should fall back to 180 days")
@@ -69,25 +74,25 @@ class XtmHubCollectorConfigTest {
     XtmHubCollectorConfig config = config(value, unit);
 
     // Act
-    Instant cutoff = config.newsFeedCleanupCutoff(NOW);
+    Optional<Instant> cutoff = config.newsFeedCleanupCutoff(NOW);
 
     // Assert: both fall back together, a valid half does not survive an invalid one
     assertThat(config.isNewsFeedCleanupIntervalValid()).isFalse();
-    assertThat(cutoff).isEqualTo(Instant.parse("2027-10-03T10:15:30Z"));
+    assertThat(cutoff).contains(Instant.parse("2027-10-03T10:15:30Z"));
   }
 
-  @ParameterizedTest(name = "Given {0} {1}, should keep everything")
-  @CsvSource({"2000,years", "2147483647,years", "2147483647,months"})
-  void given_retentionBeyondTheEpoch_should_keepEverything(String value, String unit) {
+  @ParameterizedTest(name = "Given {0} {1}, should have no cutoff")
+  @CsvSource({"6741,years", "2147483647,years", "2147483647,months", "2147483647,weeks"})
+  void given_retentionTooLongToBeRepresented_should_haveNoCutoff(String value, String unit) {
     // Arrange
     XtmHubCollectorConfig config = config(value, unit);
 
     // Act
-    Instant cutoff = config.newsFeedCleanupCutoff(NOW);
+    Optional<Instant> cutoff = config.newsFeedCleanupCutoff(NOW);
 
-    // Assert: nothing is older than the epoch
+    // Assert: neither an Instant nor the database holds a date that old, there is nothing to clean
     assertThat(config.isNewsFeedCleanupIntervalValid()).isTrue();
-    assertThat(cutoff).isEqualTo(Instant.EPOCH);
+    assertThat(cutoff).isEmpty();
   }
 
   @Test
@@ -97,12 +102,12 @@ class XtmHubCollectorConfigTest {
     XtmHubCollectorConfig config = new XtmHubCollectorConfig();
 
     // Act
-    Instant cutoff = config.newsFeedCleanupCutoff(NOW);
+    Optional<Instant> cutoff = config.newsFeedCleanupCutoff(NOW);
 
     // Assert
     assertThat(config.isNewsFeedCleanupIntervalValid()).isFalse();
     assertThat(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_VALUE).isEqualTo(180);
     assertThat(XtmHubCollectorConfig.DEFAULT_NEWS_FEED_CLEANUP_UNIT).isEqualTo("days");
-    assertThat(cutoff).isEqualTo(Instant.parse("2027-10-03T10:15:30Z"));
+    assertThat(cutoff).contains(Instant.parse("2027-10-03T10:15:30Z"));
   }
 }

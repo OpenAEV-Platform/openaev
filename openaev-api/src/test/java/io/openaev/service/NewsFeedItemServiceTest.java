@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -557,6 +558,14 @@ class NewsFeedItemServiceTest {
 
     /** The old rows, found by keyset chunks of {@link NewsFeedItemService#USER_CHUNK_SIZE}. */
     private void givenOldRows(int count) {
+      givenOldRows(count, id -> true);
+    }
+
+    /**
+     * As {@link #givenOldRows(int)}, the locked reload only returning the rows that {@code
+     * stillEligible}: the others changed since their ids were read.
+     */
+    private void givenOldRows(int count, Predicate<String> stillEligible) {
       List<String> ids = IntStream.range(0, count).mapToObj(i -> "row-%05d".formatted(i)).toList();
       when(newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
               eq(CUTOFF), eq("BLOG_POST"), anyString(), any(Pageable.class)))
@@ -568,10 +577,12 @@ class NewsFeedItemServiceTest {
                     .limit(NewsFeedItemService.USER_CHUNK_SIZE)
                     .toList();
               });
-      when(newsFeedItemRepository.findAllWithUserByIdIn(anyCollection()))
+      when(newsFeedItemRepository.findForUpdateByIdInCreatedBeforeExcludingType(
+              anyCollection(), eq(CUTOFF), eq("BLOG_POST")))
           .thenAnswer(
               invocation ->
                   invocation.<Collection<String>>getArgument(0).stream()
+                      .filter(stillEligible)
                       .map(id -> row(id, "hub-" + id))
                       .toList());
     }
@@ -603,7 +614,8 @@ class NewsFeedItemServiceTest {
       // Assert
       assertThat(deleted).isZero();
       verify(newsFeedItemRepository, never()).deleteAll(anyCollection());
-      verify(newsFeedItemRepository, never()).findAllWithUserByIdIn(anyCollection());
+      verify(newsFeedItemRepository, never())
+          .findForUpdateByIdInCreatedBeforeExcludingType(any(), any(), any());
     }
 
     @Test
@@ -658,7 +670,26 @@ class NewsFeedItemServiceTest {
       // Assert: the retry reads the rows again
       assertThat(deleted).isEqualTo(1);
       deletedBatches(2);
-      verify(newsFeedItemRepository, times(2)).findAllWithUserByIdIn(anyCollection());
+      verify(newsFeedItemRepository, times(2))
+          .findForUpdateByIdInCreatedBeforeExcludingType(
+              anyCollection(), eq(CUTOFF), eq("BLOG_POST"));
+    }
+
+    @Test
+    @DisplayName("Given a row no longer eligible under the lock, should not delete it")
+    void given_rowNoLongerEligibleUnderTheLock_should_notDeleteIt() {
+      // Arrange: the ids were read before another node turned "row-00001" into a blog post
+      givenOldRows(2, id -> !id.equals("row-00001"));
+
+      // Act
+      int deleted = service.cleanOldItems(CUTOFF);
+
+      // Assert: only the row still eligible is deleted, the plain reload is never used
+      assertThat(deleted).isEqualTo(1);
+      assertThat(deletedBatches(1).getFirst())
+          .extracting(NewsFeedItem::getId)
+          .containsExactly("row-00000");
+      verify(newsFeedItemRepository, never()).findAllWithUserByIdIn(anyCollection());
     }
   }
 

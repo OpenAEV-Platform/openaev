@@ -396,7 +396,12 @@ public class XtmHubService {
 
   private void cleanOldNewsFeedItems() {
     try {
-      Instant cutoff = xtmHubCollectorConfig.newsFeedCleanupCutoff(Instant.now());
+      Optional<Instant> cutoffOrNone = xtmHubCollectorConfig.newsFeedCleanupCutoff(Instant.now());
+      if (cutoffOrNone.isEmpty()) {
+        log.debug("The news feed retention is too long to have a cutoff, nothing is cleaned");
+        return;
+      }
+      Instant cutoff = cutoffOrNone.get();
       int deleted = newsFeedItemService.cleanOldItems(cutoff);
       if (deleted > 0) {
         log.info("Cleaned {} news feed items created before {}", deleted, cutoff);

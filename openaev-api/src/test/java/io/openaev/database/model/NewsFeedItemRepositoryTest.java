@@ -301,6 +301,29 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given rows changed since their ids were read, should lock only those still old")
+    void given_rowsChangedSinceTheirIdsWereRead_should_lockOnlyThoseStillOld() {
+      // Arrange
+      User user = createUser();
+      NewsFeedItem stillOld =
+          saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-old"), OLD);
+      NewsFeedItem nowBlogPost =
+          saveCreatedAt(NewsFeedItemFixture.createBlogPost(user, "hub-now-blog"), OLD);
+      NewsFeedItem nowRecent =
+          saveCreatedAt(NewsFeedItemFixture.createNewsFeedItem(user, "hub-now-recent"), CUTOFF);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<NewsFeedItem> locked =
+          newsFeedItemRepository.findForUpdateByIdInCreatedBeforeExcludingType(
+              List.of(stillOld.getId(), nowBlogPost.getId(), nowRecent.getId()), CUTOFF, BLOG_POST);
+
+      // Assert: the cutoff and the type are checked again on the rows themselves
+      assertThat(locked).extracting(NewsFeedItem::getId).containsExactly(stillOld.getId());
+    }
+
+    @Test
     @DisplayName("Given more old rows than a page, should page them by keyset")
     void given_moreOldRowsThanAPage_should_pageThemByKeyset() {
       // Arrange
