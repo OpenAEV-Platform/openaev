@@ -6770,11 +6770,6 @@ export interface FindingRetestOutput {
 
 export interface FindingSummaryOutput {
   /**
-   * Number of distinct impacted asset groups across all occurrences
-   * @format int64
-   */
-  finding_asset_groups_count?: number;
-  /**
    * Number of distinct impacted assets across all occurrences
    * @format int64
    */

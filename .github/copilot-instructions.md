@@ -55,7 +55,7 @@ ignore unless your changes touch these.
 
 CI runs on GitHub Actions (see `.github/workflows/`):
 
-1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then the backend coverage rules on the changed lines and on the whole backend (advisory for now)
+1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then the backend coverage rules on the changed lines and on the whole backend (blocking)
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
@@ -177,7 +177,7 @@ Examples:
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, advisory for now).
+9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, blocking). A change that cannot be tested waives both rules with a `Coverage exempt: <why>` line in the PR description; agents never add that line themselves, only the PR author does.
 10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 

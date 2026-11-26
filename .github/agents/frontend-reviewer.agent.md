@@ -48,7 +48,7 @@ Rules in `frontend.instructions.md`; severity per check:
 | **Component size** | Hint, not a rule: a component file over 300 lines is worth a look | 🟢 LOW |
 | **`any`, `@ts-ignore`, dead props** | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |
 | **Mutable export** (also flag a new `eslint-disable` of `custom-rules/no-mutable-exports`) | [TypeScript](../instructions/frontend.instructions.md#typescript) | 🟡 MEDIUM |
-| **Missing `t()`** | [i18n](../instructions/frontend.instructions.md#i18n) | 🟡 MEDIUM |
+| **Missing `t()`, or a new string with no key in `en.json` / the other language files** (the author runs `yarn auto-translation:all`; an agent never writes those files) | [i18n](../instructions/frontend.instructions.md#i18n) | 🟡 MEDIUM |
 | **Arbitrary utility class, `sx` → `style` unit drift, local look-alike, inline styles on MUI** | [Design System & Layout](../instructions/frontend.instructions.md#design-system--layout) | 🟡 MEDIUM |
 | **Hardcoded tokens** | [Colours & tokens](../instructions/frontend.instructions.md#colours--tokens) | 🟡 MEDIUM |
 | **Wrong control size, button convention** | [Library components](../instructions/frontend.instructions.md#library-components--rules-that-are-easy-to-get-wrong) | 🟡 MEDIUM |
