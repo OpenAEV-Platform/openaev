@@ -960,24 +960,6 @@ export interface AssetLinkOutput {
     | "USES";
 }
 
-export interface AssetMarkingsOutput {
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * Markings currently carried by the asset
-   * @uniqueItems true
-   */
-  asset_markings?: string[];
-  /**
-   * Asset name
-   * @minLength 1
-   */
-  asset_name: string;
-}
-
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -1158,10 +1140,6 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
-}
-
-export interface AssetUpdateMarkingsInput {
-  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {

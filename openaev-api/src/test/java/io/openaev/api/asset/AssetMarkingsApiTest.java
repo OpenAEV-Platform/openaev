@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
-import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -52,8 +51,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * {@code PUT /api/assets/{id}/markings} — design step 3.3, the write path that puts a label on a
- * row.
+ * Asset markings, written with the asset itself or in bulk — design step 3.3, the write paths that
+ * put a label on a row.
  *
  * <p>The caller is deliberately <b>not</b> an admin: an admin resolves to the whole tenant scale
  * and would pass the escalation guard for the wrong reason, making every negative case below
@@ -144,16 +143,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
   @Nested
   @DisplayName("assigning a marking")
   class Assigning {
-
-    @Test
-    @DisplayName("given a marking the caller holds, should write it to the asset")
-    void given_heldMarking_should_writeIt() throws Exception {
-      // -- ACT --
-      assignMarkings(List.of(green.getId())).andExpect(status().is2xxSuccessful());
-
-      // -- ASSERT --
-      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
-    }
 
     @Test
     @DisplayName("given a marking the caller does not hold, should refuse with 403")
@@ -474,12 +463,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
   // -- HELPERS --
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
-    return mvc.perform(
-        put(TENANT_ASSET_URI + "/{assetId}/markings", tenantId, asset.getId())
-            .content(asJsonString(new AssetUpdateMarkingsInput(markingIds)))
-            .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON)
-            .with(csrf()));
+    return updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), endpointInput(), markingIds);
   }
 
   private ResultActions bulkReplaceMarkings(List<String> assetIds, List<String> markingIds)
