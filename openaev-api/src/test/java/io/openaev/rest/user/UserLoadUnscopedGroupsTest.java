@@ -17,6 +17,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.WithoutTenantScope;
@@ -66,6 +67,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserRepository userRepository;
   @Autowired private TenantMembershipCacheManager membershipCache;
   @Autowired private JdbcTemplate jdbc;
@@ -77,7 +79,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("user-load-groups").getId();
     } finally {

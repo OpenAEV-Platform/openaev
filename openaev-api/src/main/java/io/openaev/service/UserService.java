@@ -50,7 +50,6 @@ import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
@@ -87,9 +86,6 @@ import org.springframework.web.util.HtmlUtils;
 @RequiredArgsConstructor
 @Slf4j
 public class UserService {
-
-  @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
-  private String adminEmail;
 
   private record EmailChangeRequest(String confirmationCode, String newEmail) {}
 
@@ -895,12 +891,6 @@ public class UserService {
     SecurityContext context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(authentication);
     SecurityContextHolder.setContext(context);
-  }
-
-  /** Creates admin security session */
-  public void createAdminSession() {
-    User adminUser = this.userRepository.findByEmailIgnoreCase(this.adminEmail).orElseThrow();
-    this.createUserSession(adminUser);
   }
 
   /**

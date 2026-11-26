@@ -14,6 +14,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -56,6 +57,7 @@ class CurrentUserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTes
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserRepository userRepository;
   @Autowired private GroupRepository groupRepository;
   @Autowired private MarkingDefinitionRepository markingRepository;
@@ -70,7 +72,7 @@ class CurrentUserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTes
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("find-with-roles-markings").getId();
     } finally {

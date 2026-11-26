@@ -30,6 +30,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.TagFixture;
@@ -76,6 +77,7 @@ class UserApiLoginResponseTest extends ProductionTablesIntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserRepository userRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private TeamRepository teamRepository;
@@ -96,7 +98,7 @@ class UserApiLoginResponseTest extends ProductionTablesIntegrationTest {
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("login-response-a").getId();
       tenantC = tenantHelper.createTenant("login-response-c").getId();

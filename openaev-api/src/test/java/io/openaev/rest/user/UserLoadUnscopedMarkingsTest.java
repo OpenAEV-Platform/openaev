@@ -31,6 +31,7 @@ import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
@@ -85,6 +86,7 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private TenantUserService tenantUserService;
   @Autowired private CacheManager cacheManager;
   @Autowired private UserRepository userRepository;
@@ -104,7 +106,7 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("user-load-markings").getId();
       tenantB = tenantHelper.createTenant("user-load-markings-other").getId();

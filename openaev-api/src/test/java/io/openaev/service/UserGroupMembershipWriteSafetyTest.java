@@ -17,6 +17,7 @@ import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.account.ReservedServiceAccount;
 import io.openaev.service.platform.groups.PlatformGroupService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.WithoutTenantScope;
@@ -52,6 +53,7 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserGroupMembershipService userGroupMembershipService;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserMappingService userMappingService;
   @Autowired private TenantGroupService tenantGroupService;
   @Autowired private PlatformGroupService platformGroupService;
@@ -68,7 +70,7 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("membership-a-" + UUID.randomUUID()).getId();
       tenantB = tenantHelper.createTenant("membership-b-" + UUID.randomUUID()).getId();

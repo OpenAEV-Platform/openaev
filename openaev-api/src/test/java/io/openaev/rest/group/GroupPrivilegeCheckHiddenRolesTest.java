@@ -27,7 +27,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.service.UserService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import java.sql.Connection;
@@ -77,7 +77,7 @@ class GroupPrivilegeCheckHiddenRolesTest extends ProductionTablesIntegrationTest
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
-  @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserRepository userRepository;
   @Autowired private RoleRepository roleRepository;
   @Autowired private GroupRepository groupRepository;
@@ -100,7 +100,7 @@ class GroupPrivilegeCheckHiddenRolesTest extends ProductionTablesIntegrationTest
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("group-hidden-a").getId();
       tenantB = tenantHelper.createTenant("group-hidden-b").getId();
