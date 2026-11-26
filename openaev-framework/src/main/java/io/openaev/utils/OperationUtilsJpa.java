@@ -12,8 +12,11 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.time.Instant;
+import java.time.temporal.Temporal;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Utility class providing JPA Criteria API predicate builders for filter operations.
@@ -408,7 +411,7 @@ public final class OperationUtilsJpa {
       value = paths;
     }
 
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (isNullCheckOnly(type)) {
       return cb.isNotNull(value);
     }
 
@@ -425,7 +428,7 @@ public final class OperationUtilsJpa {
     } else {
       value = paths;
     }
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (isNullCheckOnly(type)) {
       return cb.isNull(value);
     }
     return cb.or(cb.isNull(value), cb.equal(value, ""), cb.equal(value, " "));
@@ -573,5 +576,17 @@ public final class OperationUtilsJpa {
 
   private static boolean isArray(Class<?> type) {
     return type.isArray() || type.isAssignableFrom(List.class);
+  }
+
+  // empty / not_empty on a Boolean, a date or time, an enum or a UUID is a pure null check: such a
+  // value is never blank, and comparing it to the "" literal fails at query time (a 500 on the
+  // search, #9904). Text values, arrays and collections keep the blank checks.
+  static boolean isNullCheckOnly(Class<?> type) {
+    return Boolean.class.equals(type)
+        || boolean.class.equals(type)
+        || Temporal.class.isAssignableFrom(type)
+        || Date.class.isAssignableFrom(type)
+        || UUID.class.equals(type)
+        || type.isEnum();
   }
 }
