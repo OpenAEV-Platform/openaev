@@ -1,4 +1,4 @@
-import { Paper, Skeleton } from '@filigran/design-system';
+import { Button, Paper, Skeleton, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { useParams } from 'react-router';
@@ -21,7 +21,7 @@ const ScenarioVersions: FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const theme = useTheme();
   const { canManage } = useScenarioPermissions(scenarioId);
-  const { versions, revisions, history, reload } = useScenarioVersions(scenarioId);
+  const { versions, revisions, failed, history, reload } = useScenarioVersions(scenarioId);
   const [target, setTarget] = useState<ScenarioUpdateTarget | null>(null);
   const installedVersion = versions?.scenario_versions.find(version => version.scenario_version_current)?.scenario_version ?? '';
 
@@ -30,6 +30,23 @@ const ScenarioVersions: FunctionComponent = () => {
     dispatch(fetchScenario(scenarioId));
     reload();
   };
+
+  if (failed) {
+    return (
+      <Paper title={t('Versions')} padding={16}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: theme.spacing(1),
+        }}
+        >
+          <Text variant="content-base">{t('Something went wrong. Please refresh the page or try again later.')}</Text>
+          <Button priority="secondary" size="sm" onClick={reload}>{t('Try again')}</Button>
+        </div>
+      </Paper>
+    );
+  }
 
   return (
     <div style={{
