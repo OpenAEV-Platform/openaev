@@ -66,7 +66,6 @@ const Validations = () => {
       || (n.inject_expectation_inject?.inject_description || '')
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
-  const sort = items => items.toSorted(descendBy('inject_expectation_created_at'));
   // keeps the first expectation of each id
   const seenIds = new Set();
   const uniqueExpectations = injectExpectations.filter((n) => {
@@ -86,7 +85,7 @@ const Validations = () => {
       ),
   );
   const matchingExpectations = taggedExpectations.filter(n => filterByKeyword(n));
-  const sortedInjectExpectations = sort(matchingExpectations);
+  const sortedInjectExpectations = matchingExpectations.toSorted(descendBy('inject_expectation_created_at'));
 
   const groupedByInject = sortedInjectExpectations.reduce((group, expectation) => {
     const { inject_expectation_inject } = expectation;

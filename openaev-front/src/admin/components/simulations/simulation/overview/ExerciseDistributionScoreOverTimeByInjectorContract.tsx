@@ -29,35 +29,28 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
     injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
   }));
 
-  let cumulation = 0;
   // One series per injector contract, technical injects included (#8396).
-  const topLevelExpectations = injectExpectations.filter(n => isTopLevelScoredExpectation(n));
-  const expectationsWithInject = topLevelExpectations.map(n => ({
+  const expectationsWithInject = injectExpectations.filter(n => isTopLevelScoredExpectation(n)).map(n => ({
     ...n,
     inject_expectation_inject: injectsMap[n.inject_expectation_inject as string] || {},
   }));
   const expectationsByContract = Object.groupBy(expectationsWithInject, injectorContractKey);
-  const cumulatedScoresByContract = Object.entries(expectationsByContract).map((n) => {
-    cumulation = 0;
-    return [
-      n[0],
-      n[1]!.toSorted(ascendBy('inject_expectation_updated_at')).map((i) => {
+  const injectsTypesScores = Object.entries(expectationsByContract).map(([, expectations]) => {
+    const sortedExpectations = expectations!.toSorted(ascendBy('inject_expectation_updated_at'));
+    const contract = sortedExpectations[0].inject_expectation_inject.inject_injector_contract;
+    let cumulation = 0;
+    return {
+      name: tPick(contract?.injector_contract_labels),
+      color: contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
+      data: sortedExpectations.map((i) => {
         cumulation += i.inject_expectation_score ?? 0;
         return {
-          ...i,
-          inject_expectation_cumulated_score: cumulation,
+          x: i.inject_expectation_updated_at,
+          y: cumulation,
         };
       }),
-    ] as const;
+    };
   });
-  const injectsTypesScores = cumulatedScoresByContract.map(n => ({
-    name: tPick(n[1][0].inject_expectation_inject.inject_injector_contract?.injector_contract_labels),
-    color: n[1][0].inject_expectation_inject.inject_injector_contract?.convertedContent?.config?.[`color_${theme.palette.mode}`],
-    data: n[1].map(i => ({
-      x: i.inject_expectation_updated_at,
-      y: i.inject_expectation_cumulated_score,
-    })),
-  }));
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.

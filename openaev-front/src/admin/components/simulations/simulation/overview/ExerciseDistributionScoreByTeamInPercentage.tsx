@@ -31,11 +31,11 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
   const expectationsByTeam = Object.groupBy(teamExpectations, (n: InjectExpectationOutput) => n.inject_expectation_team ?? '');
   const evaluatedTeams = Object.entries(expectationsByTeam).filter(
     // A team shows up once at least one of its expectations has been evaluated
-    ([, expectations]: [string, InjectExpectationOutput[] | undefined]) => expectations!.some(e => e.inject_expectation_score != null),
+    ([, expectations = []]) => expectations.some(e => e.inject_expectation_score != null),
   );
-  const teamsByPercentScore = evaluatedTeams.map(([teamId, expectations]: [string, InjectExpectationOutput[] | undefined]) => {
-    const reachedScore = expectations!.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
-    const expectedScore = expectations!.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
+  const teamsByPercentScore = evaluatedTeams.map(([teamId, expectations = []]) => {
+    const reachedScore = expectations.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
+    const expectedScore = expectations.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
     return {
       ...teamsMap[teamId],
       team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),
@@ -43,7 +43,7 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
   });
 
   const teamsColors = computeTeamsColors(teams, theme);
-  const sortedTeamsByPercentScore = (teamsByPercentScore || []).toSorted(descendBy('team_total_percent_score')).slice(0, 10);
+  const sortedTeamsByPercentScore = teamsByPercentScore.toSorted(descendBy('team_total_percent_score')).slice(0, 10);
   const percentScoreByTeamData = [
     {
       name: t('Percent of reached score'),

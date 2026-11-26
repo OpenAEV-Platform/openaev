@@ -31,160 +31,29 @@ export const isEmpty = (value: unknown): boolean => {
   return false;
 };
 
-type Loose = Record<PropertyKey, unknown>;
-
-// Ramda's `type`: the `Object.prototype.toString` tag, with `Null` and `Undefined` spelled out
-const tagOf = (value: unknown): string => {
-  if (value === null) {
-    return 'Null';
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== 'object') {
+    return false;
   }
-  if (value === undefined) {
-    return 'Undefined';
-  }
-  return Object.prototype.toString.call(value).slice(8, -1);
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 };
 
-// Ramda's `keys`: own enumerable string keys, none for a primitive
-const ownKeys = (value: unknown): string[] => (Object(value) !== value ? [] : Object.keys(value as object));
-
-// Ramda's `_functionName`: `class X {}` has no `function ` prefix, so its name is not found
-const functionName = (fn: unknown): string => String(fn).match(/^function (\w*)/)?.[1] ?? '';
-
-// Ramda's `_uniqContentEquals`: every element of `a` has an equal one in `b` (the sizes are already equal).
-// It is not a multiset comparison, so [1, 1, 2] and [1, 2, 2] are "equal" as Set / Map contents (like Ramda)
-const sameContent = (a: unknown[], b: unknown[], equals: (itemA: unknown, itemB: unknown) => boolean): boolean => (
-  a.every(itemA => b.some(itemB => equals(itemA, itemB)))
-);
-
-const equalsWithStacks = (a: unknown, b: unknown, stackA: unknown[], stackB: unknown[]): boolean => {
+// Deep equality for the JSON data of the store: `useHelper` compares two results of `toJS()` to keep the previous
+// identity when nothing changed. Primitives compare with `Object.is`, arrays item by item, plain objects by their own
+// enumerable keys, whatever their order. Any other object (Date, Map, class instance, function...) is only equal to
+// itself: a wrong "different" only costs a re-render, never a stale value
+export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) {
     return true;
   }
-  const tag = tagOf(a);
-  if (tag !== tagOf(b)) {
-    return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, index) => deepEqual(item, b[index]));
   }
-  const objectA = a as Loose;
-  const objectB = b as Loose;
-  // custom equality of the value (Fantasy Land, then an `equals` method): both sides must agree
-  const landEqualsA = objectA['fantasy-land/equals'];
-  const landEqualsB = objectB['fantasy-land/equals'];
-  if (typeof landEqualsA === 'function' || typeof landEqualsB === 'function') {
-    return typeof landEqualsA === 'function' && Boolean(landEqualsA.call(a, b))
-      && typeof landEqualsB === 'function' && Boolean(landEqualsB.call(b, a));
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length
+      && keys.every(key => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]));
   }
-  const equalsA = objectA.equals;
-  const equalsB = objectB.equals;
-  if (typeof equalsA === 'function' || typeof equalsB === 'function') {
-    return typeof equalsA === 'function' && Boolean(equalsA.call(a, b))
-      && typeof equalsB === 'function' && Boolean(equalsB.call(b, a));
-  }
-  switch (tag) {
-    case 'Arguments':
-    case 'Array':
-    case 'Object':
-      if (typeof objectA.constructor === 'function' && functionName(objectA.constructor) === 'Promise') {
-        return a === b;
-      }
-      break;
-    case 'Boolean':
-    case 'Number':
-    case 'String':
-      // a primitive and its wrapper object are different
-      if (!(typeof a === typeof b && Object.is((a as object).valueOf(), (b as object).valueOf()))) {
-        return false;
-      }
-      break;
-    case 'Date':
-      if (!Object.is((a as Date).valueOf(), (b as Date).valueOf())) {
-        return false;
-      }
-      break;
-    case 'Error':
-      return objectA.name === objectB.name && objectA.message === objectB.message;
-    case 'RegExp': {
-      const regexpA = a as RegExp;
-      const regexpB = b as RegExp;
-      if (!(regexpA.source === regexpB.source
-        && regexpA.global === regexpB.global
-        && regexpA.ignoreCase === regexpB.ignoreCase
-        && regexpA.multiline === regexpB.multiline
-        && regexpA.sticky === regexpB.sticky
-        && regexpA.unicode === regexpB.unicode)) {
-        return false;
-      }
-      break;
-    }
-    default:
-  }
-  // a value already being compared higher up (a cycle) is equal when it is paired with the same value
-  for (let index = stackA.length - 1; index >= 0; index -= 1) {
-    if (stackA[index] === a) {
-      return stackB[index] === b;
-    }
-  }
-  // the content of a Map / Set is compared with the container pushed on its own copy of the stacks
-  const equalsInContainer = (itemA: unknown, itemB: unknown) => equalsWithStacks(itemA, itemB, [...stackA, a], [...stackB, b]);
-  switch (tag) {
-    case 'Map':
-      if ((a as Map<unknown, unknown>).size !== (b as Map<unknown, unknown>).size) {
-        return false;
-      }
-      return sameContent([...(a as Map<unknown, unknown>).entries()], [...(b as Map<unknown, unknown>).entries()], equalsInContainer);
-    case 'Set':
-      if ((a as Set<unknown>).size !== (b as Set<unknown>).size) {
-        return false;
-      }
-      return sameContent([...(a as Set<unknown>).values()], [...(b as Set<unknown>).values()], equalsInContainer);
-    case 'Arguments':
-    case 'Array':
-    case 'Object':
-    case 'Boolean':
-    case 'Number':
-    case 'String':
-    case 'Date':
-    case 'Error':
-    case 'RegExp':
-    case 'Int8Array':
-    case 'Uint8Array':
-    case 'Uint8ClampedArray':
-    case 'Int16Array':
-    case 'Uint16Array':
-    case 'Int32Array':
-    case 'Uint32Array':
-    case 'Float32Array':
-    case 'Float64Array':
-    case 'ArrayBuffer':
-      break;
-    default:
-      // any other type (function, symbol, bigint, promise, WeakMap...) is only equal to itself
-      return false;
-  }
-  const keysA = ownKeys(a);
-  if (keysA.length !== ownKeys(b).length) {
-    return false;
-  }
-  const extendedStackA = [...stackA, a];
-  const extendedStackB = [...stackB, b];
-  for (let index = keysA.length - 1; index >= 0; index -= 1) {
-    const key = keysA[index];
-    if (!(Object.prototype.hasOwnProperty.call(b, key) && equalsWithStacks(objectB[key], objectA[key], extendedStackA, extendedStackB))) {
-      return false;
-    }
-  }
-  return true;
+  return false;
 };
-
-// Port of Ramda's `equals` (0.32), which `useHelper` relied on: a deep structural equality where
-// - primitives compare with `Object.is` (NaN equals NaN, 0 differs from -0), a primitive never equals its wrapper;
-// - values of different `Object.prototype.toString` tags are different (an array is never a plain object);
-// - plain objects, arrays, arguments, typed arrays, boxed primitives compare their own enumerable string keys,
-//   whatever their order and prototype (two instances of different classes with the same keys are equal);
-// - Date compares by time, RegExp by source and flags (not `dotAll` / `hasIndices`), Error by name and message;
-// - Map and Set compare their content without order, an entry matching a deeply equal one;
-// - a cycle is equal to the other cycle when both come back to the same pair of values;
-// - any other type (function, symbol, bigint, promise, WeakMap, DataView...) is only equal to itself;
-// - an object with an `equals` / `fantasy-land/equals` method decides by itself, as long as both sides agree.
-// Known gaps with Ramda, none reachable with the JSON data of the store: the custom `equals` result is coerced to a
-// boolean (Ramda returns it as is), and a getter named `equals` is read once more than Ramda reads it
-export const deepEqual = (a: unknown, b: unknown): boolean => equalsWithStacks(a, b, [], []);

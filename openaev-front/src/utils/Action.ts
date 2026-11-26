@@ -19,19 +19,11 @@ const cache = createIntlCache();
 
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
 
-const buildError = (data: AxiosError) => {
-  const source = data as { errors?: { children?: object } } | null | undefined;
-  const children = source?.errors?.children ?? {};
-  const pairs: [string, unknown][] = Object.entries(children);
-  const extractedErrors = pairs.map((elem: [string, unknown]) => {
-    const child = elem[1] as { errors?: unknown[] } | null | undefined;
-    const errors = child?.errors ?? [];
-    return [elem[0], errors[0]];
-  });
-  const errors: Record<string, unknown> = Object.fromEntries(extractedErrors);
+const buildError = (error: AxiosError) => {
+  const children = (error as { errors?: { children?: Record<string, { errors?: unknown[] } | null> } }).errors?.children ?? {};
   return {
-    ...errors,
-    [FORM_ERROR]: data.message,
+    ...Object.fromEntries(Object.entries(children).map(([field, child]) => [field, child?.errors?.[0]])),
+    [FORM_ERROR]: error.message,
   };
 };
 

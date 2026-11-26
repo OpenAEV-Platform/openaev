@@ -29,32 +29,24 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
 
   const teamsColors = computeTeamsColors(teams, theme);
 
-  let cumulation = 0;
   const scoredTeamExpectations = injectExpectations.filter(
     (n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null,
   );
   const expectationsByTeam = Object.groupBy(scoredTeamExpectations, (item: InjectExpectationOutput) => String(item.inject_expectation_team));
-  const cumulatedScoresByTeam = Object.entries(expectationsByTeam).map((n: [string, InjectExpectationOutput[] | undefined]) => {
-    cumulation = 0;
-    return [
-      n[0],
-      n[1]!.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
+  const teamsScores = Object.entries(expectationsByTeam).map(([teamId, expectations]) => {
+    let cumulation = 0;
+    return {
+      name: teamsMap[teamId]?.team_name,
+      color: teamsColors[teamId],
+      data: expectations!.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
         cumulation += i.inject_expectation_score ?? 0;
         return {
-          ...i,
-          inject_expectation_cumulated_score: cumulation,
+          x: i.inject_expectation_updated_at,
+          y: cumulation,
         };
       }),
-    ] as const;
+    };
   });
-  const teamsScores = cumulatedScoresByTeam.map(n => ({
-    name: teamsMap[n[0]]?.team_name,
-    color: teamsColors[n[0]],
-    data: n[1].map(i => ({
-      x: i.inject_expectation_updated_at,
-      y: i.inject_expectation_cumulated_score,
-    })),
-  }));
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.

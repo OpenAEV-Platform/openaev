@@ -29,27 +29,14 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
 
-  let cumulation = 0;
   const teamsColors = getTeamsColors(teams);
-  const teamsWithCumulatedCommunications = (teams as Team[]).map((n: Team) => {
-    cumulation = 0;
-    return {
-      ...n,
-      team_communications: (n.team_communications || []).toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
-        cumulation += 1;
-        return {
-          ...i,
-          communication_cumulated_number: cumulation,
-        };
-      }),
-    };
-  });
-  const teamsCommunications = teamsWithCumulatedCommunications.map(a => ({
-    name: a.team_name,
-    color: teamsColors[a.team_id],
-    data: a.team_communications?.map((c: Communication & { communication_cumulated_number: number }) => ({
+  // the n-th mail of a team, by reception date, brings its total to n
+  const teamsCommunications = (teams as Team[]).map((team: Team) => ({
+    name: team.team_name,
+    color: teamsColors[team.team_id],
+    data: (team.team_communications || []).toSorted(ascendBy('communication_received_at')).map((c: Communication, index: number) => ({
       x: c.communication_received_at,
-      y: c.communication_cumulated_number,
+      y: index + 1,
     })),
   }));
 
