@@ -89,8 +89,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
-    verify(userService)
-        .createInternalUser(eq(SERVICE_EMAIL), eq("service"), isNull(), anyString());
+    verify(userService).createInternalUser(eq(SERVICE_EMAIL), eq("service"), isNull(), anyString());
     verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
     verify(userService).saveUser(mockUser);
     verify(tenantGroupService).receiveEveryMarking(TENANT_ID, mockGroup);
@@ -173,8 +172,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
-    when(userService.createInternalUser(any(), any(), any(), any()))
-        .thenReturn(mockUser);
+    when(userService.createInternalUser(any(), any(), any(), any())).thenReturn(mockUser);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
@@ -199,8 +197,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
-    when(userService.createInternalUser(any(), any(), any(), any()))
-        .thenReturn(mockUser);
+    when(userService.createInternalUser(any(), any(), any(), any())).thenReturn(mockUser);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
@@ -227,8 +224,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
-    when(userService.createInternalUser(any(), any(), any(), any()))
-        .thenReturn(mockUser);
+    when(userService.createInternalUser(any(), any(), any(), any())).thenReturn(mockUser);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
@@ -258,8 +254,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
-    when(userService.createInternalUser(any(), any(), any(), any()))
-        .thenReturn(mockUser);
+    when(userService.createInternalUser(any(), any(), any(), any())).thenReturn(mockUser);
 
     // act
     privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);

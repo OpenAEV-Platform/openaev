@@ -113,10 +113,7 @@ class CatalogConnectorPrivilegeServiceTest {
       // Assert
       verify(userService)
           .createInternalUser(
-              eq(ACCOUNT_EMAIL),
-              eq("Catalog connectors"),
-              isNull(),
-              createdToken.capture());
+              eq(ACCOUNT_EMAIL), eq("Catalog connectors"), isNull(), createdToken.capture());
       assertThat(result).isEqualTo(createdToken.getValue());
       assertThat(account.getUnscopedGroups()).containsExactly(group);
       verify(userGroupMembershipService, never()).addMembership(any(), any());
@@ -193,8 +190,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
           .thenReturn(group);
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.empty());
-      when(userService.createInternalUser(any(), any(), any(), any()))
-          .thenReturn(account);
+      when(userService.createInternalUser(any(), any(), any(), any())).thenReturn(account);
       ArgumentCaptor<TenantGroupCreateInput> groupInput =
           ArgumentCaptor.forClass(TenantGroupCreateInput.class);
 
