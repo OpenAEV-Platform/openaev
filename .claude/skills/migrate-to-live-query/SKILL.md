@@ -178,10 +178,19 @@ the changes are made through the API (`request` fixture and an `*ApiHelpers` cla
 marker proves the page never reloaded. Cover create, rename and delete for the list, and update and
 delete for the details page. Set the timeout above the query's `throttleMs`.
 
-**Manual check with two browsers** (an admin and a restricted reader, `MARKING` flag on): mark an
-entity the reader can see with a marking they don't hold, then the reverse. Today neither case updates
-the reader's list; see "Marking changes" in the technical design before reporting it as a bug of the
-migration.
+**Manual check with two browsers** when the entity is marked (an admin and a restricted reader,
+`MARKING` flag on), without reloading the reader's page:
+
+1. The admin marks an entity the reader sees with a marking they don't hold → the row leaves the
+   reader's list (the stream sends them a deletion, id only).
+2. The admin removes that marking → the row comes back (a creation, for the reader).
+3. The admin adds the reader to a group granting that marking → the rows come back with their marking
+   chips, and the marking picker offers it (`clearance-changed` resets every query).
+4. The reverse of 3 → the rows leave the list.
+
+Steps 1 and 2 hold for a table with its own markings (`MarkedEntity`); a row marked through another
+one is not covered yet. Marking chips and pickers read `useMarkingDefinitions`, never their own fetch
+of the definitions, or step 3 shows empty chips. See points 4 and 6 of 3.2 in the technical design.
 
 ## Step 9 — Pull request
 
@@ -201,6 +210,6 @@ migration.
 | A drawer of the page still on Redux | the page and its drawer show two versions of the entity | Step 5, drawers read the page's query |
 | `watch` on the list's own type | every update anywhere refetches every open page | `collections` + `refs` |
 | Rows with agents and the default throttle | the list refetches on every agent heartbeat | raise `throttleMs` |
-| `staleTime` raised or `refetchOnWindowFocus` off "because the query is live" | changes the stream does not send (lost rights, marking changes) never show | keep TanStack's defaults |
+| `staleTime` raised or `refetchOnWindowFocus` off "because the query is live" | changes the stream does not send (rights lost through a group role, a row marked through another one) never show | keep TanStack's defaults |
 | Expecting a refetch from a bulk operation in another browser | none comes: bulk events go only to the launcher | the next refetch (focus, filter, page) shows it |
 | Testing with the page loaded once | a page load fetches twice (mount, then stream open) | wait for the stream's first fetch before acting |
