@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * existing execution gets its value at the next result of its inject.
  */
 @Component
-public class V6_20261123100000000__Add_attackpath_execution_logging_status
+public class V6_20261126110000000__Add_attackpath_execution_logging_status
     extends BaseJavaMigration {
 
   @Override
