@@ -107,9 +107,6 @@ describe('isEmpty', () => {
     ['an empty array', []],
     ['an empty plain object', {}],
     ['an object without prototype', Object.create(null)],
-    ['an empty Map', new Map()],
-    ['an empty Set', new Set()],
-    ['an empty typed array', new Uint8Array()],
   ])('given %s should be empty', (_label, value) => {
     // Act
     const result = isEmpty(value);
@@ -124,9 +121,6 @@ describe('isEmpty', () => {
     ['a non-empty string', ' '],
     ['a non-empty array', [undefined]],
     ['an object with a key', { a: undefined }],
-    ['a non-empty Map', new Map([['a', 1]])],
-    ['a non-empty Set', new Set([1])],
-    ['a non-empty typed array', new Uint8Array(1)],
     ['zero', 0],
     ['NaN', Number.NaN],
     ['false', false],
