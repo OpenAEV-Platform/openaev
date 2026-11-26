@@ -44,6 +44,14 @@ class EndpointApiHelpers {
     }
   }
 
+  /** Replaces the whole marking set of the asset. */
+  async updateAssetMarkings(id: string, markingIds: string[]) {
+    const response = await this.request.put(`${this.assetUri}/${id}/markings`, { data: { asset_markings: markingIds } });
+    if (!response.ok()) {
+      throw new Error(`Asset markings update failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
   async deleteAsset(id: string) {
     const response = await this.request.delete(`${this.assetUri}/${id}`);
     if (!response.ok()) {
