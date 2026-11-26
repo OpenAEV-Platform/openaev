@@ -28,12 +28,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -629,6 +631,74 @@ class IndexingRegressionTest extends IntegrationTest {
       }
 
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"asset", "inject", "exercise", "scenario", "finding"})
+    @DisplayName("Endpoint cursor is the date of the only row that changed after :from")
+    void given_oneChangedSource_should_returnItsDateAsCursor(String source) {
+      // Arrange
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer scenarioInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withFinding(findingWrapper);
+      InjectComposer.Composer simulationInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(endpointWrapper);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withInject(scenarioInject)
+              .persist()
+              .get();
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(simulationInject)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      String endpointId = endpointWrapper.get().getId();
+      Map<String, String> ids =
+          Map.of(
+              "asset", endpointId,
+              "inject", simulationInject.get().getId(),
+              "exercise", exercise.getId(),
+              "scenario", scenario.getId(),
+              "finding", findingWrapper.get().getId());
+      ids.forEach((table, id) -> setUpdatedAt(table, id, PAST));
+      setUpdatedAt("inject", scenarioInject.get().getId(), PAST);
+      Instant changedAt = FROM.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS);
+      setUpdatedAt(source, ids.get(source), changedAt);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsAsset> results = assetHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(endpointId))
+          .singleElement()
+          .extracting(EsAsset::getBase_updated_at)
+          .isEqualTo(changedAt);
+    }
+
+    private void setUpdatedAt(String entity, String id, Instant ts) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE %ss SET %s_updated_at = :ts WHERE %s_id = :id"
+                  .formatted(entity, entity, entity))
+          .setParameter("ts", ts)
+          .setParameter("id", id)
+          .executeUpdate();
     }
   }
 
