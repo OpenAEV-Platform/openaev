@@ -542,4 +542,94 @@ class FailClosedGateExtensionTest {
       assertFalse(FailClosedGateExtension.expectsEmptyScopeReads(test));
     }
   }
+
+  @Nested
+  @DisplayName("Reads a test waives for itself")
+  class TestWaivedReads {
+
+    private static final String SITE = "io.openaev.service.UserService.nobodyWaivedThisLoad";
+
+    @WaivesUnscopedReads(
+        value = "a member of no tenant reads no tag",
+        reads = {SITE + " tables=tags"})
+    class WaivingOuter {
+      void plainMethod() {}
+    }
+
+    class PlainOuter {
+      void plainMethod() {}
+
+      @WaivesUnscopedReads(
+          value = "an entry that would waive the whole site",
+          reads = {SITE})
+      void waivesAWholeSite() {}
+
+      @WaivesUnscopedReads(
+          value = "an entry that names the qualifier and no table",
+          reads = {SITE + " tables= "})
+      void waivesNoNamedTable() {}
+    }
+
+    private Violation read(String tables, String site) {
+      return new Violation(tables, site + ":1", "select ... where can_access_tenant(t.tenant_id)");
+    }
+
+    private ExtensionContext contextOf(AnnotatedElement element, ExtensionContext parent) {
+      ExtensionContext context = mock(ExtensionContext.class);
+      when(context.getElement()).thenReturn(Optional.ofNullable(element));
+      when(context.getParent()).thenReturn(Optional.ofNullable(parent));
+      return context;
+    }
+
+    @Test
+    @DisplayName("given_aTestInsideAWaivingClass_should_waiveTheNamedReadOnly")
+    void given_aTestInsideAWaivingClass_should_waiveTheNamedReadOnly() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(WaivingOuter.class, null);
+      ExtensionContext test = contextOf(WaivingOuter.class.getDeclaredMethod("plainMethod"), outer);
+      Set<String> waived = FailClosedGateExtension.waivedReadsOf(test);
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("tags", SITE), read("teams", SITE), read("tags", SITE + "Elsewhere")),
+              waived);
+
+      // Assert: the named table at the named site only
+      assertEquals(List.of(SITE, SITE + "Elsewhere"), offending);
+    }
+
+    @Test
+    @DisplayName("given_aTestWithoutTheAnnotation_should_waiveNothing")
+    void given_aTestWithoutTheAnnotation_should_waiveNothing() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(PlainOuter.class, null);
+      ExtensionContext test = contextOf(PlainOuter.class.getDeclaredMethod("plainMethod"), outer);
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("tags", SITE)), FailClosedGateExtension.waivedReadsOf(test));
+
+      // Assert
+      assertEquals(List.of(SITE), offending);
+    }
+
+    @Test
+    @DisplayName("given_anEntryWithNoTable_should_beRefused")
+    void given_anEntryWithNoTable_should_beRefused() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(PlainOuter.class, null);
+      ExtensionContext wholeSite =
+          contextOf(PlainOuter.class.getDeclaredMethod("waivesAWholeSite"), outer);
+      ExtensionContext noTable =
+          contextOf(PlainOuter.class.getDeclaredMethod("waivesNoNamedTable"), outer);
+
+      // Act & Assert
+      assertThrows(
+          IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(wholeSite));
+      assertThrows(
+          IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(noTable));
+    }
+  }
 }

@@ -297,8 +297,6 @@ class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
       assertThat(storedMarkingLinks()).isEqualTo(1);
     }
 
-    @ExpectsEmptyScopeReads(
-        "the unscoped loads are the subject: the clearance is read from the link table")
     @Test
     @DisplayName("given_noScopeLoadsOfTheUser_should_stillGrantTheMarkingOfTheGroupAsClearance")
     void given_noScopeLoadsOfTheUser_should_stillGrantTheMarkingOfTheGroupAsClearance() {

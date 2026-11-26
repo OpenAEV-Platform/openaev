@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -310,15 +311,20 @@ class UserApiLoginResponseTest extends ProductionTablesIntegrationTest {
         throws Exception {
       // Arrange: no roles view is built for an administrator, so the response serializes the
       // entity itself
-      User admin =
-          userRepository.save(
-              UserFixture.getUser(
-                  "login-admin",
-                  "login-admin",
-                  "login-admin-" + UUID.randomUUID() + "@unittests.invalid",
-                  true));
-      admin.setPassword(UserFixture.ENCODED_PASSWORD);
-      User saved = userRepository.save(admin);
+      User saved =
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () -> {
+                User admin =
+                    userRepository.save(
+                        UserFixture.getUser(
+                            "login-admin",
+                            "login-admin",
+                            "login-admin-" + UUID.randomUUID() + "@unittests.invalid",
+                            true));
+                admin.setPassword(UserFixture.ENCODED_PASSWORD);
+                return userRepository.save(admin);
+              });
       for (String tenantId : List.of(Tenant.DEFAULT_TENANT_UUID, tenantA)) {
         tenantTx.execute(
             TxCtx.forTenant(tenantId),
@@ -368,18 +374,32 @@ class UserApiLoginResponseTest extends ProductionTablesIntegrationTest {
   class NoMembership {
 
     @Test
+    @WaivesUnscopedReads(
+        value =
+            "the login answer of a member of no tenant is built with no scope on purpose"
+                + " (UserService.hydrateInMembershipScope): its teams, tags and organizations"
+                + " read nothing, which is what the test asserts",
+        reads = {
+          "io.openaev.service.UserService.initializeResponseAssociations tables=tags,teams",
+          "io.openaev.database.model.User.loadOrganizations tables=organizations"
+        })
     @DisplayName("given_aUserWithNoTenantMembership_should_answerWithEmptyTeamsAndTags")
     void given_aUserWithNoTenantMembership_should_answerWithEmptyTeamsAndTags() throws Exception {
       // Arrange: linked to a tag of tenant A, which the user cannot read
       User loner =
-          userRepository.save(
-              UserFixture.getUser(
-                  "login-loner",
-                  "login-loner",
-                  "login-loner-" + UUID.randomUUID() + "@unittests.invalid",
-                  false));
-      loner.setPassword(UserFixture.ENCODED_PASSWORD);
-      loner = userRepository.save(loner);
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () -> {
+                User user =
+                    userRepository.save(
+                        UserFixture.getUser(
+                            "login-loner",
+                            "login-loner",
+                            "login-loner-" + UUID.randomUUID() + "@unittests.invalid",
+                            false));
+                user.setPassword(UserFixture.ENCODED_PASSWORD);
+                return userRepository.save(user);
+              });
       jdbc.update(
           "INSERT INTO users_tags (user_id, tag_id) VALUES (?, ?)", loner.getId(), tagIds.get(0));
       LoginUserInput input =

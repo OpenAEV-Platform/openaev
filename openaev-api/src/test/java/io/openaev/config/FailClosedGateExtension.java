@@ -133,7 +133,8 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
     if (expectsEmptyScopeReads(context)) {
       return;
     }
-    List<String> offending = offendingSignatures(FailClosedAccessRecorder.violations());
+    List<String> offending =
+        offendingSignatures(FailClosedAccessRecorder.violations(), waivedReadsOf(context));
     if (offending.isEmpty()) {
       return;
     }
@@ -166,6 +167,33 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
       }
     }
     return false;
+  }
+
+  /**
+   * The reads the test, or a class around it, waives for itself with {@link WaivesUnscopedReads}.
+   *
+   * @throws IllegalArgumentException when an entry names no table, since it would waive a whole
+   *     site
+   */
+  static Set<String> waivedReadsOf(ExtensionContext context) {
+    Set<String> reads = new HashSet<>();
+    for (ExtensionContext current = context;
+        current != null;
+        current = current.getParent().orElse(null)) {
+      current
+          .getElement()
+          .map(element -> element.getAnnotation(WaivesUnscopedReads.class))
+          .ifPresent(annotation -> reads.addAll(Arrays.asList(annotation.reads())));
+    }
+    for (String read : reads) {
+      int qualifier = read.indexOf(TABLES_QUALIFIER);
+      if (qualifier < 0
+          || read.substring(qualifier + TABLES_QUALIFIER.length()).replace(",", "").isBlank()) {
+        throw new IllegalArgumentException(
+            "@WaivesUnscopedReads entry '" + read + "' names no table: add" + TABLES_QUALIFIER);
+      }
+    }
+    return reads;
   }
 
   /**
@@ -281,10 +309,21 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
    */
   static List<String> offendingSignatures(
       Collection<FailClosedAccessRecorder.Violation> violations) {
+    return offendingSignatures(violations, Set.of());
+  }
+
+  /**
+   * The same, with the reads the running test waives for itself on top of the baseline, as {@link
+   * #waivedReadsOf} returns them.
+   */
+  static List<String> offendingSignatures(
+      Collection<FailClosedAccessRecorder.Violation> violations, Set<String> waivedByTheTest) {
+    Map<String, Set<String>> testWaivers = waivers(waivedByTheTest);
     return violations.stream()
         .filter(v -> !UNKNOWN_CALLER.equals(v.caller()))
         .filter(v -> !isTestCaller(v.caller()))
         .filter(v -> !isWaived(v, WAIVED))
+        .filter(v -> !isWaived(v, testWaivers))
         .map(v -> signature(v.caller()))
         .distinct()
         .toList();

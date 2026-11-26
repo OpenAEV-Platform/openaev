@@ -588,15 +588,12 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
       }
     }
 
-    @ExpectsEmptyScopeReads("a row outside the scope of the caller is hidden by the empty read")
     @ParameterizedTest
-    @ValueSource(strings = {"none", "plain", "header"})
+    @ValueSource(strings = {"plain", "header"})
     @DisplayName("Unprefixed collections never expose an unauthorized ambient default tenant")
     void given_defaultOutsideScope_should_hideItInAllCollections(String route) throws Exception {
       // Arrange
-      if (!route.equals("none")) {
-        tenantHelper.attachCurrentUserToTenant(tenantA.getId());
-      }
+      tenantHelper.attachCurrentUserToTenant(tenantA.getId());
 
       // Act & Assert
       for (var request : collectionRequests(ORGANIZATION_URI)) {
@@ -605,11 +602,20 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
         assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
         // Without a selector the v2 scope is the caller's authorized tenants (A here), like the
         // X-Tenant-Ids header selecting A: the authorized tenant stays visible.
-        if (route.equals("none")) {
-          assertThat(result).doesNotContain(organizationA.getId());
-        } else {
-          assertThat(result).contains(organizationA.getId());
-        }
+        assertThat(result).contains(organizationA.getId());
+      }
+    }
+
+    @ExpectsEmptyScopeReads("a caller with no membership lists no organization")
+    @Test
+    @DisplayName("Unprefixed collections show nothing to a caller with no membership")
+    void given_noMembership_should_listNoOrganizationInAllCollections() throws Exception {
+      // Act & Assert
+      for (var request : collectionRequests(ORGANIZATION_URI)) {
+        String result = response(request);
+        assertThat(result)
+            .doesNotContain(
+                organizationA.getId(), organizationB.getId(), defaultOrganization.getId());
       }
     }
 
