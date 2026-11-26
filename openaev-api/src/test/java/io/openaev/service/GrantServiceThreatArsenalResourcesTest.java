@@ -4,11 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.email.EmailContract;
+import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.ContractRightsFixture;
+import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -67,6 +77,53 @@ class GrantServiceThreatArsenalResourcesTest extends ProductionTablesIntegration
                       Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
                       Tenant.DEFAULT_TENANT_UUID))
           .isInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Nested
+  @WithMockUser
+  @DisplayName("a contract id the tenant of the scope holds")
+  class HeldContractId {
+
+    @Autowired private TenantIsolationTestHelper tenantHelper;
+    @Autowired private TenantScopedTransaction tenantTx;
+    @Autowired private DataSource dataSource;
+    @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+    @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
+
+    private ContractRightsFixture rights;
+    private String tenantId;
+
+    @AfterEach
+    void cleanup() {
+      if (rights != null) {
+        rights.cleanup(null);
+      }
+      if (tenantId != null) {
+        tenantHelper.deleteCommittedTenants(tenantId);
+      }
+    }
+
+    @Test
+    @DisplayName("a scope of that tenant adds the payload identity of its copy to the contract id")
+    void given_aContractTheScopedTenantHolds_should_addThePayloadIdentityOfItsCopy()
+        throws Exception {
+      // Arrange
+      rights = new ContractRightsFixture(dataSource);
+      tenantId = tenantHelper.createTenant("grant-resources").getId();
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantId);
+      String contractId = "grant-resources-" + UUID.randomUUID();
+      rights.cloneManualContract(contractId, tenantId, "grant resources");
+      String identityId = rights.withPayloadIdentity(contractId, tenantId);
+
+      // Act
+      List<String> resources =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantId),
+              () -> grantService.threatArsenalGrantResources(contractId, Set.of(tenantId)));
+
+      // Assert
+      assertThat(resources).containsExactly(contractId, identityId);
     }
   }
 

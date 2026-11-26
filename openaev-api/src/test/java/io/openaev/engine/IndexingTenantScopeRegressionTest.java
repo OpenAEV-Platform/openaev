@@ -32,6 +32,7 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -107,13 +108,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
    * collector-sourced result, and returns its id. The collector itself is created by the caller.
    */
   private String persistExpectationFilledByCollector(Collector collector) {
-    EndpointComposer.Composer endpointWrapper =
-        endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-    endpointWrapper.persist();
-
-    BaseInjectExpectation expectation =
-        InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-    expectation.setResults(
+    return persistExpectationWithResults(
         List.of(
             InjectExpectationResult.builder()
                 .sourceId(collector.getId())
@@ -123,6 +118,20 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
                 .score(100.0)
                 .date(Instant.now())
                 .build()));
+  }
+
+  /**
+   * Persists an agentless detection expectation (under scenario/inject/endpoint) carrying the given
+   * results, and returns its id.
+   */
+  private String persistExpectationWithResults(List<InjectExpectationResult> results) {
+    EndpointComposer.Composer endpointWrapper =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+    endpointWrapper.persist();
+
+    BaseInjectExpectation expectation =
+        InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+    expectation.setResults(results);
     InjectExpectationComposer.Composer expectationWrapper =
         injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);
 
@@ -194,6 +203,69 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
     assertThat(injectExpectationHandler.fetch(FROM, 5000))
         .extracting(EsInjectExpectation::getBase_id)
         .doesNotContain(expectationId);
+  }
+
+  @Test
+  @DisplayName("a sweep scoped to one tenant does not attribute another tenant's platform asset")
+  void given_platformAssetOfAnotherTenant_when_sweepIsScoped_should_notAttributeIt() {
+    // Arrange: an expectation of the default tenant answered by a collector of its own tenant and
+    // by a security platform asset of another tenant. The collectors join is tenant-correlated, so
+    // it cannot show the predicate; the assets join matches on the asset id alone, so only the
+    // tenant predicate the inspector adds to it removes the other tenant's asset.
+    setScope(Tenant.DEFAULT_TENANT_UUID);
+    SecurityPlatformComposer.Composer ownPlatform =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR own tenant", "EDR"))
+            .persist();
+    Collector collector =
+        collectorComposer
+            .forCollector(CollectorFixture.createDefaultCollector("collector-edr-own-tenant"))
+            .withSecurityPlatform(ownPlatform)
+            .persist()
+            .get();
+    String tenantB = UUID.randomUUID().toString();
+    entityManager
+        .createNativeQuery("INSERT INTO tenants (tenant_id, tenant_name) VALUES (:id, :name)")
+        .setParameter("id", tenantB)
+        .setParameter("name", "tenant-b-" + tenantB)
+        .executeUpdate();
+    String foreignPlatformId = UUID.randomUUID().toString();
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO assets (asset_id, asset_name, asset_type, tenant_id)"
+                + " VALUES (:id, :name, 'SecurityPlatform', :tenant)")
+        .setParameter("id", foreignPlatformId)
+        .setParameter("name", "EDR tenant B " + foreignPlatformId)
+        .setParameter("tenant", tenantB)
+        .executeUpdate();
+    String expectationId =
+        persistExpectationWithResults(
+            List.of(
+                InjectExpectationResult.builder()
+                    .sourceId(collector.getId())
+                    .sourceType("collector")
+                    .sourceName(collector.getName())
+                    .result("detected")
+                    .score(100.0)
+                    .date(Instant.now())
+                    .build(),
+                InjectExpectationResult.builder()
+                    .sourceId(foreignPlatformId)
+                    .sourceType("security-platform")
+                    .sourceName("EDR tenant B")
+                    .result("detected")
+                    .score(100.0)
+                    .date(Instant.now())
+                    .build()));
+
+    // Act
+    Set<String> platforms = fetchDoc(expectationId).getBase_security_platforms_side();
+
+    // Assert: positive first, so an empty array cannot satisfy the negative on its own.
+    assertThat(platforms)
+        .contains(ownPlatform.get().getId())
+        .as("a platform asset of a tenant outside the scope must not be attributed")
+        .doesNotContain(foreignPlatformId);
   }
 
   @Test

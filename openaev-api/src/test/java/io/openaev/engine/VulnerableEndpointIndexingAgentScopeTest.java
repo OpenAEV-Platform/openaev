@@ -145,6 +145,32 @@ class VulnerableEndpointIndexingAgentScopeTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("given another tenant's agent on this endpoint should leave it off the document")
+  void given_anotherTenantsAgentOnTheEndpoint_should_leaveItOffTheDocument() {
+    // Arrange: an agent of another tenant attached to this endpoint. The three sub-queries join
+    // agents on the asset id alone, so no correlation removes it: only the tenant predicate the
+    // inspector adds to each sub-query does, under a scope that holds the endpoint's tenant only.
+    String otherTenantId = insertTenant();
+    String foreignAgentId = insertActiveAgent(endpointId, otherTenantId);
+    setScope(DEFAULT_TENANT_UUID);
+
+    // Act
+    EsVulnerableEndpoint document = fetchDocument();
+
+    // Assert: positive first, so an empty array cannot satisfy the negative on its own.
+    assertThat(document.getBase_agents_side()).contains(agentId);
+    assertThat(document.getBase_agents_side())
+        .as("an agent of a tenant outside the scope must not reach the document")
+        .doesNotContain(foreignAgentId);
+    assertThat(document.getVulnerable_endpoint_agents_active_status())
+        .as("the statuses sub-query must drop the other tenant's agent too")
+        .hasSize(1);
+    assertThat(document.getVulnerable_endpoint_agents_privileges())
+        .as("the privileges sub-query must drop the other tenant's agent too")
+        .hasSize(1);
+  }
+
+  @Test
   @ExpectsEmptyScopeReads("the sweep with no scope is the subject: it reads nothing")
   @DisplayName("given a scope-less sweep should index no document for the endpoint")
   void given_scopeLessSweep_should_indexNoDocumentForTheEndpoint() {
@@ -179,6 +205,12 @@ class VulnerableEndpointIndexingAgentScopeTest extends IntegrationTest {
   /** What {@code allTenants()} resolves to: every tenant id on the platform, comma separated. */
   private String everyTenantId() {
     return String.join(",", jdbc.queryForList("SELECT tenant_id FROM tenants", String.class));
+  }
+
+  private String insertTenant() {
+    String id = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO tenants (tenant_id, tenant_name) VALUES (?, ?)", id, "tenant-" + id);
+    return id;
   }
 
   private String insertEndpoint(String tenantId) {

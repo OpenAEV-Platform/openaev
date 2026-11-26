@@ -116,6 +116,19 @@ class TenantProvisioningRowTenantTest extends ProductionTablesIntegrationTest {
                     + " WHERE i.tenant_id <> link.tenant_id"))
         .as("an injector-contract link must point at an injector of its own tenant")
         .isZero();
+    // The links carry the contract as (id, tenant_id), so a link resolves to a contract only in
+    // its own tenant: a link with no contract there is one that joins another tenant's contract.
+    for (String link : List.of("injectors_contracts_domains", "injectors_injector_contracts")) {
+      assertThat(
+              scalar(
+                  "SELECT count(*) FROM "
+                      + link
+                      + " link WHERE NOT EXISTS (SELECT 1 FROM injectors_contracts c"
+                      + " WHERE c.injector_contract_id = link.injector_contract_id"
+                      + " AND c.tenant_id = link.tenant_id)"))
+          .as("every %s row must point at a contract of its own tenant", link)
+          .isZero();
+    }
   }
 
   private Map<String, Map<String, Long>> countsByTenant() {
