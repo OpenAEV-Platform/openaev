@@ -27,6 +27,17 @@ public interface FindingRepository
   /** The findings of a tenant among the given ids. */
   List<Finding> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
 
+  /**
+   * Ids of the assets of a tenant on which a CVE finding was recorded, by CVE identifier (case
+   * insensitive). A security coverage targets only assets the CVE is known to apply to (#9875).
+   */
+  @Query(
+      "SELECT DISTINCT a.id FROM Finding f JOIN f.assets a"
+          + " WHERE f.type = io.openaev.database.model.ContractOutputType.CVE"
+          + " AND LOWER(f.value) = LOWER(:cveId) AND f.tenant.id = :tenantId")
+  List<String> findAssetIdsByCveAndTenantId(
+      @NotBlank @Param("cveId") String cveId, @NotBlank @Param("tenantId") String tenantId);
+
   /** The findings whose pending re-test is the given inject. */
   List<Finding> findAllByRetestInjectIdAndTenantId(
       @NotNull String retestInjectId, @NotNull String tenantId);

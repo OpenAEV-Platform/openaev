@@ -189,6 +189,18 @@ public class ScenarioService {
     return computeAndCreateScenario(scenario);
   }
 
+  /**
+   * Creates a scenario a generator built (a security coverage import), with no user author: the
+   * account that delivered the bundle did not write it, and its origin is the generator the
+   * scenario links to (#9875).
+   */
+  @Transactional
+  public Scenario createGeneratedScenario(@NotNull final Scenario scenario) {
+    scenario.setAuthorUser(null);
+    scenario.setAuthorOrganization(null);
+    return computeAndCreateScenario(scenario);
+  }
+
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {

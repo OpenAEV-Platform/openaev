@@ -57,6 +57,66 @@ public class SecurityCoverageUtils {
     return coverages.getFirst();
   }
 
+  /** Labels a source puts on an indicator it knows to be a false positive (#9875). */
+  public static final Set<String> FALSE_POSITIVE_LABELS =
+      Set.of(
+          "false-positive", "false positive", "falsepositive", "benign", "whitelist", "allowlist");
+
+  public static final String STIX_REVOKED = "revoked";
+  public static final String STIX_VALID_UNTIL = "valid_until";
+  public static final String STIX_OPENCTI_DETECTION = "x_opencti_detection";
+
+  /**
+   * Whether an indicator of a coverage bundle may become an inject (#9875): not revoked, not
+   * expired, not marked not-for-detection, not labelled false positive. Testing such an indicator
+   * resolves legitimate infrastructure and scores a failed detection on legitimate traffic.
+   *
+   * @param indicator the STIX indicator
+   * @param now the time the bundle is read
+   * @return true when the indicator is usable for a test
+   */
+  public static boolean isUsableIndicator(ObjectBase indicator, java.time.Instant now) {
+    if (isTrue(indicator, STIX_REVOKED)) {
+      return false;
+    }
+    if (indicator.hasProperty(STIX_OPENCTI_DETECTION)
+        && indicator.getProperty(STIX_OPENCTI_DETECTION).getValue() instanceof Boolean detection
+        && !detection) {
+      return false;
+    }
+    if (indicator.hasExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)
+        && indicator.getExtension(ExtendedProperties.OPENCTI_EXTENSION_DEFINITION)
+            instanceof Dictionary extension
+        && extension.has("detection")
+        && extension.get("detection").getValue() instanceof Boolean detection
+        && !detection) {
+      return false;
+    }
+    if (indicator.hasProperty(STIX_VALID_UNTIL)
+        && indicator.getProperty(STIX_VALID_UNTIL).getValue() instanceof java.time.Instant until
+        && until.isBefore(now)) {
+      return false;
+    }
+    if (indicator.hasProperty(CommonProperties.LABELS)
+        && indicator.getProperty(CommonProperties.LABELS).getValue() instanceof List<?> labels) {
+      for (Object label : labels) {
+        Object value =
+            label instanceof io.openaev.stix.types.BaseType<?> base ? base.getValue() : label;
+        if (value instanceof String text
+            && FALSE_POSITIVE_LABELS.contains(text.trim().toLowerCase(Locale.ROOT))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private static boolean isTrue(ObjectBase object, String property) {
+    return object.hasProperty(property)
+        && object.getProperty(property).getValue() instanceof Boolean value
+        && value;
+  }
+
   /**
    * Extracts references from a list of STIX objects.
    *

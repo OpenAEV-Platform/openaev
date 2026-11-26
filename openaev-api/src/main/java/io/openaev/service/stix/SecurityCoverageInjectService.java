@@ -9,6 +9,8 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetRepository;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
@@ -23,8 +25,10 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.CoverageInjectSafety;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -57,6 +61,8 @@ public class SecurityCoverageInjectService {
   private final DocumentService documentService;
 
   private final InjectRepository injectRepository;
+  private final FindingRepository findingRepository;
+  private final AssetRepository assetRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final InjectorContractService injectorContractService;
   private final TagService tagService;
@@ -106,12 +112,10 @@ public class SecurityCoverageInjectService {
                 ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
 
-    // 5. Build injects from Vulnerabilities
+    // 5. Build injects from Vulnerabilities. Targets are the assets the CVE is known to apply to,
+    // never the platform-wide groups of the tag rules (#9875).
     createInjectsByVulnerabilities(
-        scenario,
-        securityCoverage.getVulnerabilitiesRefs(),
-        requiredAssetGroupMap,
-        contractForInjectPlaceholders);
+        scenario, securityCoverage.getVulnerabilitiesRefs(), contractForInjectPlaceholders);
 
     // 6. Build injects from Attack Patterns
     createInjectsByAttackPatterns(
@@ -120,17 +124,12 @@ public class SecurityCoverageInjectService {
         requiredAssetGroupMap,
         contractForInjectPlaceholders);
 
-    // 7. Build injects from Indicators
-    createInjectsByIndicators(
-        ctx, scenario, securityCoverage.getIndicatorsRefs(), requiredAssetGroupMap);
+    // 7. Build injects from Indicators. No platform-wide target by default (#9875).
+    createInjectsByIndicators(ctx, scenario, securityCoverage.getIndicatorsRefs(), Map.of());
 
-    // 8. Build injects from Artifacts
+    // 8. Build injects from Artifacts. No platform-wide target by default (#9875).
     createInjectsByArtifacts(
-        ctx,
-        scenario,
-        securityCoverage.getArtifactsRefs(),
-        requiredAssetGroupMap,
-        contractForInjectPlaceholders);
+        ctx, scenario, securityCoverage.getArtifactsRefs(), Map.of(), contractForInjectPlaceholders);
 
     return injectRepository.findByScenarioId(scenario.getId());
   }
@@ -310,6 +309,8 @@ public class SecurityCoverageInjectService {
     inject.setTags(tags);
     InjectUtils.attachToScenario(inject, scenario);
     inject.setAssetGroups(assetGroups);
+    // Enabled only with targets the coverage chose and a read-only contract (#9875).
+    CoverageInjectSafety.applyEnabled(inject, injectorContract, !assetGroups.isEmpty());
     return inject;
   }
 
@@ -417,7 +418,6 @@ public class SecurityCoverageInjectService {
   private void createInjectsByVulnerabilities(
       Scenario scenario,
       Set<StixRefToExternalRef> vulnerabilityRefs,
-      Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap,
       InjectorContract contractForPlaceholder) {
 
     // 1. Remove Inject with contract related to vulnerabilities if vulnerabilityRefs is empty
@@ -468,16 +468,55 @@ public class SecurityCoverageInjectService {
       }
     }
 
-    // 7. Generate injects for missing vulnerabilities
-    if (!missingVulns.isEmpty()) {
-      injectService.saveAll(
+    // 7. Generate injects for missing vulnerabilities, one vulnerability at a time so each inject
+    // targets only the assets that vulnerability is known to apply to (#9875).
+    for (Vulnerability vulnerability : missingVulns) {
+      List<Asset> applicableAssets = assetsAffectedBy(vulnerability, scenario);
+      List<Inject> generated =
           injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
               scenario,
-              missingVulns,
-              requiredAssetGroupMap,
+              Set.of(vulnerability),
+              Map.of(),
               TARGET_NUMBER_OF_INJECTS,
-              contractForPlaceholder));
+              contractForPlaceholder);
+      generated.forEach(inject -> targetCoverageInject(inject, applicableAssets));
+      injectService.saveAll(generated);
     }
+  }
+
+  /**
+   * The assets of the scenario's tenant on which this CVE was already found: the only hosts the
+   * coverage knows the CVE applies to. Empty when none is known.
+   */
+  private List<Asset> assetsAffectedBy(Vulnerability vulnerability, Scenario scenario) {
+    if (vulnerability.getExternalId() == null || scenario.getTenant() == null) {
+      return List.of();
+    }
+    List<String> assetIds =
+        findingRepository.findAssetIdsByCveAndTenantId(
+            vulnerability.getExternalId(), scenario.getTenant().getId());
+    if (assetIds.isEmpty()) {
+      return List.of();
+    }
+    return new ArrayList<>(
+        assetRepository.findAllByIdInAndTenantId(assetIds, scenario.getTenant().getId()));
+  }
+
+  /**
+   * Sets the targets of an inject generated from a security coverage and its enabled flag (#9875).
+   *
+   * <p>The inject targets only the assets the coverage resolved itself, never the platform-wide
+   * groups of the tag rules; with no such asset it has no target. It is enabled only when its
+   * contract is read-only and it has targets: an intrusive or unverified contract, a placeholder or
+   * an inject without targets is created disabled, for the user to check and enable.
+   */
+  private Inject targetCoverageInject(Inject inject, List<Asset> applicableAssets) {
+    inject.setAssetGroups(new ArrayList<>());
+    boolean hasTargets =
+        !applicableAssets.isEmpty() && injectService.canApplyTargetType(inject, TargetType.ASSETS);
+    inject.setAssets(hasTargets ? new ArrayList<>(applicableAssets) : new ArrayList<>());
+    return CoverageInjectSafety.applyEnabled(
+        inject, inject.getInjectorContract().orElse(null), hasTargets);
   }
 
   private Map<Vulnerability, Set<Inject>> buildCoveredCveInjectsMap(List<Inject> coveredInjects) {
@@ -641,9 +680,11 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectService.saveAll(
+      List<Inject> generated =
           injectAssistantService.generateInjectsByAttackPatternsWithoutAssetGroups(
-              scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder));
+              scenario, missingAttacks, TARGET_NUMBER_OF_INJECTS, contractForPlaceholder);
+      generated.forEach(inject -> targetCoverageInject(inject, List.of()));
+      injectService.saveAll(generated);
     }
   }
 
@@ -703,7 +744,9 @@ public class SecurityCoverageInjectService {
               .filter(Objects::nonNull)
               .collect(Collectors.toSet());
 
-      injectService.saveAll(
+      // The tag-rule groups only choose the platforms and architectures to cover: they are not
+      // targets, since nothing says the technique applies to their members (#9875).
+      List<Inject> generated =
           injectAssistantService
               .generateInjectsByAttackPatternsWithAssetGroups(
                   scenario,
@@ -712,7 +755,9 @@ public class SecurityCoverageInjectService {
                   missingCombinations.filteredAssetsFromGroupMap(),
                   contractForPlaceholder)
               .stream()
-              .toList());
+              .toList();
+      generated.forEach(inject -> targetCoverageInject(inject, List.of()));
+      injectService.saveAll(generated);
     }
   }
 
@@ -961,6 +1006,8 @@ public class SecurityCoverageInjectService {
     inject.setTags(tags);
     InjectUtils.attachToScenario(inject, scenario);
     inject.setAssetGroups(assetGroups);
+    // Enabled only with targets the coverage chose and a read-only contract (#9875).
+    CoverageInjectSafety.applyEnabled(inject, injectorContract, !assetGroups.isEmpty());
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
     return inject;

@@ -250,10 +250,15 @@ public class SecurityCoverageService {
         securityCoverageUtils.extractObjectReferences(
             bundle.findByType(ObjectTypes.VULNERABILITY), tenantId));
 
-    // Extract indicators
+    // Extract indicators, without the revoked, expired, not-for-detection and false-positive ones:
+    // testing them scores a failed detection on legitimate traffic (#9875)
+    java.time.Instant readAt = java.time.Instant.now();
     securityCoverage.setIndicatorsRefs(
         securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.INDICATOR), tenantId));
+            bundle.findByType(ObjectTypes.INDICATOR).stream()
+                .filter(indicator -> SecurityCoverageUtils.isUsableIndicator(indicator, readAt))
+                .toList(),
+            tenantId));
 
     // Extract artifacts
     securityCoverage.setArtifactsRefs(
@@ -477,7 +482,8 @@ public class SecurityCoverageService {
     Scenario scenario = new Scenario();
     scenario.setTenant(securityCoverage.getTenant());
     updatePropertiesFromSecurityCoverage(ctx, scenario, securityCoverage);
-    return scenarioService.createScenario(scenario);
+    // The coverage is the origin, not the account that delivered the bundle (#9875).
+    return scenarioService.createGeneratedScenario(scenario);
   }
 
   private Scenario updateScenarioFromSecurityCoverage(
