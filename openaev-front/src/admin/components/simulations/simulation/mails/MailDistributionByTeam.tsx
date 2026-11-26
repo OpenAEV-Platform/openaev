@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
@@ -31,13 +30,10 @@ const MailDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
   });
 
   const teamsColors = computeTeamsColors(teams, theme);
-  const sortedTeamsByCommunicationNumber = R.pipe(
-    (teamsList: Team[]) => teamsList.map((a: Team) => ({
-      ...a,
-      team_communications_number: a.team_communications?.length,
-    })),
-    (items: Array<Team & { team_communications_number: number | undefined }>) => items.toSorted(descendBy('team_communications_number')).slice(0, 10),
-  )(teams || []);
+  const sortedTeamsByCommunicationNumber = (teams || []).map((a: Team) => ({
+    ...a,
+    team_communications_number: a.team_communications?.length,
+  })).toSorted(descendBy('team_communications_number')).slice(0, 10);
   const totalMailsByTeamData = [
     {
       name: t('Total mails'),

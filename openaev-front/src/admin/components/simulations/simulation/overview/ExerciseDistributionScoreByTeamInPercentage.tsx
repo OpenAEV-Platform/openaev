@@ -47,9 +47,7 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
   )(injectExpectations);
 
   const teamsColors = computeTeamsColors(teams, theme);
-  const sortedTeamsByPercentScore = R.pipe(
-    (items: Array<Team & { team_total_percent_score: number }>) => items.toSorted(descendBy('team_total_percent_score')).slice(0, 10),
-  )(teamsByPercentScore || []);
+  const sortedTeamsByPercentScore = (teamsByPercentScore || []).toSorted(descendBy('team_total_percent_score')).slice(0, 10);
   const percentScoreByTeamData = [
     {
       name: t('Percent of reached score'),

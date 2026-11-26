@@ -1,5 +1,4 @@
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
@@ -68,9 +67,6 @@ CreateAttackPatternComponent.propTypes = {
   onCreate: PropTypes.func,
 };
 
-const CreateAttackPattern = R.compose(
-  connect(null, { addAttackPattern }),
-  inject18n,
-)(CreateAttackPatternComponent);
+const CreateAttackPattern = connect(null, { addAttackPattern })(inject18n(CreateAttackPatternComponent));
 
 export default CreateAttackPattern;

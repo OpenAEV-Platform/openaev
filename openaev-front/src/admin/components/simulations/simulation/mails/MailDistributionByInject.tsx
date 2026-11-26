@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseInjects } from '../../../../../actions/Inject';
@@ -29,9 +28,7 @@ const MailDistributionByInject: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchExerciseInjects(exerciseId));
   });
 
-  const sortedInjectsByCommunicationNumber = R.pipe(
-    (items: Inject[]) => items.toSorted(descendBy('inject_communications_number')).slice(0, 10),
-  )(injects || []);
+  const sortedInjectsByCommunicationNumber = (injects || []).toSorted(descendBy('inject_communications_number')).slice(0, 10);
   const totalMailsByInjectData = [
     {
       name: t('Total mails'),

@@ -2,7 +2,6 @@ import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
@@ -163,12 +162,9 @@ OrganizationPopoverComponent.propTypes = {
   onDelete: PropTypes.func,
 };
 
-const OrganizationPopover = R.compose(
-  connect(null, {
-    updateOrganization,
-    deleteOrganization,
-  }),
-  inject18n,
-)(OrganizationPopoverComponent);
+const OrganizationPopover = connect(null, {
+  updateOrganization,
+  deleteOrganization,
+})(inject18n(OrganizationPopoverComponent));
 
 export default OrganizationPopover;

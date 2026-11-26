@@ -44,15 +44,13 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       cumulation = 0;
       return [
         n[0],
-        R.pipe(
-          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
-            cumulation += i.inject_expectation_score ?? 0;
-            return {
-              ...i,
-              inject_expectation_cumulated_score: cumulation,
-            };
-          }),
-        )(n[1]),
+        n[1].toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
+          cumulation += i.inject_expectation_score ?? 0;
+          return {
+            ...i,
+            inject_expectation_cumulated_score: cumulation,
+          };
+        }),
       ];
     }),
     (pairs: [string, Array<InjectExpectationOutput & {

@@ -1,6 +1,5 @@
 import { DomainOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
@@ -120,13 +119,9 @@ const select = (state) => {
   return { organizations: helper.getOrganizations().toJS() };
 };
 
-const OrganizationField = R.compose(
-  connect(select, {
-    fetchOrganizations,
-    addOrganization,
-  }),
-  inject18n,
-  Component => withStyles(Component, styles),
-)(OrganizationFieldComponent);
+const OrganizationField = connect(select, {
+  fetchOrganizations,
+  addOrganization,
+})(inject18n(withStyles(OrganizationFieldComponent, styles)));
 
 export default OrganizationField;
