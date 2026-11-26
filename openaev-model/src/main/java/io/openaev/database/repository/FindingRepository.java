@@ -78,15 +78,6 @@ public interface FindingRepository
       @Param("displayValue") String displayValue,
       @Param("tenantId") String tenantId);
 
-  @Query(
-      "SELECT COUNT(DISTINCT ag.id) FROM FindingOccurrence o JOIN o.finding f JOIN o.inject i"
-          + " JOIN i.assetGroups ag"
-          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
-  List<String> findDistinctAssetIds(
-      @Param("type") ContractOutputType type,
-      @Param("displayValue") String displayValue,
-      @Param("tenantId") String tenantId);
-
   /** Projection for {@link #findSeenAggregate}. */
   interface FindingSeenAggregate {
     Instant getFirstSeen();
