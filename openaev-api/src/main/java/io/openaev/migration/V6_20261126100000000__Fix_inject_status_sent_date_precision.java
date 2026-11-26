@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * rewrites neither the table nor its indexes. Rows already stored keep their rounded start date.
  */
 @Component
-public class V6_20261124100000000__Fix_inject_status_sent_date_precision extends BaseJavaMigration {
+public class V6_20261126100000000__Fix_inject_status_sent_date_precision extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

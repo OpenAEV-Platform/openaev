@@ -25,7 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @DisplayName("Migration V6_20261124100000000: precision of injects_statuses.tracking_sent_date")
 class FixInjectStatusSentDatePrecisionMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261124100000000__Fix_inject_status_sent_date_precision migration;
+  @Autowired private V6_20261126100000000__Fix_inject_status_sent_date_precision migration;
   @Autowired private DataSource dataSource;
 
   private Connection connection;
