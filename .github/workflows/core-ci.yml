@@ -47,8 +47,8 @@ jobs:
           {"shard":"16","shard_name":"elk8-remaining","search_engine":"elasticsearch8","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests ──
-      # Chromium runs most shards. One shard per run moves to Firefox and one to WebKit, a different
-      # one on pull requests than on main, so both engines are exercised without adding cells.
+      # Chromium runs most shards. A few run on Firefox and WebKit instead, not the same ones on
+      # pull requests and on main, so both engines are exercised without adding cells.
       # The "remaining" catch-all stays on Chromium on amd64, the only engine that collects E2E
       # coverage. WebKit stays off arm64, where it runs about twice as slow.
       # Nightly runs every suite on every browser.
