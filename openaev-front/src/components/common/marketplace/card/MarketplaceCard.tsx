@@ -77,7 +77,19 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         <CardInfo value={subtitle} />
       </CardInfoGroup>
     )}
-    {chips}
+    {chips && (
+      // FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see Figma 8486:41702
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 'calc(var(--spacing) * 2)',
+        minWidth: 0,
+      }}
+      >
+        {chips}
+      </div>
+    )}
     {description && <CardDescription>{description}</CardDescription>}
     {info && (
       <CardInfoGroup type="block">

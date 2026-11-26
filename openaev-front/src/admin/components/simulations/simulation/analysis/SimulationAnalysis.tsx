@@ -17,8 +17,9 @@ import {
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import type { ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
 import NoDashboardComponent from '../../../workspaces/custom_dashboards/NoDashboardComponent';
@@ -27,8 +28,10 @@ import { ALL_TIME_TIME_RANGE } from '../../../workspaces/custom_dashboards/widge
 
 const SimulationAnalysis = () => {
   const dispatch = useAppDispatch();
-  const ability = useAbility();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
+  const ability = useAbility();
+  const { canManage } = useSimulationPermissions(exerciseId);
+  const canChooseDashboard = canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS);
 
   const { exercise, tenantSettings }: {
     exercise: Exercise;
@@ -95,7 +98,7 @@ const SimulationAnalysis = () => {
     },
     paramsBuilder,
     parentContextId: exerciseId,
-    canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId),
+    canChooseDashboard,
     handleSelectNewDashboard,
     fetchCustomDashboard: () => fetchCustomDashboardFromSimulation(exerciseId),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countBySimulation(exerciseId, widgetId, params),
@@ -104,17 +107,15 @@ const SimulationAnalysis = () => {
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesBySimulation(exerciseId, widgetId, params, pagination),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
-  }), [effectiveDashboardId, exerciseId, paramsBuilder, ability, handleSelectNewDashboard]);
+  }), [effectiveDashboardId, exerciseId, paramsBuilder, canChooseDashboard, handleSelectNewDashboard]);
 
   return (
     <CustomDashboardWrapper
       configuration={configuration}
       noDashboardSlot={(
         <NoDashboardComponent
-          actionComponent={(
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.RESOURCE} field={exerciseId}>
-              <SelectDashboardButton variant="text" scenarioOrSimulationId={exerciseId} handleApplyChange={handleSelectNewDashboard} />
-            </Can>
+          actionComponent={canChooseDashboard && (
+            <SelectDashboardButton variant="text" scenarioOrSimulationId={exerciseId} handleApplyChange={handleSelectNewDashboard} />
           )}
         />
       )}

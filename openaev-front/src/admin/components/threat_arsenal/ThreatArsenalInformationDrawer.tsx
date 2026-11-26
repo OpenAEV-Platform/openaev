@@ -21,7 +21,6 @@ import { type OpenedTab } from './hook/useOpenedAction';
 import PayloadRevocationBanner from './revocation/PayloadRevocationBanner';
 import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 import { isShownRevoked } from './utils/threatArsenalStatusUtils';
-import PayloadNewVersionDialog from './versions/PayloadNewVersionDialog';
 import PayloadVersionSelect from './versions/PayloadVersionSelect';
 import PayloadVersionsTab from './versions/PayloadVersionsTab';
 
@@ -61,6 +60,8 @@ interface Props {
   threatArsenalAction: ThreatArsenalAction | null;
   initialTab?: OpenedTab;
   onUpdate?: (action: ThreatArsenalAction, replacedId?: string) => void;
+  // After a save that added a version with injects left on older ones: its Versions tab opens.
+  onShowSaved?: (action: ThreatArsenalAction) => void;
   onRunTest?: (action: ThreatArsenalAction) => void;
 }
 
@@ -70,6 +71,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   threatArsenalAction,
   initialTab,
   onUpdate,
+  onShowSaved,
   onRunTest,
 }) => {
   const { t } = useFormatter();
@@ -99,10 +101,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     toMove,
     installing,
     install,
-    notice,
     afterSave,
-    closeNotice,
-  } = useActionDrawer(open, threatArsenalAction, initialTab, onUpdate);
+  } = useActionDrawer(open, threatArsenalAction, initialTab, onUpdate, onShowSaved);
   const shownRevoked = isShownRevoked(shownAction);
   const payloadTabs: Record<string, () => ReactNode> = {
     versions: () => (
@@ -111,7 +111,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
         usages={usages}
         onMoved={reloadUsages}
         notInstalled={notInstalled}
-        focusMove={initialTab === 'move'}
+        focusMove={initialTab === 'move' || initialTab === 'saved'}
+        saved={initialTab === 'saved'}
         installing={installing}
         onInstall={canInstall ? install : undefined}
       />
@@ -198,7 +199,6 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
           <div style={{ marginTop: showVersions ? theme.spacing(2) : 0 }}>
             {payloadTab ? payloadTab() : renderOverview()}
           </div>
-          {notice && <PayloadNewVersionDialog action={notice.action} olderVersions={notice.olderVersions} onClose={closeNotice} />}
         </>
       )}
     </Drawer>

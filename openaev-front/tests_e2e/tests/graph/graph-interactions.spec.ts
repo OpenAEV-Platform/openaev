@@ -7,8 +7,8 @@ import { tenantApiPath, tenantUrl } from '../../utils/url';
  * The exploration graph answers its toolbar on the FIRST click (#9572). A layout button used to press
  * itself and write the layout in the URL while every node stayed where it was: the layout plan was
  * written into refs during the render, and the StrictMode replay of that render read the run as
- * already done. Each test also fails on any error or warning the page logs, so a console error the
- * graph raises (a setState during render, a duplicate key, a frame read out of range) is a red test.
+ * already done. Each test also fails on an uncaught exception or a console error the graph raises (a
+ * setState during render, a duplicate key, a frame read out of range): see GRAPH_DEFECTS.
  */
 
 interface Seeded {
@@ -61,13 +61,26 @@ const settled = async (page: Page) => {
   return last;
 };
 
-/** The console listener: any error, warning or uncaught exception of the page fails the test. */
+/**
+ * The console errors a graph defect raises. The React warnings are logged by the development build (a local
+ * run against the dev server), the minified React error by the production build (CI). Other console messages
+ * do not fail the test: browser notices, such as the report-only Content-Security-Policy, are no defect of
+ * the graph and differ from one browser to the next.
+ */
+const GRAPH_DEFECTS = [
+  /Cannot update a component .* while rendering a different component/,
+  /Encountered two children with the same key/,
+  /Maximum update depth exceeded/,
+  /Minified React error/,
+  /\b(TypeError|RangeError|ReferenceError)\b/,
+];
+
+/** The console listener: a known graph defect logged in the console, or any uncaught exception, fails the test. */
 const watchConsole = (page: Page) => {
   const problems: string[] = [];
   page.on('console', (message) => {
     const text = message.text();
-    // xyflow's notice about the hidden attribution is a licence notice, not a defect of the page.
-    if ((message.type() === 'error' || message.type() === 'warning') && !text.includes('reactflow.dev/remove-attr')) {
+    if (message.type() === 'error' && GRAPH_DEFECTS.some(defect => defect.test(text))) {
       problems.push(`${message.type()}: ${text}`);
     }
   });

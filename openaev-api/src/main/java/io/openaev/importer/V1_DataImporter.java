@@ -188,18 +188,24 @@ public class V1_DataImporter implements Importer {
           Optional<InjectorContract> contractOpt =
               injectorContractRepository.findByContractIdAndTenant(
                   contract, TenantContext.getCurrentTenant());
-          if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
-            break;
-          }
-          List<String> docArgKeys =
-              contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> PrimitiveType.Document == arg.getType())
-                  .map(PayloadArgument::getKey)
-                  .toList();
-          if (docArgKeys.isEmpty()) {
+          if (contractOpt.isEmpty()) {
             break;
           }
           ObjectNode contentNode = (ObjectNode) mapper.readTree(content);
+          injectorContractContentUtils.remapImportedReferenceFields(
+              contractOpt.get(),
+              contentNode,
+              oldId ->
+                  baseIds.get(oldId) instanceof Tag tag
+                      ? Optional.of(tag.getId())
+                      : Optional.empty());
+          List<String> docArgKeys =
+              contractOpt.get().getPayload() == null
+                  ? List.of()
+                  : contractOpt.get().getPayload().getArguments().stream()
+                      .filter(arg -> PrimitiveType.Document == arg.getType())
+                      .map(PayloadArgument::getKey)
+                      .toList();
           for (String key : docArgKeys) {
             JsonNode valueNode = contentNode.get(key);
             if (valueNode != null && valueNode.isTextual()) {

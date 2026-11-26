@@ -5,6 +5,7 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSEN
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.payload.PayloadVersionService.NOT_ANOTHER_VERSION;
 import static io.openaev.service.payload.PayloadVersionService.VERSION_REVOKED;
@@ -29,15 +30,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Command;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.InjectRepository;
@@ -48,6 +51,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.payload.PayloadUsageMoveService;
 import io.openaev.service.payload.PayloadUsageMoveService.Moves;
@@ -60,6 +64,7 @@ import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.PayloadInputFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -498,7 +503,65 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         .andExpect(status().isNotFound());
   }
 
+  // -- CHANGES --
+
+  @Test
+  @DisplayName("says what a version changed since the version just below it")
+  void given_newerVersion_should_listItsChangedFields() throws Exception {
+    // Arrange
+    List<InjectorContract> versions = localVersions();
+    Command newer = (Command) versions.get(1).getPayload();
+    newer.setContent("net view");
+    payloadRepository.save(newer);
+    entityManager.flush();
+
+    // Act
+    JsonNode changes =
+        body(
+            mvc.perform(
+                    get(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/changes",
+                        DEFAULT_TENANT_UUID,
+                        versions.get(1).getId()))
+                .andExpect(status().isOk()));
+
+    // Assert
+    assertThat(changes.findValuesAsText("change_field")).containsExactly("command_content");
+    assertThat(changes.findValuesAsText("change_after")).containsExactly("net view");
+  }
+
+  @Test
+  @DisplayName("has no change for the first version")
+  void given_firstVersion_should_haveNoChange() throws Exception {
+    // Arrange
+    List<InjectorContract> versions = localVersions();
+
+    // Act & Assert
+    mvc.perform(
+            get(
+                TENANT_THREAT_ARSENAL_URL + "/{actionId}/changes",
+                DEFAULT_TENANT_UUID,
+                versions.get(0).getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+  }
+
   // -- HISTORY --
+
+  private JsonNode history(String actionId, int size) throws Exception {
+    SearchPaginationInput input = new SearchPaginationInput();
+    input.setSize(size);
+    return body(
+        mvc.perform(
+                post(
+                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history/search",
+                        DEFAULT_TENANT_UUID,
+                        actionId)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(input)))
+            .andExpect(status().isOk()));
+  }
 
   @Test
   @DisplayName("lists who installed each version of the payload, newest first")
@@ -507,39 +570,92 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
     List<String> ids = installed("1.0.0", "1.1.0");
 
     // Act
-    JsonNode history =
-        body(
-            mvc.perform(
-                    get(
-                        TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
-                        DEFAULT_TENANT_UUID,
-                        contractOf(ids.getFirst()).getId()))
-                .andExpect(status().isOk()));
+    JsonNode history = history(contractOf(ids.getFirst()).getId(), 20).get("content");
 
     // Assert
-    assertThat(history.findValuesAsText("catalog_history_version"))
+    assertThat(history.findValuesAsText("content_change_version"))
         .containsExactly("1.1.0", "1.0.0");
-    assertThat(history.findValuesAsText("catalog_history_action"))
-        .containsOnly(CatalogHistory.Action.INSTALL.name());
-    assertThat(history.findValuesAsText("catalog_history_mode"))
-        .containsOnly(CatalogHistory.Mode.MANUAL.name());
-    assertThat(history.findValuesAsText("catalog_history_user")).doesNotContain("", "null");
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsOnly(ContentChange.Action.INSTALL.name());
+    assertThat(history.findValuesAsText("content_change_mode"))
+        .containsOnly(ContentChange.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("content_change_user")).doesNotContain("", "null");
+    assertThat(history.findValues("content_change_fields")).allMatch(JsonNode::isNull);
   }
 
   @Test
-  @DisplayName("has no history for a payload made in the tenant")
-  void given_localPayload_should_haveNoHistory() throws Exception {
+  @DisplayName("pages the history of the payload")
+  void given_historyLongerThanAPage_should_returnOnePage() throws Exception {
+    // Arrange
+    List<String> ids = installed("1.0.0", "1.1.0");
+
+    // Act
+    JsonNode page = history(contractOf(ids.getFirst()).getId(), 1);
+
+    // Assert
+    assertThat(page.get("content")).hasSize(1);
+    assertThat(page.get("totalElements").asInt()).isEqualTo(2);
+    assertThat(page.get("content").get(0).get("content_change_version").asText())
+        .isEqualTo("1.1.0");
+  }
+
+  @Test
+  @DisplayName("lists the save that added a version to a payload made in the tenant")
+  void given_localPayloadSavedAsNewVersion_should_listTheSave() throws Exception {
     // Arrange
     InjectorContract action = localAction();
-
-    // Act & Assert
+    PayloadUpdateInput input = PayloadInputFixture.getDefaultCommandPayloadUpdateInput(List.of());
+    input.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     mvc.perform(
-            get(
-                TENANT_THREAT_ARSENAL_URL + "/{actionId}/history",
-                DEFAULT_TENANT_UUID,
-                action.getId()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(0));
+            put(
+                    TENANT_PAYLOAD_URI + "/{payloadId}",
+                    DEFAULT_TENANT_UUID,
+                    action.getPayload().getId())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input)))
+        .andExpect(status().isOk());
+
+    // Act
+    JsonNode history = history(action.getId(), 20).get("content");
+
+    // Assert
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsExactly(ContentChange.Action.SAVE.name());
+    assertThat(history.findValuesAsText("content_change_mode"))
+        .containsExactly(ContentChange.Mode.MANUAL.name());
+    assertThat(history.findValuesAsText("content_change_version"))
+        .doesNotContain(Payload.FIRST_VERSION);
+    assertThat(history.get(0).get("content_change_from_version").asText())
+        .isEqualTo(Payload.FIRST_VERSION);
+    assertThat(history.get(0).get("content_change_fields").findValuesAsText("change_field"))
+        .isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("lists the revocation and its lift on a payload made in the tenant")
+  void given_localPayloadRevokedThenLifted_should_listBoth() throws Exception {
+    // Arrange
+    InjectorContract action = localAction();
+    String payloadId = action.getPayload().getId();
+    mvc.perform(
+            post(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(new PayloadRevocationInput("Too noisy"))))
+        .andExpect(status().isCreated());
+    mvc.perform(
+            delete(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                .with(csrf()))
+        .andExpect(status().isNoContent());
+
+    // Act
+    JsonNode history = history(action.getId(), 20).get("content");
+
+    // Assert
+    assertThat(history.findValuesAsText("content_change_action"))
+        .containsExactlyInAnyOrder(
+            ContentChange.Action.REVOKE.name(), ContentChange.Action.LIFT_REVOCATION.name());
   }
 
   // -- SEARCH --
@@ -838,18 +954,20 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
         TENANT_THREAT_ARSENAL_URL + "/{actionId}/older-versions-kept";
 
     private List<String> flagged(String tenantId, InjectorContract... actions) throws Exception {
-      List<String> actionIds = Arrays.stream(actions).map(InjectorContract::getId).toList();
-      JsonNode flagged =
-          body(
-              mvc.perform(
-                      post(OLDER_VERSIONS_IN_USE_URL, tenantId)
-                          .with(csrf())
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(mapper.writeValueAsString(Map.of("action_ids", actionIds))))
-                  .andExpect(status().isOk()));
       List<String> ids = new ArrayList<>();
-      flagged.forEach(id -> ids.add(id.asText()));
+      olderUsages(tenantId, actions).fieldNames().forEachRemaining(ids::add);
       return ids;
+    }
+
+    private JsonNode olderUsages(String tenantId, InjectorContract... actions) throws Exception {
+      List<String> actionIds = Arrays.stream(actions).map(InjectorContract::getId).toList();
+      return body(
+          mvc.perform(
+                  post(OLDER_VERSIONS_IN_USE_URL, tenantId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(Map.of("action_ids", actionIds))))
+              .andExpect(status().isOk()));
     }
 
     private ResultActions keep(String tenantId, InjectorContract action) throws Exception {
@@ -900,6 +1018,22 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       // Act & Assert
       assertThat(flagged(DEFAULT_TENANT_UUID, versions.get(1)))
           .containsExactly(versions.get(1).getId());
+    }
+
+    @Test
+    @DisplayName("counts the atomic testings and chained steps still on older versions")
+    void given_usagesOnOlderVersions_should_countThem() throws Exception {
+      // Arrange
+      List<InjectorContract> versions = localVersions();
+      atomicTestingOn(versions.get(0));
+      atomicTestingOn(versions.get(0));
+      chainedStepOn(versions.get(0));
+
+      // Act
+      JsonNode usages = olderUsages(DEFAULT_TENANT_UUID, versions.get(1));
+
+      // Assert
+      assertThat(usages.path(versions.get(1).getId()).asLong()).isEqualTo(3);
     }
 
     @Test

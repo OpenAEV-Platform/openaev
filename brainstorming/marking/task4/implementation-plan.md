@@ -520,13 +520,39 @@ a later enhancement: consolidate the displayed value from what the viewing user 
 When an admin launches an inject and a user looks at it, the execution details read "Distributing inject to
 2 agent(s) across 2 endpoint(s)", counting assets the user cannot see.
 
+Design: [tech-design, "Values shown to a reader with less clearance"](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
+
+What leaks today, on the "Execution details" tab (`AtomicTestingExecutionDetails` →
+`GET /api/injects/status?injectId=` → `InjectService.getInjectStatusWithGlobalExecutionTraces`):
+
+- The distribution trace (`ExecutionExecutorService.saveDistributionTrace`) is an agent-less INFO trace, so it
+  is global and stays visible; its counts are frozen in the message text at launch.
+- End date and duration come from `injects_statuses.tracking_end_date`, set when the **last** agent completes,
+  RED included.
+
+### Steps
+
+- **10.1** Failing test first: inject launched on RED + GREEN, read by a `TLP:AMBER` user: the distribution
+  trace reads "1 agent(s) across 1 endpoint(s)"; the admin still reads "2 agent(s) across 2 endpoint(s)".
+- **10.2** `saveDistributionTrace` also writes the dispatched agent ids in the trace's
+  `execution_structured_output` (`{"distributed_agent_ids": [...]}`). Not in `execution_context_identifiers`:
+  Chunk 4 hides an agent-less trace naming a restricted asset there, which would hide the whole trace.
+- **10.3** `InjectStatusMapper.toInjectStatusOutput`: for a trace that carries `distributed_agent_ids`, rebuild
+  the message from the agents the reader can see (one query on `agents`, filtered by marking: count, and
+  distinct assets). A trace without the key (launched before 10.2) keeps its text.
+- **10.4** End date shown = the latest visible COMPLETE trace (`execution_time`), not
+  `tracking_end_date`, when the inject is closed. Start date unchanged (the launch time reveals nothing).
+- **10.5** Check: admin view unchanged; an inject launched before 10.2 still shows its message.
+
 ## Chunk 11 — UX enhancement: global inject status from what the user can see
 
-**Status**: not started. **The PO needs to design it**; this is
-a later enhancement: consolidate the displayed value from what the viewing user can see.
+**Status**: 🟡 in review on `issue-8559/execution-status` (#8559). Decision: [ADR-024](../../../adr/ADR-024-inject-execution-status-computed-at-read-from-the-reader-s-clearance.md); design and measures: [tech design](tech-design.md#values-shown-to-a-reader-with-less-clearance-chunks-10-and-11).
 
-The global inject status can look odd when the user does not see all the assets, because it is computed over
-every asset.
+- ✅ The reader's status in the five places (searches, status mappers, attack path, inject entity JSON, stream), one rule, `NOT_VISIBLE` when every agent is hidden.
+- ✅ Partial index on the COMPLETE traces (measured in [`perf-11.11/`](perf-11.11/README.md)); MARKING off: no query, no recompute.
+- ⏸ Filter and sort on the reader's status: about 1.5 s per request at 50 agents per inject, waits for a cheaper marking check.
+- ➡ The filter and sort on the stored status leak it: [#9538](https://github.com/OpenAEV-Platform/openaev/issues/9538).
+- ➡ Smaller outputs instead of the inject entity routes: Chunk 16 (#9439). Notifications: Chunk 15 (#8924).
 
 ## Chunk 12 — UX enhancement: platforms in the scenario list for a user
 
@@ -586,3 +612,53 @@ UI-driven assertions, not clicking through every setup step):
   `ScenarioApiHelpers`, `TeamApiHelpers`, `DocumentApiHelpers`, `TenantApiHelpers` exist today.
 
 **DoD**: spec green in CI under the existing `test:e2e` job, no new pipeline required.
+
+## Chunk 15 — Notification engine: notifications filtered by the recipient's clearance
+
+**Issue**: [#8924](https://github.com/OpenAEV-Platform/openaev/issues/8924) (spike, US4). **Status**: not started;
+out of scope of the Chunk 11 PR (`issue-8559/execution-status`).
+
+The notification engine checks the tenant only, then sends to every recipient. The spike lists which notifications
+can mention an asset and where to check the recipient's clearance; see the issue for the full list to investigate.
+
+**Found while doing Chunk 11: a live trigger on Inject filtered on the execution status.**
+
+- The trigger form offers `inject_status` on resource Inject (Draft, Error, Executed, Executing, Partial…). It is
+  the execution status of Chunk 11. The Simulation trigger's status is `exercise_status`, the simulation
+  lifecycle, which marking does not change. Scenario has no status.
+- `NotificationMatchingService.matches` evaluates the trigger's filters in the background transaction of
+  `NotificationEngineService` (`TxCtx.forTenant`, every marking), so it matches the **stored** status. A recipient
+  cleared `TLP:AMBER` with a trigger "status = Executed" is notified for an inject on 2 RED agents, while their
+  lists show `NOT_VISIBLE`: the notification tells them the outcome on targets they cannot see. To confirm by
+  hand.
+- A trigger has several recipients (owner, or targeted users and group members), possibly with different
+  clearances, so "the reader's status" is per recipient, not per trigger.
+- **Cost**: small, unlike the lists (Chunk 11, filter on the reader's status). Matching checks one inject by id per event, so the
+  reader's status adds one query on that inject's COMPLETE traces per trigger and per distinct clearance among its
+  recipients (`MarkingClearanceCacheManager.findClearance`), then `InjectStatusUtils.visibleStatus` in Java.
+
+**Options for the PO**:
+
+| Option | Change |
+|---|---|
+| A. Remove `inject_status` from the Inject trigger form | Front only, plus a migration of the saved triggers that use it |
+| B. Match each recipient on the status they see | Matching, `recordEvents` and dispatch go from per trigger to per group of recipients with the same clearance |
+
+## Chunk 16 — Inject outputs: small DTOs on new endpoints, deprecate the routes that return the entity
+
+**Issue**: [#9439](https://github.com/OpenAEV-Platform/openaev/issues/9439). **Status**: not started; out of
+scope of the Chunk 11 PR.
+
+Chunk 11 (#4) returns the reader's status on six routes that serialize the `Inject` entity, through
+`InjectMapper.toJsonWithVisibleStatus` (`ObjectNode`): `GET /injects/{id}`, `GET /exercises/{id}/injects`, and the
+activation, trigger, status and teams updates of `SimulationInjectApi`. It keeps their shape, since it is a public
+contract: Swagger documents the `Inject` schema and four AI collectors (hiddenlayer, cisco-ai-defense,
+lakera-guard, prompt-security) call `GET /injects/{id}`. Replacing the entity by `InjectOutput` there removes keys,
+so it breaks clients.
+
+- New endpoints in `io.openaev.api`, under `TENANT_PREFIX`, with records holding what each screen reads, relations
+  as ids, and the reader's status (`InjectVisibleStatusService`).
+- The front moves to them; the legacy routes are marked `@Deprecated` in OpenAPI and removed after the deprecation
+  period, in a release flagged as breaking.
+- Removes `toJsonWithVisibleStatus` and the `ObjectNode` returns with the legacy routes.
+

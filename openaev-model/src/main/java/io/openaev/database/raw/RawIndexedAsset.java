@@ -86,4 +86,32 @@ public interface RawIndexedAsset extends RawAssetIndexing {
    * @return the asset category
    */
   String getAsset_category();
+
+  /**
+   * Returns the classification subcategory of the asset (SERVER, WORKSTATION...).
+   *
+   * @return the asset subcategory, or {@code null} when unclassified
+   */
+  String getAsset_subcategory();
+
+  /**
+   * Returns the business criticality of the asset.
+   *
+   * @return the asset criticality, or {@code null} when unset
+   */
+  String getAsset_criticality();
+
+  /**
+   * Returns whether the asset is exposed to the internet.
+   *
+   * @return {@code true} when internet facing, {@code null} when unknown
+   */
+  Boolean getAsset_internet_facing();
+
+  /**
+   * Returns the URL of the asset (web applications, AI targets...).
+   *
+   * @return the asset URL, or {@code null}
+   */
+  String getAsset_url();
 }

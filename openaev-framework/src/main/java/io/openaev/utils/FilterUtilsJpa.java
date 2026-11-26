@@ -46,6 +46,8 @@ import org.springframework.data.jpa.domain.Specification;
  *   <li>{@code not_contains} - Does not contain substring
  *   <li>{@code starts_with} - Starts with prefix
  *   <li>{@code not_starts_with} - Does not start with prefix
+ *   <li>{@code ends_with} - Ends with suffix
+ *   <li>{@code not_ends_with} - Does not end with suffix
  *   <li>{@code empty} - Is null or empty
  *   <li>{@code not_empty} - Is not null or empty
  *   <li>{@code gt}, {@code gte}, {@code lt}, {@code lte} - Date/time and numeric comparisons
@@ -184,6 +186,7 @@ public final class FilterUtilsJpa {
         if (filter.getOperator().equals(FilterOperator.not_contains)
             || filter.getOperator().equals(FilterOperator.not_eq)
             || filter.getOperator().equals(FilterOperator.not_starts_with)
+            || filter.getOperator().equals(FilterOperator.not_ends_with)
             || filter.getOperator().equals(FilterOperator.empty)) {
           return cb.and(predicates.toArray(Predicate[]::new));
         } else {
@@ -257,6 +260,9 @@ public final class FilterUtilsJpa {
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->
           (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
+      case not_ends_with ->
+          (paths, texts) -> notEndWithTexts((Expression<String>) paths, cb, texts, type);
+      case ends_with -> (paths, texts) -> endWithTexts((Expression<String>) paths, cb, texts, type);
       case empty ->
           isNumericType(type)
               ? (paths, texts) -> emptyNumbers((Expression<? extends Number>) paths, cb)

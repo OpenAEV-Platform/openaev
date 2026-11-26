@@ -195,15 +195,25 @@ export interface AggregatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -234,7 +244,7 @@ export interface AggregatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -2803,25 +2813,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogHistoryOutput {
-  catalog_history_action:
-    | "INSTALL"
-    | "UNINSTALL"
-    | "REVOKE"
-    | "LIFT_REVOCATION"
-    | "UPDATE"
-    | "ROLLBACK";
-  /** @format date-time */
-  catalog_history_created_at: string;
-  /** @minLength 1 */
-  catalog_history_id: string;
-  catalog_history_mode: "MANUAL" | "AUTO";
-  /** Who made the change; empty when the platform made it alone */
-  catalog_history_user?: string;
-  /** @minLength 1 */
-  catalog_history_version: string;
-}
-
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -3469,6 +3460,8 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
+  /** Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent when the engine does not report it */
+  connector_instance_image_digest?: string;
   /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
@@ -3507,6 +3500,8 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Digest of the image the container runs (algo:hex), as last reported by the composer; absent when unknown */
+  connector_instance_image_digest?: string;
   /** Whether the container is in a reboot loop */
   connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
@@ -3530,6 +3525,7 @@ export interface ConnectorInstancePersisted {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  connector_instance_image_digest?: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];
@@ -3552,6 +3548,26 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export interface ContractOutputElement {
@@ -5510,15 +5526,19 @@ export interface EntitiesPaginationInput {
 
 export interface EsAsset {
   asset_category?: string;
+  asset_criticality?: string;
   asset_description?: string;
   asset_external_reference?: string;
   asset_hostname?: string;
+  asset_internet_facing?: boolean;
   /** @uniqueItems true */
   asset_ips?: string[];
   /** @uniqueItems true */
   asset_mac_addresses?: string[];
   asset_name?: string;
   asset_seen_ip?: string;
+  asset_subcategory?: string;
+  asset_url?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -6609,6 +6629,8 @@ export interface Filter {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -6632,7 +6654,7 @@ export interface FindingOutput {
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
-   * First time the finding was seen
+   * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
@@ -6642,12 +6664,22 @@ export interface FindingOutput {
    */
   finding_field: string;
   /**
+   * First time the finding was detected; the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
   /** Inject that produced the finding */
   finding_inject_id?: string;
+  /**
+   * Last time the finding was detected; the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * When a re-test last ended on the finding
    * @format date-time
@@ -6702,7 +6734,7 @@ export interface FindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written. Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -9699,6 +9731,25 @@ export interface PageConnectorInstanceLog {
   totalPages?: number;
 }
 
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageCredentialOutput {
   content?: CredentialOutput[];
   empty?: boolean;
@@ -10081,6 +10132,25 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10508,6 +10578,30 @@ export interface PayloadCommandBlock {
   command_content?: string;
   command_executor?: string;
   payload_cleanup_command?: string[];
+}
+
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export type PayloadCreateInput = BasePayloadCreateInput &
@@ -10941,6 +11035,17 @@ export interface PayloadUsagesOutput {
   payload_usages: PayloadUsageOutput[];
   /** @format int32 */
   payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
 }
 
 export interface PayloadVersionOutput {
@@ -11492,6 +11597,8 @@ export interface PropertySchemaDTO {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -11746,10 +11853,15 @@ export interface RelatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -11757,6 +11869,11 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
@@ -11796,7 +11913,7 @@ export interface RelatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;

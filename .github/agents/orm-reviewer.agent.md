@@ -37,33 +37,24 @@ Additional ORM-specific levels:
 
 | Severity | ORM-specific criteria |
 |---|---|
-| 🔴 **CRITICAL** | Native or bulk write (`nativeQuery`, `@Modifying @Query`, raw JDBC) on an `@Indexable` / `@AuditDiffTracked` / streamed entity with no compensating update: the index, audit, or stream silently goes stale |
-| 🔴 **CRITICAL** | `@Id` / `@IdClass` does not cover the real composite primary key (missing `tenant_id`): cross-tenant identity bug |
-| 🟠 **HIGH** | Controller returns a JPA `@Entity` instead of a DTO / record (align with Backend/Performance) |
-| 🟡 **MEDIUM** | `nativeQuery = true` with no one-line comment justifying both rubric halves (why the ORM cannot express it, why no side effect is lost) |
-| 🟡 **MEDIUM** | A test asserts wall-clock time as a performance gate instead of a query / entity count |
-| 🟡 **MEDIUM** | `instanceof` on a lazy polymorphic association (sees the proxy, not the subclass), or `Hibernate.unproxy()` scattered to resolve a `@Inheritance` subclass instead of an explicit fetch |
-| 🟢 **LOW** | An entity graph is loaded and then dropped to a slice (projection opportunity); align with Performance |
+| 🔴 **CRITICAL** | Native or bulk write with no compensating update: [Write correctness](../instructions/orm.instructions.md#write-correctness-the-listener-chain) |
+| 🔴 **CRITICAL** | `@Id` / `@IdClass` not covering the real composite key: [Composite keys](../instructions/orm.instructions.md#composite-keys) |
+| 🟠 **HIGH** | Controller returns a JPA `@Entity`: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) |
+| 🟡 **MEDIUM** | `nativeQuery = true` without its one-line justification: [Justify every native query](../instructions/orm.instructions.md#justify-every-native-query) |
+| 🟡 **MEDIUM** | Wall-clock time asserted as a performance gate: [Test methodology](../instructions/orm.instructions.md#test-methodology) |
+| 🟡 **MEDIUM** | `instanceof` on a lazy polymorphic association, or scattered `Hibernate.unproxy()`: [Inheritance and proxies](../instructions/orm.instructions.md#inheritance-and-proxies) |
+| 🟢 **LOW** | Entity graph loaded then dropped to a slice: [performance › Queries](../instructions/performance.instructions.md#queries) |
 
 ## Review Procedure
 
 This agent has no separate skill; run these steps directly.
 
-1. **Native queries.** `grep -rn "nativeQuery = true" openaev-model openaev-api`. For each hit apply
-   the two-question rubric from `orm.instructions.md`: can the ORM express it (else unjustified), and
-   is a session side effect lost (else a write-correctness bug). KEEP a justified query that carries
-   the one-line comment; flag a missing comment as MEDIUM.
-2. **Write correctness.** For every native / bulk / `@Modifying` write, check the target entity for
-   `@Indexable` and `@AuditDiffTracked`, and whether `ModelBaseListener` streams it (`isListened()`).
-   If any holds and nothing compensates, flag CRITICAL.
-3. **Composite keys.** For entities whose real primary key includes `tenant_id`, verify the
-   `@Id` / `@IdClass` covers every key column.
-4. **Boundary at the API.** Flag controller methods returning a JPA `@Entity`; recommend a DTO / record.
-5. **Test methodology.** Flag ORM/perf tests asserting elapsed / wall-clock time as a gate; recommend
-   a Hibernate `Statistics` query / entity count instead.
-6. **Inheritance / proxies.** `grep -rn "Hibernate.unproxy\|instanceof" openaev-api openaev-model`.
-   Flag `instanceof` on a lazy `@Inheritance` association and unproxy proliferation; recommend an
-   explicit `JOIN FETCH` / `@EntityGraph` of the concrete type.
+1. **Native queries.** `grep -rn "nativeQuery = true" openaev-model openaev-api`. Apply [Justify every native query](../instructions/orm.instructions.md#justify-every-native-query) to each hit.
+2. **Write correctness.** For every native / bulk / `@Modifying` write, apply [Write correctness](../instructions/orm.instructions.md#write-correctness-the-listener-chain).
+3. **Composite keys.** For entities whose real primary key includes `tenant_id`, apply [Composite keys](../instructions/orm.instructions.md#composite-keys).
+4. **Boundary at the API.** Flag controller methods returning a JPA `@Entity`.
+5. **Test methodology.** Apply [Test methodology](../instructions/orm.instructions.md#test-methodology) to ORM/perf tests.
+6. **Inheritance / proxies.** `grep -rn "Hibernate.unproxy\|instanceof" openaev-api openaev-model`, then apply [Inheritance and proxies](../instructions/orm.instructions.md#inheritance-and-proxies).
 
 ## What NOT to Flag
 
@@ -76,7 +67,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 - A native query missing `WHERE tenant_id` → Multi-Tenancy Reviewer owns it.
 - `FetchType.EAGER` forced by `@JoinColumnsOrFormulas` / `@JoinFormula` (Hibernate cannot make it
   lazy): flag the projection fix on the hot path, not a mapping flip.
-- A `*Benchmark` class or a documented scale-guard that intentionally measures wall-clock time.
+- The wall-clock exception of [Test methodology](../instructions/orm.instructions.md#test-methodology).
 
 ## Output Format
 

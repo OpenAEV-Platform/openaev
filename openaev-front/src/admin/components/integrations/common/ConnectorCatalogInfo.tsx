@@ -1,5 +1,5 @@
 import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { CommitOutlined, InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
+import { CommitOutlined, FingerprintOutlined, InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
@@ -11,7 +11,12 @@ import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 interface Props {
   catalogConnector: CatalogConnectorOutput;
   runningCommit?: string;
+  // Digest of the image the managed instance runs (algo:hex), as the Integration Manager last reported it.
+  runningImageDigest?: string;
 }
+
+// sha256: plus the first 12 hex characters, the short form registries and engines print.
+const SHORT_DIGEST_LENGTH = 19;
 
 const SECTION_LABEL_SX = {
   fontFamily: '"Geologica", sans-serif',
@@ -125,7 +130,7 @@ const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
  * The two-column content of a connector detail page: the full description on
  * the left, the resource links and verification metadata on the right.
  */
-const ConnectorCatalogInfo = ({ catalogConnector, runningCommit }: Props) => {
+const ConnectorCatalogInfo = ({ catalogConnector, runningCommit, runningImageDigest }: Props) => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
 
@@ -200,6 +205,36 @@ const ConnectorCatalogInfo = ({ catalogConnector, runningCommit }: Props) => {
               icon={CommitOutlined}
               title={t('Commit hash')}
               caption={<ItemCopy content={runningCommit} variant="inLine" />}
+            />
+          )}
+          {runningImageDigest && (
+            <ResourceRow
+              icon={FingerprintOutlined}
+              title={t('Image digest')}
+              caption={(
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <ItemCopy content={runningImageDigest} variant="inLine" limit={SHORT_DIGEST_LENGTH} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{runningImageDigest}</TooltipContent>
+                </Tooltip>
+              )}
+              endAdornment={(
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <InfoOutlined
+                      tabIndex={0}
+                      sx={{
+                        fontSize: theme.typography.h6.fontSize,
+                        color: 'text.secondary',
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Digest of the image the container runs, as last reported by the Integration Manager. It identifies the build behind a moving tag such as rolling or latest.')}</TooltipContent>
+                </Tooltip>
+              )}
             />
           )}
           {catalogConnector.catalog_connector_source_code && (

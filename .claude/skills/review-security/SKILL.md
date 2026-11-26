@@ -19,11 +19,11 @@ description: >-
 ### Step 2 — Check tenant isolation
 
 - All `TenantBase` entities must have `@Filter(name = "tenantFilter")`
-- Search for any native `@Query` — they bypass the filter:
+- Search for any native `@Query`:
   ```bash
   grep -rn "nativeQuery = true" openaev-model/ openaev-api/
   ```
-- Each native query MUST include `WHERE tenant_id = :tenantId` or join via tenant
+- Each one follows [multi-tenancy › Critical Rules](../../../.github/instructions/multi-tenancy.instructions.md#critical-rules) 1 and 2
 - Tenant relation must be `@JsonIgnore` — never in API output
 
 ### Step 3 — Check data exposure

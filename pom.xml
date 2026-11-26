@@ -52,7 +52,7 @@
         <micrometer.version>1.17.2</micrometer.version>
         <micrometer-tracing.version>1.7.2</micrometer-tracing.version>
         <freemarker.version>2.3.35</freemarker.version>
-        <postgresql.version>42.7.14</postgresql.version>
+        <postgresql.version>42.7.15</postgresql.version>
     </properties>
 
     <distributionManagement>
