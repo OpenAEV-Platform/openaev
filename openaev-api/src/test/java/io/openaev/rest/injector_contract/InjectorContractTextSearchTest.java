@@ -9,9 +9,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
@@ -152,6 +154,114 @@ class InjectorContractTextSearchTest extends IntegrationTest {
   }
 
   @Nested
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("Through the parent technique of a linked attack pattern (#9905)")
+  class ThroughTheParentTechnique {
+
+    private AttackPattern persistedParent(String externalId, String name) {
+      AttackPattern parent = attackPattern(externalId, name);
+      attackPatternComposer.forAttackPattern(parent).persist();
+      entityManager.flush();
+      return parent;
+    }
+
+    private AttackPattern child(AttackPattern parent, String externalId, String name) {
+      AttackPattern child = attackPattern(externalId, name);
+      child.setParent(parent);
+      return child;
+    }
+
+    private List<String> contractIds(String textSearch) throws Exception {
+      String response = search(textSearch).andReturn().getResponse().getContentAsString();
+      return JsonPath.read(response, "$.content[*].injector_contract_id");
+    }
+
+    @Test
+    @DisplayName("A contract linked only to a sub-technique is found once by its parent's name")
+    void given_parent_name_should_return_the_sub_technique_contract_once() throws Exception {
+      String parentName = "Boot or Logon Autostart Execution " + UUID.randomUUID();
+      AttackPattern parent = persistedParent("T1547", parentName);
+      InjectorContract contract =
+          persistContract(
+              "Create a new Registry Key for Autorun " + UUID.randomUUID(),
+              child(parent, "T1547.001", "Registry Run Keys / Startup Folder"));
+
+      search(parentName)
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content[0].injector_contract_id").value(contract.getId()));
+    }
+
+    @Test
+    @DisplayName("A contract linked to both the parent and a child is returned once")
+    void given_parent_and_child_linked_should_return_the_contract_once() throws Exception {
+      String parentName = "Boot or Logon Autostart Execution " + UUID.randomUUID();
+      AttackPattern parent = persistedParent("T1547", parentName);
+      InjectorContract contract =
+          persistContract(
+              "Autorun " + UUID.randomUUID(),
+              parent,
+              child(parent, "T1547.001", "Registry Run Keys / Startup Folder"));
+
+      search(parentName)
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content[0].injector_contract_id").value(contract.getId()));
+    }
+
+    @Test
+    @DisplayName("The parent's external id and the parent's name return the same contracts")
+    void given_parent_external_id_or_name_should_return_the_same_contracts() throws Exception {
+      String parentName = "Boot or Logon Autostart Execution " + UUID.randomUUID();
+      AttackPattern parent = persistedParent("T1547", parentName);
+      InjectorContract first =
+          persistContract(
+              "Autorun " + UUID.randomUUID(),
+              child(parent, "T1547.001", "Registry Run Keys / Startup Folder"));
+      InjectorContract second =
+          persistContract(
+              "Winlogon " + UUID.randomUUID(),
+              child(parent, "T1547.004", "Winlogon Helper DLL"));
+
+      // The fixture suffixes the external id, so the parent id is no prefix of its children's ids:
+      // only the parent path can match them.
+      List<String> byExternalId = contractIds(parent.getExternalId());
+      List<String> byName = contractIds(parentName);
+
+      assertThat(byName).containsExactlyInAnyOrder(first.getId(), second.getId());
+      assertThat(byExternalId).containsExactlyInAnyOrderElementsOf(byName);
+    }
+
+    @Test
+    @DisplayName("The attack pattern filter still matches the directly linked patterns only")
+    void given_parent_external_id_filter_should_not_match_sub_technique_contracts()
+        throws Exception {
+      AttackPattern parent =
+          persistedParent("T1547", "Boot or Logon Autostart Execution " + UUID.randomUUID());
+      InjectorContract childOnly =
+          persistContract(
+              "Autorun " + UUID.randomUUID(),
+              child(parent, "T1547.001", "Registry Run Keys / Startup Folder"));
+      InjectorContract parentLinked = persistContract("Parent " + UUID.randomUUID(), parent);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "injector_contract_attack_patterns",
+              parent.getExternalId(),
+              Filters.FilterOperator.eq);
+      mvc.perform(
+              post("/api/injector_contracts/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.content[*].injector_contract_id", hasItem(parentLinked.getId())))
+          .andExpect(
+              jsonPath("$.content[*].injector_contract_id", not(hasItem(childOnly.getId()))));
+    }
+  }
+
+  @Nested
   @DisplayName("Searchable properties")
   class SearchableProperties {
 
@@ -174,6 +284,10 @@ class InjectorContractTextSearchTest extends IntegrationTest {
           .isEqualTo("attackPatterns.name");
       assertThat(searchable.get("getPayloadDescription").getPath())
           .isEqualTo("payload.description");
+      assertThat(searchable.get("getAttackPatternParentNames").getPath())
+          .isEqualTo("attackPatterns.parent.name");
+      assertThat(searchable.get("getAttackPatternParentExternalIds").getPath())
+          .isEqualTo("attackPatterns.parent.externalId");
     }
 
     @Test
@@ -181,7 +295,12 @@ class InjectorContractTextSearchTest extends IntegrationTest {
     void attackPatternNameAndPayloadDescriptionAreSearchOnly() {
       Map<String, PropertySchema> searchable = searchableByName();
 
-      for (String name : List.of("getAttackPatternNames", "getPayloadDescription")) {
+      for (String name :
+          List.of(
+              "getAttackPatternNames",
+              "getPayloadDescription",
+              "getAttackPatternParentNames",
+              "getAttackPatternParentExternalIds")) {
         assertThat(searchable.get(name).isFilterable()).isFalse();
         assertThat(searchable.get(name).isSortable()).isFalse();
       }

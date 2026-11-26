@@ -521,6 +521,46 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
         .toList();
   }
 
+  /**
+   * Text search only (#9905): the free-text search also matches the name of the parent technique
+   * of a linked attack pattern, so "Boot or Logon Autostart Execution" (T1547) finds a contract
+   * linked only to T1547.001, as the external id "T1547" already does. Kept off {@link
+   * #attackPatterns} so the attack pattern filter keeps matching the directly linked patterns
+   * alone. Neither filterable nor sortable; the search query groups by contract, so a contract
+   * linked to both a parent and its child is returned once.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.parent.name")
+  public List<String> getAttackPatternParentNames() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getParent)
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getName)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  /**
+   * Text search only (#9905): the free-text search also matches the external id of the parent
+   * technique of a linked attack pattern, so a parent id finds its sub-techniques' contracts
+   * without relying on the id format ("T1547" being a prefix of "T1547.001"). Same scope as {@link
+   * #getAttackPatternParentNames()}: neither filterable nor sortable.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.parent.externalId")
+  public List<String> getAttackPatternParentExternalIds() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getParent)
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getExternalId)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
   /** Text search only (#9876): the free-text search also matches the payload description. */
   @JsonIgnore
   @Queryable(searchable = true, path = "payload.description")
