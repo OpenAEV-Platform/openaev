@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogItemStatus;
+import io.openaev.service.catalog.CatalogRevocations;
 import io.openaev.service.catalog.payload.CatalogPayloadStatuses.Snapshot;
 import io.openaev.service.catalog.payload.CatalogPayloadStatuses.Version;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +23,8 @@ class CatalogPayloadStatusesTest {
 
   private final Snapshot snapshot =
       new Snapshot(
-          Map.of(REVOKED, CatalogItemStatus.REVOKED, VERIFIED, CatalogItemStatus.VERIFIED));
+          Map.of(REVOKED, CatalogItemStatus.REVOKED, VERIFIED, CatalogItemStatus.VERIFIED),
+          new CatalogRevocations(Map.of("dump", Set.of("1.0.0")), Set.of()));
 
   private static Payload installed(String version) {
     Payload payload = new Command();
@@ -35,7 +38,7 @@ class CatalogPayloadStatusesTest {
   @DisplayName("A revoked version is revoked and never cleared")
   void given_revokedVersion_should_revokeIt() {
     // Act & Assert
-    assertThat(snapshot.revoked()).containsExactly(REVOKED);
+    assertThat(snapshot.revokedExternalIds()).containsExactly("dump");
     assertThat(snapshot.revokes(installed("1.0.0"))).isTrue();
     assertThat(snapshot.clears(installed("1.0.0"))).isFalse();
   }

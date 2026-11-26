@@ -719,6 +719,26 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
           .containsExactly(REVOKED_BY_FILIGRAN, true);
     }
 
+    @Test
+    @DisplayName("revokes every installed version of a payload whose newest version is revoked")
+    void given_newestVersionRevokedByRelease_should_revokeTheInstalledOne() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      publish(
+          "1.261110.0",
+          new Released("1.0.0", "VERIFIED", RELEASED),
+          new Released("1.1.0", "REVOKED", RELEASED));
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(revocation(payloadId))
+          .get()
+          .extracting(PayloadRevocation::isByCatalogue)
+          .isEqualTo(true);
+    }
+
     static Stream<Arguments> laterReleases() {
       return Stream.of(
           Arguments.of("verified again, revoked by the release", false, "VERIFIED", false),

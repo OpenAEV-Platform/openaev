@@ -108,9 +108,9 @@ public class PayloadRevocationService {
     Map<String, PayloadRevocation> revocations =
         payloadRevocationRepository.findAllByTenantId(tenantId).stream()
             .collect(Collectors.toMap(r -> r.getPayload().getId(), Function.identity()));
-    for (CatalogPayloadStatuses.Version revoked : catalogue.revoked()) {
-      payloadService.versions(tenantId, revoked.externalId()).stream()
-          .filter(revoked::is)
+    for (String externalId : catalogue.revokedExternalIds()) {
+      payloadService.versions(tenantId, externalId).stream()
+          .filter(catalogue::revokes)
           .filter(payload -> !revocations.containsKey(payload.getId()))
           .forEach(
               payload -> payloadRevocationRepository.save(PayloadRevocation.byCatalogue(payload)));
