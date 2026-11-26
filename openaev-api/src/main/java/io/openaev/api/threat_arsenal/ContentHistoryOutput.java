@@ -53,7 +53,8 @@ public record ContentHistoryOutput(
    *
    * <ul>
    *   <li>explicit approve, reject, move back to pending: the approver, and the reason or comment;
-   *   <li>automatic approval: its author, or no user with the source (platform or Filigran);
+   *   <li>automatic approval: its author, or no user with the source (platform, Filigran, or the
+   *       upgrade that introduced payload approval);
    *   <li>superseded: the user whose newer version replaced it.
    * </ul>
    */
@@ -83,6 +84,10 @@ public record ContentHistoryOutput(
         action = ContentHistory.ACTION.APPROVE;
         if (entry.getOrigin() == PayloadApproval.ORIGIN.CATALOG) {
           details.put("source", "catalog");
+          user = null;
+        } else if (entry.getOrigin() == PayloadApproval.ORIGIN.MIGRATION) {
+          // Versions that existed before payload approval: approved by the upgrade, not by anyone.
+          details.put("source", "upgrade");
           user = null;
         } else if (user == null) {
           details.put("source", "platform");

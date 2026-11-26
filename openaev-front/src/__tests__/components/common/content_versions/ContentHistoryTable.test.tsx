@@ -116,6 +116,21 @@ describe('ContentHistoryTable: approval decisions (#9816)', () => {
     expect(within(rows[1]).getByText('Filigran')).toBeTruthy();
   });
 
+  it('given a version approved by the upgrade should say so and name no user', () => {
+    // Arrange / Act
+    renderTable([entry({
+      content_history_action: 'APPROVE',
+      content_history_automatic: true,
+      content_history_version: '1.0.0',
+      content_history_details: { source: 'upgrade' },
+    })]);
+
+    // Assert
+    const row = screen.getByText('Approved when payload approval was introduced').closest('tr') as HTMLElement;
+    expect(within(row).queryByText('Platform')).toBeNull();
+    expect(screen.queryByText('Auto-approved')).toBeNull();
+  });
+
   it('given a superseded version should show it', () => {
     // Arrange / Act
     renderTable([entry({
