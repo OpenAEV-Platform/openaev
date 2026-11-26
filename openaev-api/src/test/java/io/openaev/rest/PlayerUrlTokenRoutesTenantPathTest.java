@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.FileService;
@@ -227,6 +228,12 @@ class PlayerUrlTokenRoutesTenantPathTest extends IntegrationTest {
 
   @Nested
   @DisplayName("on the non-prefixed route, which names no tenant and which nothing emits")
+  @WaivesUnscopedReads(
+      value =
+          "the route names no tenant, so its scope is empty: the channel of the player articles"
+              + " route is read by id before the simulation, finds no channel and the route answers"
+              + " 404, the refusal this test asserts",
+      reads = {"io.openaev.service.ChannelService.validateArticles tables=channels"})
   class OnTheNonPrefixedRoute {
 
     @ParameterizedTest(name = "{0}")

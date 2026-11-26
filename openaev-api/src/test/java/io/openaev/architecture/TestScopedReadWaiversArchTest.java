@@ -41,7 +41,7 @@ class TestScopedReadWaiversArchTest {
   static final String RESOURCE = "/test-scoped-read-waivers.txt";
 
   /** The number of lines of {@value #RESOURCE}. Lower it, never raise it without a review. */
-  static final int SIZE = 28;
+  static final int SIZE = 27;
 
   private static final List<Class<? extends Annotation>> WAIVERS =
       List.of(ExpectsEmptyScopeReads.class, WaivesUnscopedReads.class);

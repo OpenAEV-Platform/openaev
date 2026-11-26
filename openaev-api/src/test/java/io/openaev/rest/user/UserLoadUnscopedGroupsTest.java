@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.ExpectsEmptyScopeReads;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -201,8 +202,19 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
       assertThat(storedGroupIds()).containsExactlyInAnyOrder(platformGroupId, tenantGroupId);
     }
 
-    @ExpectsEmptyScopeReads("an operator of no tenant updates its profile with no scope")
     @Test
+    @WaivesUnscopedReads(
+        value =
+            "an operator of no tenant updates the profile with an empty scope: the reload of the"
+                + " user reads none of its tags, teams and organizations, nor its tenant group in the"
+                + " tag replacement, and the test asserts that the tenant group stays linked",
+        reads = {
+          "io.openaev.service.UserService.replaceTags tables=groups,tags",
+          "io.openaev.service.UserService.loadStreamedAssociations tables=tags,teams",
+          "io.openaev.database.model.User.loadOrganizations tables=organizations",
+          "io.openaev.database.model.User.organizationOfTenant tables=organizations",
+          "io.openaev.helper.MultiIdListSerializer.serialize tables=teams"
+        })
     @DisplayName("given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges")
     void given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges() {
       // Arrange: the user stays in its tenant, so no group is attached or detached
