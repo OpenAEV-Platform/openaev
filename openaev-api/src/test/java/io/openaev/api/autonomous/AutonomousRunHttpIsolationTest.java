@@ -684,6 +684,73 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
       assertRunAndSimulationIn(response, scenarioId, tenantA);
     }
 
+    // The scope rule seeded by the launch / plan: a manual rule needs no asset in any tenant, and
+    // writing it makes the workflow realign read its scope in the workflow's own tenant.
+    private static final String MANUAL_RULE_BODY =
+        "{\"scope_rules\": [{\"workflow_scope_rule_selected_mode\": \"ALLOWLIST\","
+            + " \"workflow_scope_rule_source\": \"MANUAL\","
+            + " \"workflow_scope_rule_value\": \"%s\"}]}";
+
+    @Test
+    @DisplayName(
+        "given_callerInSeveralTenantsAndNoSelector_should_launchFromScenarioWithScopeRules")
+    void given_callerInSeveralTenantsAndNoSelector_should_launchFromScenarioWithScopeRules()
+        throws Exception {
+      // Arrange: the legacy route sends no X-Tenant-Ids, so the request scope is every tenant of
+      // the caller, wider than the one tenant the scope rules are written in.
+      setDefaultTenantMembership(true);
+      String scenarioId = seedChainingScenario(tenantA);
+      TenantContext.clearCurrentTenant();
+      String ruleValue = "10.20.30.40";
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PLAIN + "/from-scenario/{scenarioId}", scenarioId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(MANUAL_RULE_BODY.formatted(ruleValue)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertRunAndSimulationIn(response, scenarioId, tenantA);
+      assertThat(rawCount("workflow_scope_rules", "workflow_scope_rule_value", ruleValue))
+          .isPositive();
+    }
+
+    @Test
+    @DisplayName("given_callerInSeveralTenantsAndNoSelector_should_planScenarioWithScopeRules")
+    void given_callerInSeveralTenantsAndNoSelector_should_planScenarioWithScopeRules()
+        throws Exception {
+      // Arrange
+      setDefaultTenantMembership(true);
+      String scenarioId = seedChainingScenario(tenantA);
+      TenantContext.clearCurrentTenant();
+      String ruleValue = "10.20.30.50";
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PLAIN + "/plan-scenario/{scenarioId}", scenarioId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(MANUAL_RULE_BODY.formatted(ruleValue)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+      assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+          .isEqualTo(tenantA);
+      assertThat(rawCount("workflow_scope_rules", "workflow_scope_rule_value", ruleValue))
+          .isEqualTo(1L);
+    }
+
     @Test
     @DisplayName(
         "given_scenarioInTenantOutsideCallerMemberships_should_answerNotFoundAndWriteNothing")

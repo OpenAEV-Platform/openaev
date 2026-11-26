@@ -4,8 +4,10 @@ import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.StepMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
@@ -30,6 +32,7 @@ public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
   private final StepTargetingService stepTargetingService;
+  private final ScopeSnapshotService scopeSnapshotService;
 
   private final InjectService injectService;
   private final ConditionService conditionService;
@@ -1129,6 +1132,33 @@ public class StepService {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
   }
 
+  /** Maps a step template for the current reader, see {@link #toReaderOutputs}. */
+  public StepOutput toReaderOutput(Step step) {
+    return toReaderOutputs(List.of(step)).getFirst();
+  }
+
+  /**
+   * Maps the templates for the current reader. A template stores its asset perimeter as a list of
+   * ids in its data, outside the reach of the marking filter, so the ids of the assets the reader
+   * is not cleared for are taken out here (one lookup for every template).
+   */
+  public List<StepOutput> toReaderOutputs(List<Step> steps) {
+    Set<String> assetIds =
+        steps.stream()
+            .flatMap(step -> StepMapper.assetIdsOf(step).stream())
+            .collect(Collectors.toSet());
+    Set<String> hidden =
+        assetIds.isEmpty()
+            ? Set.of()
+            : scopeSnapshotService.hiddenAssetIds(tenantIdOf(steps.getFirst()), assetIds);
+    return steps.stream().map(step -> StepMapper.toOutput(step, hidden)).toList();
+  }
+
+  private static String tenantIdOf(Step step) {
+    Workflow workflow = step.getWorkflow();
+    return workflow == null || workflow.getTenant() == null ? null : workflow.getTenant().getId();
+  }
+
   /** The scenario step templates creating an inject of this contract in the tenant. */
   @Transactional(readOnly = true)
   public List<Step> findScenarioStepTemplatesByContract(String tenantId, String contractId) {
@@ -1253,7 +1283,7 @@ public class StepService {
     // Apply updated fields from the candidate to the existing persistent entity
     existing.setStepAction(updatedCandidate.getStepAction());
     existing.setLimitExecution(updatedCandidate.getLimitExecution());
-    existing.setData(updatedCandidate.getData());
+    existing.setData(keepingHiddenScopeAssets(existing, updatedCandidate.getData()));
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
 
@@ -1266,6 +1296,46 @@ public class StepService {
     stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
     conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
     return saveStep(existing);
+  }
+
+  /**
+   * The new template data, with back the assets the template carried that the writer is not cleared
+   * for and that are still in the workflow scope. The writer submits the perimeter it was shown,
+   * which {@link #toReaderOutputs} cut of those assets, so replacing the data with it would strip
+   * them for everyone. An asset the scope no longer holds is not kept: the scope save drops it too.
+   */
+  private String keepingHiddenScopeAssets(Step existing, String newData) {
+    List<String> before = StepMapper.assetIdsOf(existing);
+    if (before.isEmpty() || newData == null) {
+      return newData;
+    }
+    String tenantId = tenantIdOf(existing);
+    Set<String> hidden = scopeSnapshotService.hiddenAssetIds(tenantId, before);
+    if (hidden.isEmpty()) {
+      return newData;
+    }
+    Set<String> kept =
+        scopeSnapshotService.assetIdsInScope(tenantId, existing.getWorkflow().getId(), hidden);
+    try {
+      JsonObject dataObject = JsonParser.parseString(newData).getAsJsonObject();
+      JsonElement assets = dataObject.get("inject_assets");
+      if (kept.isEmpty() || assets == null || !assets.isJsonArray()) {
+        return newData;
+      }
+      Set<String> submitted = new HashSet<>();
+      assets.getAsJsonArray().forEach(asset -> submitted.add(asset.getAsString()));
+      before.stream()
+          .filter(kept::contains)
+          .filter(submitted::add)
+          .forEach(assets.getAsJsonArray()::add);
+      return dataObject.toString();
+    } catch (Exception e) {
+      log.warn(
+          "[Chaining] Failed to keep the hidden scope assets on step template {}: {}",
+          existing.getId(),
+          e.getMessage());
+      return newData;
+    }
   }
 
   /**
