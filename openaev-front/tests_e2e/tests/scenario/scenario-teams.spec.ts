@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
+import { disableAnimations } from '../../utils/animations';
 import { tenantUrl } from '../../utils/url';
 
 test.describe('Scenario - Teams management', () => {
@@ -12,16 +13,7 @@ test.describe('Scenario - Teams management', () => {
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
     scenarioPage = new ScenarioPage(page);
-    await page.addInitScript(() => {
-      const style = document.createElement('style');
-      style.innerHTML = `
-        *, *::before, *::after {
-          transition: none !important;
-          animation: none !important;
-        }
-      `;
-      document.head.appendChild(style);
-    });
+    await disableAnimations(page);
     // Teams management now lives in the hero "Configuration" drawer (teams tab).
     await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}`));
     await page.waitForLoadState('domcontentloaded');
