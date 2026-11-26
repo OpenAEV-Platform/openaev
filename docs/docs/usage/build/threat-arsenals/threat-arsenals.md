@@ -93,7 +93,7 @@ Users without *Approve content* do not see **Approve**, **Reject** or **Move to 
 
 ### Reviewing a version
 
-Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Submitted by*. These two tabs are built in: their filters can be changed while you look, not saved.
+Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Last edited by*: who last saved the version, not its first author. The approval panel and the cards show that person and the date of that save; *Unknown* when nobody is recorded. These two tabs are built in: their filters can be changed while you look, not saved.
 
 To approve or reject, click **Review** on the Action, or open it and go to its *Versions* tab. The version waiting for approval shows:
 

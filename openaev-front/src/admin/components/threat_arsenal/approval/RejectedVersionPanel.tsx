@@ -3,6 +3,7 @@ import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import { lastEdited } from './lastEdited';
 import PayloadVersionComparison from './PayloadVersionComparison';
 import useVersionChanges from './useVersionChanges';
 import useVersionDetails from './useVersionDetails';
@@ -25,7 +26,7 @@ const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) =
   const rejection = details.history.find(entry => entry.approval_status === 'REJECTED') ?? null;
 
   const who = [
-    details.authorName ? t('Submitted by {name}', { name: details.authorName }) : null,
+    t('Last edited by {name}', { name: lastEdited(version).name ?? t('Unknown') }),
     rejection ? t('Rejected by {name}', { name: rejection.approval_actor_name ?? t('Platform') }) : null,
     rejection ? nsdt(rejection.approval_created_at) : null,
   ].filter(Boolean).join(' · ');

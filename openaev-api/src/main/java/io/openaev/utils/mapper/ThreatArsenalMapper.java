@@ -152,6 +152,7 @@ public class ThreatArsenalMapper {
         null,
         null,
         null,
+        null,
         null);
   }
 
@@ -300,6 +301,9 @@ public class ThreatArsenalMapper {
                 .orElse(null)
             : null,
         payload.getId(),
-        payload.getVersion());
+        payload.getVersion(),
+        payload.getId() != null
+            ? payloadApprovalService.lastSavedAt(payload.getId()).orElse(payload.getCreatedAt())
+            : null);
   }
 }

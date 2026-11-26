@@ -206,11 +206,11 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         },
       ]),
     },
-    // Authors only see their own changes: who submitted them says nothing there.
+    // Authors only see their own changes: who last edited them says nothing there.
     ...(mode === 'to-review'
       ? [{
           id: 'author',
-          label: t('Submitted by'),
+          label: t('Last edited by'),
           rows: rows('author', present('author').map(author => ({
             value: author,
             label: author,
@@ -246,7 +246,10 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       onDelete={() => waiting.remove(item.action.injector_contract_id)}
       onRunTest={() => undefined}
       showRunTest={false}
-      review={{ submittedBy: item.full?.action_last_modified_by_name ?? undefined }}
+      review={{
+        lastEditedBy: item.full?.action_last_modified_by_name ?? undefined,
+        lastEditedAt: item.full?.action_last_edited_at ?? undefined,
+      }}
       primaryAction={{
         // Only a pending version has something to decide; a decided one is only looked at.
         label: mode === 'to-review' && context.status(item) === 'PENDING' ? t('Review') : t('View'),

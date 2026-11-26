@@ -48,8 +48,6 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   rejectThreatArsenalAction: (...args: unknown[]) => mockReject(...args),
 }));
 
-vi.mock('../../../../../admin/components/threat_arsenal/approval/useVersionDetails', () => ({ default: () => ({ authorName: 'Author User' }) }));
-
 vi.mock('../../../../../admin/components/threat_arsenal/approval/useVersionChanges', () => ({ default: () => [] }));
 
 vi.mock('../../../../../admin/components/threat_arsenal/approval/PayloadVersionComparison', () => ({ default: () => null }));
@@ -64,10 +62,10 @@ const pendingVersion = {
   payload_approval_status: 'PENDING',
 } as unknown as PayloadVersionOutput;
 
-const renderPanel = (onDecided = vi.fn()) => render(
+const renderPanel = (onDecided = vi.fn(), version = pendingVersion) => render(
   <ThemeProvider theme={createTheme()}>
     <TooltipProvider>
-      <VersionApprovalPanel version={pendingVersion} onDecided={onDecided} />
+      <VersionApprovalPanel version={version} onDecided={onDecided} />
     </TooltipProvider>
   </ThemeProvider>,
 );
@@ -140,5 +138,42 @@ describe('VersionApprovalPanel: approval rights refresh (#8410)', () => {
     // Assert
     expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Reject/ })).toBeNull();
+  });
+});
+
+describe('VersionApprovalPanel: who last edited the version (US1.2 AC11)', () => {
+  beforeEach(() => {
+    mockCan.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it('given a version last saved by someone else than its author should name the last editor', () => {
+    // Arrange
+    const version = {
+      ...pendingVersion,
+      payload_last_modified_by_name: 'Fixer User',
+      payload_created_at: '2026-11-01T10:00:00Z',
+      payload_last_edited_at: '2026-11-20T10:00:00Z',
+    } as unknown as PayloadVersionOutput;
+
+    // Act
+    renderPanel(vi.fn(), version);
+
+    // Assert
+    expect(screen.getByText('Fixer User')).toBeTruthy();
+    expect(screen.getByText(/Last edited · 2026-11-20T10:00:00Z/)).toBeTruthy();
+    expect(screen.queryByText(/Submitted/)).toBeNull();
+  });
+
+  it('given nobody recorded as last editor should say Unknown', () => {
+    // Arrange / Act
+    renderPanel();
+
+    // Assert
+    expect(screen.getByText(/Last edited by \{name\}|Last edited by Unknown/)).toBeTruthy();
   });
 });

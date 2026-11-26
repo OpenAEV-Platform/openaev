@@ -10532,6 +10532,9 @@ export interface PayloadVersionOutput {
   /** @format date-time */
   payload_published_at?: string;
   payload_rejection_reason?: string;
+  /** Format: date-time */
+  payload_last_edited_at?: string;
+  payload_last_modified_by_name?: string;
   payload_revoked?: boolean;
   payload_revoked_in_tenant?: boolean;
   payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
@@ -13748,6 +13751,8 @@ export interface ThreatArsenalActionFullOutput {
   /** Id of the payload version the action runs, null for payload-less actions */
   action_payload_id?: string;
   /** Number of the payload version the action runs (e.g. 1.2.0) */
+  /** Format: date-time */
+  action_last_edited_at?: string;
   action_payload_version?: string;
   /** Supported endpoint platforms for this action */
   action_platforms?: (

@@ -5109,10 +5109,6 @@
   "show them in the list": "在列表中显示",
   "Slice by": "切分依据",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "基于“{view}”及当前的搜索、筛选和切分创建。它会以新标签页打开。",
-  "Submitted": "提交时间",
-  "Submitted by": "提交人",
-  "Submitted by {name}": "由 {name} 提交",
-  "Submitted by a collector": "由采集器提交",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "已作为新版本提交审批。在审批人做出决定之前，已批准的版本会继续运行。",
   "Submitted for approval. It can be used once an approver approves it.": "已提交审批。审批人批准后即可使用。",
   "Submitted this version": "提交了此版本",
@@ -5220,5 +5216,8 @@
   "Source IP": "源 IP",
   "Destination IP": "目标 IP",
   "Source port": "源端口",
-  "Destination port": "目标端口"
+  "Destination port": "目标端口",
+  "Last edited by": "最后编辑者",
+  "Last edited by {name}": "最后编辑者：{name}",
+  "Last edited": "最后编辑"
 }

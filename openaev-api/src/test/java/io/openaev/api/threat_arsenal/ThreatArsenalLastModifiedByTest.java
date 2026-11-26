@@ -206,8 +206,8 @@ class ThreatArsenalLastModifiedByTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("A collector upsert is not attributed to a user")
-  void given_upsert_should_clearLastModifiedBy() throws Exception {
+  @DisplayName("A collector upsert records the account the collector calls with")
+  void given_upsert_should_recordCallingAccount() throws Exception {
     // -- ARRANGE --
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     PayloadUpsertInput upsertInput =
@@ -224,13 +224,10 @@ class ThreatArsenalLastModifiedByTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
     String payloadId = JsonPath.read(created, "$.payload_id");
-    Payload payload = reload(payloadId);
-    assertThat(payload.getLastModifiedBy()).isNull();
+    String callingAccountId = testUserHolder.get().getId();
+    assertThat(reload(payloadId).getLastModifiedBy().getId()).isEqualTo(callingAccountId);
 
-    // A collector update of a user-attributed payload adds a version that no user wrote.
-    payload.setLastModifiedBy(testUserHolder.get());
-    payloadRepository.save(payload);
-    entityManager.flush();
+    // A re-sync with new content adds a version saved by the same account.
     upsertInput.setContent("echo re-synced");
 
     // -- ACT --
@@ -248,7 +245,7 @@ class ThreatArsenalLastModifiedByTest extends IntegrationTest {
     // -- ASSERT --
     String newVersionId = JsonPath.read(resynced, "$.payload_id");
     assertThat(newVersionId).isNotEqualTo(payloadId);
-    assertThat(reload(newVersionId).getLastModifiedBy()).isNull();
+    assertThat(reload(newVersionId).getLastModifiedBy().getId()).isEqualTo(callingAccountId);
   }
 
   @Test

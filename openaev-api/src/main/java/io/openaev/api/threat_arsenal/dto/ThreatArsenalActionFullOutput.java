@@ -125,4 +125,10 @@ public record ThreatArsenalActionFullOutput(
         String payloadId,
     @Schema(description = "Number of the payload version the action runs (e.g. 1.2.0)")
         @JsonProperty("action_payload_version")
-        String payloadVersion) {}
+        String payloadVersion,
+    @Schema(
+            description =
+                "When the payload version the action runs was last saved (its creation, or a"
+                    + " rejected version fixed and sent again)")
+        @JsonProperty("action_last_edited_at")
+        Instant lastEditedAt) {}

@@ -5109,10 +5109,6 @@
   "show them in the list": "show them in the list",
   "Slice by": "Slice by",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.",
-  "Submitted": "Submitted",
-  "Submitted by": "Submitted by",
-  "Submitted by {name}": "Submitted by {name}",
-  "Submitted by a collector": "Submitted by a collector",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "Submitted for approval as a new version. The approved version keeps running until an approver decides.",
   "Submitted for approval. It can be used once an approver approves it.": "Submitted for approval. It can be used once an approver approves it.",
   "Submitted this version": "Submitted this version",
@@ -5220,5 +5216,8 @@
   "Source IP": "Source IP",
   "Destination IP": "Destination IP",
   "Source port": "Source port",
-  "Destination port": "Destination port"
+  "Destination port": "Destination port",
+  "Last edited by": "Last edited by",
+  "Last edited by {name}": "Last edited by {name}",
+  "Last edited": "Last edited"
 }

@@ -18,10 +18,13 @@ import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.SemanticVersion;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -292,6 +295,29 @@ public class PayloadApprovalService {
   /** The latest entry of the approval history of a version. */
   public Optional<PayloadApproval> latest(@NotNull final String payloadId) {
     return payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtDesc(payloadId);
+  }
+
+  // Entries that record a save of the version's content, not a decision on it.
+  private static final Set<ORIGIN> WRITE_ORIGINS =
+      EnumSet.of(
+          ORIGIN.CREATE,
+          ORIGIN.UPDATE,
+          ORIGIN.DUPLICATE,
+          ORIGIN.IMPORT,
+          ORIGIN.COLLECTOR,
+          ORIGIN.CATALOG,
+          ORIGIN.SYSTEM,
+          ORIGIN.MIGRATION);
+
+  /**
+   * When the version's content was last saved: its creation, or a rejected version fixed and sent
+   * again. Decisions (approve, reject, move back to pending, supersede) do not count.
+   */
+  public Optional<Instant> lastSavedAt(@NotNull final String payloadId) {
+    return history(payloadId).stream()
+        .filter(entry -> WRITE_ORIGINS.contains(entry.getOrigin()))
+        .map(PayloadApproval::getCreatedAt)
+        .findFirst();
   }
 
   private void pending(Payload version, User actor, ORIGIN origin) {

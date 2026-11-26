@@ -24,4 +24,7 @@ public record PayloadVersionOutput(
     // Payload approval: null for a catalogue version not installed.
     @JsonProperty("payload_approval_status") Payload.PAYLOAD_APPROVAL_STATUS approvalStatus,
     // Why a rejected version was rejected (its latest rejection); null otherwise.
-    @JsonProperty("payload_rejection_reason") String rejectionReason) {}
+    @JsonProperty("payload_rejection_reason") String rejectionReason,
+    // Who last saved the version and when: what the approver sees ("Last edited by").
+    @JsonProperty("payload_last_modified_by_name") String lastModifiedByName,
+    @JsonProperty("payload_last_edited_at") Instant lastEditedAt) {}

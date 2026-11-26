@@ -218,8 +218,9 @@ public class PayloadUpsertService {
     Payload payload = payloadType.getPayloadSupplier().get();
     payload.setTenant(new Tenant(tenantId));
     payloadUtils.copyProperties(input, payload, false);
-    // A collector write is not a user's modification.
-    payload.setLastModifiedBy(null);
+    // Saved by the account the collector calls with (the integrations service account when
+    // deployed from the catalog); null outside an authenticated request.
+    payload.setLastModifiedBy(userService.currentUserOrNull());
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
@@ -285,8 +286,8 @@ public class PayloadUpsertService {
 
     Payload candidate = payloadService.copyForNewVersion(current);
     payloadUtils.copyProperties(input, candidate, false);
-    // A collector write is not a user's modification.
-    candidate.setLastModifiedBy(null);
+    // Saved by the account the collector calls with, like its approval status.
+    candidate.setLastModifiedBy(userService.currentUserOrNull());
     if (collectorOrganization != null) {
       candidate.setAuthorOrganization(collectorOrganization);
     }

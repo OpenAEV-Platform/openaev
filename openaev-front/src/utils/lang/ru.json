@@ -5109,10 +5109,6 @@
   "show them in the list": "показать в списке",
   "Slice by": "Разбить по",
   "Starts from \"{view}\" with the current search, filters and slice. It opens as a new tab.": "Начинается с «{view}» с текущим поиском, фильтрами и разбиением. Открывается в новой вкладке.",
-  "Submitted": "Отправлено",
-  "Submitted by": "Отправил",
-  "Submitted by {name}": "Отправлено: {name}",
-  "Submitted by a collector": "Отправлено коллектором",
   "Submitted for approval as a new version. The approved version keeps running until an approver decides.": "Отправлено на утверждение как новая версия. Утверждённая версия продолжает работать, пока утверждающий не примет решение.",
   "Submitted for approval. It can be used once an approver approves it.": "Отправлено на утверждение. Его можно будет использовать после утверждения.",
   "Submitted this version": "Отправил(а) эту версию",
@@ -5220,5 +5216,8 @@
   "Source IP": "IP-адрес источника",
   "Destination IP": "IP-адрес назначения",
   "Source port": "Порт источника",
-  "Destination port": "Порт назначения"
+  "Destination port": "Порт назначения",
+  "Last edited by": "Последнее изменение",
+  "Last edited by {name}": "Последнее изменение: {name}",
+  "Last edited": "Последнее изменение"
 }
