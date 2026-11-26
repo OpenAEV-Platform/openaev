@@ -34,6 +34,7 @@ import os
 import subprocess
 import sys
 import zipfile
+from xml.parsers import expat
 
 from jacoco_lines import line_totals, report_lines
 
@@ -107,12 +108,22 @@ def main() -> int:
         head_covered, head_total = line_coverage(report.read())
     head = 100 * head_covered / head_total
 
-    # An API or artifact error is a CI fault, not a coverage drop: like a missing report, it leaves
-    # the drop unmeasured, says so, and passes, so that it never blocks a pull request.
+    # An API or artifact error, or an unreadable report of main, is a CI fault, not a coverage drop:
+    # like a missing report, it leaves the drop unmeasured, says so, and passes, so that it never
+    # blocks a pull request. The pull request's own report is read above, and its errors stay fatal.
     try:
         base_sha = main_tip(repo, args.main_branch)
         base = find_base_report(repo, base_sha, args.main_branch)
-    except (subprocess.CalledProcessError, KeyError, ValueError, zipfile.BadZipFile) as error:
+        if base is not None:
+            found_sha, base_xml = base
+            base_covered, base_total = line_coverage(base_xml)
+    except (
+        subprocess.CalledProcessError,
+        KeyError,
+        ValueError,
+        zipfile.BadZipFile,
+        expat.ExpatError,
+    ) as error:
         detail = getattr(error, "stderr", b"") or b""
         print(
             f"Could not read the {ARTIFACT} report of {args.main_branch}: {error} "
@@ -127,8 +138,6 @@ def main() -> int:
         )
         return 0
 
-    found_sha, base_xml = base
-    base_covered, base_total = line_coverage(base_xml)
     base_cov = 100 * base_covered / base_total
     drop = base_cov - head
     compared = found_sha[:10]
