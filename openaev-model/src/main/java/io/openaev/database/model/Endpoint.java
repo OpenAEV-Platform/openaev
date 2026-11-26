@@ -143,6 +143,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("endpoint_is_eol"))
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_is_eol")
   @JsonProperty("endpoint_is_eol")
   private boolean isEoL;

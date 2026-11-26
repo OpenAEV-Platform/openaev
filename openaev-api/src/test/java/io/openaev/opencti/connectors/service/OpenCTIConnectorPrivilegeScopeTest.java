@@ -13,7 +13,6 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Mutation;
 import io.openaev.opencti.client.mutations.Ping;
-import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.config.OpenCTIConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
@@ -135,8 +134,6 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
         CONNECTOR_TENANT_ID,
         "connector-scope-" + CONNECTOR_TENANT_ID);
 
-    when(openCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-        .thenReturn(ResponseFixture.getSchemaResponseWithJwks());
     when(openCTIClient.execute(any(), any(), any(RegisterConnector.class)))
         .thenReturn(ResponseFixture.getOkResponse());
     when(openCTIClient.execute(any(), any(), any(Ping.class)))

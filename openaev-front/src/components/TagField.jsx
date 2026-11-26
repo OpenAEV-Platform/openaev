@@ -48,14 +48,15 @@ class TagFieldComponent extends Component {
     this.props.addTag(data).then((result) => {
       if (result.result) {
         const newTag = result.entities.tags[result.result];
-        const tags = R.append(
+        // Ramda's append treated a missing field value as an empty list
+        const tags = [
+          ...(values[name] || []),
           {
             id: newTag.tag_id,
             label: newTag.tag_name,
             color: validHexColor(newTag.tag_color),
           },
-          values[name],
-        );
+        ];
         setFieldValue(name, tags);
         return this.handleCloseTagCreation();
       }
@@ -75,13 +76,12 @@ class TagFieldComponent extends Component {
       placeholder,
       disabled,
     } = this.props;
-    const tagsOptions = R.map(
+    const tagsOptions = tags.map(
       n => ({
         id: n.tag_id,
         label: n.tag_name,
         color: validHexColor(n.tag_color),
       }),
-      tags,
     );
 
     return (

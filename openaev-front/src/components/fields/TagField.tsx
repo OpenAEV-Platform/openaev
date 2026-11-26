@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '@mui/material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type GlobalError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -107,10 +106,7 @@ const TagField: FunctionComponent<Props> = ({
       }) => {
         if (result.result) {
           const newTag = result.entities.tags[result.result];
-          const newTags = R.append(
-            newTag.tag_id,
-            fieldValue,
-          );
+          const newTags = [...fieldValue, newTag.tag_id];
           fieldOnChange(newTags);
           handleCloseTagCreation();
         }

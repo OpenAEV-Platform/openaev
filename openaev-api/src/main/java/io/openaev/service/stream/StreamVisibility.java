@@ -5,10 +5,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.context.MarkingCtx;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.ExecutionTraceAction;
+import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.service.stream.StreamMarkingRules.EmbeddedRule;
 import io.openaev.service.stream.StreamMarkingRules.EntityRule;
 import io.openaev.service.stream.StreamMarkingRules.ListingRule;
 import io.openaev.service.stream.StreamMarkingRules.RowRule;
+import io.openaev.utils.InjectStatusUtils;
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,7 +32,8 @@ import java.util.stream.StreamSupport;
 public final class StreamVisibility {
 
   /** An event the marking rules do not apply to: sent to every reader as it is. */
-  public static final StreamVisibility UNFILTERED = new StreamVisibility(null, null, null, null);
+  public static final StreamVisibility UNFILTERED =
+      new StreamVisibility(null, null, null, null, null);
 
   /** Stands for markings that could not be read: no clearance but the unrestricted one holds it. */
   private static final Set<String> UNRESOLVED = Set.of("unresolved-marking");
@@ -37,20 +43,25 @@ public final class StreamVisibility {
   private final ObjectNode payload;
   private final Map<String, Map<String, Set<String>>> markingsByTable;
 
+  /** The expected agent count of an inject's status: never serialized, so never sent. */
+  private final Integer expectedAgentCount;
+
   StreamVisibility(
       StreamMarkingRules rules,
       EntityRule rule,
       ObjectNode payload,
-      Map<String, Map<String, Set<String>>> markingsByTable) {
+      Map<String, Map<String, Set<String>>> markingsByTable,
+      @Nullable Integer expectedAgentCount) {
     this.rules = rules;
     this.rule = rule;
     this.payload = payload;
     this.markingsByTable = markingsByTable;
+    this.expectedAgentCount = expectedAgentCount;
   }
 
   /** An event whose visibility could not be computed: sent only to unrestricted readers. */
   public static StreamVisibility unresolved() {
-    return new StreamVisibility(null, null, null, Map.of());
+    return new StreamVisibility(null, null, null, Map.of(), null);
   }
 
   public boolean isUnfiltered() {
@@ -102,7 +113,48 @@ public final class StreamVisibility {
       RowRule elementRule = rules.forTable(embedded.table());
       keepOnly(filtered, embedded.path(), element -> rowVisible(elementRule, element, clearance));
     }
+    showVisibleInjectStatus(filtered);
     return filtered;
+  }
+
+  /**
+   * An inject's status depends on the traces its reader sees ({@link
+   * InjectStatusUtils#visibleStatus}): recomputed once the traces are pruned, against the persisted
+   * expected agent count, as the REST path does. Not the agents of the payload's COMPLETE traces:
+   * deleting an agent deletes its traces, and a count read from them would drop with it, showing a
+   * reader the stored verdict that includes the deleted agent's outcome. No-op on a payload that is
+   * not an inject.
+   */
+  private void showVisibleInjectStatus(ObjectNode filtered) {
+    if (!(filtered.get("inject_status") instanceof ObjectNode status)
+        || !status.hasNonNull("status_name")) {
+      return;
+    }
+    ExecutionStatus stored = ExecutionStatus.fromName(status.get("status_name").asText());
+    status.put(
+        "status_name",
+        InjectStatusUtils.visibleStatus(stored, expectedAgentCount, completeTraces(filtered))
+            .name());
+  }
+
+  private static List<InjectStatusUtils.CompleteTrace> completeTraces(JsonNode injectPayload) {
+    List<InjectStatusUtils.CompleteTrace> traces = new ArrayList<>();
+    injectPayload
+        .path("inject_status")
+        .path("status_traces")
+        .forEach(
+            trace -> {
+              if (ExecutionTraceAction.COMPLETE
+                      .name()
+                      .equals(trace.path("execution_action").asText())
+                  && trace.hasNonNull("execution_status")) {
+                traces.add(
+                    new InjectStatusUtils.CompleteTrace(
+                        ExecutionTraceStatus.fromName(trace.get("execution_status").asText()),
+                        trace.hasNonNull("agent") ? trace.get("agent").asText() : null));
+              }
+            });
+    return traces;
   }
 
   /** The ids, by table, whose markings the rules need: read once per event. */

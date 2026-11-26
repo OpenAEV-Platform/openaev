@@ -130,6 +130,7 @@ public interface AssetRepository
               + "GROUP BY ia.asset_id"
               + ") "
               + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
+              + "a.asset_subcategory, a.asset_criticality, a.asset_internet_facing, a.asset_url, "
               + "a.asset_ips, a.asset_hostname, a.endpoint_platform, a.endpoint_arch, "
               + "a.asset_mac_addresses, a.asset_seen_ip, a.asset_created_at, a.asset_updated_at, "
               // Host-only flag: the column has DEFAULT FALSE, so non-host rows carry false in SQL
@@ -200,6 +201,14 @@ public interface AssetRepository
    */
   @Query("SELECT a.id, a.criticality, a.name, a.seenIp FROM Asset a WHERE a.id IN :ids")
   List<Object[]> findCriticalityNameAndSeenIpByIds(Set<String> ids);
+
+  /**
+   * The ids, among {@code ids}, of the assets the current transaction can read. JPQL (not native)
+   * so the tenant filter and the marking clearance of the reader both apply: an asset the reader is
+   * not cleared for is simply absent from the result, as from every other read of the table.
+   */
+  @Query("SELECT a.id FROM Asset a WHERE a.id IN :ids")
+  Set<String> findIdsByIdIn(@Param("ids") java.util.Collection<String> ids);
 
   /**
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent

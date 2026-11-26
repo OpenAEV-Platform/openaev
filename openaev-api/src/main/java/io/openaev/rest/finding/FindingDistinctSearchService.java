@@ -155,12 +155,16 @@ public class FindingDistinctSearchService {
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
-    // Step 3b: Group-wide first/last seen per (type, value). The page row is the most recent
-    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), so its own
-    // updateDate already matches the group last seen; its creationDate, however, is that single
-    // occurrence's, not the group's. Compute first seen as the MIN creation date and last seen as
-    // the MAX update date across all occurrences in scope - findingsWithAssets holds exactly that
-    // set - so both cells stay group-correct.
+    // Step 3b: Group-wide row times and detection times per (type, value), across all occurrences
+    // in scope - findingsWithAssets holds exactly that set. The page row is the most recent
+    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), but its own
+    // dates are that single occurrence's, not the group's.
+    // - created/updated: MIN creation date and MAX update date (row times, any write moves them);
+    // - first/last seen: MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen,
+    //   updateDate)), the rule FindingRepository.findSeenAggregate applies to the summary, so the
+    //   summary, the get and the distinct search agree on when a finding was detected (#9846).
+    Map<TypeValueKey, Instant> createdByKey = new HashMap<>();
+    Map<TypeValueKey, Instant> updatedByKey = new HashMap<>();
     Map<TypeValueKey, Instant> firstSeenByKey = new HashMap<>();
     Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
     for (Finding occurrence : findingsWithAssets) {
@@ -168,8 +172,12 @@ public class FindingDistinctSearchService {
       if (!displayValueKeys.contains(key)) {
         continue;
       }
-      firstSeenByKey.merge(key, occurrence.getCreationDate(), (a, b) -> a.isBefore(b) ? a : b);
-      lastSeenByKey.merge(key, occurrence.getUpdateDate(), (a, b) -> a.isAfter(b) ? a : b);
+      createdByKey.merge(key, occurrence.getCreationDate(), FindingDistinctSearchService::earliest);
+      updatedByKey.merge(key, occurrence.getUpdateDate(), FindingDistinctSearchService::latest);
+      firstSeenByKey.merge(
+          key, FindingMapper.firstSeenOf(occurrence), FindingDistinctSearchService::earliest);
+      lastSeenByKey.merge(
+          key, FindingMapper.lastSeenOf(occurrence), FindingDistinctSearchService::latest);
     }
 
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
@@ -180,8 +188,18 @@ public class FindingDistinctSearchService {
           return findingMapper.toAggregatedFindingOutput(
               finding,
               relatedAssets,
-              firstSeenByKey.getOrDefault(key, finding.getCreationDate()),
-              lastSeenByKey.getOrDefault(key, finding.getUpdateDate()));
+              createdByKey.getOrDefault(key, finding.getCreationDate()),
+              updatedByKey.getOrDefault(key, finding.getUpdateDate()),
+              firstSeenByKey.getOrDefault(key, FindingMapper.firstSeenOf(finding)),
+              lastSeenByKey.getOrDefault(key, FindingMapper.lastSeenOf(finding)));
         });
+  }
+
+  private static Instant earliest(Instant a, Instant b) {
+    return a.isBefore(b) ? a : b;
+  }
+
+  private static Instant latest(Instant a, Instant b) {
+    return a.isAfter(b) ? a : b;
   }
 }

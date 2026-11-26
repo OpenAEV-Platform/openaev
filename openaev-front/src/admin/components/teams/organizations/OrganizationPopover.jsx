@@ -47,7 +47,7 @@ class OrganizationPopoverComponent extends Component {
   onSubmitEdit(data) {
     const inputValues = {
       ...data,
-      organization_tags: R.pluck('id', data.organization_tags),
+      organization_tags: data.organization_tags.map(item => item.id),
     };
     return this.props
       .updateOrganization(this.props.organization.organization_id, inputValues)

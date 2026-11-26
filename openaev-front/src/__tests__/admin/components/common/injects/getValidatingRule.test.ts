@@ -23,6 +23,19 @@ describe('getValidatingRule', () => {
     expect(rule.safeParse('').success).toBe(false);
   });
 
+  it('validates a cardinality 1 asset group reference as one asset group id', () => {
+    const rule = getValidatingRule(field('asset-group-reference'), t);
+    expect(rule.safeParse('asset-group-id').success).toBe(true);
+    expect(rule.safeParse('').success).toBe(false);
+  });
+
+  it('validates a cardinality n asset group reference as a non-empty list of ids', () => {
+    const rule = getValidatingRule(field('asset-group-reference', 'n'), t);
+    expect(rule.safeParse(['a', 'b']).success).toBe(true);
+    expect(rule.safeParse([]).success).toBe(false);
+    expect(rule.safeParse('a').success).toBe(false);
+  });
+
   it('keeps a text field as a required string', () => {
     const rule = getValidatingRule(field('text'), t);
     expect(rule.safeParse('value').success).toBe(true);
@@ -36,7 +49,7 @@ describe('getValidatingRule', () => {
     expect(rule.safeParse('A').success).toBe(false);
   });
 
-  it.each(['select', 'choice', 'dependency-select'] as const)('refuses an untouched cardinality n %s with the translated Required', (type) => {
+  it.each(['select', 'choice', 'dependency-select', 'asset-group-reference', 'tags'] as const)('refuses an untouched cardinality n %s with the translated Required', (type) => {
     const result = getValidatingRule(field(type, 'n'), t).safeParse(undefined);
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].message).toBe('Required');

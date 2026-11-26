@@ -187,10 +187,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
   const sortedUsers: UserStoreExtended[] = users
     .filter(u => !!u)
     .filter((user: UserStore) => tags.length === 0
-      || R.any(
-        (filter: Option['id']) => R.includes(filter, user.user_tags),
-        R.pluck('id', tags),
-      )).filter(filterByKeyword)
+      || tags.map(item => item.id).some((filter: Option['id']) => R.includes(filter, user.user_tags))).filter(filterByKeyword)
     .map((user: UserStore) => {
       if (checkUserEnabled) {
         return ({

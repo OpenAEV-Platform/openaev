@@ -66,6 +66,7 @@ export type ContractType
     | 'expectation'
     | 'asset'
     | 'asset-group'
+    | 'asset-group-reference'
     | 'ai-target'
     | 'payload'
     | 'targeted-asset'
