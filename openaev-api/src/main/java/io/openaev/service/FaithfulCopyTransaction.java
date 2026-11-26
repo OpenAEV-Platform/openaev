@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>This is the door to use when the work must see what the request has just written. Work that
  * only reads committed data goes through {@code TenantScopedTransaction#executeNew} instead
- * (ADR-024). Callers of this class are an allow-list ({@code FaithfulCopyCallersArchTest}).
+ * (ADR-025). Callers of this class are an allow-list ({@code FaithfulCopyCallersArchTest}).
  */
 @Component
 @RequiredArgsConstructor

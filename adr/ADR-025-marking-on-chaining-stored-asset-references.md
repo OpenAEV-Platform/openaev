@@ -1,4 +1,4 @@
-# ADR-024: Marking on chaining's stored asset references
+# ADR-025: Marking on chaining's stored asset references
 
 |  |  |
 | --- | --- |

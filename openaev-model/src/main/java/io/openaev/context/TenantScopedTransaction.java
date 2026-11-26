@@ -349,7 +349,7 @@ public class TenantScopedTransaction {
    * relaunch, scenario launch) that must keep the targets the requester is not cleared for. It
    * joins the request's transaction rather than opening one, so it sees what the request already
    * wrote. Work that only needs committed data reaches system clearance through {@link #executeNew}
-   * instead (ADR-024). The persistence context is flushed and cleared on both sides of {@code
+   * instead (ADR-025). The persistence context is flushed and cleared on both sides of {@code
    * work}: nothing loaded under one clearance is reused under the other, and the caller reloads
    * what it needs.
    *
