@@ -12109,6 +12109,8 @@ export interface RevokedInjectOutput {
   /** @minLength 1 */
   inject_action_id: string;
   /** @minLength 1 */
+  inject_action_name: string;
+  /** @minLength 1 */
   inject_id: string;
   /** @minLength 1 */
   inject_title: string;

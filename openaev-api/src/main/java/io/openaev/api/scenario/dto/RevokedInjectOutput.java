@@ -7,4 +7,5 @@ import jakarta.validation.constraints.NotBlank;
 public record RevokedInjectOutput(
     @JsonProperty("inject_id") @NotBlank String id,
     @JsonProperty("inject_title") @NotBlank String title,
-    @JsonProperty("inject_action_id") @NotBlank String actionId) {}
+    @JsonProperty("inject_action_id") @NotBlank String actionId,
+    @JsonProperty("inject_action_name") @NotBlank String actionName) {}

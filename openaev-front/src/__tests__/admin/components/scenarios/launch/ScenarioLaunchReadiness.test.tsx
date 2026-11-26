@@ -36,11 +36,13 @@ const REVOKED_INJECTS: ScenarioLaunchCheckOutput['launch_check_revoked_injects']
     inject_id: 'dump',
     inject_title: 'Credential dump',
     inject_action_id: 'dump-action',
+    inject_action_name: 'Dump credentials',
   },
   {
     inject_id: 'scan',
     inject_title: 'Port scan',
     inject_action_id: 'dump-action',
+    inject_action_name: 'Dump credentials',
   },
 ];
 
