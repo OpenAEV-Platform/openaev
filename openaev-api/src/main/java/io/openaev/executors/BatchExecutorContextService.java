@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Inject;
 import io.openaev.executors.exception.ExecutorBusyException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,11 +13,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.ConnectTimeoutException;
+import org.apache.hc.core5.http.NoHttpResponseException;
 
 /**
  * Sends the implant through an EDR API in paced batches. Subclasses only say how to send one
  * action; a busy device ({@link ExecutorBusyException}) is retried, any other failure is reported
- * without stopping the rest of the batch.
+ * on the inject without stopping the rest of the batch, unless the request may have reached the
+ * device.
  */
 @Slf4j
 public abstract class BatchExecutorContextService<A> extends ExecutorContextService {
@@ -130,8 +134,23 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
                   + e.getMessage());
     } catch (RuntimeException e) {
       log.error("Sending to agent {} failed: {}", agentReference(action), e.getMessage(), e);
-      delivery.onFailure().accept("The payload could not be sent: " + e.getMessage());
+      if (!mayHaveReachedDevice(e)) {
+        delivery.onFailure().accept("The payload could not be sent: " + e.getMessage());
+      }
     }
+  }
+
+  // The request left but its answer was lost: the payload may run, so the implant's report decides.
+  private static boolean mayHaveReachedDevice(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      if (cause instanceof ConnectTimeoutException) {
+        return false;
+      }
+      if (cause instanceof SocketTimeoutException || cause instanceof NoHttpResponseException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void schedule(Runnable task, Duration delay) {
