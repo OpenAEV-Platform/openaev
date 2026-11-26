@@ -582,6 +582,27 @@ class ScopeSnapshotServiceTest {
       assertNull(unresolvable.getSnapshotStart().getAssets());
     }
 
+    @Test
+    @DisplayName("should read the team of a rule copied for launch in the run's tenant")
+    void given_teamRuleCopiedForLaunch_should_resolveTheTeamInTheRunsTenant() {
+      // Arrange: a rule copied for a launch has no tenant until the run is saved
+      when(teamRepository.findByIdAndTenantId("t1", "tenant-1"))
+          .thenReturn(Optional.of(team("t1", "It team")));
+      when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+              anyString(), anyString()))
+          .thenReturn(List.of());
+      WorkflowScopeRule copied = teamRule("t1", null, null);
+      copied.setTenant(null);
+      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
+      run.getWorkflowScopeRules().add(copied);
+
+      // Act
+      scopeSnapshotService.freezeLaunch(run, "tenant-1");
+
+      // Assert
+      assertEquals("It team", copied.getSnapshotStart().getLabel());
+    }
+
     /**
      * Stubs the isolated transaction so a test can tell whether a lookup ran inside it, and which
      * scope it was opened with.
