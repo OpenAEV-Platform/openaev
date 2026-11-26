@@ -16,8 +16,9 @@ For a stacked pull request, the branch it targets needs the update first.
 Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
 branches ran is partial, and partial lines are not covered.
 
-No base report (artifacts expired, or no green run on main for a while) is not a
-failure: the check cannot measure a drop, says so in its output and passes. Codecov reports the
+No base report (artifacts expired, or no green run on main for a while), or an error of the API
+that serves it, is not a failure: the check cannot measure a drop, says so in its output and
+passes. Codecov reports the
 numbers on the pull request; this script only passes or fails.
 
 Needs `gh` with a token that can read the repository's Actions artifacts (GH_TOKEN), and
@@ -106,8 +107,19 @@ def main() -> int:
         head_covered, head_total = line_coverage(report.read())
     head = 100 * head_covered / head_total
 
-    base_sha = main_tip(repo, args.main_branch)
-    base = find_base_report(repo, base_sha, args.main_branch)
+    # An API or artifact error is a CI fault, not a coverage drop: like a missing report, it leaves
+    # the drop unmeasured, says so, and passes, so that it never blocks a pull request.
+    try:
+        base_sha = main_tip(repo, args.main_branch)
+        base = find_base_report(repo, base_sha, args.main_branch)
+    except (subprocess.CalledProcessError, KeyError, ValueError, zipfile.BadZipFile) as error:
+        detail = getattr(error, "stderr", b"") or b""
+        print(
+            f"Could not read the {ARTIFACT} report of {args.main_branch}: {error} "
+            f"{detail.decode(errors='replace').strip()}\n"
+            f"The drop cannot be measured. Pull request: {head:.2f}%."
+        )
+        return 0
     if base is None:
         print(
             f"No {ARTIFACT} report found for {args.main_branch} at or before "
