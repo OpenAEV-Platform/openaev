@@ -1,12 +1,13 @@
-import { Button } from '@filigran/design-system';
-import { type FunctionComponent } from 'react';
+import { Button, CardBanner } from '@filigran/design-system';
+import { type FunctionComponent, type MouseEvent, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import type { DomainHelper } from '../../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../../components/common/marketplace/card/MarketplaceCard';
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Domain } from '../../../../utils/api-types';
+import { type Domain, type ScenarioCatalogStateOutput } from '../../../../utils/api-types';
 import { domainsOf } from '../../../../utils/domains/domainUtils';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -14,21 +15,59 @@ import useScenarioLaunch from '../launch/useScenarioLaunch';
 import ScenarioPopover from '../scenario/ScenarioPopover';
 import ScenarioStatus from '../scenario/ScenarioStatus';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
+import ScenarioUpdateDialog from '../scenario/versions/ScenarioUpdateDialog';
+import { rollbackTarget, type ScenarioUpdateTarget, updateTarget } from '../scenario/versions/scenarioUpdateTargets';
 import { type ScenarioRow, scenarioTypeOf } from '../scenarioRow';
 
 interface Props {
   scenario: ScenarioRow;
+  newerVersion?: string;
+  catalogState?: ScenarioCatalogStateOutput;
   onDelete: (scenarioId: string) => void;
 }
 
-const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
-  const { t, nsd } = useFormatter();
+const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalogState, onDelete }) => {
+  const { t, nsd, fsd } = useFormatter();
+  const navigate = useNavigate();
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
   const primaryDomain = domainsOf(scenario.scenario_domains, allDomains)[0];
   const lastRunAt = scenario.scenario_last_run_at;
   const catalog = isFeatureEnabled('CATALOG');
-  const { canLaunch } = useScenarioPermissions(scenario.scenario_id);
+  const { canLaunch, canManage } = useScenarioPermissions(scenario.scenario_id);
   const { launch, launchDrawer } = useScenarioLaunch();
+  const installedVersion = scenario.scenario_version;
+  const canUpdate = catalog && canManage && !!installedVersion;
+  const [target, setTarget] = useState<ScenarioUpdateTarget | null>(null);
+
+  const lastUpdate = canUpdate ? catalogState?.scenario_catalog_state_last_update : undefined;
+
+  // The card is a link: its banner action opens the update instead.
+  const openUpdate = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (newerVersion && installedVersion) setTarget(updateTarget(scenario.scenario_id, newerVersion, installedVersion, t));
+  };
+  const updatable = canUpdate && !!newerVersion && newerVersion !== installedVersion;
+  const revoked = !!catalogState?.scenario_catalog_state_revoked;
+  const banner = updatable && (
+    <CardBanner
+      severity={revoked ? 'error' : 'info'}
+      icon={revoked ? 'ban' : undefined}
+      action={{
+        label: t('Update'),
+        onClick: openUpdate,
+      }}
+    >
+      {revoked ? t('Version revoked') : t('Update available')}
+    </CardBanner>
+  );
+  const rollbackEntries = lastUpdate && installedVersion
+    ? [{
+        label: t('Roll back last update'),
+        action: () => setTarget(rollbackTarget(scenario.scenario_id, lastUpdate, installedVersion, t, fsd(lastUpdate.scenario_revision_created_at))),
+        userRight: canUpdate,
+      }]
+    : [];
 
   return (
     <>
@@ -39,6 +78,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
         title={scenario.scenario_name}
         subtitle={scenario.scenario_author_name ? `${t('by')} ${scenario.scenario_author_name}` : undefined}
         description={scenario.scenario_description}
+        banner={banner || undefined}
         info={[
           // Only a scenario installed from the catalogue has a version.
           ...(catalog
@@ -78,6 +118,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
             <ScenarioPopover
               scenario={scenario}
               actions={['Duplicate', 'Export', 'Delete']}
+              leadingEntries={rollbackEntries}
               onDelete={onDelete}
               inList
             />
@@ -86,6 +127,13 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, onDelete }) => {
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
       />
       {launchDrawer}
+      {target && (
+        <ScenarioUpdateDialog
+          target={target}
+          onClose={() => setTarget(null)}
+          onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
+        />
+      )}
     </>
   );
 };

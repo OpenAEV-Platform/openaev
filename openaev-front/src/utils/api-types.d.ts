@@ -12452,6 +12452,11 @@ export interface ScenarioBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface ScenarioCatalogStateOutput {
+  scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_revoked: boolean;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
@@ -12709,11 +12714,14 @@ export interface ScenarioUpdateInput {
     "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
   >;
   scenario_update_edits?: Record<string, string>;
+  /** @minLength 1 */
+  scenario_update_from_version: string;
 }
 
 export interface ScenarioUpdatePreviewOutput {
   scenario_update_changelogs: ScenarioChangelogOutput[];
   scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_from_version: string;
   scenario_update_lost_dependencies: string[];
   scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
   scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
@@ -12736,7 +12744,7 @@ export interface ScenarioVersionOutput {
   scenario_version_latest: boolean;
   /** @format date-time */
   scenario_version_published_at?: string;
-  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED";
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED" | "UNLISTED";
 }
 
 export interface ScenarioVersionsOutput {
