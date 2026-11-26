@@ -728,6 +728,8 @@ export interface AssetBulkUpdateInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_ids_to_ignore?: string[];
   asset_ids_to_process?: string[];
+  /** Sets the internet-facing flag of every selected asset; null leaves it unchanged */
+  asset_internet_facing?: boolean | null;
   /** Must belong to asset_category; requires asset_category */
   asset_subcategory?:
     | "SERVER"
@@ -1388,6 +1390,7 @@ export interface AttackPathExecutionDetailDTO {
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
+  loggingStatus?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
@@ -1428,6 +1431,7 @@ export interface AttackPathFindingPageDTO {
 
 export interface AttackPathFindingVerdictsDTO {
   detection?: string;
+  logging?: string;
   prevention?: string;
   vulnerability?: string;
 }

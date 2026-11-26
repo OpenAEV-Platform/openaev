@@ -94,6 +94,7 @@ public class AttackPathGraphService {
   private static final String SOURCE_INJECTOR = "INJECTOR";
   private static final String PREVENTED = ExpectationType.PREVENTION.successLabel;
   private static final String DETECTED = ExpectationType.DETECTION.successLabel;
+  private static final String LOGGED = ExpectationType.LOGGING.successLabel;
 
   private static final String TYPE_INJECTOR = "INJECTOR";
   private static final String TYPE_ASSET = "ASSET";
@@ -107,6 +108,7 @@ public class AttackPathGraphService {
 
   private static final String GREEN = "GREEN";
   private static final String ORANGE = "ORANGE";
+  private static final String YELLOW = "YELLOW";
   private static final String RED = "RED";
 
   private static final String CATEGORY_CREDENTIALS = "credentials";
@@ -282,7 +284,10 @@ public class AttackPathGraphService {
     AttackPathFindingVerdictsDTO executionVerdicts =
         toVerdictsDto(
             AttackPathFindingVerdicts.ofExecution(
-                e.getPreventionStatus(), e.getDetectionStatus(), e.getVulnerabilityStatus()));
+                e.getPreventionStatus(),
+                e.getDetectionStatus(),
+                e.getVulnerabilityStatus(),
+                e.getLoggingStatus()));
     List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
     for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
@@ -358,6 +363,7 @@ public class AttackPathGraphService {
         e.getPreventionStatus(),
         e.getDetectionStatus(),
         e.getVulnerabilityStatus(),
+        e.getLoggingStatus(),
         // Same resolution as the graph feed's (see applyExecutionStatuses), for the single row
         // here: the status as the reader sees it.
         injectId == null
@@ -511,7 +517,10 @@ public class AttackPathGraphService {
           .computeIfAbsent(link.findingId(), k -> new ArrayList<>())
           .add(
               AttackPathFindingVerdicts.ofExecution(
-                  link.preventionStatus(), link.detectionStatus(), link.vulnerabilityStatus()));
+                  link.preventionStatus(),
+                  link.detectionStatus(),
+                  link.vulnerabilityStatus(),
+                  link.loggingStatus()));
     }
     Map<String, AttackPathFindingVerdictsDTO> verdicts = new LinkedHashMap<>();
     producers.forEach(
@@ -619,7 +628,10 @@ public class AttackPathGraphService {
           .computeIfAbsent(findingNodeId, id -> new ArrayList<>())
           .add(
               AttackPathFindingVerdicts.ofExecution(
-                  f.preventionStatus(), f.detectionStatus(), f.vulnerabilityStatus()));
+                  f.preventionStatus(),
+                  f.detectionStatus(),
+                  f.vulnerabilityStatus(),
+                  f.loggingStatus()));
     }
     // Worst-of across every producer of the (type, value) on this endpoint.
     findingNodes.forEach(
@@ -783,7 +795,8 @@ public class AttackPathGraphService {
                 AttackPathFindingVerdicts.ofExecution(
                     producer.preventionStatus(),
                     producer.detectionStatus(),
-                    producer.vulnerabilityStatus()));
+                    producer.vulnerabilityStatus(),
+                    producer.loggingStatus()));
       }
 
       edges.computeIfAbsent(
@@ -995,7 +1008,7 @@ public class AttackPathGraphService {
           e.targetHostname() != null && !e.targetHostname().isBlank()
               ? e.targetHostname()
               : e.targetKey());
-      node.setStatus(collapsedColour(e.redCount(), e.orangeCount()));
+      node.setStatus(collapsedColour(e.redCount(), e.yellowCount(), e.orangeCount()));
       node.setFindingCounts(findingCountsByEndpoint.get(e.targetKey()));
       nodes.put(nodeId, node);
     }
@@ -1051,10 +1064,15 @@ public class AttackPathGraphService {
     return new AttackPathCounters(endpoints, credentials, users, cves, ports, shares, files);
   }
 
-  /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
-  String collapsedColour(long redCount, long orangeCount) {
+  /**
+   * Worst-case severity of an endpoint's executions from the aggregated red/yellow/orange counts.
+   */
+  String collapsedColour(long redCount, long yellowCount, long orangeCount) {
     if (redCount > 0) {
       return RED;
+    }
+    if (yellowCount > 0) {
+      return YELLOW;
     }
     if (orangeCount > 0) {
       return ORANGE;
@@ -1176,35 +1194,42 @@ public class AttackPathGraphService {
   }
 
   /**
-   * The three-state severity of one execution, combining prevention and detection: GREEN if it was
+   * The severity of one execution, combining prevention, detection and logging: GREEN if it was
    * prevented (blocked), else ORANGE if it was detected but not prevented (seen but got through),
-   * else RED (neither detected nor prevented, the worst).
+   * else YELLOW if it was only logged (recorded, but no alert), else RED (no trace at all, the
+   * worst).
    */
-  private String severity(String preventionStatus, String detectionStatus) {
+  private String severity(String preventionStatus, String detectionStatus, String loggingStatus) {
     if (PREVENTED.equals(preventionStatus)) {
       return GREEN;
     }
     if (DETECTED.equals(detectionStatus)) {
       return ORANGE;
     }
+    if (LOGGED.equals(loggingStatus)) {
+      return YELLOW;
+    }
     return RED;
   }
 
   private static int severityRank(String colour) {
     if (RED.equals(colour)) {
+      return 3;
+    }
+    if (YELLOW.equals(colour)) {
       return 2;
     }
     return ORANGE.equals(colour) ? 1 : 0;
   }
 
   /**
-   * An endpoint takes the worst-case severity of the executions targeting it (RED > ORANGE >
-   * GREEN).
+   * An endpoint takes the worst-case severity of the executions targeting it (RED > YELLOW > ORANGE
+   * > GREEN).
    */
   private String endpointColour(List<AttackPathExecutionRow> executions) {
     String worst = GREEN;
     for (AttackPathExecutionRow e : executions) {
-      String s = severity(e.preventionStatus(), e.detectionStatus());
+      String s = severity(e.preventionStatus(), e.detectionStatus(), e.loggingStatus());
       if (severityRank(s) > severityRank(worst)) {
         worst = s;
       }
@@ -1678,7 +1703,7 @@ public class AttackPathGraphService {
     // executions in the feed (cross-focus); the map node id above is not the raw id.
     node.setRef(e.id());
     node.setLabel(e.payloadName());
-    node.setStatus(severity(e.preventionStatus(), e.detectionStatus()));
+    node.setStatus(severity(e.preventionStatus(), e.detectionStatus(), e.loggingStatus()));
     node.setPayloadName(e.payloadName());
     node.setExecutedAt(e.executedAt() == null ? null : e.executedAt().toString());
     node.setAgentName(e.agentName());
@@ -1725,7 +1750,7 @@ public class AttackPathGraphService {
 
   private static AttackPathFindingVerdictsDTO toVerdictsDto(AttackPathFindingVerdicts.Verdicts v) {
     return new AttackPathFindingVerdictsDTO(
-        v.prevention().label, v.detection().label, v.vulnerability().label);
+        v.prevention().label, v.detection().label, v.vulnerability().label, v.logging().label);
   }
 
   private AttackPathNodeDTO node(String id, String type, String label) {

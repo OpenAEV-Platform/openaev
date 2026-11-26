@@ -1,10 +1,12 @@
 package io.openaev.rest.stream;
 
+import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.service.StreamService.X_ACCEL_BUFFERING;
 
 import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.StreamService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestContextHolder;
 import reactor.core.publisher.Flux;
@@ -25,11 +28,15 @@ import reactor.core.publisher.Flux;
 @RequiredArgsConstructor
 @EnableAsync
 public class StreamApi extends RestBehavior {
+
+  public static final String STREAM_URI = "/api/stream";
+  public static final String TENANT_STREAM_URI = TENANT_PREFIX + "/stream";
+
   private final StreamService streamService;
 
   /** Create a flux for current user & session */
   @GetMapping(
-      path = {"/api/stream", TENANT_PREFIX + "/stream"},
+      path = {STREAM_URI, TENANT_STREAM_URI},
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   // The stream multiplexes every event of the tenant, so no single capability can gate the
   // subscription: a subscriber legitimately needs it for any resource it is entitled to read.
@@ -43,10 +50,14 @@ public class StreamApi extends RestBehavior {
   // it only merges in-memory event fluxes - so there is nothing here that needs scoping.
   @Transactional(
       propagation = Propagation.NEVER) // Don't start a transaction for the stream, it will be async
-  public ResponseEntity<Flux<Object>> streamFlux() {
+  public ResponseEntity<Flux<Object>> streamFlux(
+      @PathVariable(name = TENANT_ID_PATH_VARIABLE, required = false) String tenantId) {
     String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
+    // The tenant of the route, whose membership TenantInterceptor checks before this method. The
+    // route without a tenant streams the default tenant, whatever X-Tenant-Ids names.
+    String consumerTenantId = tenantId != null ? tenantId : Tenant.DEFAULT_TENANT_UUID;
     // Build the database event flux.
-    Flux<Object> dataFlux = streamService.makeDataFlux(sessionId);
+    Flux<Object> dataFlux = streamService.makeDataFlux(sessionId, consumerTenantId);
     // Build the health check flux.
     Flux<Object> ping = streamService.makePingFlux();
     // Merge the 2 flux to create the final one.

@@ -1,16 +1,24 @@
 package io.openaev.config;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import net.sf.jsqlparser.parser.CCJSqlParser;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.parser.feature.Feature;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
@@ -51,7 +59,15 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
  * inspector this class generalizes, so the extraction is provably behaviour-preserving. They become
  * scope-generic when a second dimension is activated.
  */
+@Slf4j
 public class ScopeStatementInspector implements StatementInspector {
+
+  private static final String STRING_LITERAL = "'(?:[^']|'')*'";
+
+  /** Longest statement text a refusal log line carries; the hash covers the whole statement. */
+  static final int LOGGED_STATEMENT_MAX_LENGTH = 2000;
+
+  private static final int STATEMENT_HASH_LENGTH = 12;
 
   private final List<ScopeDimension> dimensions;
   private final Pattern activeTablePattern;
@@ -88,12 +104,12 @@ public class ScopeStatementInspector implements StatementInspector {
     // Blank string literals before the gate: an active table name that appears only inside a
     // literal must not pull an unrelated (possibly unparseable) statement into rewriting. The
     // parser, not this gate, is the source of truth for real table references.
-    String gateSql = sql.replaceAll("'(?:[^']|'')*'", "''");
+    String gateSql = blankLiterals(sql);
     if (!activeTablePattern.matcher(gateSql).find()) {
       return sql;
     }
     try {
-      Statement statement = CCJSqlParserUtil.parse(sql);
+      Statement statement = parseStatement(sql);
       if (statement instanceof Select select) {
         filterContainedSelects(select);
         return select.toString();
@@ -111,10 +127,101 @@ public class ScopeStatementInspector implements StatementInspector {
           "statement shape not supported by tenant filtering: "
               + statement.getClass().getSimpleName());
     } catch (TenantFilteringException e) {
+      logRefusal(sql, e);
       throw e;
     } catch (Exception e) {
       // Any parse or rewrite failure is refused, never passed through unfiltered (fail-closed).
-      throw new TenantFilteringException("refusing SQL the tenant filter could not process", e);
+      TenantFilteringException refusal =
+          new TenantFilteringException("refusing SQL the tenant filter could not process", e);
+      logRefusal(sql, refusal);
+      throw refusal;
+    }
+  }
+
+  /**
+   * Gate only. A logged statement goes through {@link StatementRedactor}, which follows the
+   * PostgreSQL lexical rules; applying those rules here changes which statements reach the parser,
+   * a separate change.
+   */
+  private static String blankLiterals(String text) {
+    return text.replaceAll(STRING_LITERAL, "''");
+  }
+
+  private static String firstLine(String text) {
+    return text.lines().findFirst().orElse("");
+  }
+
+  /**
+   * Parses on the calling thread, with the features of {@link CCJSqlParserUtil#parse(String)}:
+   * simple parsing first, then complex parsing within the allowed nesting depth. That call parses
+   * on a new thread and waits for it with a wall-clock deadline, so an interrupted caller or a busy
+   * machine turns a valid statement into a refusal. Dropping the library's 8 s deadline is
+   * deliberate: the input is SQL the code or Hibernate generates, the slowest measured parses in
+   * 15.6 ms, and the nesting-depth check bounds the complex pass.
+   */
+  private static Statement parseStatement(String sql) throws JSQLParserException {
+    CCJSqlParser parser = CCJSqlParserUtil.newParser(sql);
+    boolean complexParsingAllowed = parser.getAsBoolean(Feature.allowComplexParsing);
+    int allowedNestingDepth = parser.getAsInt(Feature.allowedNestingDepth);
+    try {
+      return parser.withAllowComplexParsing(false).Statement();
+    } catch (Exception | StackOverflowError simpleFailure) {
+      // A statement nested too deep for the parser's stack is refused like any parse error.
+      if (!complexParsingAllowed
+          || (allowedNestingDepth >= 0
+              && CCJSqlParserUtil.getNestingDepth(sql) > allowedNestingDepth)) {
+        throw new JSQLParserException(simpleFailure);
+      }
+      try {
+        return CCJSqlParserUtil.newParser(sql).withAllowComplexParsing(true).Statement();
+      } catch (Exception | StackOverflowError complexFailure) {
+        throw new JSQLParserException(complexFailure);
+      }
+    }
+  }
+
+  /**
+   * Logs a refused statement once, redacted by {@link StatementRedactor} (no literal value, no
+   * comment): the step that refused it (the refusal's own message), the root cause, and the
+   * statement capped at {@value #LOGGED_STATEMENT_MAX_LENGTH} characters with a hash of the whole
+   * redacted statement, so repeated refusals of one statement group under one hash. Hibernate binds
+   * values as {@code ?} placeholders, so no parameter value reaches the inspector or this line.
+   */
+  private void logRefusal(String sql, TenantFilteringException refusal) {
+    Throwable root = refusal;
+    while (root.getCause() != null) {
+      root = root.getCause();
+    }
+    String rootCause = root.getClass().getName();
+    if (root != refusal && root.getMessage() != null) {
+      rootCause += ": " + firstLine(StatementRedactor.redactMessage(root.getMessage()));
+    }
+    String statement = StatementRedactor.redactStatement(sql);
+    String loggedStatement =
+        statement.length() <= LOGGED_STATEMENT_MAX_LENGTH
+            ? statement
+            : statement.substring(0, LOGGED_STATEMENT_MAX_LENGTH)
+                + "... [truncated, "
+                + statement.length()
+                + " chars]";
+    log.warn(
+        "Refused a statement on a scoped table, dimensions {}: {}; root cause: {}; statement {}: {}",
+        dimensions.stream().map(ScopeDimension::name).toList(),
+        firstLine(StatementRedactor.redactMessage(String.valueOf(refusal.getMessage()))),
+        rootCause,
+        statementHash(statement),
+        loggedStatement);
+  }
+
+  /** First hex digits of the SHA-256 of the statement: stable across nodes and restarts. */
+  private static String statementHash(String statement) {
+    try {
+      byte[] digest =
+          MessageDigest.getInstance("SHA-256").digest(statement.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(digest).substring(0, STATEMENT_HASH_LENGTH);
+    } catch (NoSuchAlgorithmException e) {
+      // Every Java platform ships SHA-256.
+      throw new IllegalStateException(e);
     }
   }
 
@@ -539,7 +646,7 @@ public class ScopeStatementInspector implements StatementInspector {
             + ref;
     Statement dummy;
     try {
-      dummy = CCJSqlParserUtil.parse("SELECT * FROM " + wrapped);
+      dummy = parseStatement("SELECT * FROM " + wrapped);
     } catch (Exception e) {
       throw new IllegalStateException("failed to build tenant-filtered subquery", e);
     }

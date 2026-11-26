@@ -1,14 +1,17 @@
 import { type Theme } from '@mui/material/styles';
 
-// The backend colours by worst-case severity combining prevention and detection: GREEN = prevented,
-// ORANGE = detected but not prevented, RED = neither. Map those onto the theme's semantic palette so
-// the graph respects light/dark mode; anything without a status is neutral blue (primary).
+// The backend colours by worst-case severity combining prevention, detection and logging: GREEN =
+// prevented, ORANGE = detected but not prevented, YELLOW = only logged, RED = none of them. Map
+// those onto the theme's semantic palette so the graph respects light/dark mode; anything without a
+// status is neutral blue (primary).
 const attackPathStatusColor = (theme: Theme, status?: string): string => {
   switch (status) {
     case 'GREEN':
       return theme.palette.success.main;
     case 'ORANGE':
-      return theme.palette.warning.main;
+      return theme.palette.designSystem.alert.warning.primary;
+    case 'YELLOW':
+      return theme.palette.designSystem.alert.alert.primary;
     case 'RED':
       return theme.palette.error.main;
     default:
@@ -17,15 +20,17 @@ const attackPathStatusColor = (theme: Theme, status?: string): string => {
 };
 
 // Text equivalent of the verdict colour, so status is never conveyed by colour alone (a11y). Returns
-// an English key; wrap in t() at the call site.
-export const attackPathStatusLabel = (status?: string): string => {
+// an English key; wrap in t() at the call site. With Logging in play, RED also means "not logged".
+export const attackPathStatusLabel = (status: string | undefined, showsLogging: boolean): string => {
   switch (status) {
     case 'GREEN':
       return 'Prevented';
     case 'ORANGE':
       return 'Detected, not prevented';
+    case 'YELLOW':
+      return 'Logged only';
     case 'RED':
-      return 'Neither prevented nor detected';
+      return showsLogging ? 'Not prevented, detected or logged' : 'Neither prevented nor detected';
     default:
       return 'No verdict';
   }

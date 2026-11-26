@@ -2,7 +2,6 @@ package io.openaev.service.stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -90,13 +89,8 @@ public class StreamVisibilityService {
 
   private Map<String, Map<String, Set<String>>> read(
       Map<String, Set<String>> referenced, String tenantId) {
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      return tenantScopedTransaction.execute(
-          TxCtx.forTenant(tenantId), () -> readMarkings(referenced));
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    return tenantScopedTransaction.execute(
+        TxCtx.forTenant(tenantId), () -> readMarkings(referenced));
   }
 
   /** The markings of the referenced rows found, by table and id, in the current transaction. */

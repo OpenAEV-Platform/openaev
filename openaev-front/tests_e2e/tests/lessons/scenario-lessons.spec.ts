@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import LessonsPage from '../../model/lessons/LessonsPage';
+import { disableAnimations } from '../../utils/animations';
 import { tenantUrl } from '../../utils/url';
 
 test.describe('Scenario - Lessons learned', () => {
@@ -9,16 +10,7 @@ test.describe('Scenario - Lessons learned', () => {
 
   test.beforeEach(async ({ page, emptyScenario }) => {
     lessonsPage = new LessonsPage(page);
-    await page.addInitScript(() => {
-      const style = document.createElement('style');
-      style.innerHTML = `
-        *, *::before, *::after {
-          transition: none !important;
-          animation: none !important;
-        }
-      `;
-      document.head.appendChild(style);
-    });
+    await disableAnimations(page);
     await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/lessons`));
     await expect(lessonsPage.objectivesSection).toBeVisible();
   });
