@@ -169,7 +169,8 @@ public class XtmHubService {
     return statuses.contains(XtmHubRegistrationStatus.REGISTERED);
   }
 
-  public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
+  public TenantXtmHubRegistration register(
+      TxCtx ctx, @NotBlank final String token, final String organizationName) {
     String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     User currentUser = userService.currentUser();
 
@@ -179,6 +180,7 @@ public class XtmHubService {
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
     registration.setRegistrationUserId(currentUser.getId());
     registration.setRegistrationUserName(currentUser.getNameOrEmail());
+    registration.setOrganizationName(organizationName);
     registration.setLastConnectivityCheck(LocalDateTime.now());
     registration.setConnectivityEmailEligible(true);
     return tenantXtmHubRegistrationRepository.save(registration);
@@ -294,6 +296,7 @@ public class XtmHubService {
                 new ConnectivityCheckResult(
                     hubResult.status(),
                     hubResult.commercialModel(),
+                    hubResult.organizationName(),
                     parseLastConnectivityCheck(registration),
                     registration);
             updateRegistrationStatus(registration, checkResult);
@@ -406,7 +409,11 @@ public class XtmHubService {
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
 
     return new ConnectivityCheckResult(
-        hubResult.status(), hubResult.commercialModel(), lastCheck, registration);
+        hubResult.status(),
+        hubResult.commercialModel(),
+        hubResult.organizationName(),
+        lastCheck,
+        registration);
   }
 
   public Boolean contactUs(String message) {
@@ -565,6 +572,10 @@ public class XtmHubService {
     if (checkResult.commercialModel() != null) {
       registration.setCommercialModel(checkResult.commercialModel());
     }
+    // Same for the organization name: an older or unreachable hub returns none.
+    if (checkResult.organizationName() != null) {
+      registration.setOrganizationName(checkResult.organizationName());
+    }
 
     return tenantXtmHubRegistrationRepository.save(registration);
   }
@@ -573,6 +584,7 @@ public class XtmHubService {
   private record ConnectivityCheckResult(
       XtmHubConnectivityStatus status,
       XtmHubCommercialModel commercialModel,
+      String organizationName,
       LocalDateTime lastCheck,
       TenantXtmHubRegistration registration) {}
 }

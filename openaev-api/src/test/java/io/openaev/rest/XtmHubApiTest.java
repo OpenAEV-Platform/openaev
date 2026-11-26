@@ -52,8 +52,10 @@ public class XtmHubApiTest extends IntegrationTest {
   @DisplayName("Should save registration data")
   public void whenRegisterUpdateRegistrationData() throws Exception {
     String token = "token";
+    String organizationName = "Filigran Workspace";
     XtmHubRegisterInput input = new XtmHubRegisterInput();
     input.setToken(token);
+    input.setOrganizationName(organizationName);
     String response =
         mvc.perform(
                 put(XtmHubApi.XTMHUB_URI + "/register")
@@ -79,6 +81,9 @@ public class XtmHubApiTest extends IntegrationTest {
         (String) JsonPath.read(response, "$.tenant_xtmhub_registration_user_name"));
     assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_date"));
     assertNotNull(JsonPath.read(response, "$.tenant_xtmhub_registration_last_connectivity_check"));
+    assertEquals(
+        organizationName,
+        (String) JsonPath.read(response, "$.tenant_xtmhub_registration_organization_name"));
 
     // Verify the entity was actually persisted in the database for the correct tenant
     TenantXtmHubRegistration saved =
@@ -91,6 +96,7 @@ public class XtmHubApiTest extends IntegrationTest {
     assertEquals(testUserHolder.get().getName(), saved.getRegistrationUserName());
     assertNotNull(saved.getRegistrationDate());
     assertNotNull(saved.getLastConnectivityCheck());
+    assertEquals(organizationName, saved.getOrganizationName());
   }
 
   @Test

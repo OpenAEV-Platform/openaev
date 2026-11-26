@@ -4,6 +4,7 @@ import type { Dispatch } from 'redux';
 import * as Constants from '../../constants/ActionTypes';
 import { store } from '../../store';
 import { putReferential, simpleCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import type { XtmHubRegisterInput } from '../../utils/api-types';
 import * as schema from '../Schema';
 
 const XTM_HUB_URI = '/api/xtmhub';
@@ -62,12 +63,16 @@ export const fetchXtmHubRegistration = () => (dispatch: Dispatch): Promise<boole
     });
 };
 
-export const registerPlatform = (token: string) => (dispatch: Dispatch) => {
+export const registerPlatform = (token: string, organizationName?: string) => (dispatch: Dispatch) => {
   const uri = `${XTM_HUB_URI}/register`;
+  const input: XtmHubRegisterInput = {
+    token,
+    organization_name: organizationName,
+  };
   return putReferential(
     schema.tenantXtmHubRegistration,
     uri,
-    { token },
+    input,
     false,
   )(dispatch);
 };

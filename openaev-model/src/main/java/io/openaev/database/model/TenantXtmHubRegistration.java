@@ -62,6 +62,10 @@ public class TenantXtmHubRegistration implements TenantBase {
   @JsonProperty("registration_commercial_model")
   private XtmHubCommercialModel commercialModel;
 
+  @Column(name = "registration_organization_name")
+  @JsonProperty("registration_organization_name")
+  private String organizationName;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore

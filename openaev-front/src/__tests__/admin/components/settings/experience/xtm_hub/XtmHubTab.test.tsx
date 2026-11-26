@@ -337,8 +337,46 @@ describe('XtmHubTab', () => {
         },
       }));
 
-      await waitFor(() => expect(registerPlatform).toHaveBeenCalledWith('tok-123'));
+      await waitFor(() => expect(registerPlatform).toHaveBeenCalledWith('tok-123', undefined));
       await waitFor(() => expect(mockNotifySuccess).toHaveBeenCalledWith(expect.stringContaining('successfully connected')));
+    });
+
+    it('forwards the organization name the hub sends with the token', async () => {
+      // Arrange
+      mockDispatch.mockResolvedValue(undefined);
+      renderXtmHubTab({ registrationStatus: null });
+      const onMessage = openProcessToWaitingHub();
+
+      // Act
+      onMessage(new MessageEvent('message', {
+        data: {
+          action: 'register',
+          token: 'tok-123',
+          organizationName: 'Filigran Workspace',
+        },
+      }));
+
+      // Assert
+      await waitFor(() => expect(registerPlatform).toHaveBeenCalledWith('tok-123', 'Filigran Workspace'));
+    });
+
+    it.each([[null], [''], [42]])('registers without organization name when the hub sends %s', async (organizationName) => {
+      // Arrange
+      mockDispatch.mockResolvedValue(undefined);
+      renderXtmHubTab({ registrationStatus: null });
+      const onMessage = openProcessToWaitingHub();
+
+      // Act
+      onMessage(new MessageEvent('message', {
+        data: {
+          action: 'register',
+          token: 'tok-123',
+          organizationName,
+        },
+      }));
+
+      // Assert
+      await waitFor(() => expect(registerPlatform).toHaveBeenCalledWith('tok-123', undefined));
     });
 
     it('transitions to ERROR step when registerPlatform fails', async () => {

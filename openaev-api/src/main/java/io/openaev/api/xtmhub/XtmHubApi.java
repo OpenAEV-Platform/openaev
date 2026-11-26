@@ -65,7 +65,7 @@ public class XtmHubApi extends RestBehavior {
   public XtmHubRegistrationOutput register(
       TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
     return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
-        this.xtmHubService.register(ctx, input.getToken()));
+        this.xtmHubService.register(ctx, input.getToken(), input.getOrganizationName()));
   }
 
   @PutMapping(
