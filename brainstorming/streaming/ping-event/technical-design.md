@@ -7,7 +7,7 @@
 | **Part 1** | [#8737](https://github.com/OpenAEV-Platform/openaev/pull/8737) — TanStack Query, refreshed live from the platform stream (asset details) |
 | **Part 2** | [#8916](https://github.com/OpenAEV-Platform/openaev/pull/8916) — the assets list read from a live paginated query (stacked on #8737) |
 | **Part 3** | [#8563](https://github.com/OpenAEV-Platform/openaev/issues/8563) — the stream sends change signals instead of entity content (epic [#8171](https://github.com/OpenAEV-Platform/openaev/issues/8171)) |
-| **Related** | [#9717](https://github.com/OpenAEV-Platform/openaev/issues/9717) duplicate stream events · [#9319](https://github.com/OpenAEV-Platform/openaev/pull/9319) notifications filtered by marking clearance · marking Task 4: [tech design](../../marking/task4/tech-design.md#the-sse-stream-rules-read-from-the-registry-and-the-jpa-mapping), [implementation plan, Chunk 5](../../marking/task4/implementation-plan.md#chunk-5--sse---stream-api-revisited) |
+| **Related** | [#9717](https://github.com/OpenAEV-Platform/openaev/issues/9717) duplicate stream events (fixed by [#9720](https://github.com/OpenAEV-Platform/openaev/pull/9720)) · [#9319](https://github.com/OpenAEV-Platform/openaev/pull/9319) notifications filtered by marking clearance (merged) · marking Task 4: [tech design](../../marking/task4/tech-design.md#the-sse-stream-rules-read-from-the-registry-and-the-jpa-mapping), [implementation plan, Chunk 5](../../marking/task4/implementation-plan.md#chunk-5--sse---stream-api-revisited) |
 
 # 📋 Context
 
@@ -453,7 +453,7 @@ sequenceDiagram
 
 ### The visibility code is shared with notifications
 
-PR #9319 (notifications filtered by marking clearance) reuses the stream's visibility decision. It calls
+PR #9319 (notifications filtered by marking clearance, merged on 2026-11-25) reuses the stream's visibility decision. It calls
 `StreamVisibilityService.visibilityOrUnresolved(event, tenantId)` and keeps only the recipients for which
 `visibility.visibleUnder(clearance)` is true. It uses **only the row decision**: not `payloadFor`,
 `filtersPayload` or `keepOnly`.
@@ -626,9 +626,10 @@ Proposal:
    clearance, so nothing changes.
 
    **Limits that remain:**
-   - **Duplicate events** (#9717, point 5): the listener runs twice for an endpoint. The first event carries the
-     previous markings, the second does not (they were reset after the first), so a reader gets the create or
-     delete, then nothing (still hidden) or an update (still visible): harmless.
+   - **Duplicate events** (#9717, point 5): until this branch is rebased on the fix, the listener runs twice for
+     an endpoint. The first event carries the previous markings, the second does not (they were reset after the
+     first), so a reader gets the create or delete, then nothing (still hidden) or an update (still visible):
+     harmless.
    - **Bulk marking replace**: events are not streamed per entity inside a bulk operation (`BulkOperationContext`),
      and the `bulk-operation` progress events go only to the user who launched it. Other readers see the change at
      their next refetch. Follow-up: during the operation, count the distinct before/after marking pairs (a bulk
@@ -644,9 +645,11 @@ Proposal:
 
    This applies to the stream only. A notification records a fact at the time it happens, so the digest
    deliberately does not re-check clearance.
-5. **Fix the duplicate events** ([#9717](https://github.com/OpenAEV-Platform/openaev/issues/9717)):
-   `ModelBaseListener` is declared on `Asset` and again on `Endpoint` and `SecurityPlatform`, so each write of
-   those streams twice. Fixing it halves the work.
+5. **Duplicate events** ([#9717](https://github.com/OpenAEV-Platform/openaev/issues/9717)): fixed on `main` by
+   [#9720](https://github.com/OpenAEV-Platform/openaev/pull/9720) (`627382936f`). `ModelBaseListener` was declared
+   on `Asset` and again on `Endpoint` and `SecurityPlatform`, so each write of those streamed twice. This branch
+   does not have the fix yet: once rebased, the duplicate filter in `AssetMarkingsApiTest.streamedMarkingsBefore`
+   can go.
 6. **Clearance changes: the reader is told to re-read** (implemented in commit `c00a62cd5f` on the review branch of #8916).
    An admin moves user A from a RED group to a GREEN one, or removes a marking from A's group. No row changed, so
    point 4 sends nothing, while the backend applies the new clearance at once: `MarkingClearanceCacheManager` is
@@ -684,27 +687,36 @@ Proposal:
    - `resetAll` concerns the live queries (TanStack). Screens still on Redux keep what they loaded until reload.
    - A marking definition change (`evictAll`) resets every connected user's queries once: rare, an admin action.
 
-Points 1 to 3 change how the decision shared with notifications is computed. They must keep the contract #9319
-relies on (`visibilityOrUnresolved` → `isUnfiltered()` / `visibleUnder(clearance)`) and its tests, and they come
-after #9319 is merged, or are done together with it.
+Points 1 to 3 change how the decision shared with notifications is computed. #9319 is merged: they must keep the
+contract it relies on (`visibilityOrUnresolved` → `isUnfiltered()` / `visibleUnder(clearance)`) and its tests.
 
 The frontend impact and the rollout, entity by entity, are in the
 [implementation plan](./implementation-plan.md).
 
 # ❓ Open questions
 
-- **Capabilities and grants changed through a group**: `rightsOf(me)` only changes when `me` is refreshed, and a
-  group change does not touch the user's row. Does the same gap exist for them, and should point 6's signal
-  cover every rights change rather than the clearance only?
-
+- **Rights changed through a group**: changing a group's roles, a role's capabilities, the admin flag or a grant
+  sends no signal to the members (checked in the inventory of the implementation plan). Their screens see it only
+  when `me` is refreshed (`useRefreshMe`: on focus, at most once a minute), and a user without the users-read
+  capability never receives the event of their own row. Should point 6's signal cover every rights change, not
+  the clearance only?
 - **Signal marker**: an explicit field (`"signal": true`) or a distinct `event_type`? The legacy name
   `DATA_FETCH_SUCCESS` for a creation is worth fixing at the same time.
 - **Where the shared row decision lives** once it is no longer stream-specific (`service/stream/` →
-  `service/marking/`?), and when, given #9319.
-- **Notifications**: can `NotificationEngineListener` build its message without `instanceData`? If so, the
-  serialization in the `BaseEvent` constructor can go too.
-- **Redux fallback**: re-run the mounted loaders, or fetch the entity by id per type (~30 REST getters)?
-- **Refetch load during simulations**: injects, expectations and traces change at a high rate. A refetch per
-  signal needs the router's batching and per-type throttle on the legacy path too.
+  `service/marking/`?). #9319 is merged: nothing to wait for any more, the question is whether to move it now.
+- **Redux fallback**: on a signal, re-run the mounted loaders of the type, or fetch the entity by id per type
+  (~30 REST getters)? The Redux path batches events every 200 ms (`SseActionBatcher`) but has no per-type
+  throttle: a fallback that refetches needs one, for injects and expectations during a simulation. The live
+  queries' throttles are decided in lots 3 and 4 of the plan.
 - **Admin layout**: once the migrated pages no longer read Redux (executors on `Endpoints`, users on
   `AssetDetail`), make explicit in `admin/Index.tsx` that `useDataLoader` is there for the taxonomies only.
+- **Live e2e specs in CI**: they wait on the list throttle (about 3 minutes for the assets specs today, 1 to 2 more
+  per migrated list). Their own pull request shard (parallel: runner minutes, no wall time), or nightly only?
+
+## Settled
+
+- **Notifications without `instanceData`**: yes. `NotificationEngineListener` reads it only to build a label
+  (`resolveLabel`: the first `*_name`, `*_title`, `*_subject`, `*_email` or `*_external_id` field, else the id).
+  `BaseEvent` still carries the entity, so the label can be computed from it when a notification fires, and the
+  serialization in the `BaseEvent` constructor, run on every write, can go.
+- **Duplicate events** (#9717): fixed on `main` by #9720 (`627382936f`). Not on this branch yet: rebase.

@@ -143,7 +143,7 @@ moves with its lot; a list of a type not streamed can move at any time.
 
 | Step | Backend | Frontend |
 |---|---|---|
-| **0. Prerequisites** | fix #9717 (duplicate events); cache `isFiltering()` | merge #8737 and #8916 |
+| **0. Prerequisites** | rebase on `main` for the #9717 fix (#9720); cache `isFiltering()` | merge #8737 and #8916 |
 | **1. Screens migrated** | — | the lot's feature reads live queries only (section 3) |
 | **2. Out-of-feature readers gone** | — | each reader listed in section 3 is migrated, or reads a query of the lot |
 | **3. Signal only for the type** | the type sends `instance: {<id>}` plus the signal marker (allowlist of types) | the Redux adapter does not store a partial entity for an allowlisted type |
@@ -218,7 +218,7 @@ These change what a migrated screen can receive. Each one is settled before the 
 | **A membership change may send no event**: team players, group grants (`mappedBy` collections) | the team or group stays stale for other readers | 5, 6 | check with two browsers; if confirmed, touch the owner's `updated_at` |
 | **Rights changed through group roles, role capabilities, the admin flag or grants send no signal** to the members (only clearance changes do) | the member's screens keep what they loaded until `useRefreshMe` (focus, 60 s) | 6 | open question of the technical design: one signal for every rights change |
 | **A result id serialized as `inject_expectation_id`** (`injectexpectationresults`) | a naive mapping takes a result for an expectation | 3 | map the result to its expectation in `PARENTS_OF`, or rely on the expectation's own update |
-| **#9717 duplicate events** | double refetch, harmless but wasteful | 0 | fix before lot 3 (high-frequency types) |
+| **#9717 duplicate events** | double refetch, harmless but wasteful | 0 | fixed on `main` by #9720 (`627382936f`): rebase this branch |
 
 ### Bugs found on the way
 
