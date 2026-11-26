@@ -19,7 +19,6 @@ import io.openaev.service.stream.StreamVisibilityService;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -47,32 +46,22 @@ public class NotificationEngineListener {
   private final UserRepository userRepository;
   private final StreamVisibilityService streamVisibilityService;
 
+  // The condition runs before the event is queued, so a burst of other changes cannot push it out.
   @Async("notificationEngineExecutor")
-  @TransactionalEventListener
+  @TransactionalEventListener(
+      condition = "T(io.openaev.notification.engine.NotificationEngineListener).notifiable(#event)")
   public void onEntityEvent(BaseEvent event) {
     try {
       NotificationTriggerEventType eventType = EVENT_TYPE_MAPPING.get(event.getType());
-      if (eventType == null || event.getInstance() == null) {
-        return;
-      }
-      // A grant-managed root deletion is delivered from the readers captured before the delete
-      // (NotificationReadersCaptureListener): checked here, after commit, its grants are gone and
-      // every grant reader would be denied the deleted event.
-      if (StreamService.isGrantManagedRootDeletion(event)) {
-        return;
-      }
-      Optional<NotificationResourceCatalog> entry =
-          NotificationResourceCatalog.fromEntity(event.getInstance());
-      if (entry.isEmpty()) {
-        return;
-      }
+      NotificationResourceCatalog entry =
+          NotificationResourceCatalog.fromEntity(event.getInstance()).orElseThrow();
       String entityId = event.getInstance().getId();
       String label = resolveLabel(event);
       // Users are not tenant-scoped entities: fan the event out once per tenant the user
       // belongs to, so a tenant's PLAYER triggers never see another tenant's users.
       for (String tenantId : resolveTenantIds(event.getInstance())) {
         notificationEngineService.handleEvent(
-            entry.get(),
+            entry,
             entityId,
             tenantId,
             eventType,
@@ -82,6 +71,18 @@ public class NotificationEngineListener {
     } catch (Exception e) {
       log.error("Notification engine failed to process entity event", e);
     }
+  }
+
+  /**
+   * Whether the event can match a trigger. A grant-managed root deletion is delivered from the
+   * readers captured before the delete ({@link NotificationReadersCaptureListener}): after commit,
+   * its grants are gone and every grant reader would be denied it.
+   */
+  public static boolean notifiable(BaseEvent event) {
+    return EVENT_TYPE_MAPPING.containsKey(event.getType())
+        && event.getInstance() != null
+        && !StreamService.isGrantManagedRootDeletion(event)
+        && NotificationResourceCatalog.fromEntity(event.getInstance()).isPresent();
   }
 
   /**
