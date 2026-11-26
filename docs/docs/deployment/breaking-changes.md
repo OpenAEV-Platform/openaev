@@ -20,6 +20,7 @@ implemented.
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 | [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
 | [Windows agent token encrypted with DPAPI](#windows-agent-token-dpapi) | -             | \[MigrationVersion\]        |
+| [AI target API token moved to credentials](#ai-target-token-credential) | -             | \[MigrationVersion\]        |
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -149,6 +150,16 @@ reinstall the agent after upgrading: an upgrade only replaces the binary, so the
 config file and stops until it is reinstalled.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
+
+<a id="ai-target-token-credential"></a>
+
+#### AI target API token moved to credentials
+
+Starting with **OpenAEV \[MigrationVersion\]**, an AI target no longer stores its API token itself: it uses an API token
+credential. The upgrade deletes the tokens already saved on AI targets, so each AI target that needs a token must get
+a new one.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-ai-target-token-credential.md)
 
 ## OpenAEV 3.261016.0
 
