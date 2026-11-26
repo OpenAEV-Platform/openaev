@@ -84,15 +84,80 @@ public class BatchingInjectStatusService {
             (tenantId, tenantCallbacks) -> {
               TenantContext.setCurrentTenant(tenantId);
               try {
-                tenantTx.execute(
-                    TxCtx.forTenant(tenantId),
-                    () -> processTenantCallbacks(tenantCallbacks, successfullyProcessedCallbacks));
+                successfullyProcessedCallbacks.addAll(
+                    processTenantGroup(tenantId, tenantCallbacks));
                 notifyChainedSteps(tenantId, tenantCallbacks);
               } finally {
                 TenantContext.clearCurrentTenant();
               }
             });
     return successfullyProcessedCallbacks;
+  }
+
+  /**
+   * Processes one tenant's callbacks in one transaction, and falls back to one transaction per
+   * callback when that one cannot commit.
+   *
+   * <p>A callback that fails through another bean's transactional method marks the group's
+   * transaction rollback-only even though {@link #processTenantCallbacks} catches it: the commit
+   * then fails and every callback of the group would be lost with it, the ones already counted as
+   * processed included. Replayed alone, each callback can only lose itself.
+   *
+   * @return the callbacks whose processing was committed
+   */
+  private List<InjectExecutionCallback> processTenantGroup(
+      String tenantId, List<InjectExecutionCallback> tenantCallbacks) {
+    Map<InjectExecutionCallback, CallbackRetryState> retryStates = new IdentityHashMap<>();
+    tenantCallbacks.forEach(callback -> retryStates.put(callback, CallbackRetryState.of(callback)));
+    List<InjectExecutionCallback> processed = new ArrayList<>();
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId), () -> processTenantCallbacks(tenantCallbacks, processed));
+      return processed;
+    } catch (RuntimeException groupFailure) {
+      log.warn(
+          "The {} inject execution callbacks of tenant {} could not be committed together,"
+              + " processing them one by one",
+          tenantCallbacks.size(),
+          tenantId,
+          groupFailure);
+    }
+    // Nothing of the failed attempt was committed: undo what it did outside the database too.
+    callbacksToRequeue.removeIf(retryStates::containsKey);
+    retryStates.forEach((callback, state) -> state.restore(callback));
+    List<InjectExecutionCallback> committed = new ArrayList<>();
+    tenantCallbacks.stream()
+        .sorted(Comparator.comparing(InjectExecutionCallback::getEmissionDate))
+        .forEach(
+            callback -> {
+              List<InjectExecutionCallback> processedAlone = new ArrayList<>();
+              try {
+                tenantTx.execute(
+                    TxCtx.forTenant(tenantId),
+                    () -> processTenantCallbacks(List.of(callback), processedAlone));
+                committed.addAll(processedAlone);
+              } catch (RuntimeException callbackFailure) {
+                // Not acknowledged: the queue rejects it without requeue, and only it.
+                log.error(
+                    "Inject execution callback for inject {} and agent {} could not be committed",
+                    callback.getInjectId(),
+                    callback.getAgentId(),
+                    callbackFailure);
+              }
+            });
+    return committed;
+  }
+
+  /** What {@link #processTenantCallbacks} changes on a callback it decides to requeue. */
+  private record CallbackRetryState(int retryCount, long emissionDate) {
+    static CallbackRetryState of(InjectExecutionCallback callback) {
+      return new CallbackRetryState(callback.getRetryCount(), callback.getEmissionDate());
+    }
+
+    void restore(InjectExecutionCallback callback) {
+      callback.setRetryCount(retryCount);
+      callback.setEmissionDate(emissionDate);
+    }
   }
 
   /**
