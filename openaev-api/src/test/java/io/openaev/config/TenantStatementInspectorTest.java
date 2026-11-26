@@ -1240,47 +1240,74 @@ class TenantStatementInspectorTest {
 
   // --- findings activation (#6420): the ES indexing query --------------------
   //
-  // findForIndexing groups on f.finding_id and projects eight more columns, of findings and of its
-  // location, relying on
-  // PostgreSQL's functional-dependency rule. That rule applies to BASE TABLES only, and the
-  // inspector rewrites "FROM findings f" into a derived table, so activating findings makes the
-  // query invalid SQL and search indexing fails outright. The query is read reflectively from the
-  // annotation, so an edit to the SQL is caught rather than a copy of it.
+  // findForIndexing builds each array of the finding document in its own correlated sub-query, and
+  // its outer query neither groups nor joins a collection. Both are pinned here:
+  // - a GROUP BY on the outer query would rely on PostgreSQL's functional-dependency rule, which
+  //   applies to BASE TABLES only: the inspector rewrites "FROM findings f" into a derived table,
+  //   so the query would stop being valid SQL and search indexing would fail outright;
+  // - a one-to-many join on the outer query multiplies the rows of each finding before the LIMIT,
+  //   and the LIMIT then only applies once every finding after the cursor is joined and aggregated:
+  //   the whole table on every batch of a re-feed from epoch.
+  // The query is read reflectively from the annotation, so an edit to the SQL is caught rather
+  // than a copy of it.
+  @Nested
+  @DisplayName("the findings indexing query survives findings being active")
+  class FindingIndexingQuery {
 
-  @Test
-  @DisplayName("the findings indexing query groups on every projected column")
-  void findingIndexingQueryGroupsOnEveryProjectedColumn() throws Exception {
-    String sql =
-        io.openaev.database.repository.FindingRepository.class
-            .getMethod("findForIndexing", java.time.Instant.class, String.class, int.class)
-            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
-            .value();
-    // Cut at ORDER BY: the substring used to run to the end of the query, which ends
-    // "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit". contains("f.finding_updated_at")
-    // was then satisfied by the ORDER BY occurrence, so deleting that column from the real GROUP
-    // BY - the exact edit this test exists to catch - left it green.
-    String tail = sql.substring(sql.indexOf("GROUP BY"));
-    int orderBy = tail.indexOf("ORDER BY");
-    String groupBy = (orderBy < 0 ? tail : tail.substring(0, orderBy)).toLowerCase();
-    for (String projected :
-        new String[] {
-          "f.finding_id",
-          "f.finding_value",
-          "f.finding_value_display",
-          "f.finding_type",
-          "fl.finding_location_asset_id",
-          "fl.finding_location_user_id",
-          "f.finding_created_at",
-          "f.finding_updated_at",
-          "f.tenant_id"
-        }) {
-      assertTrue(
-          groupBy.contains(projected),
-          projected
-              + " is projected without being aggregated, so it must appear in the GROUP BY: the"
-              + " inspector's derived table removes the functional dependency the query would"
-              + " otherwise rely on. GROUP BY was: "
-              + groupBy);
+    private String indexingSql() throws Exception {
+      return io.openaev.database.repository.FindingRepository.class
+          .getMethod("findForIndexing", java.time.Instant.class, String.class, int.class)
+          .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+          .value()
+          .replaceFirst(";\\s*$", "");
+    }
+
+    private long countOf(String haystack, String needle) {
+      return haystack.split(java.util.regex.Pattern.quote(needle), -1).length - 1;
+    }
+
+    @Test
+    @DisplayName("the outer query neither groups nor joins anything but the finding's location")
+    void outerQueryNeitherGroupsNorFansOut() throws Exception {
+      var select =
+          (net.sf.jsqlparser.statement.select.PlainSelect) CCJSqlParserUtil.parse(indexingSql());
+
+      assertNull(
+          select.getGroupBy(),
+          "a GROUP BY on findings breaks once the inspector turns it into a derived table");
+      assertEquals(
+          java.util.List.of("finding_locations"),
+          select.getJoins() == null
+              ? java.util.List.of()
+              : select.getJoins().stream()
+                  .map(
+                      join ->
+                          ((net.sf.jsqlparser.schema.Table) join.getFromItem())
+                              .getName()
+                              .toLowerCase())
+                  .toList(),
+          "only the location of the finding, joined on its primary key, may be joined on the"
+              + " outer query: a collection joined there multiplies the rows of each finding"
+              + " before the LIMIT, aggregate it in a correlated sub-query instead");
+    }
+
+    @Test
+    @DisplayName("the outer findings is filtered and every sub-query keeps its correlation")
+    void findingsIsFilteredAndSubQueriesStayCorrelated() throws Exception {
+      String sql = indexingSql();
+      long correlations = countOf(sql, "= f.finding_id");
+      assertTrue(correlations > 0, "the sub-queries must be correlated to the outer finding");
+
+      TenantStatementInspector findingsActive =
+          new TenantStatementInspector(new TenantTables(Set.of("findings"), Set.of()));
+      String out = findingsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+
+      assertDoesNotThrow(() -> CCJSqlParserUtil.parse(out), out);
+      assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+      assertEquals(
+          correlations,
+          countOf(out, "= f.finding_id"),
+          "a sub-query that lost its correlation aggregates every finding's rows: " + out);
     }
   }
 

@@ -182,28 +182,39 @@ public interface FindingRepository
     String getValue();
   }
 
-  // One row PER FINDING: assets, and the injects, simulations, scenarios and fields of its
-  // occurrences, are aggregated. The previous per-(finding, asset) rows shared the same base_id, so
-  // multi-asset findings kept only one arbitrary asset in the search index (each bulk upsert
-  // overwrote the previous row) and the LIMIT applied to joined rows, not findings.
-  // Native: array_agg over the occurrences and assets. Read only, no side effect.
+  // One row PER FINDING: the injects, simulations, scenarios and fields of its occurrences are
+  // aggregated, each array in its own correlated sub-query. The outer query joins only the
+  // finding's location, on its primary key, so it never fans out: the LIMIT takes the next findings
+  // off the cursor index and the sub-queries only run for those. Joining the occurrences into one
+  // GROUP BY applied the LIMIT once every finding after the cursor was joined and aggregated, which
+  // during a re-feed from epoch is the whole table on every batch. With no GROUP BY, the query also
+  // stays valid once the tenant statement inspector rewrites "FROM findings f" into a derived
+  // table.
+  // Native: array_agg in correlated sub-queries. Read only, no side effect.
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
-              + " array_agg(DISTINCT fo.finding_occurrence_field)"
-              + " FILTER ( WHERE fo.finding_occurrence_field IS NOT NULL ) AS finding_fields,"
-              + " array_agg(DISTINCT fo.finding_occurrence_inject_id)"
-              + " FILTER ( WHERE fo.finding_occurrence_inject_id IS NOT NULL ) AS inject_ids,"
-              + " array_agg(DISTINCT i.inject_exercise)"
-              + " FILTER ( WHERE i.inject_exercise IS NOT NULL ) AS simulation_ids,"
-              + " array_agg(DISTINCT se.scenario_id)"
-              + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
+              + " (SELECT array_agg(DISTINCT fo.finding_occurrence_field)"
+              + " FROM finding_occurrences fo"
+              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
+              + " AND fo.finding_occurrence_field IS NOT NULL) AS finding_fields,"
+              + " (SELECT array_agg(DISTINCT fo.finding_occurrence_inject_id)"
+              + " FROM finding_occurrences fo"
+              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
+              + " AND fo.finding_occurrence_inject_id IS NOT NULL) AS inject_ids,"
+              + " (SELECT array_agg(DISTINCT i.inject_exercise)"
+              + " FROM finding_occurrences fo"
+              + " JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id"
+              + " WHERE fo.finding_occurrence_finding_id = f.finding_id"
+              + " AND i.inject_exercise IS NOT NULL) AS simulation_ids,"
+              + " (SELECT array_agg(DISTINCT se.scenario_id)"
+              + " FROM finding_occurrences fo"
+              + " JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id"
+              + " JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise"
+              + " WHERE fo.finding_occurrence_finding_id = f.finding_id) AS scenario_ids,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
-              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
-              + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
-              + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
@@ -211,15 +222,6 @@ public interface FindingRepository
               // (first round, grace-window cap) re-serves the boundary group, idempotently.
               + "WHERE (f.finding_updated_at > :from OR (f.finding_updated_at = :from"
               + " AND (CAST(:fromId AS text) IS NULL OR f.finding_id > CAST(:fromId AS text)))) "
-              // Every non-aggregated projected column, not just the id. Grouping on the id
-              // alone relies on PostgreSQL's functional-dependency rule, which only applies to
-              // BASE TABLES. Once findings is v2-active the tenant statement inspector rewrites
-              // "FROM findings f" into a derived table, the dependency can no longer be inferred,
-              // and this query stops being valid SQL: search indexing then fails outright instead
-              // of degrading. The array_agg(...) stay out, being aggregates.
-              + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
-              + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(
