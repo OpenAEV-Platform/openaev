@@ -1,20 +1,15 @@
 /* eslint-disable no-console */
 /* Every lang file keeps its keys in the order written by sort-translation-files.js, so that adding keys never moves
    others. Consumed by i18n-checker.js. */
-import fs from 'node:fs';
-
-import { supportedLanguages } from './constants/Lang.js';
+import { readLangFiles } from './i18n-lang-files.js';
 
 export const compareKeys = (a, b) => a.toLowerCase().localeCompare(b.toLowerCase(), 'en');
 
 export const collectOrderViolations = () => {
   const violations = [];
 
-  for (const lang of supportedLanguages) {
-    const file = `src/utils/lang/${lang}.json`;
-    if (!fs.existsSync(file)) continue;
-
-    const keys = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')));
+  for (const [lang, translations] of readLangFiles()) {
+    const keys = Object.keys(translations);
     const sorted = [...keys].sort(compareKeys);
     const index = keys.findIndex((key, i) => key !== sorted[i]);
     if (index !== -1) {
