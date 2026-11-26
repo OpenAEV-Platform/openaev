@@ -1,6 +1,5 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, EmailOutlined, KeyOutlined, PersonOutlined, SmartphoneOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -188,7 +187,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
   const sortedUsers: UserStoreExtended[] = users
     .filter(u => !!u)
     .filter((user: UserStore) => tags.length === 0
-      || tags.map(item => item.id).some((filter: Option['id']) => R.includes(filter, user.user_tags))).filter(filterByKeyword)
+      || tags.map(item => item.id).some((filter: Option['id']) => user.user_tags!.includes(filter))).filter(filterByKeyword)
     .map((user: UserStore) => {
       if (checkUserEnabled) {
         return ({

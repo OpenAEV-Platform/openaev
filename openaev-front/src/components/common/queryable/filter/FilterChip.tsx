@@ -2,10 +2,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system
 import { Cancel } from '@mui/icons-material';
 // fds:keep-mui deferred to the filter bar wave (LIBRARY-FEEDBACK #54: the filter chip edits its and/or from the label)
 import { Chip, type SvgIconProps } from '@mui/material';
-import * as R from 'ramda';
 import { forwardRef, type FunctionComponent, useEffect, useRef, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
+import { isEmpty } from '../../../../utils/object';
 import { useFormatter } from '../../../i18n';
 import { neutralChipSx, PENDING_CHIP_EDGE } from '../../chips/standardChip';
 import FilterChipPopover from './FilterChipPopover';
@@ -57,13 +57,13 @@ const FilterChip: FunctionComponent<Props> = ({
     }
   };
 
-  const isEmpty = (values?: string[]) => {
-    return R.isEmpty(values) || values?.some(v => R.isEmpty(v));
+  const hasEmptyValue = (values?: string[]) => {
+    return isEmpty(values) || values?.some(v => isEmpty(v));
   };
 
   // A filter still waiting for its value stays outlined, as today; a complete one takes
   // the design-system 1.13 chip look (neutral fill and a 30% hairline).
-  const isIncomplete = isEmpty(filter.values) && !['empty', 'not_empty'].includes(filter.operator ?? 'eq');
+  const isIncomplete = hasEmptyValue(filter.values) && !['empty', 'not_empty'].includes(filter.operator ?? 'eq');
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
