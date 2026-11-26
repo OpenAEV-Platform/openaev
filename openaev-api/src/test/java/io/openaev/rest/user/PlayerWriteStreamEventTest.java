@@ -103,6 +103,7 @@ public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest 
   @Autowired private OrganizationRepository organizationRepository;
   @Autowired private UserService userService;
   @Autowired private AttackPathAccessControl attackPathAccessControl;
+  @Autowired private PermissionService permissionService;
 
   private String tenantB;
 
@@ -169,6 +170,10 @@ public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest 
     // gets its tenant scope; this test shares one transaction, so it is not what is under test.
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+    when(permissions.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
     StreamService stream =
         new StreamService(
             permissions,
@@ -342,6 +347,10 @@ public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest 
       // gets its tenant scope; this test shares one transaction, so it is not what is under test.
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+      when(permissions.inTenant(any(), any()))
+          .thenAnswer(
+              invocation ->
+                  permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
       StreamService stream =
           new StreamService(
               permissions,
@@ -551,6 +560,10 @@ public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest 
     private Outcome deleteFromB(User player) throws Exception {
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+      when(permissions.inTenant(any(), any()))
+          .thenAnswer(
+              invocation ->
+                  permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
       StreamService stream =
           new StreamService(
               permissions,
