@@ -28,10 +28,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 /**
  * Write-attribution gate (G1), the write-side twin of {@link FailClosedGateExtension}.
  * Auto-registered for every test (JUnit extension autodetection), active only under {@code
- * -Dopenaev.writeattr.detector=on} - so normal CI is untouched and only an opt-in run pays the
- * cost. It records each test's wrong-tenant writes (via {@link WriteAttrDetectorListener}, wired
- * suite-wide by {@link WriteAttrDetectorContextCustomizerFactory}) and fails the test if a NEW one
- * originates from a production entry point.
+ * -Dopenaev.writeattr.detector=on}, which every API shard of the pull request CI passes
+ * (.github/actions/api-tests/action.yml); a local run without it pays nothing. It records each
+ * test's wrong-tenant writes (via {@link WriteAttrDetectorListener}, wired suite-wide by {@link
+ * WriteAttrDetectorContextCustomizerFactory}) and fails the test if a NEW one originates from a
+ * production entry point.
  *
  * <p>Waiving is a baseline diff, per-test so it is shard-safe. A signature is {@code table} + the
  * written tenant's relation to the scope + the outermost production entry frame. A write with no

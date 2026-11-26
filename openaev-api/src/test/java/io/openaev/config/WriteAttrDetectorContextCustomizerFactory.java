@@ -18,9 +18,9 @@ import org.springframework.test.context.MergedContextConfiguration;
  * -Dopenaev.writeattr.detector=on}. When on, every {@code @SpringBootTest} context wraps its
  * DataSource with {@link WriteAttrDetectorListener} and installs {@link WriteAttrDetectorTrigger}
  * on refresh, so a full integration run surfaces every write that stamps a {@code tenant_id}
- * outside the transaction's v2 scope (or a null one on a strict table). Off by default, so normal
- * CI is untouched. Mirrors {@link FailClosedDetectorContextCustomizerFactory}; used to collect the
- * baseline and, once frozen, to feed the nightly shadow report.
+ * outside the transaction's v2 scope (or a null one on a strict table). Off by default; every API
+ * shard of the pull request CI turns it on (.github/actions/api-tests/action.yml), and the nightly
+ * shadow runs report against it. Mirrors {@link FailClosedDetectorContextCustomizerFactory}.
  *
  * <p>The trigger is installed once per JVM on the first context refresh and dropped on a JVM
  * shutdown hook. The test database is shared across contexts in one JVM, so a per-context install

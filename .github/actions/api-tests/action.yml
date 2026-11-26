@@ -37,22 +37,22 @@ inputs:
     default: ""
   tenant-mode:
     description: >
-      Multi-tenancy v2 shadow mode. Empty (default) leaves the run exactly as it was: the test
-      profile declares no active tables, so the statement inspector never fires. "production" runs
-      the suite under the active-tables list main ships, which catches a regression on a table that
-      is already live. "all" runs it with every tenant table active except the self-isolated
-      ones, which surfaces what activating the rest would break. Both turn the fail-closed
-      detector on, so an unscoped production read fails its test instead of silently returning zero
-      rows.
+      Multi-tenancy v2 shadow mode. Empty (default) is the gating run: the test profile arms the
+      active-tables list main ships (TestProfileActiveTablesTest holds the two equal), and the
+      fail-closed and write-attribution detectors are on, so a test that reads an active table with
+      no scope, or writes a tenant outside its scope, from production code fails on its own pull
+      request unless its signature is waived in failclosed-baseline.txt or writeattr-baseline.txt.
+      "production" runs the suite under the list read from src/main/resources at run time, and "all"
+      runs it with every tenant table active except the self-isolated ones, which surfaces what
+      activating the rest breaks. In both shadow modes the fail-closed gate reports its signatures
+      against that mode's own stored list and fails no test on them.
       A shadow shard reports a true pass or fail, and cannot fail the workflow: the matrix entry
-      carries continue_on_error. What those runs currently fail on is written down in
+      carries continue_on_error. What those runs fail on is written down in
       .github/tenant-shadow-distance.md.
       Scope, exactly: the list is a JVM system property, and a class carrying
-      @TestPropertySource(properties = "openaev.tenant.active-tables=...") keeps its own narrower
-      list, because inlined test properties win over system properties. Those classes are the
-      isolation suites, which already run with their table active; the shadow's new information
-      comes from every other class, which has never run under activation. Making the shadow win over
-      per-class activation needs a context customizer and is tracked separately.
+      @TestPropertySource(properties = "openaev.tenant.active-tables=...") or its own
+      DynamicPropertySource for that property arms its own list, because inlined test properties
+      win over system properties. Those classes are listed in pinned-active-tables-baseline.txt.
     required: false
     default: ""
   no-cache:
@@ -247,7 +247,7 @@ runs:
       run: |
         if [ -z "$MODE" ]; then
           echo "gate_mode=" >> "$GITHUB_OUTPUT"
-          echo "ℹ️ tenant shadow: off (test profile, inspector inert)"
+          echo "🔐 tenant gate: test profile active tables (the production list), fail-closed and write-attribution detectors failing per test"
           exit 0
         fi
         case "$MODE" in
@@ -282,7 +282,7 @@ runs:
         # the failures instead made the job green whatever happened, which is the one state nobody can
         # read. Every later step in this action is guarded by !cancelled() or failure(), so they all
         # still run when the test step is red.
-        # The write-attribution detector rides the same shadow run as the fail-closed one.
+        # Both detectors run on every shard, shadow or not (see the test step).
         # openaev.failclosed.shadow-mode names the armed set to the fail-closed gate, which then
         # reports its signatures against THAT mode's own stored list instead of asserting per test.
         # Without it the gate would fail every test reading a table this wider list activates, which
@@ -312,13 +312,18 @@ runs:
         if [ -n "$EXCLUDES_FILE" ]; then
           ARGS+=("-Dsurefire.excludesFile=${EXCLUDES_FILE}")
         fi
+        # Both detectors run on every shard. Without a shadow mode the gates fail the test that
+        # produces an unwaived signature, which is what makes a new unscoped read or a wrong-tenant
+        # write fail the pull request that adds it.
+        ARGS+=(
+          -Dopenaev.failclosed.detector=on
+          -Dopenaev.writeattr.detector=on
+        )
         if [ -n "$GATE_MODE" ]; then
           # Quoted so '*' reaches the JVM instead of being glob-expanded by the shell.
           ARGS+=(
             "-Dopenaev.tenant.active-tables=${ACTIVE_TABLES}"
-            -Dopenaev.failclosed.detector=on
             "-Dopenaev.failclosed.shadow-mode=${GATE_MODE}"
-            -Dopenaev.writeattr.detector=on
           )
         fi
         mvn -B -ntp -pl openaev-api \

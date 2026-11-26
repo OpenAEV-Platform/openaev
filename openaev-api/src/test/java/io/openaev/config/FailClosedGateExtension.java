@@ -27,10 +27,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * WS1 fail-closed gate. Auto-registered for every test (JUnit extension autodetection), active only
- * under {@code -Dopenaev.failclosed.detector=on} - so normal CI is untouched and only an opt-in run
- * pays the cost. It records each test's fail-closed reads (via {@link FailClosedDetectorListener},
- * wired suite-wide by {@link FailClosedDetectorContextCustomizerFactory}) and fails the test if a
- * NEW one originates from production code.
+ * under {@code -Dopenaev.failclosed.detector=on}, which every API shard of the pull request CI
+ * passes (.github/actions/api-tests/action.yml); a local run without it pays nothing. It records
+ * each test's fail-closed reads (via {@link FailClosedDetectorListener}, wired suite-wide by {@link
+ * FailClosedDetectorContextCustomizerFactory}) and fails the test if a NEW one originates from
+ * production code.
  *
  * <p>Waiving is a baseline diff, per-test so it is shard-safe. A read whose nearest caller is test
  * or fixture code is auto-waived (a test choosing not to scope is never a production bug). A read
