@@ -8,6 +8,7 @@ import io.openaev.config.WriteAttrSignature.Relation;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -21,13 +22,19 @@ class WriteAttrGateExtensionTest {
 
   private static Violation prod(String table, Relation relation, String entryFrame) {
     return new Violation(
-        table, "2cffad3a-0001-4078-b0e2-ef74274022c3", "tenant-b", relation, entryFrame, "flush");
+        table,
+        "2cffad3a-0001-4078-b0e2-ef74274022c3",
+        "tenant-b",
+        relation,
+        entryFrame,
+        "flush",
+        "main");
   }
 
   /** A write made under a deny-all scope ({@code TxCtx.missing()}): {@code scope} is empty. */
   private static Violation prodEmptyScope(String table, Relation relation, String entryFrame) {
     return new Violation(
-        table, "2cffad3a-0001-4078-b0e2-ef74274022c3", "", relation, entryFrame, "flush");
+        table, "2cffad3a-0001-4078-b0e2-ef74274022c3", "", relation, entryFrame, "flush", "main");
   }
 
   @Test
@@ -169,5 +176,36 @@ class WriteAttrGateExtensionTest {
     assertEquals(
         "# " + WriteAttrGateExtension.EMPTY_SCOPE_HEADER + ": 0 distinct signatures\n",
         WriteAttrGateExtension.emptyScopeReportContent(Set.of()));
+  }
+
+  @Nested
+  @DisplayName("the thread of each offending write")
+  class ThreadOfTheWrite {
+
+    @Test
+    @DisplayName("given_offendingWritesOnTwoThreads_should_nameEachThreadUnderItsSignature")
+    void given_offendingWritesOnTwoThreads_should_nameEachThreadUnderItsSignature() {
+      // Arrange: the same write from a consumer thread and from the test thread, and a waived one
+      Violation onConsumer =
+          new Violation(
+              "scenarios",
+              "2cffad3a-0001-4078-b0e2-ef74274022c3",
+              "tenant-b",
+              Relation.DEFAULT,
+              CONTROLLER + ":105",
+              "flush",
+              "rabbit-consumer-1");
+      Violation waived = prod("tags", Relation.DEFAULT, CONTROLLER + ":110");
+
+      // Act
+      String described =
+          WriteAttrGateExtension.describeOffendingWrites(
+              List.of(onConsumer, prod("scenarios", Relation.DEFAULT, CONTROLLER + ":105"), waived),
+              Set.of("tags DEFAULT " + CONTROLLER));
+
+      // Assert
+      assertEquals(
+          "scenarios DEFAULT " + CONTROLLER + "\n    on thread main, rabbit-consumer-1", described);
+    }
   }
 }

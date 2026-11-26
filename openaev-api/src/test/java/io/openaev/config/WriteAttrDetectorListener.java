@@ -129,9 +129,10 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
       return;
     }
     String entryFrame = resolveEntryFrame(table, id, writtenTenant, stack);
+    String thread = Thread.currentThread().getName();
     WriteAttrDetectorRecorder.record(
         new WriteAttrDetectorRecorder.Violation(
-            table, writtenTenant, scope, relation, entryFrame, innermostCaller));
+            table, writtenTenant, scope, relation, entryFrame, innermostCaller, thread));
     if (SUITE_WIDE) {
       System.out.println(
           MARKER
@@ -146,7 +147,9 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
               + " entry="
               + entryFrame
               + " innermost="
-              + innermostCaller);
+              + innermostCaller
+              + " thread="
+              + thread);
     }
   }
 

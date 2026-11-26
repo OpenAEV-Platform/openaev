@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -133,8 +134,9 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
     if (expectsEmptyScopeReads(context)) {
       return;
     }
-    List<String> offending =
-        offendingSignatures(FailClosedAccessRecorder.violations(), waivedReadsOf(context));
+    List<FailClosedAccessRecorder.Violation> violations = FailClosedAccessRecorder.violations();
+    Set<String> waivedByTheTest = waivedReadsOf(context);
+    List<String> offending = offendingSignatures(violations, waivedByTheTest);
     if (offending.isEmpty()) {
       return;
     }
@@ -145,7 +147,7 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
     fail(
         "Fail-closed: production code read an active tenant table with no scope (would return zero "
             + "rows in production):\n  "
-            + String.join("\n  ", offending)
+            + describeOffendingReads(violations, waivedByTheTest)
             + "\nScope the path (an HTTP TxCtx parameter, or the TenantScopedTransaction primitive "
             + "in background code). If it is intentional and safe, add the signature to "
             + "failclosed-baseline.txt with a reason.");
@@ -318,14 +320,35 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
    */
   static List<String> offendingSignatures(
       Collection<FailClosedAccessRecorder.Violation> violations, Set<String> waivedByTheTest) {
+    return offendingReads(violations, waivedByTheTest).stream()
+        .map(v -> signature(v.caller()))
+        .distinct()
+        .toList();
+  }
+
+  /**
+   * The offending signatures of the failure message, each followed by the threads that made its
+   * reads, so a read from a scheduler, consumer or indexing thread shows as such.
+   */
+  static String describeOffendingReads(
+      Collection<FailClosedAccessRecorder.Violation> violations, Set<String> waivedByTheTest) {
+    Map<String, Set<String>> threads = new LinkedHashMap<>();
+    for (FailClosedAccessRecorder.Violation read : offendingReads(violations, waivedByTheTest)) {
+      threads.computeIfAbsent(signature(read.caller()), s -> new TreeSet<>()).add(read.thread());
+    }
+    return threads.entrySet().stream()
+        .map(e -> e.getKey() + "\n    on thread " + String.join(", ", e.getValue()))
+        .collect(Collectors.joining("\n  "));
+  }
+
+  private static List<FailClosedAccessRecorder.Violation> offendingReads(
+      Collection<FailClosedAccessRecorder.Violation> violations, Set<String> waivedByTheTest) {
     Map<String, Set<String>> testWaivers = waivers(waivedByTheTest);
     return violations.stream()
         .filter(v -> !UNKNOWN_CALLER.equals(v.caller()))
         .filter(v -> !isTestCaller(v.caller()))
         .filter(v -> !isWaived(v, WAIVED))
         .filter(v -> !isWaived(v, testWaivers))
-        .map(v -> signature(v.caller()))
-        .distinct()
         .toList();
   }
 

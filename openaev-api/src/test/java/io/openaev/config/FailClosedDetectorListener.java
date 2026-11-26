@@ -96,9 +96,19 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
         Set<String> mentioned = oracle().mentioned(sql);
         String tables = mentioned.isEmpty() ? "(gated)" : String.join(",", mentioned);
         String caller = callerHint();
-        FailClosedAccessRecorder.record(tables, caller, sql);
+        String thread = Thread.currentThread().getName();
+        FailClosedAccessRecorder.record(tables, caller, thread, sql);
         if (SUITE_WIDE) {
-          System.out.println(MARKER + " tables=" + tables + " at=" + caller + " sql=" + hint(sql));
+          System.out.println(
+              MARKER
+                  + " tables="
+                  + tables
+                  + " at="
+                  + caller
+                  + " thread="
+                  + thread
+                  + " sql="
+                  + hint(sql));
         }
       }
     }

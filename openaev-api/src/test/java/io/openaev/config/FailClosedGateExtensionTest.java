@@ -26,7 +26,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 class FailClosedGateExtensionTest {
 
   private static Violation from(String caller) {
-    return new Violation("collectors", caller, "select ... where can_access_tenant(c.tenant_id)");
+    return new Violation(
+        "collectors", caller, "main", "select ... where can_access_tenant(c.tenant_id)");
   }
 
   @Test
@@ -126,7 +127,8 @@ class FailClosedGateExtensionTest {
     private static final String TOKEN_LOAD = "io.openaev.service.UserService.findByToken";
 
     private Violation read(String tables, String caller) {
-      return new Violation(tables, caller, "select ... where can_access_tenant(r.tenant_id, true)");
+      return new Violation(
+          tables, caller, "main", "select ... where can_access_tenant(r.tenant_id, true)");
     }
 
     @Test
@@ -218,7 +220,8 @@ class FailClosedGateExtensionTest {
   class GroupsReads {
 
     private Violation read(String tables, String site) {
-      return new Violation(tables, site + ":1", "select ... where can_access_tenant(g.tenant_id)");
+      return new Violation(
+          tables, site + ":1", "main", "select ... where can_access_tenant(g.tenant_id)");
     }
 
     @Test
@@ -427,7 +430,7 @@ class FailClosedGateExtensionTest {
 
     private Violation read(String tables, String site) {
       return new Violation(
-          tables, site + ":1065", "select ... where can_access_tenant(r.tenant_id)");
+          tables, site + ":1065", "main", "select ... where can_access_tenant(r.tenant_id)");
     }
 
     @Test
@@ -571,7 +574,8 @@ class FailClosedGateExtensionTest {
     }
 
     private Violation read(String tables, String site) {
-      return new Violation(tables, site + ":1", "select ... where can_access_tenant(t.tenant_id)");
+      return new Violation(
+          tables, site + ":1", "main", "select ... where can_access_tenant(t.tenant_id)");
     }
 
     private ExtensionContext contextOf(AnnotatedElement element, ExtensionContext parent) {
@@ -630,6 +634,31 @@ class FailClosedGateExtensionTest {
           IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(wholeSite));
       assertThrows(
           IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(noTable));
+    }
+  }
+
+  @Nested
+  @DisplayName("the thread of each offending read")
+  class ThreadOfTheRead {
+
+    private static final String SITE = "io.openaev.service.ChannelService.validateArticles";
+    private static final String SQL = "select ... where can_access_tenant(c.tenant_id)";
+
+    @Test
+    @DisplayName("given_offendingReadsOnTwoThreads_should_nameEachThreadUnderItsSite")
+    void given_offendingReadsOnTwoThreads_should_nameEachThreadUnderItsSite() {
+      // Arrange: the same site read from a scheduler thread and twice from the test thread
+      List<Violation> reads =
+          List.of(
+              new Violation("channels", SITE + ":1", "scheduler_Worker-1", SQL),
+              new Violation("channels", SITE + ":2", "main", SQL),
+              new Violation("channels", SITE + ":1", "main", SQL));
+
+      // Act
+      String described = FailClosedGateExtension.describeOffendingReads(reads, Set.of());
+
+      // Assert
+      assertEquals(SITE + "\n    on thread main, scheduler_Worker-1", described);
     }
   }
 }
