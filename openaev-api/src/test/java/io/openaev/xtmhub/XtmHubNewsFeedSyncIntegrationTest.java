@@ -25,6 +25,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.NewsFeedItemService;
 import io.openaev.utils.NewsFeedUtils;
+import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
@@ -35,6 +36,7 @@ import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.utilstest.GroupFixtureWriter;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,9 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
 
   private static final String FIRST_TOKEN = "first-token";
   private static final String SECOND_TOKEN = "second-token";
-  private static final Instant CREATION_DATE = Instant.parse("2026-10-20T10:15:30Z");
+  // Relative: the cleanup deletes the items older than the retention, whatever day the test runs
+  private static final Instant CREATION_DATE =
+      Instant.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
 
   @Autowired private XtmHubService xtmHubService;
   @Autowired private NewsFeedItemRepository newsFeedItemRepository;
@@ -621,6 +625,127 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
           .containsExactlyInAnyOrder(
               tuple("hub-1", "Scenario hub-1"), tuple("hub-2", "Scenario hub-2"));
       assertThat(newsFeedEvents()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Old items cleanup")
+  class OldItemsCleanup {
+
+    private static final String LEGACY_TYPE = "RESOURCE_OBSOLETE";
+
+    private Instant daysAgo(int days) {
+      return Instant.now().minus(days, ChronoUnit.DAYS);
+    }
+
+    private void saveRow(User user, String hubItemId, Instant creationDate) {
+      NewsFeedItem item = NewsFeedItemFixture.createNewsFeedItem(user, hubItemId);
+      item.setCreationDate(creationDate);
+      newsFeedItemRepository.save(item);
+    }
+
+    private void saveBlogPost(User user, String hubItemId, Instant creationDate) {
+      NewsFeedItem item = NewsFeedItemFixture.createBlogPost(user, hubItemId);
+      item.setCreationDate(creationDate);
+      newsFeedItemRepository.save(item);
+    }
+
+    @Test
+    @DisplayName("Given old and recent items, should delete the old ones except the blog posts")
+    void given_oldAndRecentItems_should_deleteOldItemsExceptBlogPosts() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User first = createUser(firstTenant);
+      User second = createUser(firstTenant);
+      for (User user : List.of(first, second)) {
+        saveRow(user, "hub-old", daysAgo(200));
+        saveRow(user, "hub-legacy", daysAgo(200));
+        saveRow(user, "hub-recent", daysAgo(10));
+        saveBlogPost(user, "hub-old-blog", daysAgo(400));
+      }
+      // A type this version no longer knows
+      jdbcTemplate.update(
+          "update news_feed_items set news_feed_item_type = ? where news_feed_item_hub_id = ?",
+          LEGACY_TYPE,
+          "hub-legacy");
+      givenHubReturns(FIRST_TOKEN);
+      applicationEvents.clear();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert: the old rows of every user are gone, through the session so the users are told
+      for (User user : List.of(first, second)) {
+        assertThat(itemsOf(user))
+            .extracting(NewsFeedItem::getHubItemId)
+            .containsExactlyInAnyOrder("hub-recent", "hub-old-blog");
+      }
+      assertThat(newsFeedEvents())
+          .hasSize(4)
+          .extracting(BaseEvent::getType)
+          .containsOnly(DATA_DELETE);
+    }
+
+    @Test
+    @DisplayName("Given no registered tenant, should still delete the old items")
+    void given_noRegisteredTenant_should_stillDeleteOldItems() {
+      // Arrange
+      User user = createUser(firstTenant);
+      saveRow(user, "hub-old", daysAgo(200));
+      saveRow(user, "hub-recent", daysAgo(10));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(xtmHubClient, never()).consumeProvisionedNewsFeedItems(any(), any());
+      assertThat(itemsOf(user))
+          .extracting(NewsFeedItem::getHubItemId)
+          .containsExactly("hub-recent");
+    }
+
+    @Test
+    @DisplayName("Given more old items than a chunk, should delete them all")
+    void given_moreOldItemsThanAChunk_should_deleteThemAll() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant);
+      newsFeedItemRepository.saveAll(
+          IntStream.range(0, NewsFeedItemService.USER_CHUNK_SIZE + 1)
+              .mapToObj(
+                  i -> {
+                    NewsFeedItem item =
+                        NewsFeedItemFixture.createNewsFeedItem(user, "hub-old-" + i);
+                    item.setCreationDate(daysAgo(200));
+                    return item;
+                  })
+              .toList());
+      saveRow(user, "hub-recent", daysAgo(10));
+      givenHubReturns(FIRST_TOKEN);
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(itemsOf(user))
+          .extracting(NewsFeedItem::getHubItemId)
+          .containsExactly("hub-recent");
+    }
+
+    @Test
+    @DisplayName("Given the feature flag is off, should not delete the old items")
+    void given_featureFlagOff_should_notDeleteOldItems() {
+      // Arrange
+      setDevFeatures(originalDevFeatures);
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User user = createUser(firstTenant);
+      saveRow(user, "hub-old", daysAgo(200));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(itemsOf(user)).extracting(NewsFeedItem::getHubItemId).containsExactly("hub-old");
     }
   }
 

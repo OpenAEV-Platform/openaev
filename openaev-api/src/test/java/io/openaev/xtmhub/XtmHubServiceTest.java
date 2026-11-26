@@ -37,9 +37,11 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.xtmhub.collector.XtmHubCollectorConfig;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -57,6 +59,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockserver.integration.ClientAndServer;
@@ -88,6 +91,7 @@ class XtmHubServiceTest {
   @Mock private NewsFeedItemService newsFeedItemService;
 
   private XtmHubConfig xtmHubConfig;
+  private XtmHubCollectorConfig xtmHubCollectorConfig;
   private XtmHubService xtmHubService;
 
   private PlatformSettings mockSettings;
@@ -113,6 +117,8 @@ class XtmHubServiceTest {
     xtmHubConfig = new XtmHubConfig();
     xtmHubConfig.setUrl("http://localhost:" + mockServer.getLocalPort());
     xtmHubConfig.setConnectivityEmailEnable(true);
+    // Not a Spring bean here: the cleanup retention is unset, so it resolves to its default.
+    xtmHubCollectorConfig = new XtmHubCollectorConfig();
 
     // lenient: some tests (blank/null token) never reach the HTTP call
     lenient().when(httpClientFactory.httpClientCustom()).thenReturn(HttpClients.createDefault());
@@ -200,7 +206,8 @@ class XtmHubServiceTest {
             tenantWriteScopeResolver,
             tenantTx,
             previewFeatureService,
-            newsFeedItemService);
+            newsFeedItemService,
+            xtmHubCollectorConfig);
   }
 
   @AfterEach
@@ -1460,7 +1467,7 @@ class XtmHubServiceTest {
       // Act
       xtmHubService.syncNewsFeed();
 
-      // Assert
+      // Assert: neither the Hub items nor the cleanup
       verifyNoInteractions(newsFeedItemService);
       verifyNoRequestSentToHub();
       verifyNoInteractions(tenantXtmHubRegistrationRepository);
@@ -1476,7 +1483,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       verifyNoRequestSentToHub();
     }
 
@@ -1849,7 +1856,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
 
@@ -1885,7 +1892,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN, SECOND_TOKEN);
     }
 
@@ -1939,7 +1946,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
 
@@ -1957,7 +1964,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
 
@@ -1975,7 +1982,7 @@ class XtmHubServiceTest {
       xtmHubService.syncNewsFeed();
 
       // Assert
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
     }
 
@@ -1994,7 +2001,7 @@ class XtmHubServiceTest {
       // Assert
       verify(httpClientFactory).httpClientNoRetry(XtmHubClient.NEWS_FEED_TIMEOUT);
       assertThat(tokensSentToHub()).containsExactly(FIRST_TOKEN);
-      verifyNoInteractions(newsFeedItemService);
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
     }
 
     @Test
@@ -2009,6 +2016,119 @@ class XtmHubServiceTest {
 
       // Act & Assert
       assertDoesNotThrow(() -> xtmHubService.syncNewsFeed());
+    }
+
+    @Test
+    @DisplayName("Given the Hub items, should then clean the items older than the retention")
+    void given_hubItems_should_thenCleanItemsOlderThanRetention() {
+      // Arrange
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalValue("30");
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalUnit("days");
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      when(newsFeedItemService.cleanOldItems(any())).thenReturn(3);
+      Instant before = Instant.now();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      Instant after = Instant.now();
+      ArgumentCaptor<Instant> cutoff = ArgumentCaptor.forClass(Instant.class);
+      InOrder inOrder = inOrder(newsFeedItemService);
+      inOrder.verify(newsFeedItemService).applyProvisionedItems(any(), any());
+      inOrder.verify(newsFeedItemService).cleanOldItems(cutoff.capture());
+      assertThat(cutoff.getValue())
+          .isBetween(before.minus(30, ChronoUnit.DAYS), after.minus(30, ChronoUnit.DAYS));
+    }
+
+    @Test
+    @DisplayName("Given no registration, should still clean the old items")
+    void given_noRegistration_should_stillCleanOldItems() {
+      // Arrange
+      givenRegistrations();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService).cleanOldItems(any());
+      verifyNoRequestSentToHub();
+    }
+
+    @Test
+    @DisplayName("Given every token rejected, should still clean the old items")
+    void given_everyTokenRejected_should_stillCleanOldItems() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, errorResponse("Invalid token provided"));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService).cleanOldItems(any());
+      verify(newsFeedItemService, never()).applyProvisionedItems(any(), any());
+    }
+
+    @Test
+    @DisplayName("Given a Hub server error, should still clean the old items")
+    void given_hubServerError_should_stillCleanOldItems() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 500, "");
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService).cleanOldItems(any());
+    }
+
+    @Test
+    @DisplayName("Given the items cannot be applied, should still clean the old items")
+    void given_itemsCannotBeApplied_should_stillCleanOldItems() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      doThrow(new IllegalStateException("database down"))
+          .when(newsFeedItemService)
+          .applyProvisionedItems(any(), any());
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService).cleanOldItems(any());
+    }
+
+    @Test
+    @DisplayName("Given a retention too long to have a cutoff, should clean nothing")
+    void given_retentionWithoutCutoff_should_cleanNothing() {
+      // Arrange
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalValue("2147483647");
+      xtmHubCollectorConfig.setNewsFeedCleanupIntervalUnit("years");
+      givenRegistrations();
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      verify(newsFeedItemService, never()).cleanOldItems(any());
+    }
+
+    @Test
+    @DisplayName("Given the cleanup fails, should not fail")
+    void given_cleanupFails_should_notFail() {
+      // Arrange
+      givenRegistrations(registered("tenant-a", FIRST_TOKEN, now.minusDays(10)));
+      givenHubAnswers(FIRST_TOKEN, 200, ITEMS_RESPONSE);
+      when(newsFeedItemService.cleanOldItems(any()))
+          .thenThrow(new IllegalStateException("database down"));
+
+      // Act & Assert
+      assertDoesNotThrow(() -> xtmHubService.syncNewsFeed());
+      verify(newsFeedItemService).applyProvisionedItems(any(), any());
     }
   }
 

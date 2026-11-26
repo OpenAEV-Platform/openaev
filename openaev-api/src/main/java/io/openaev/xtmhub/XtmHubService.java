@@ -24,9 +24,11 @@ import io.openaev.utils.LicenseUtils;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.xtmhub.collector.XtmHubCollectorConfig;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,6 +70,7 @@ public class XtmHubService {
   private final TenantScopedTransaction tenantTx;
   private final PreviewFeatureService previewFeatureService;
   private final NewsFeedItemService newsFeedItemService;
+  private final XtmHubCollectorConfig xtmHubCollectorConfig;
   // Logged once per state change rather than at every run, as long as the tokens stay rejected.
   private final AtomicBoolean newsFeedTokensRejectedLogged = new AtomicBoolean(false);
 
@@ -362,22 +365,53 @@ public class XtmHubService {
    * until one token is accepted. Nothing is consumed, hence nothing is created, updated nor
    * deleted, while the {@link PreviewFeature#XTM_HUB_NEWS_FEED} feature flag is off.
    *
+   * <p>The run ends with the cleanup of the items older than the configured retention (see {@link
+   * NewsFeedItemService#cleanOldItems}), whether or not the Hub could be consumed: it only depends
+   * on the items the platform holds. Running it at the end of this task rather than as a task of
+   * its own is deliberate: the news feed has a single scheduled task.
+   *
    * <p>Nothing is thrown: the Hub removes the items it returns, so those of a failed run are not
    * delivered again, and the run must not stop the scheduled task.
    */
   public void syncNewsFeed() {
+    if (!isNewsFeedEnabled()) {
+      return;
+    }
     try {
       consumeAndApplyNewsFeedItems();
     } catch (Exception e) {
       log.error("The XTM Hub news feed items could not be applied: {}", e.getMessage(), e);
     }
+    cleanOldNewsFeedItems();
+  }
+
+  private boolean isNewsFeedEnabled() {
+    try {
+      return previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED);
+    } catch (Exception e) {
+      log.error("The XTM Hub news feed could not be synchronized: {}", e.getMessage(), e);
+      return false;
+    }
+  }
+
+  private void cleanOldNewsFeedItems() {
+    try {
+      Optional<Instant> cutoffOrNone = xtmHubCollectorConfig.newsFeedCleanupCutoff(Instant.now());
+      if (cutoffOrNone.isEmpty()) {
+        log.debug("The news feed retention is too long to have a cutoff, nothing is cleaned");
+        return;
+      }
+      Instant cutoff = cutoffOrNone.get();
+      int deleted = newsFeedItemService.cleanOldItems(cutoff);
+      if (deleted > 0) {
+        log.info("Cleaned {} news feed items created before {}", deleted, cutoff);
+      }
+    } catch (Exception e) {
+      log.error("The old news feed items could not be cleaned: {}", e.getMessage(), e);
+    }
   }
 
   private void consumeAndApplyNewsFeedItems() {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
-      return;
-    }
-
     List<TenantXtmHubRegistration> registrations =
         tenantTx
             .execute(

@@ -4,6 +4,7 @@ import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 public class NewsFeedItemFixture {
@@ -19,7 +20,8 @@ public class NewsFeedItemFixture {
     item.setType(NewsFeedType.RESOURCE_SCENARIO);
     item.setTags(new String[] {"phishing", "ransomware"});
     item.setUrlPath("/scenarios/" + hubItemId);
-    item.setCreationDate(Instant.parse("2026-10-20T10:15:30Z"));
+    // Relative: the cleanup deletes the items older than the retention, whatever day the test runs
+    item.setCreationDate(Instant.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS));
     item.setUser(user);
     return item;
   }

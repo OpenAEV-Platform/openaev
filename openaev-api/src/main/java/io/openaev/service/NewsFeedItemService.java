@@ -16,6 +16,7 @@ import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -198,6 +200,9 @@ public class NewsFeedItemService {
    * stay. It takes two runs of the scheduled collector to overlap that closely on the same item, so
    * a cluster-wide lock is not worth its cost here.
    *
+   * <p>Items older than the retention are not filtered here: they are created, then deleted by the
+   * cleanup (see {@link #cleanOldItems}) that ends the same sync run.
+   *
    * @param provisionedItems the items consumed from XTM Hub
    * @param recipientTenantIds the tenants registered on XTM Hub, whose users receive new items
    */
@@ -251,15 +256,7 @@ public class NewsFeedItemService {
     int deleted = 0;
     for (String hubItemId : withRows(hubItemIds)) {
       try {
-        deleted +=
-            forEachChunkOfRows(
-                hubItemId,
-                rows -> {
-                  newsFeedItemRepository.deleteAll(rows);
-                  // Flushed here, not at commit, so that a failure surfaces to the retry.
-                  newsFeedItemRepository.flush();
-                  return rows.size();
-                });
+        deleted += forEachChunkOfRows(hubItemId, this::deleteRows);
       } catch (Exception e) {
         log.error("Could not delete the news feed item {}: {}", hubItemId, e.getMessage(), e);
       }
@@ -367,27 +364,51 @@ public class NewsFeedItemService {
     return changed;
   }
 
+  private int deleteRows(List<NewsFeedItem> rows) {
+    if (rows.isEmpty()) {
+      return 0;
+    }
+    newsFeedItemRepository.deleteAll(rows);
+    // Flushed here, not at commit, so that a failure surfaces to the retry.
+    newsFeedItemRepository.flush();
+    return rows.size();
+  }
+
+  private int forEachChunkOfRows(String hubItemId, ToIntFunction<List<NewsFeedItem>> action) {
+    return forEachChunk(
+        afterId ->
+            newsFeedItemRepository.findIdsByHubItemIdAfter(
+                hubItemId, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
+        "the news feed item " + hubItemId,
+        newsFeedItemRepository::findAllWithUserByIdIn,
+        action);
+  }
+
   /**
-   * Runs {@code action} on the rows of a Hub item, whoever owns them, {@link #USER_CHUNK_SIZE} rows
+   * Runs {@code action} on the rows whose ids {@code idsAfter} pages, {@link #USER_CHUNK_SIZE} rows
    * at a time and each chunk in its own transaction. The ids are paged by keyset so a chunk that
    * fails is logged and skipped without losing the position, and the rows deleted by the previous
    * chunks do not shift the next one.
    *
+   * @param idsAfter the ids of at most {@link #USER_CHUNK_SIZE} rows after the given id, in id
+   *     order
+   * @param rowsDescription what the rows are, for the log of a failing chunk
+   * @param loadRows loads, in the chunk's transaction, the rows of the paged ids that the action
+   *     may still handle: the ids were read in another transaction, so a row can have changed since
    * @param action handles the rows of one chunk and returns how many it changed
    * @return how many rows the actions changed
    */
-  private int forEachChunkOfRows(String hubItemId, ToIntFunction<List<NewsFeedItem>> action) {
+  private int forEachChunk(
+      Function<String, List<String>> idsAfter,
+      String rowsDescription,
+      Function<List<String>, List<NewsFeedItem>> loadRows,
+      ToIntFunction<List<NewsFeedItem>> action) {
     int handled = 0;
     String afterId = "";
     List<String> ids;
     do {
       String cursor = afterId;
-      ids =
-          tenantTx.execute(
-              TxCtx.allTenants(),
-              () ->
-                  newsFeedItemRepository.findIdsByHubItemIdAfter(
-                      hubItemId, cursor, PageRequest.ofSize(USER_CHUNK_SIZE)));
+      ids = tenantTx.execute(TxCtx.allTenants(), () -> idsAfter.apply(cursor));
       if (ids.isEmpty()) {
         break;
       }
@@ -398,20 +419,51 @@ public class NewsFeedItemService {
             withRetry(
                 () ->
                     tenantTx.execute(
-                        TxCtx.allTenants(),
-                        () ->
-                            action.applyAsInt(
-                                newsFeedItemRepository.findAllWithUserByIdIn(chunkIds))));
+                        TxCtx.allTenants(), () -> action.applyAsInt(loadRows.apply(chunkIds))));
       } catch (Exception e) {
         log.error(
-            "Could not handle {} rows of the news feed item {}: {}",
+            "Could not handle {} rows of {}: {}",
             chunkIds.size(),
-            hubItemId,
+            rowsDescription,
             e.getMessage(),
             e);
       }
     } while (ids.size() == USER_CHUNK_SIZE);
     return handled;
+  }
+
+  // -- DELETE --
+
+  /**
+   * Deletes the rows created before the cutoff, whoever owns them, except those of blog posts: the
+   * creation date of a blog post is its publication date, which can be older than the cutoff while
+   * the post is still live, and only the Hub removes blog posts (see {@link
+   * #applyProvisionedItems}). Every other row is cleaned, whatever its type, including the types
+   * this version no longer knows.
+   *
+   * <p>This is the single place the retention is enforced: an item the Hub delivers again with a
+   * creation date older than the cutoff is created by {@link #applyProvisionedItems} and cleaned by
+   * the same sync run. The cleanup assumes the Hub expires its resources within the retention, as
+   * it deletes the resources that stay live past it.
+   *
+   * <p>The rows are deleted through the session, {@link #USER_CHUNK_SIZE} at a time and each chunk
+   * in its own transaction, as the rows of a deleted Hub item: a failing chunk is logged and the
+   * others are still deleted. The ids are read in a transaction of their own, so a chunk reloads
+   * its rows under a row lock and checks the cutoff and the type again: a row another node turned
+   * into a blog post in the meantime is left alone, on the retry too.
+   *
+   * @return how many rows were deleted
+   */
+  public int cleanOldItems(@NotNull final Instant cutoff) {
+    return forEachChunk(
+        afterId ->
+            newsFeedItemRepository.findIdsCreatedBeforeExcludingTypeAfter(
+                cutoff, BLOG_POST_TYPE, afterId, PageRequest.ofSize(USER_CHUNK_SIZE)),
+        "the news feed items created before " + cutoff,
+        ids ->
+            newsFeedItemRepository.findForUpdateByIdInCreatedBeforeExcludingType(
+                ids, cutoff, BLOG_POST_TYPE),
+        this::deleteRows);
   }
 
   // -- CREATE --
