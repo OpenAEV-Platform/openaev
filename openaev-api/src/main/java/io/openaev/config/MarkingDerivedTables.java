@@ -63,13 +63,6 @@ public final class MarkingDerivedTables {
           linkedTo("agents", "agent_asset", "assets", "asset_id"),
           linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));
 
-  /*
-   * attackpath_execution is deliberately NOT derived: it is a frozen run snapshot whose ingestion
-   * rewrites rows by simulation, so a derived predicate would let a rewrite skip rows the writer
-   * cannot see and leave them stale. Its readers join both asset ends instead (the graph slices
-   * and the landing ranking), which the inspector filters through assets.
-   */
-
   /** Every derived table, in no particular order: {@link MarkedTables} resolves the chains. */
   public static final List<MarkedTable> ALL =
       Stream.concat(LINKS_TO_ASSETS.stream(), FROM_ASSETS.stream()).toList();
