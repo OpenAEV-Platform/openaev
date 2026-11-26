@@ -96,9 +96,6 @@ public class V20261119_Add_logging_expectation_to_manual_payloads extends Runtim
         || !payloadService.hasPayloadInjector(tenantId)) {
       return false;
     }
-    // Injects carry the v1 filter: the inject reads below are keyed by ids already scoped to the
-    // tenant, the filter is armed for consistency with the other runtime migrations.
-    enableV1TenantFilter(tenant);
     List<String> payloadIds =
         payloadService.findAllBySource(tenantId, Payload.PAYLOAD_SOURCE.MANUAL).stream()
             .filter(this::needsLogging)
