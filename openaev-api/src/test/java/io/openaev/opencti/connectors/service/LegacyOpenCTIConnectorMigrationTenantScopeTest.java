@@ -148,7 +148,7 @@ class LegacyOpenCTIConnectorMigrationTenantScopeTest extends IntegrationTest {
         "DELETE FROM users WHERE user_id = ? OR user_email = ?", legacyUserId, LEGACY_EMAIL);
     jdbc.update(
         "DELETE FROM users WHERE user_email = ?",
-        OPENCTI_CONNECTOR.emailPattern().formatted(connectorUnderTest().getId()));
+        OPENCTI_CONNECTOR.emailFor(connectorUnderTest().getId()));
     jdbc.update("DELETE FROM groups WHERE group_id = ?", OPENCTI_CONNECTOR.access().groupId());
     jdbc.update("DELETE FROM roles WHERE role_id = ?", OPENCTI_CONNECTOR.access().roleId());
     // Cascades the connector tenant's own well-known group/role and any remaining users_tenants
@@ -157,7 +157,7 @@ class LegacyOpenCTIConnectorMigrationTenantScopeTest extends IntegrationTest {
   }
 
   private String connectorEmail() {
-    return OPENCTI_CONNECTOR.emailPattern().formatted(connectorUnderTest().getId());
+    return OPENCTI_CONNECTOR.emailFor(connectorUnderTest().getId());
   }
 
   private ConnectorBase connectorUnderTest() {

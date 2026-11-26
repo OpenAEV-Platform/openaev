@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
@@ -8,8 +9,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -75,19 +74,5 @@ class FixInjectStatusSentDatePrecisionMigrationTest extends IntegrationTest {
       result.next();
       return result.getInt(1);
     }
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

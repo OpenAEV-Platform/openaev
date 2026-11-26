@@ -29,6 +29,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.UserService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
@@ -87,6 +88,7 @@ public class SecurityCoverageService {
   private final VulnerabilityService vulnerabilityService;
   private final OpenCTIConnectorService openCTIConnectorService;
   private final PreviewFeatureService previewFeatureService;
+  private final UserService userService;
 
   private final SecurityCoverageUtils securityCoverageUtils;
   private final ResultsMetricCollector resultsMetricCollector;
@@ -507,10 +509,8 @@ public class SecurityCoverageService {
 
   /**
    * Set recurrence for the scenario coming from OpenCTI. The scenario will start immediately after
-   * the save
-   *
-   * @param scenario
-   * @param securityCoverage
+   * the save. The caller, the OpenCTI connector's service account, is recorded as scheduler: its
+   * clearance is the one the scheduled simulations run with.
    */
   private void setRecurrence(Scenario scenario, SecurityCoverage securityCoverage) {
     if (scenario.getRecurrence() == null) {
@@ -525,6 +525,7 @@ public class SecurityCoverageService {
       if (!StringUtils.isBlank(securityCoverage.getScheduling())) {
         scenario.setRecurrenceStart(start);
         scenario.setRecurrence(securityCoverage.getScheduling());
+        scenario.setScheduledBy(userService.currentUser());
         if (!StringUtils.isBlank(securityCoverage.getDuration())) {
           scenario.setRecurrenceEnd(
               TimeUtils.incrementInstant(

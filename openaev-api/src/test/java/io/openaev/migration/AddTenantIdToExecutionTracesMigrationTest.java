@@ -1,6 +1,7 @@
 package io.openaev.migration;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.FOREIGN_KEY;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.INDEX;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.RANGE_UPDATE;
@@ -27,8 +28,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -1080,19 +1079,5 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       }
     }
     return rows;
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

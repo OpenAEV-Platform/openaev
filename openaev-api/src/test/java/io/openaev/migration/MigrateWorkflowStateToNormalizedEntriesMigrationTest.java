@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
@@ -14,14 +15,11 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.sql.Connection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -130,26 +128,12 @@ class MigrateWorkflowStateToNormalizedEntriesMigrationTest extends IntegrationTe
         .doWork(
             connection -> {
               try {
-                migration.migrate(contextOf(connection));
+                migration.migrate(contextOn(connection));
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
             });
     entityManager.clear();
-  }
-
-  private static Context contextOf(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 
   private long count(String sql) {

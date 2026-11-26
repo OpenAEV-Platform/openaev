@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
@@ -10,8 +11,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -107,19 +106,5 @@ class AddGraphLandingIndexesMigrationTest extends IntegrationTest {
       }
     }
     return values;
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

@@ -1,5 +1,6 @@
 package io.openaev.scheduler.jobs.engine_sync;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob.ENGINE_CONTEXT_INSTANCE_KEY;
 import static io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob.ENGINE_SERVICE_INSTANCE_KEY;
 import static io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob.MODEL_NAME_KEY;
@@ -43,8 +44,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.awaitility.Awaitility;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -204,18 +203,7 @@ class FindingRefeedEndToEndTest extends IntegrationTest {
 
   private void runMigration() throws Exception {
     try (Connection connection = dataSource.getConnection()) {
-      migration.migrate(
-          new Context() {
-            @Override
-            public Configuration getConfiguration() {
-              return null;
-            }
-
-            @Override
-            public Connection getConnection() {
-              return connection;
-            }
-          });
+      migration.migrate(contextOn(connection));
     }
   }
 

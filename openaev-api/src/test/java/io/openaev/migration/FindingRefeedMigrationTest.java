@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -14,8 +15,6 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -124,18 +123,7 @@ class FindingRefeedMigrationTest extends IntegrationTest {
         .doWork(
             connection -> {
               try {
-                migration.migrate(
-                    new Context() {
-                      @Override
-                      public Configuration getConfiguration() {
-                        return null;
-                      }
-
-                      @Override
-                      public java.sql.Connection getConnection() {
-                        return connection;
-                      }
-                    });
+                migration.migrate(contextOn(connection));
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

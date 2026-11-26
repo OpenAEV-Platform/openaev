@@ -1,15 +1,13 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
+import static io.openaev.migration.MigrationSessions.withConnection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.database.model.Tenant;
-import java.sql.Connection;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
-import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +95,7 @@ class AddMarkingDefinitionStixIdMigrationTest extends IntegrationTest {
   private int countCarrying(String stixId) {
     int[] count = new int[1];
     withConnection(
+        entityManager,
         connection -> {
           try (var statement =
               connection.prepareStatement(
@@ -116,6 +115,7 @@ class AddMarkingDefinitionStixIdMigrationTest extends IntegrationTest {
   private String stixIdOf(String id) {
     String[] stixId = new String[1];
     withConnection(
+        entityManager,
         connection -> {
           try (var statement =
               connection.prepareStatement(
@@ -132,49 +132,16 @@ class AddMarkingDefinitionStixIdMigrationTest extends IntegrationTest {
   }
 
   private void runMigration() {
-    withConnection(connection -> migration.migrate(contextOn(connection)));
-  }
-
-  @FunctionalInterface
-  private interface ConnectionWork {
-    void run(Connection connection) throws Exception;
-  }
-
-  private void withConnection(ConnectionWork work) {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(
-            connection -> {
-              try {
-                work.run(connection);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
+    withConnection(entityManager, connection -> migration.migrate(contextOn(connection)));
   }
 
   private void execute(String sql, Object... args) {
     withConnection(
+        entityManager,
         connection -> {
           try (var statement = connection.createStatement()) {
             statement.execute(sql.formatted(args));
           }
         });
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

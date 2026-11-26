@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.CREATE_TABLE;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.EXPECTATION_INJECT_MODEL;
 import static io.openaev.migration.V6_20261023184049806__Add_expectation_results_table.FOREIGN_KEY_VIOLATION;
@@ -36,8 +37,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -1263,19 +1262,5 @@ class AddExpectationResultsTableMigrationTest extends IntegrationTest {
       }
     }
     return rows;
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

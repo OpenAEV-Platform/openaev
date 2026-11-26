@@ -1,11 +1,11 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
 import io.openaev.utils.mockUser.WithMockUser;
-import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
@@ -143,20 +143,7 @@ class AddWorkflowStateNormalizedTablesMigrationTest extends IntegrationTest {
               () ->
                   entityManager
                       .unwrap(Session.class)
-                      .doWork(
-                          connection ->
-                              runMigration(
-                                  new Context() {
-                                    @Override
-                                    public Configuration getConfiguration() {
-                                      return null;
-                                    }
-
-                                    @Override
-                                    public java.sql.Connection getConnection() {
-                                      return connection;
-                                    }
-                                  })))
+                      .doWork(connection -> runMigration(contextOn(connection))))
           .doesNotThrowAnyException();
     }
   }

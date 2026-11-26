@@ -67,7 +67,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
 
   /** Email of the tenant's catalog connector account. */
   public static String accountEmail(String tenantId) {
-    return ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
+    return ReservedServiceAccount.CATALOG_CONNECTOR.emailFor(tenantId);
   }
 
   /**

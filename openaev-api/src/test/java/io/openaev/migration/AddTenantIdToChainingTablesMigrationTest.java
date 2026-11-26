@@ -1,6 +1,7 @@
 package io.openaev.migration;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.migration.V6_20261014170000000__Add_tenant_id_to_chaining_tables.TENANT_TABLES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -16,14 +17,11 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.hibernate.jdbc.ReturningWork;
 import org.junit.jupiter.api.BeforeEach;
@@ -479,19 +477,5 @@ class AddTenantIdToChainingTablesMigrationTest extends IntegrationTest {
   private <T> T onRawConnection(ReturningWork<T> work) {
     entityManager.flush();
     return entityManager.unwrap(Session.class).doReturningWork(work);
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

@@ -1,15 +1,13 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
+import static io.openaev.migration.MigrationSessions.withConnection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
-import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,8 +34,8 @@ class ReindexAssetsWithClassificationFieldsMigrationTest extends IntegrationTest
     putCursor(OTHER_MODEL);
 
     // Act
-    withConnection(connection -> migration.migrate(contextOn(connection)));
-    withConnection(connection -> migration.migrate(contextOn(connection)));
+    withConnection(entityManager, connection -> migration.migrate(contextOn(connection)));
+    withConnection(entityManager, connection -> migration.migrate(contextOn(connection)));
 
     // Assert
     assertThat(countCursors(ASSET_MODEL)).isEqualTo("0");
@@ -46,6 +44,7 @@ class ReindexAssetsWithClassificationFieldsMigrationTest extends IntegrationTest
 
   private void putCursor(String model) {
     withConnection(
+        entityManager,
         connection -> {
           try (PreparedStatement delete =
               connection.prepareStatement(
@@ -68,6 +67,7 @@ class ReindexAssetsWithClassificationFieldsMigrationTest extends IntegrationTest
   private String countCursors(String model) {
     String[] value = new String[1];
     withConnection(
+        entityManager,
         connection -> {
           try (PreparedStatement statement =
               connection.prepareStatement(
@@ -80,39 +80,5 @@ class ReindexAssetsWithClassificationFieldsMigrationTest extends IntegrationTest
           }
         });
     return value[0];
-  }
-
-  @FunctionalInterface
-  private interface ConnectionWork {
-    void run(Connection connection) throws Exception;
-  }
-
-  private void withConnection(ConnectionWork work) {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(
-            connection -> {
-              try {
-                work.run(connection);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

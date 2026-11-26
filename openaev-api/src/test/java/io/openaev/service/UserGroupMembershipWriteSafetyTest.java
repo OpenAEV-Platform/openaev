@@ -432,7 +432,7 @@ class UserGroupMembershipWriteSafetyTest extends IntegrationTest {
       Group staleGroupA =
           tenantTx.executeAsPlatformWrite(
               TxCtx.forTenant(tenantA), () -> groupRepository.save(plainGroup(tenantA)));
-      String serviceEmail = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA);
+      String serviceEmail = ReservedServiceAccount.AGENT.emailFor(tenantA);
       User serviceUser =
           userRepository.save(UserFixture.getUser("service", "account", serviceEmail, false));
       User bystander =

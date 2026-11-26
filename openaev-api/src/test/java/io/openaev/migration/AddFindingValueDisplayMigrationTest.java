@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.utils.SensitiveValueMaskingUtils.MASK;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,8 +10,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -111,18 +110,7 @@ class AddFindingValueDisplayMigrationTest extends IntegrationTest {
   private void runMigration() {
     withConnection(
         connection -> {
-          migration.migrate(
-              new Context() {
-                @Override
-                public Configuration getConfiguration() {
-                  return null;
-                }
-
-                @Override
-                public Connection getConnection() {
-                  return connection;
-                }
-              });
+          migration.migrate(contextOn(connection));
           return null;
         });
   }
