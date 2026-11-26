@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { Form } from 'react-final-form';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -48,11 +47,7 @@ const LessonsPreview = (props) => {
 
   const validate = (values) => {
     const errors = {};
-    const requiredFields = R.flatten(
-      lessonsQuestions.map(question => [
-        `${question.lessonsquestion_id}_score`,
-      ]),
-    );
+    const requiredFields = lessonsQuestions.map(question => `${question.lessonsquestion_id}_score`);
     requiredFields.forEach((field) => {
       if (!values[field]) {
         errors[field] = t('This field is required.');
