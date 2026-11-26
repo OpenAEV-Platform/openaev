@@ -17,6 +17,7 @@ import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +71,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
+    revokeAdminFlagOfOtherUsers();
 
     // Handle admin token
     Optional<Token> adminToken =
@@ -120,8 +122,23 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     if (hasText(this.adminPassword)) {
       user.setPassword(encodedPassword());
     }
+    user.setAdmin(true);
 
     return this.userRepository.save(user);
+  }
+
+  /** The admin flag bypasses RBAC: only the root user may hold it. */
+  private void revokeAdminFlagOfOtherUsers() {
+    List<User> others = this.userRepository.findAllByAdminTrueAndIdNot(ADMIN_UUID);
+    if (others.isEmpty()) {
+      return;
+    }
+    others.forEach(user -> user.setAdmin(false));
+    this.userRepository.saveAll(others);
+    log.warn(
+        "Admin flag removed from {} user(s) other than the root user: {}",
+        others.size(),
+        others.stream().map(User::getId).toList());
   }
 
   // -- TOKEN --

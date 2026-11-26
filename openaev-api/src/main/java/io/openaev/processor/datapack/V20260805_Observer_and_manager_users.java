@@ -87,7 +87,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
 
     User user =
         userService.createInternalUser(
-            email, firstname, lastname, false, UUID.randomUUID().toString());
+            email, firstname, lastname, UUID.randomUUID().toString());
     user.setPassword(userService.encodeUserPassword(password));
     user.setTenants(new ArrayList<>(List.of(new Tenant(tenant.getId()))));
 

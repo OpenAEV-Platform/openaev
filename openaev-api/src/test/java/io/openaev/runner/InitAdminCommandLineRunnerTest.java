@@ -21,12 +21,15 @@ import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserService;
 import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -56,10 +59,17 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
 
   @Autowired private TenantScopedTransaction tenantTx;
 
+  @Autowired private UserComposer userComposer;
+
   @PersistenceContext private EntityManager entityManager;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String configuredAdminToken;
+
+  @BeforeEach
+  void resetComposers() {
+    userComposer.reset();
+  }
 
   @DisplayName("Test if admin user is created")
   @Test
@@ -213,5 +223,25 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
         .hasSize(1);
     assertThat(adminTokens.getFirst().getId()).isEqualTo(renewedAdminToken.getId());
     assertThat(adminTokens.getFirst().getValue()).isEqualTo(this.configuredAdminToken);
+  }
+
+  @DisplayName("At bootstrap, only the root user keeps the admin flag")
+  @Test
+  @Transactional
+  void given_otherUserWithAdminFlag_should_removeItAtBootstrap() throws Exception {
+    // Arrange
+    User legacyAdmin = UserFixture.getUserWithDefaultEmail();
+    legacyAdmin.setAdmin(true);
+    String legacyAdminId = userComposer.forUser(legacyAdmin).persist().get().getId();
+    this.entityManager.flush();
+
+    // Act
+    this.initAdminCommandLineRunner.run();
+    this.entityManager.flush();
+    this.entityManager.clear();
+
+    // Assert
+    assertThat(this.userRepository.findById(legacyAdminId).orElseThrow().isAdmin()).isFalse();
+    assertThat(this.userRepository.findById(ADMIN_UUID).orElseThrow().isAdmin()).isTrue();
   }
 }

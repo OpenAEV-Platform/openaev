@@ -103,8 +103,7 @@ class CatalogConnectorPrivilegeServiceTest {
       // Arrange
       givenExistingRoleAndGroup();
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.empty());
-      when(userService.createInternalUser(
-              anyString(), anyString(), any(), anyBoolean(), anyString()))
+      when(userService.createInternalUser(anyString(), anyString(), any(), anyString()))
           .thenReturn(account);
       ArgumentCaptor<String> createdToken = ArgumentCaptor.forClass(String.class);
 
@@ -117,7 +116,6 @@ class CatalogConnectorPrivilegeServiceTest {
               eq(ACCOUNT_EMAIL),
               eq("Catalog connectors"),
               isNull(),
-              eq(false),
               createdToken.capture());
       assertThat(result).isEqualTo(createdToken.getValue());
       assertThat(account.getUnscopedGroups()).containsExactly(group);
@@ -140,7 +138,7 @@ class CatalogConnectorPrivilegeServiceTest {
 
       // Assert
       assertThat(result).isEqualTo("existing-token");
-      verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
+      verify(userService, never()).createInternalUser(any(), any(), any(), any());
       verify(userService, never()).createUserToken(any(), any());
       verify(userService, never()).saveUser(any());
     }
@@ -158,7 +156,7 @@ class CatalogConnectorPrivilegeServiceTest {
 
       // Assert
       assertThat(result).isEqualTo("new-token");
-      verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
+      verify(userService, never()).createInternalUser(any(), any(), any(), any());
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
     }
@@ -195,7 +193,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
           .thenReturn(group);
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.empty());
-      when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
+      when(userService.createInternalUser(any(), any(), any(), any()))
           .thenReturn(account);
       ArgumentCaptor<TenantGroupCreateInput> groupInput =
           ArgumentCaptor.forClass(TenantGroupCreateInput.class);

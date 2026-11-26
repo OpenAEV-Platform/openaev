@@ -233,7 +233,7 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createInternalUser(
-      String email, String firstname, String lastname, boolean isAdmin, String token) {
+      String email, String firstname, String lastname, String token) {
     if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
       throw new DataIntegrityViolationException("User with email " + email + " already exists");
     }
@@ -241,7 +241,6 @@ public class UserService {
     user.setEmail(email);
     user.setFirstname(firstname);
     user.setLastname(lastname);
-    user.setAdmin(isAdmin);
     return createUser(user, null, token, UserCreationScope.TENANT);
   }
 

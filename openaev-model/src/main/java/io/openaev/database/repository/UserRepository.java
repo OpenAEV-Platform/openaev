@@ -29,6 +29,8 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
+  List<User> findAllByAdminTrueAndIdNot(String id);
+
   /**
    * The tenant ids of the user with this email, with no {@code User} entity hydration: {@code
    * User.groups} is an eager association over the v2-active {@code groups} table, so loading the

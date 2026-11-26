@@ -119,7 +119,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       // No user exists — create one
       User user =
           userService.createInternalUser(
-              email, CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, false, connector.getToken());
+              email, CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, connector.getToken());
       joinGroupAsNewAccount(user, group);
       User savedUser = userService.saveUser(user);
       tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());
