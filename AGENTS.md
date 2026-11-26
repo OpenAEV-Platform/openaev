@@ -60,6 +60,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [add-test](.claude/skills/add-test/SKILL.md) | Writing tests with coverage verification |
 | [add-tenant-isolation-test](.claude/skills/add-test/TENANT_ISOLATION.md) | Adding tenant isolation tests to API test classes |
 | [create-feature-module](.claude/skills/create-feature-module/SKILL.md) | Full feature: entity → API → frontend |
+| [migrate-to-live-query](.claude/skills/migrate-to-live-query/SKILL.md) | Moving an entity's frontend feature from Redux to live TanStack queries |
 | [review-migration](.claude/skills/review-migration/SKILL.md) | Auditing Flyway migration safety and rollout risks |
 | [review-code](.claude/skills/review-code/SKILL.md) | General code review of a PR or module |
 | [review-frontend](.claude/skills/review-frontend/SKILL.md) | Auditing frontend patterns of a PR or module |
