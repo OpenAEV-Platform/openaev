@@ -12,7 +12,7 @@ import { lineChartOptions } from '../../../../../utils/Charts';
 import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
 import { ascendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
-import { isTopLevelScoredExpectation } from './scoreByInjectorContractExpectations';
+import { injectorContractKey, isTopLevelScoredExpectation } from './scoreByInjectorContractExpectations';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -38,7 +38,7 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
       ...n,
       inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
     })),
-    (list: InjectExpectationOutput[]) => Object.groupBy(list, R.path(['inject_expectation_inject', 'inject_contract'])),
+    (list: Array<Omit<InjectExpectationOutput, 'inject_expectation_inject'> & { inject_expectation_inject: InjectStore }>) => Object.groupBy(list, injectorContractKey),
     Object.entries,
     (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
