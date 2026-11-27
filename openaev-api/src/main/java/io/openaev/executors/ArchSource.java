@@ -32,11 +32,12 @@ public enum ArchSource {
 
     @Override
     String adapt(String template, PLATFORM_TYPE platform) {
-      String x86 = PLATFORM_ARCH.x86_64.name();
-      // The backtick escapes the "?" that follows the architecture in the Windows download URL
+      // Only the implant download URL carries the architecture: ".../<platform>/x86_64?injectId="
+      String urlArch = "/" + PLATFORM_ARCH.x86_64.name() + "?";
+      // The backtick keeps PowerShell from reading the "?" as part of the variable name
       return platform == PLATFORM_TYPE.Windows
-          ? WINDOWS_ARCH + template.replace(x86, ARCH_VARIABLE + "`")
-          : UNIX_ARCH + template.replace(x86, ARCH_VARIABLE);
+          ? WINDOWS_ARCH + template.replace(urlArch, "/" + ARCH_VARIABLE + "`?")
+          : UNIX_ARCH + template.replace(urlArch, "/" + ARCH_VARIABLE + "?");
     }
   };
 
