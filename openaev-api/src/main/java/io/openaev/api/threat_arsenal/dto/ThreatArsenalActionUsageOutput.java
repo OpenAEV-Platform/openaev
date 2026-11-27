@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * Where the payload of an action is used, to warn before an approval change blocks launches. The
+ * Where the payload of an action is used, to warn before an approval change makes injects fail. The
  * name lists are null when the user cannot read that type of resource (counts only).
  */
 public record ThreatArsenalActionUsageOutput(

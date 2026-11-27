@@ -68,8 +68,6 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
-import io.openaev.service.readiness.InjectSensitiveFields;
-import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -128,7 +126,6 @@ public class InjectService {
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final PreviewFeatureService previewFeatureService;
   private final PayloadApprovalGate payloadApprovalGate;
-  private final LaunchReadinessService launchReadinessService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -687,12 +684,6 @@ public class InjectService {
   }
 
   public void throwIfInjectNotLaunchable(Inject inject) {
-    // Before the licence shortcut: payload approval applies to every edition.
-    payloadApprovalGate.requireApproved(
-        "Launching \"" + inject.getTitle() + "\"",
-        List.of(inject),
-        ResourceType.INJECT,
-        inject.getId());
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
@@ -723,6 +714,25 @@ public class InjectService {
         HealthCheck.Type.PAYLOAD, HealthCheck.Detail.REVOKED, HealthCheck.Status.ERROR, now());
   }
 
+  /**
+   * Payload approval, like a revocation: a launch is not blocked, but injects whose action version
+   * is not approved fail when they run. A disabled inject never runs, so only enabled ones count.
+   */
+  public List<HealthCheck> runApprovalChecks(Collection<Inject> injects) {
+    List<Inject> enabled = injects.stream().filter(Inject::isEnabled).toList();
+    return payloadApprovalGate.blockedPayloads(enabled).isEmpty()
+        ? List.of()
+        : List.of(notApprovedHealthCheck());
+  }
+
+  private static HealthCheck notApprovedHealthCheck() {
+    return new HealthCheck(
+        HealthCheck.Type.PAYLOAD_APPROVAL,
+        HealthCheck.Detail.NOT_APPROVED,
+        HealthCheck.Status.ERROR,
+        now());
+  }
+
   /** A revoked payload is never launched, whatever the license (F9, F18). */
   public void throwIfPayloadRevoked(Inject inject) {
     payloadRevocationService
@@ -733,10 +743,23 @@ public class InjectService {
             });
   }
 
+  /**
+   * Like a revoked payload: an inject run on its own (atomic testing) whose action version is not
+   * approved is refused, whatever the license. In a scenario or a simulation, it fails at run time.
+   */
+  public void throwIfPayloadNotApproved(Inject inject) {
+    payloadApprovalGate.requireApproved(
+        "Launching \"" + inject.getTitle() + "\"",
+        inject.getInjectorContract().map(InjectorContract::getPayload).orElse(null),
+        ResourceType.INJECT,
+        inject.getId());
+  }
+
   @Transactional
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     this.throwIfPayloadRevoked(inject);
+    this.throwIfPayloadNotApproved(inject);
     this.throwIfInjectNotLaunchable(inject);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
@@ -766,6 +789,7 @@ public class InjectService {
   private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
     this.throwIfPayloadRevoked(duplicatedInject);
+    this.throwIfPayloadNotApproved(duplicatedInject);
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
@@ -1002,7 +1026,6 @@ public class InjectService {
       @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-    String sensitiveBefore = InjectSensitiveFields.fingerprint(inject);
     // Managing case where input.dependsDuration is null, as the field is marked as NotNull
     if (input.getDependsDuration() == null) {
       input.setDependsDuration(inject.getDependsDuration());
@@ -1140,10 +1163,6 @@ public class InjectService {
         });
     inject.setDocuments(injectDocuments);
 
-    // What it runs or targets changed: a scheduled run waits for a deliberate action again.
-    if (!sensitiveBefore.equals(InjectSensitiveFields.fingerprint(inject))) {
-      launchReadinessService.onSensitiveChange(inject);
-    }
     return inject;
   }
 
@@ -1730,6 +1749,7 @@ public class InjectService {
     if (inject.getPayload().filter(payloadRevocationService::isRevokedCached).isPresent()) {
       healthChecks.add(revokedHealthCheck());
     }
+    healthChecks.addAll(runApprovalChecks(List.of(inject)));
 
     return healthChecks;
   }

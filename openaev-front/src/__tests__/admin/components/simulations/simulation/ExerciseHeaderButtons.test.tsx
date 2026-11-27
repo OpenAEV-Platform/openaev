@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Buttons } from '../../../../../admin/components/simulations/simulation/ExerciseHeader';
-import { type LaunchBlockerOutput } from '../../../../../utils/api-types';
 
 vi.mock('../../../../../components/i18n', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -17,7 +16,7 @@ vi.mock('../../../../../components/i18n', async importOriginal => ({
 vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }));
 vi.mock('../../../../../utils/permissions/useSimulationPermissions', () => ({ default: () => ({ canLaunch: true }) }));
 
-const renderStart = (launchBlockers: LaunchBlockerOutput[]) => render(
+const renderStart = () => render(
   <MemoryRouter>
     <ThemeProvider theme={createTheme()}>
       <TooltipProvider>
@@ -28,42 +27,22 @@ const renderStart = (launchBlockers: LaunchBlockerOutput[]) => render(
           onLoading={vi.fn()}
           isLoading={false}
           isScopeMissing={false}
-          launchBlockers={launchBlockers}
         />
       </TooltipProvider>
     </ThemeProvider>
   </MemoryRouter>,
 );
 
-const blockers = (...names: string[]): LaunchBlockerOutput[] => names.map(name => ({
-  id: name,
-  name,
-  approval_status: name.endsWith('R') ? 'REJECTED' : 'PENDING',
-  reason: '',
-}));
-
-describe('Simulation Start now: blocked by actions that are not approved', () => {
+// A non-approved action no longer blocks the launch: the simulation starts and the injects on
+// that version fail when they run, like a revoked payload.
+describe('Simulation Start now', () => {
   afterEach(() => {
     cleanup();
   });
 
-  it('is disabled with a tooltip naming up to 3 blocking actions then "+N", and opens no confirm dialog', () => {
+  it('is enabled and opens the confirm dialog', () => {
     // Arrange
-    renderStart(blockers('TEST-A', 'TEST-B', 'TEST-R', 'TEST-D', 'TEST-E'));
-
-    // Act
-    const start = screen.getByRole('button', { name: 'Start now' }) as HTMLButtonElement;
-    fireEvent.click(start);
-
-    // Assert
-    expect(start.disabled).toBe(true);
-    expect(screen.getByLabelText('Can\'t launch: TEST-A is pending approval, TEST-B is pending approval, TEST-R is rejected +2')).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('is enabled again once everything is approved and opens the confirm dialog', () => {
-    // Arrange
-    renderStart([]);
+    renderStart();
 
     // Act
     const start = screen.getByRole('button', { name: 'Start now' }) as HTMLButtonElement;
@@ -71,6 +50,7 @@ describe('Simulation Start now: blocked by actions that are not approved', () =>
 
     // Assert
     expect(start.disabled).toBe(false);
+    expect(screen.queryByLabelText(/Can't launch/)).toBeNull();
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });

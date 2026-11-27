@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AtomicTestingHeaderActions from '../../../../../admin/components/atomic_testings/atomic_testing/AtomicTestingHeaderActions';
-import { type InjectResultOverviewOutput, type LaunchBlockerOutput } from '../../../../../utils/api-types';
+import { type InjectResultOverviewOutput, type PayloadSimple } from '../../../../../utils/api-types';
 
 vi.mock('../../../../../components/i18n', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -29,15 +29,8 @@ vi.mock('../../../../../admin/components/reporting/EntityReportsPanel', () => ({
 vi.mock('../../../../../admin/components/common/injects/expectations/ExpectationsDriftIndicator', () => ({ default: () => null }));
 vi.mock('../../../../../admin/components/common/scheduling/SchedulingDialog', () => ({ default: () => null }));
 
-const blocker = (name: string, approvalStatus: LaunchBlockerOutput['approval_status']): LaunchBlockerOutput => ({
-  id: name,
-  name,
-  approval_status: approvalStatus,
-  reason: approvalStatus === 'REJECTED' ? 'rejected' : 'pending approval',
-});
-
 // An atomic testing that already ran: its button is "Relaunch now".
-const atomicTesting = (blockers: LaunchBlockerOutput[]) => ({
+const atomicTesting = (approvalStatus: PayloadSimple['payload_approval_status']) => ({
   inject_id: 'atomic-1',
   inject_title: 'TEST-ATOMIC',
   inject_ready: true,
@@ -45,8 +38,10 @@ const atomicTesting = (blockers: LaunchBlockerOutput[]) => ({
     status_id: 'status-1',
     status_name: 'SUCCESS',
   },
-  inject_injector_contract: { injector_contract_id: 'contract-1' },
-  inject_launch_blocked_by: blockers,
+  inject_injector_contract: {
+    injector_contract_id: 'contract-1',
+    injector_contract_payload: { payload_approval_status: approvalStatus },
+  },
 }) as unknown as InjectResultOverviewOutput;
 
 const renderActions = (overview: InjectResultOverviewOutput) => render(
@@ -59,28 +54,16 @@ const renderActions = (overview: InjectResultOverviewOutput) => render(
   </MemoryRouter>,
 );
 
-describe('AtomicTestingHeaderActions: launch blocked by an action that is not approved', () => {
+// A non-approved action no longer disables the button: like a revoked payload, the server refuses
+// the launch and the user sees why.
+describe('AtomicTestingHeaderActions: relaunch with an action that is not approved', () => {
   afterEach(() => {
     cleanup();
   });
 
-  it('disables Relaunch now with a tooltip naming the blocking actions, and opens no confirm dialog', () => {
+  it.each(['PENDING', 'REJECTED', 'SUPERSEDED', 'APPROVED'] as const)('keeps Relaunch now enabled for a %s version and opens the confirm dialog', (approvalStatus) => {
     // Arrange
-    renderActions(atomicTesting([blocker('TEST-A', 'PENDING')]));
-
-    // Act
-    const button = screen.getByRole('button', { name: 'Relaunch now' }) as HTMLButtonElement;
-    fireEvent.click(button);
-
-    // Assert
-    expect(button.disabled).toBe(true);
-    expect(screen.getByLabelText('Can\'t launch: TEST-A is pending approval')).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('enables Relaunch now again once everything is approved, and opens the confirm dialog', () => {
-    // Arrange
-    renderActions(atomicTesting([]));
+    renderActions(atomicTesting(approvalStatus));
 
     // Act
     const button = screen.getByRole('button', { name: 'Relaunch now' }) as HTMLButtonElement;

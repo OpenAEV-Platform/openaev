@@ -58,7 +58,6 @@ import {
   type ExpectationsDriftOutput,
   type HealthCheck,
   type Inject,
-  type LaunchBlockerOutput,
   type SimulationDetails,
   type Team,
 } from '../../../../utils/api-types';
@@ -72,7 +71,6 @@ import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
-import { isLaunchBlocked, launchBlockedLabel } from '../../payloads/payloadApprovalDisplay';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import {
   CONTEXTUAL_ENTITY_WIDGET_IDS,
@@ -86,15 +84,13 @@ import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
 // Exported for testing: props-driven UI, covered without the store-bound header.
-export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, launchBlockers }: {
+export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
   isScopeMissing: boolean;
-  /** Actions that are not approved: Start is disabled with the reason and no dialog opens. */
-  launchBlockers?: LaunchBlockerOutput[];
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -123,13 +119,13 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
           return (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span style={{ display: 'inline-flex' }} aria-label={launchBlockedLabel(t, launchBlockers)}>
-                  <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing || isLaunchBlocked(launchBlockers)}>
+                <span style={{ display: 'inline-flex' }}>
+                  <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing}>
                     {t('Start now')}
                   </Button>
                 </span>
               </TooltipTrigger>
-              {(launchBlockedLabel(t, launchBlockers) ?? (isScopeMissing ? t('A chained simulation requires a defined scope.') : '')) && <TooltipContent>{launchBlockedLabel(t, launchBlockers) ?? (isScopeMissing ? t('A chained simulation requires a defined scope.') : '')}</TooltipContent>}
+              {(isScopeMissing ? t('A chained simulation requires a defined scope.') : '') && <TooltipContent>{isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}</TooltipContent>}
             </Tooltip>
           );
         }
@@ -634,7 +630,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   onLoading={onLoading}
                   isLoading={isLoading}
                   isScopeMissing={isScopeMissing}
-                  launchBlockers={exercise.exercise_launch_blocked_by}
                 />
               )}
             </>

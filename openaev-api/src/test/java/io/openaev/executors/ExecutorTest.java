@@ -13,8 +13,8 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTO;
 import io.openaev.execution.ExecutableInjectDTOMapper;
-import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.execution.PayloadNotApprovedException;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -243,7 +243,7 @@ class ExecutorTest {
 
     @Test
     @DisplayName(
-        "Given a payload that is not approved, execute should refuse the inject before any status change or dispatch")
+        "Given a version that is not approved, execute should fail the inject before any status change or dispatch, like a revoked one")
     void given_payloadNotApproved_should_refuseBeforeAnyStatusChangeOrDispatch() {
       // -------- Arrange --------
       Payload payload = mock(Payload.class);
@@ -260,10 +260,10 @@ class ExecutorTest {
 
       // -------- Act / Assert --------
       assertThatThrownBy(() -> executor.execute(executableInject))
-          .isInstanceOf(ExecutionExecutorException.class)
-          .hasMessageContaining("\"Mimikatz\" (pending approval)");
-      verify(payloadApprovalGate)
-          .auditBlocked(any(), any(), eq(ResourceType.INJECT), eq(INJECT_ID), any());
+          .isInstanceOf(PayloadNotApprovedException.class)
+          .hasMessage(
+              "The inject \"Dump credentials\" did not run: the version of \"Mimikatz\" it uses is"
+                  + " pending approval. Move the inject to an approved version.");
       verifyNoInteractions(injectStatusService, rabbitmqService, injectorRepository);
     }
   }

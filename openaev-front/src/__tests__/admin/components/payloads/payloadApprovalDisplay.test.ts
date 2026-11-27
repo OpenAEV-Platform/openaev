@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isLaunchBlocked, launchBlockedLabel, payloadApprovalDisplay } from '../../../../admin/components/payloads/payloadApprovalDisplay';
-import { type LaunchBlockerOutput } from '../../../../utils/api-types';
+import { payloadApprovalDisplay } from '../../../../admin/components/payloads/payloadApprovalDisplay';
 
 describe('payloadApprovalDisplay', () => {
   it('names a pending or rejected payload with the same wording as the Threat Arsenal', () => {
@@ -24,36 +23,14 @@ describe('payloadApprovalDisplay', () => {
     });
   });
 
+  it('says the inject fails when it runs, not that its launch is blocked', () => {
+    expect(payloadApprovalDisplay('PENDING')?.tooltip).toContain('the inject fails when it runs');
+    expect(payloadApprovalDisplay('REJECTED')?.tooltip).toContain('fails when it runs');
+    expect(payloadApprovalDisplay('SUPERSEDED')?.tooltip).not.toContain('blocked');
+  });
+
   it('shows nothing for an approved payload or an inject without payload', () => {
     expect(payloadApprovalDisplay('APPROVED')).toBeUndefined();
     expect(payloadApprovalDisplay(undefined)).toBeUndefined();
-  });
-});
-
-describe('launchBlockedLabel', () => {
-  const t = (value: string, values?: Record<string, string>) => Object.entries(values ?? {})
-    .reduce((text, [key, val]) => text.replace(`{${key}}`, val), value);
-  const blocker = (name: string, approvalStatus: LaunchBlockerOutput['approval_status']): LaunchBlockerOutput => ({
-    id: name,
-    name,
-    approval_status: approvalStatus,
-    reason: '',
-  });
-
-  it('says why one action blocks the launch', () => {
-    expect(launchBlockedLabel(t, [blocker('TEST-A', 'PENDING')])).toBe('Can\'t launch: TEST-A is pending approval');
-    expect(launchBlockedLabel(t, [blocker('TEST-A', 'SUPERSEDED')])).toBe('Can\'t launch: TEST-A was replaced by a newer version');
-  });
-
-  it('names up to 3 actions, then "+N"', () => {
-    expect(launchBlockedLabel(t, [blocker('A', 'PENDING'), blocker('B', 'REJECTED'), blocker('C', 'PENDING'), blocker('D', 'PENDING')]))
-      .toBe('Can\'t launch: A is pending approval, B is rejected, C is pending approval +1');
-  });
-
-  it('gives nothing when the launch is not blocked', () => {
-    expect(launchBlockedLabel(t, [])).toBeUndefined();
-    expect(launchBlockedLabel(t, undefined)).toBeUndefined();
-    expect(isLaunchBlocked([])).toBe(false);
-    expect(isLaunchBlocked([blocker('A', 'PENDING')])).toBe(true);
   });
 });

@@ -31,6 +31,8 @@ public class HealthCheck {
     /** The scope allowlist has team/player entries but no step consumes them. */
     INEFFECTIVE_AUDIENCE_TARGETS,
     REVOKED,
+    /** Injects use an action version that is not approved: they fail when they run. */
+    NOT_APPROVED,
   }
 
   public enum Type {
@@ -52,6 +54,7 @@ public class HealthCheck {
     SCOPE_DEFINITION("scope_definition"),
     CREDENTIAL_REFERENCE("credential_reference"),
     PAYLOAD("payload"),
+    PAYLOAD_APPROVAL("payload_approval"),
     UNKNOWN("unknown");
 
     private final String value;

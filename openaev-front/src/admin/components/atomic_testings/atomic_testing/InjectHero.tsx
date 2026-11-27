@@ -11,7 +11,6 @@ import handle from '../../../../utils/period/Period';
 import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
 import InjectStatus from '../../common/injects/status/InjectStatus';
-import { isLaunchBlocked, launchBlockedLabel } from '../../payloads/payloadApprovalDisplay';
 import PayloadApprovalWarningChip from '../../payloads/PayloadApprovalWarningChip';
 import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import InjectScoreTiles from './InjectScoreTiles';
@@ -41,13 +40,6 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
   // Recurring scheduling chip (atomic testings only): mirrors the scenario
   // hero Scheduled chip with the human-readable schedule as tooltip.
   const isScheduled = !!injectResultOverview.inject_recurrence;
-  // Paused: saved when its action became blocked or after a sensitive change; it stays paused until
-  // the user saves or removes the schedule (no automatic resume).
-  const launchBlockers = injectResultOverview.inject_launch_blocked_by;
-  const isSchedulePaused = isScheduled && (!!injectResultOverview.inject_recurrence_paused_at || isLaunchBlocked(launchBlockers));
-  const schedulePausedText = isLaunchBlocked(launchBlockers)
-    ? `${launchBlockedLabel(t, launchBlockers)}. ${t('The schedule stays paused until you save it again, once the actions are approved.')}`
-    : t('Schedule paused after a change to this atomic testing. Save the schedule again to resume.');
   const scheduleLabel = useMemo(() => {
     const cronObject = handle(injectResultOverview.inject_recurrence);
     if (!cronObject?.isValid()) {
@@ -123,27 +115,15 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
       title={truncate(injectResultOverview.inject_title, 80) ?? ''}
       chips={(
         <>
-          {/* Blocked by an action that is not approved: back to Draft until relaunched on purpose.
-              Computed on read; the last run's results stay visible below. */}
-          {isLaunchBlocked(injectResultOverview.inject_launch_blocked_by)
-            ? <InjectStatus status="DRAFT" />
-            : <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />}
+          <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
           <PayloadDeprecatedChip status={payload?.payload_status} />
           <PayloadApprovalWarningChip approvalStatus={payload?.payload_approval_status} payloadName={contractLabel || undefined} />
-          {isScheduled && !isSchedulePaused && (
+          {isScheduled && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Chip label={t('Scheduled')} severity="low" />
               </TooltipTrigger>
               {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
-            </Tooltip>
-          )}
-          {isSchedulePaused && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Chip label={t('Paused')} severity="medium" />
-              </TooltipTrigger>
-              <TooltipContent>{schedulePausedText}</TooltipContent>
             </Tooltip>
           )}
         </>

@@ -23,7 +23,6 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.period.CronService;
-import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
@@ -55,7 +54,6 @@ class ExerciseServiceUnitTest {
 
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private PayloadApprovalGate payloadApprovalGate;
-  @Mock private LaunchReadinessService launchReadinessService;
   @Mock private InjectDuplicateService injectDuplicateService;
   @Mock private TeamService teamService;
   @Mock private VariableService variableService;
@@ -502,9 +500,6 @@ class ExerciseServiceUnitTest {
       mockedExerciseService.throwIfExerciseNotLaunchable(exercise);
 
       verify(enterpriseEditionService).isLicenseActive(any());
-      // Payload approval applies to every edition: only the per-inject executor checks are skipped.
-      verify(payloadApprovalGate)
-          .requireApproved(anyString(), anyCollection(), eq(ResourceType.SIMULATION), any());
       verify(injectService, never()).throwIfInjectNotLaunchable(any());
     }
 

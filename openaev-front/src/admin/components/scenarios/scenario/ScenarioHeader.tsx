@@ -61,7 +61,6 @@ import {
   type HealthCheck,
   type Inject,
   type Scenario,
-  type ScenarioOutput,
   type Team,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
@@ -86,7 +85,6 @@ import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
-import { isLaunchBlocked, launchBlockedLabel } from '../../payloads/payloadApprovalDisplay';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
@@ -355,23 +353,7 @@ const ScenarioHeader = ({
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
   const isScheduled = !!scenario.scenario_recurrence;
-  // An action that is not approved blocks every launch: buttons disabled with the reason, no
-  // confirm dialog, and a recurring scenario creates no new simulation (shown as paused).
-  const launchBlockers = (scenario as ScenarioOutput).scenario_launch_blocked_by;
-  const launchBlocked = isLaunchBlocked(launchBlockers);
-  const launchBlockedText = launchBlockedLabel(t, launchBlockers);
-  // Paused: saved on the scenario when an action became blocked or after a sensitive change; it
-  // stays paused until the user saves or stops the schedule (no automatic resume).
-  const isSchedulePaused = isScheduled && (!!(scenario as ScenarioOutput).scenario_recurrence_paused_at || launchBlocked);
-  const schedulePausedText = launchBlocked
-    ? `${launchBlockedText}. ${t('The schedule stays paused until you save it again, once the actions are approved.')}`
-    : t('Schedule paused after a change to an inject, its targets or the teams. Save the schedule again to resume.');
-  let scheduleChipLabel = t('Not scheduled');
-  if (isSchedulePaused) {
-    scheduleChipLabel = t('Paused');
-  } else if (isScheduled) {
-    scheduleChipLabel = t('Scheduled');
-  }
+  const scheduleChipLabel = isScheduled ? t('Scheduled') : t('Not scheduled');
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the scenario is actually built: injects and
@@ -475,7 +457,6 @@ const ScenarioHeader = ({
 
   // Normal launch: a plain, operator-driven simulation from the scenario. Opens the confirm dialog.
   const handleLaunchNormal = () => {
-    if (launchBlocked) return;
     setOpenInstantiateSimulationAndStart(true);
   };
 
@@ -648,7 +629,7 @@ const ScenarioHeader = ({
                   icon={<PlayArrowOutlined fontSize="small" />}
                   aria-label={t('Launch')}
                   onClick={handleLaunchNormal}
-                  disabled={isScopeMissing || launchBlocked}
+                  disabled={isScopeMissing}
                   data-testid="scenario-launch-now-button"
                   priority="primary"
                   size="md"
@@ -656,7 +637,7 @@ const ScenarioHeader = ({
               </span>
             </Box>
           </TooltipTrigger>
-          <TooltipContent>{launchBlockedText ?? (isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now'))}</TooltipContent>
+          <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}</TooltipContent>
         </Tooltip>
       </>
     );
@@ -666,12 +647,12 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing || launchBlocked} data-testid="scenario-launch-button">
+              <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
                 {t('Normal')}
               </Button>
             </Box>
           </TooltipTrigger>
-          {(launchBlockedText ?? normalLaunchTitle) && <TooltipContent>{launchBlockedText ?? normalLaunchTitle}</TooltipContent>}
+          {normalLaunchTitle && <TooltipContent>{normalLaunchTitle}</TooltipContent>}
         </Tooltip>
         {/* Autonomous is an XTM One-driven EE feature: hidden entirely when XTM One is unavailable
             (only Normal remains), and shown as an EE call-to-action when the platform is not
@@ -687,16 +668,16 @@ const ScenarioHeader = ({
                   gap: 0.5,
                 }}
               >
-                <Button type="button" variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} disabled={launchBlocked} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
+                <Button type="button" variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
                   {t('Autonomous')}
                 </Button>
                 {!isEnterpriseEdition && <EEChip />}
               </Box>
             </TooltipTrigger>
             <TooltipContent>
-              {launchBlockedText ?? (isRunSettled
+              {isRunSettled
                 ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
-                : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings'))}
+                : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
             </TooltipContent>
           </Tooltip>
         )}
@@ -707,12 +688,12 @@ const ScenarioHeader = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing || launchBlocked} data-testid="scenario-launch-button">
+            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
               {t('Launch')}
             </Button>
           </Box>
         </TooltipTrigger>
-        {(launchBlockedText ?? (isScopeMissing ? t('A chained scenario requires a defined scope.') : '')) && <TooltipContent>{launchBlockedText ?? (isScopeMissing ? t('A chained scenario requires a defined scope.') : '')}</TooltipContent>}
+        {isScopeMissing && <TooltipContent>{t('A chained scenario requires a defined scope.')}</TooltipContent>}
       </Tooltip>
     );
   }
@@ -751,14 +732,9 @@ const ScenarioHeader = ({
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Chip
-                    label={scheduleChipLabel}
-                    severity={isSchedulePaused ? 'medium' : 'low'}
-                  />
+                  <Chip label={scheduleChipLabel} severity="low" />
                 </TooltipTrigger>
-                {isSchedulePaused
-                  ? <TooltipContent>{schedulePausedText}</TooltipContent>
-                  : (scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
+                {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
             </>
           )}

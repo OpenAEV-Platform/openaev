@@ -1,6 +1,5 @@
 package io.openaev.rest.inject.service;
 
-import static io.openaev.aop.audit_log.AuditEventOrigin.SYSTEM;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY;
@@ -13,16 +12,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.execution.PayloadNotApprovedException;
 import io.openaev.execution.PayloadRevokedException;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.payload.PayloadRevocationService;
-import io.openaev.service.payload_approval.BlockedPayloadsException;
+import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPayload;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
@@ -296,7 +295,9 @@ public class ExecutableInjectService {
   }
 
   // A revoked payload is refused with its trace committed, so the agent does not end in TIMEOUT.
-  @Transactional(rollbackFor = Exception.class, noRollbackFor = PayloadRevokedException.class)
+  @Transactional(
+      rollbackFor = Exception.class,
+      noRollbackFor = {PayloadRevokedException.class, PayloadNotApprovedException.class})
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -334,18 +335,16 @@ public class ExecutableInjectService {
           injectId, agentId, ExecutionTraceStatus.ERROR, revocation.get());
       throw new PayloadRevokedException(revocation.get());
     }
-    // Second line of the payload approval check (the executor refuses before dispatch): the payload
-    // could have been edited between the dispatch and this download by the implant.
-    payloadApprovalGate
-        .check(contract.getPayload())
-        .ifPresent(
-            blocked -> {
-              String operation = "Serving the payload of the inject \"" + inject.getTitle() + "\"";
-              payloadApprovalGate.auditBlocked(
-                  operation, List.of(blocked), ResourceType.INJECT, inject.getId(), SYSTEM);
-              throw new ForbiddenException(
-                  BlockedPayloadsException.message(operation, List.of(blocked)));
-            });
+    // Like a revoked payload: a version that is no longer approved (rejected or moved back to
+    // pending after the dispatch) is refused with its trace committed, so the agent does not end in
+    // TIMEOUT.
+    Optional<BlockedPayload> notApproved = payloadApprovalGate.check(contract.getPayload());
+    if (notApproved.isPresent()) {
+      String message = PayloadApprovalGate.runtimeRefusal(inject.getTitle(), notApproved.get());
+      injectStatusService.addCompleteAgentTraceByInject(
+          injectId, agentId, ExecutionTraceStatus.ERROR, message);
+      throw new PayloadNotApprovedException(message);
+    }
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());
     JsonNode injectorContractFieldsNode = contract.getConvertedContent().get("fields");
     List<ObjectNode> injectorContractFields =
