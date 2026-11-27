@@ -39,7 +39,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ action, name, inst
         },
       ]}
       footerStart={<MarketplaceCardMeta platforms={action.action_platforms} />}
-      action={<CatalogPayloadInstallAction installed={installed} installing={installing} canInstall={canInstall} onInstall={onInstall} />}
+      action={<CatalogPayloadInstallAction installed={installed} installing={installing} canInstall={canInstall} onInstall={onInstall} size="sm" />}
     />
   );
 };

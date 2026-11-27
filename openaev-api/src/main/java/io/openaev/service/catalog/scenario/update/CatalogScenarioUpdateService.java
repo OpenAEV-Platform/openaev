@@ -60,9 +60,8 @@ public class CatalogScenarioUpdateService {
         update.installed().version(),
         merge,
         scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()),
-        catalogListService.releaseNotes(
-            CatalogScenario.class,
-            update.installed().externalId(),
+        CatalogListService.releaseNotes(
+            catalogListService.versions(CatalogScenario.class, update.installed().externalId()),
             update.installed().version(),
             update.version()));
   }

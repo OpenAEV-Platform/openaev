@@ -20,9 +20,13 @@ const usePayloadInstall = () => {
   const install = (action: AvailablePayloadActionOutput, version = action.action_payload_version) => {
     const id = action.action_id;
     setInstallingIds(previous => new Set([...previous, id]));
-    installCatalogPayload(id, version)
-      .then(() => markInstalled(action, version))
-      .catch(() => undefined)
+    // True once installed, false when the install failed.
+    return installCatalogPayload(id, version)
+      .then(() => {
+        markInstalled(action, version);
+        return true;
+      })
+      .catch(() => false)
       .finally(() => setInstallingIds(previous => new Set([...previous].filter(other => other !== id))));
   };
 

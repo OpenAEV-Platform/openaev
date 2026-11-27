@@ -77,6 +77,7 @@ const ThreatArsenalAvailable = () => {
       installing={payloads.isInstalling(action)}
       canInstall={canInstall}
       onInstall={() => payloads.install(action)}
+      size="sm"
     />
   );
   const card = byKind<ReactNode>({
@@ -232,7 +233,7 @@ const ThreatArsenalAvailable = () => {
           installing={payloads.isInstalling(opened)}
           canInstall={canInstall}
           onClose={() => setOpened(null)}
-          onInstall={version => payloads.install(opened, version)}
+          onInstall={version => payloads.install(opened, version).then(installed => installed && setOpened(null))}
         />
       )}
     </>

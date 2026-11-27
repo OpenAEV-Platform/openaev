@@ -1,9 +1,10 @@
-import { Button, Chip, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { type FunctionComponent, useState } from 'react';
 
 import MarketplaceItemDrawer from '../../../../components/common/marketplace/drawer/MarketplaceItemDrawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type AvailablePayloadActionOutput } from '../../../../utils/api-types';
+import CatalogPayloadInstallAction from './CatalogPayloadInstallAction';
 import CatalogPayloadVersionPreview from './CatalogPayloadVersionPreview';
 import useCatalogPayloadVersions from './useCatalogPayloadVersions';
 
@@ -24,15 +25,20 @@ const ThreatArsenalCatalogDrawer: FunctionComponent<Props> = ({ action, name, in
   const [shownVersion, setShownVersion] = useState(action.action_payload_version);
   const shown = versions.find(version => version.catalog_payload_version === shownVersion);
 
-  let actions = null;
-  if (installed) {
-    actions = <Chip label={t('Installed')} severity="low" />;
-  } else if (canInstall && shown) {
-    actions = <Button loading={installing} onClick={() => onInstall(shown.catalog_payload_version)}>{t('Install this version')}</Button>;
-  }
-
   return (
-    <MarketplaceItemDrawer title={name} onClose={onClose} actions={actions}>
+    <MarketplaceItemDrawer
+      title={name}
+      onClose={onClose}
+      actions={shown && (
+        <CatalogPayloadInstallAction
+          installed={installed}
+          installing={installing}
+          canInstall={canInstall}
+          onInstall={() => onInstall(shown.catalog_payload_version)}
+          label={t('Install this version')}
+        />
+      )}
+    >
       <div style={{
         display: 'flex',
         flexDirection: 'column',

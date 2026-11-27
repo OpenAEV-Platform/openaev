@@ -81,11 +81,10 @@ public class CatalogListService {
         .toList();
   }
 
-  /** The versions after one version up to another that have a changelog, newest first. */
-  @Transactional(readOnly = true)
-  public <T extends CatalogItem> List<T> releaseNotes(
-      Class<T> type, String externalId, String after, String upTo) {
-    return versions(type, externalId).stream()
+  /** The versions after one version up to another that have a changelog, in the order given. */
+  public static <T extends CatalogItem> List<T> releaseNotes(
+      List<T> versions, String after, String upTo) {
+    return versions.stream()
         .filter(version -> StringUtils.isNotBlank(version.getChangelog()))
         .filter(version -> SemanticVersion.ORDER.compare(version.getVersion(), after) > 0)
         .filter(version -> SemanticVersion.ORDER.compare(version.getVersion(), upTo) <= 0)

@@ -66,9 +66,9 @@ public class PayloadCustomizationService {
         update
             .map(
                 newer ->
-                    catalogListService.releaseNotes(
-                        CatalogPayload.class,
-                        base.getExternalId(),
+                    CatalogListService.releaseNotes(
+                        catalogListService.offeredVersions(
+                            CatalogPayload.class, base.getExternalId()),
                         base.getVersion(),
                         newer.target().getVersion()))
             .orElse(List.of()));
