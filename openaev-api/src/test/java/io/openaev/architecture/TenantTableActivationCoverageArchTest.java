@@ -41,14 +41,15 @@ import org.junit.jupiter.api.Test;
  * which is the end state #8201 describes, and this test becomes the assertion that it stays that
  * way.
  *
- * <p>The table universe is the one production activates under {@code *}: {@code
- * BackgroundEntrypointTenantScopeArchTest#wildcardActivatedTables()}, which is the entity model
- * (the {@code TenantBase}, {@code DualScopeBase} and {@code TenantIdBase} markers) unioned with the
- * checked-in inventory of strict tables no entity marks, and kept identical to the live schema by
- * {@code TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema}. Deriving the
- * universe there rather than restating it is what makes this guard see a table nobody mentioned.
+ * <p>The table universe is the one production activates under {@code *} (dual-scope tables
+ * included): {@code BackgroundEntrypointTenantScopeArchTest#wildcardActivatedTables()}, which is
+ * the entity model (the {@code TenantBase}, {@code DualScopeBase} and {@code TenantIdBase} markers)
+ * unioned with the checked-in inventory of strict tables no entity marks, and kept identical to the
+ * live schema by {@code TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema}.
+ * Deriving the universe there rather than restating it is what makes this guard see a table nobody
+ * mentioned.
  */
-@DisplayName("Every strict tenant table is active, self-isolated, or deferred with a reason")
+@DisplayName("Every tenant table is active, self-isolated, or deferred with a reason")
 class TenantTableActivationCoverageArchTest {
 
   private static final String NOT_YET_RESOURCE = "/tenant-tables-not-yet-activated.txt";
@@ -76,7 +77,7 @@ class TenantTableActivationCoverageArchTest {
   class CoverageRule {
 
     @Test
-    @DisplayName("every strict tenant table is active or deferred with a reason")
+    @DisplayName("every tenant table is active or deferred with a reason")
     void given_everyStrictTenantTable_should_beActiveOrDeferred() {
       // Arrange
       Set<String> universe = universe();
@@ -93,11 +94,11 @@ class TenantTableActivationCoverageArchTest {
           unaccounted.isEmpty(),
           () ->
               unaccounted.size()
-                  + " strict tenant table(s) are neither isolated nor deferred on purpose, so they"
+                  + " tenant table(s) are neither isolated nor deferred on purpose, so they"
                   + " carry no tenant isolation and nothing says why: "
                   + unaccounted
-                  + ". Either add the table to openaev.tenant.active-tables (see the"
-                  + " activate-tenant-table skill), or add a line to"
+                  + ". Either arm it (the terminal '*' in openaev.tenant.active-tables arms every"
+                  + " tenant table; see the activate-tenant-table skill), or add a line to"
                   + " src/test/resources"
                   + NOT_YET_RESOURCE
                   + " naming the issue that tracks it and what blocks it. Putting it in"
@@ -233,8 +234,8 @@ class TenantTableActivationCoverageArchTest {
   }
 
   /**
-   * The strict tenant tables production gates under {@code *}: the terminal state of the rollout,
-   * and so the set this guard holds to account.
+   * The tenant tables (strict and dual-scope) production gates under {@code *}: the terminal state
+   * of the rollout, and so the set this guard holds to account.
    */
   private static Set<String> universe() {
     return BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables();

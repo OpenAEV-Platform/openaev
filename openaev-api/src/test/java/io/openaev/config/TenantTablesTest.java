@@ -99,14 +99,15 @@ class TenantTablesTest {
   }
 
   @Test
-  @DisplayName("'*' activates every strict table and no dual-scope one")
-  void restrictToAllStrictActivatesStrictTablesOnly() {
+  @DisplayName("'*' activates every strict table and every dual-scope one")
+  void restrictToAllStrictActivatesStrictAndDualScopeTables() {
     TenantTables active = MODEL.restrictTo(Set.of(TenantTables.ALL_STRICT));
     assertEquals(Set.of("documents", "findings"), active.strict());
-    assertTrue(
-        active.dualScope().isEmpty(),
-        "a platform row is written with no tenant, which this mechanism does not cover");
-    assertEquals(TenantTables.Family.NONE, active.family("groups"));
+    assertEquals(
+        Set.of("groups"),
+        active.dualScope(),
+        "a platform row is written under the platform-write marker, which the mechanism covers");
+    assertEquals(TenantTables.Family.DUAL, active.family("groups"));
   }
 
   /**
@@ -144,6 +145,23 @@ class TenantTablesTest {
         TenantTables.Family.NONE,
         active.family(usersTenants),
         "the membership check that computes the scope reads it before any scope exists");
+  }
+
+  @Test
+  @DisplayName("'*' leaves out a self-isolated table whichever family the schema reads it as")
+  void given_selfIsolatedTableReadAsDualScope_should_wildcardLeaveItOut() {
+    // Arrange: the schema reads a table as dual-scope when its tenant_id is nullable
+    TenantTables model =
+        new TenantTables(
+            Set.of("documents"), Set.of("groups", tableOf(Tenant.class), "users_tenants"));
+
+    // Act
+    TenantTables active = model.restrictTo(Set.of(TenantTables.ALL_STRICT));
+
+    // Assert
+    assertEquals(Set.of("groups"), active.dualScope());
+    assertEquals(TenantTables.Family.NONE, active.family(tableOf(Tenant.class)));
+    assertEquals(TenantTables.Family.NONE, active.family("users_tenants"));
   }
 
   @Test

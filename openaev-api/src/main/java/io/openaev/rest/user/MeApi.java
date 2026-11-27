@@ -4,13 +4,15 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
+import static org.springframework.util.StringUtils.hasLength;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.api.users.dto.UserMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -27,11 +29,14 @@ import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -55,19 +60,24 @@ public class MeApi extends RestBehavior {
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final TenantService tenantService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
-    return hydrateUserForResponse(
+    User user =
         userRepository
             .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(user, ctx));
   }
 
-  // The tenant variant scopes the organization: a user holds one organization per tenant.
+  // A user holds one organization per tenant. Setting one needs the single tenant of the request's
+  // scope; an empty organization clears the one of the tenant the scope pins, if it pins one. The
+  // response carries the organization of that tenant.
   @PutMapping({ME_URI + "/profile", TENANT_ME_URI + "/profile"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
@@ -78,14 +88,28 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
-    String tenantId = TenantContext.getCurrentTenant();
-    userRepository.assignOrganization(
-        user,
-        tenantId,
-        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
+    String organizationId = input.getOrganizationId();
+    String organizationTenantId = null;
+    if (hasLength(organizationId)) {
+      organizationTenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      userRepository.assignOrganization(
+          user,
+          organizationTenantId,
+          resolveTenantOrganization(organizationId, organizationTenantId, organizationRepository));
+    } else {
+      Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+      if (scope.size() == 1) {
+        organizationTenantId = scope.iterator().next();
+        userRepository.assignOrganization(user, organizationTenantId, null);
+      }
+    }
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return hydrateUserForResponse(savedUser);
+    User response = permissionService.withRolesInAmbientTenant(savedUser, ctx);
+    if (organizationTenantId != null) {
+      response = UserMapper.toResponseView(response, organizationTenantId);
+    }
+    return hydrateUserForResponse(response);
   }
 
   // Tenant variant: the response carries the organization of the tenant it is read in.
@@ -101,7 +125,7 @@ public class MeApi extends RestBehavior {
     user.setUpdateAttributes(input);
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return hydrateUserForResponse(savedUser);
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @PutMapping({ME_URI + "/password", TENANT_ME_URI + "/password"})
@@ -111,7 +135,7 @@ public class MeApi extends RestBehavior {
   public User updatePassword(
       TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return hydrateUserForResponse(
+    User savedUser =
         doSecuritySensitiveUpdate(
             currentUser().getId(),
             input.getCurrentPassword(),
@@ -119,7 +143,8 @@ public class MeApi extends RestBehavior {
               user.setPassword(userService.encodeUserPassword(input.getPassword()));
               return user;
             },
-            httpRequest.getSession().getId()));
+            httpRequest.getSession().getId());
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @PutMapping({ME_URI + "/email", TENANT_ME_URI + "/email"})
@@ -129,7 +154,7 @@ public class MeApi extends RestBehavior {
   public User updateEmail(
       TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return hydrateUserForResponse(
+    User savedUser =
         doSecuritySensitiveUpdate(
             currentUser().getId(),
             input.getCurrentPassword(),
@@ -137,7 +162,8 @@ public class MeApi extends RestBehavior {
               userService.requestEmailChange(user, input.getEmail());
               return user;
             },
-            httpRequest.getSession().getId()));
+            httpRequest.getSession().getId());
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
   }
 
   @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")

@@ -129,7 +129,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
   @Autowired private AutonomousRunRepository autonomousRunRepository;
-  @Autowired private io.openaev.service.finding.FindingDetachService findingDetachService;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
@@ -189,17 +188,20 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
         fileService,
         healthCheckUtils,
         eventPublisher,
-        attackPathExecutionService,
         autonomousRunRepository,
-        permissionServiceProvider,
-        findingDetachService);
+        permissionServiceProvider);
   }
 
   @AfterAll
   public void teardown() {
     if (USER_ID != null) this.userRepository.deleteById(USER_ID);
-    if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
-    if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
+    // teams and injects are active tables: delete in the tenant the rows were written in
+    this.tenantScopedTransaction.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
+          if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
+        });
   }
 
   @DisplayName("Should create new contextual teams while exercise duplication")
@@ -339,10 +341,15 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
         });
 
     // -- ASSERT --
-    List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));
-    assertEquals(0, teams.size());
-    Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
-    assertEquals(0, injectAssert.getTeams().size());
+    // teams and injects are active tables: read them back in the tenant they were written in
+    this.tenantScopedTransaction.execute(
+        ctx,
+        () -> {
+          List<Team> teams = this.teamRepository.findAll(fromExercise(exerciseSaved.getId()));
+          assertEquals(0, teams.size());
+          Inject injectAssert = this.injectRepository.findById(INJECT_ID).orElseThrow();
+          assertEquals(0, injectAssert.getTeams().size());
+        });
   }
 
   /**

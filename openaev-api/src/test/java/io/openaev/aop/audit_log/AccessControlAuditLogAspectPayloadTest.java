@@ -13,6 +13,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
+import jakarta.persistence.EntityManager;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -48,6 +50,7 @@ class AccessControlAuditLogAspectPayloadTest {
   @Mock private AuditLogger auditLogger;
   @Mock private ProceedingJoinPoint joinPoint;
   @Mock private MethodSignature methodSignature;
+  @Mock private EntityManager entityManager;
 
   private AccessControlAuditLogAspect aspect;
 
@@ -85,6 +88,8 @@ class AccessControlAuditLogAspectPayloadTest {
     aspect =
         new AccessControlAuditLogAspect(
             auditLogger, objectMapper, new AuditObjectMapper(objectMapper));
+    // Injected by @PersistenceContext in the application: the aspect flushes before logging.
+    ReflectionTestUtils.setField(aspect, "entityManager", entityManager);
 
     inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
 

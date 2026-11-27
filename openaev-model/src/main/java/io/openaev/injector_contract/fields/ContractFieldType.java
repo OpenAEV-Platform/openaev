@@ -76,6 +76,14 @@ public enum ContractFieldType {
   @JsonProperty("asset-group")
   AssetGroup("asset-group", ValueShape.UNCHECKED),
 
+  /** An asset group picked by id, stored in the content; unlike {@link #AssetGroup} not a target. */
+  @JsonProperty("asset-group-reference")
+  AssetGroupReference("asset-group-reference", ValueShape.UNCHECKED),
+
+  /** Tag selector field, storing the selected tag ids in the inject content. */
+  @JsonProperty("tags")
+  Tags("tags", ValueShape.UNCHECKED),
+
   /** AI target selector field (LLM endpoint / AI agent under adversarial test). */
   @JsonProperty("ai-target")
   AiTarget("ai-target", ValueShape.UNCHECKED),

@@ -8,6 +8,7 @@ import AssetForm from '../../../../admin/components/assets/AssetForm';
 vi.mock('../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 vi.mock('../../../../actions/assets/endpoint-actions', () => ({ resolveHostnameToIps: vi.fn() }));
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
+vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => true }) }));
 vi.mock('../../../../components/fields/SelectFieldController', () => ({ default: () => null }));
 vi.mock('../../../../components/fields/TagFieldController', () => ({ default: () => null }));
 vi.mock('../../../../components/fields/MarkingFieldController', () => ({ default: () => null }));

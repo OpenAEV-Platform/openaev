@@ -1113,7 +1113,12 @@ public class ConditionService {
   }
 
   /**
-   * Removes the link between a condition and a step.
+   * Removes the link between a condition and a step, from both the condition and the step
+   * collections.
+   *
+   * <p>Both collections own the link with orphan removal: a link left on one side while removed
+   * from the other is deleted at the next flush and then reached again by a cascade from the side
+   * still holding it, which fails the save with {@code ObjectDeletedException}.
    *
    * @param condition the condition to unlink
    * @param stepId the step ID to remove from the condition's step list
@@ -1129,7 +1134,16 @@ public class ConditionService {
     }
 
     conditionSteps.removeIf(
-        link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
+        link -> {
+          Step step = link.getStep();
+          if (step == null || !Objects.equals(step.getId(), stepId)) {
+            return false;
+          }
+          if (step.getConditionSteps() != null) {
+            step.getConditionSteps().removeIf(stepLink -> stepLink == link);
+          }
+          return true;
+        });
   }
 
   /**

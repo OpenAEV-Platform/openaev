@@ -1,5 +1,7 @@
 package io.openaev.aop.audit_log;
 
+import static io.openaev.api.groups.PlatformGroupApi.PLATFORM_GROUPS_URI;
+import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.rest.channel.ChannelApi.CHANNEL_URI;
 import static io.openaev.rest.tag.TagApi.TAG_URI;
@@ -11,6 +13,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
@@ -27,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.groups.PlatformGroupUpdateUsersInput;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
 import io.openaev.context.TenantContext;
@@ -43,6 +47,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exception.TenantScopeForbiddenException;
+import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.service.LogService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
@@ -50,14 +55,21 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.ChannelComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.object.ObjectDiffUtils;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -95,6 +107,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ChannelComposer channelComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private PlatformGroupComposer platformGroupComposer;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
@@ -683,6 +697,118 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               snapshotsCaptor.capture());
 
       assertThat(snapshotsCaptor.getValue()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Group member changes through the member endpoints")
+  class GroupMemberAudit {
+
+    /**
+     * Sends the member list to the endpoint, then returns the {@code group_users} change of the
+     * group in the audit entry, or {@code null} when the entry has none.
+     */
+    private ObjectDiffUtils.FieldChange putMembersAndGetMemberChange(
+        String membersUri, Object input, String groupId) throws Exception {
+      // The group is reloaded by the request, as in production
+      entityManager.flush();
+      entityManager.clear();
+      clearInvocations(auditLogger);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
+          ArgumentCaptor.forClass(Map.class);
+
+      mvc.perform(
+              put(membersUri)
+                  .content(objectMapper.writeValueAsString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              any(AuditEventScope.class),
+              any(EventStatus.class),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              snapshotsCaptor.capture());
+      AuditLogContext.EntitySnapshot snapshot = snapshotsCaptor.getValue().get(groupId);
+      if (snapshot == null) {
+        return null;
+      }
+      return ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
+          .filter(change -> change.field().equals("group_users"))
+          .findFirst()
+          .orElse(null);
+    }
+
+    private void assertMemberChange(
+        ObjectDiffUtils.FieldChange change, List<String> before, List<String> after) {
+      assertThat(change).as("the audit entry must hold the group_users change").isNotNull();
+      assertThat(change.oldValue())
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(before);
+      assertThat(change.newValue())
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(after);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("given_tenantGroupMemberAddedThenRemoved_should_logBothMemberChanges")
+    void given_tenantGroupMemberAddedThenRemoved_should_logBothMemberChanges() throws Exception {
+      // Arrange
+      String groupId =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("Audited tenant members"))
+              .persist()
+              .get()
+              .getId();
+      String userId = testUserHolder.get().getId();
+      String membersUri = tenantUri(TENANT_GROUP_URI) + "/" + groupId + "/users";
+      GroupUpdateUsersInput addInput = new GroupUpdateUsersInput();
+      addInput.setUserIds(List.of(userId));
+      GroupUpdateUsersInput removeInput = new GroupUpdateUsersInput();
+      removeInput.setUserIds(List.of());
+
+      // Act
+      ObjectDiffUtils.FieldChange added =
+          putMembersAndGetMemberChange(membersUri, addInput, groupId);
+      ObjectDiffUtils.FieldChange removed =
+          putMembersAndGetMemberChange(membersUri, removeInput, groupId);
+
+      // Assert
+      assertMemberChange(added, List.of(), List.of(userId));
+      assertMemberChange(removed, List.of(userId), List.of());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("given_platformGroupMemberAddedThenRemoved_should_logBothMemberChanges")
+    void given_platformGroupMemberAddedThenRemoved_should_logBothMemberChanges() throws Exception {
+      // Arrange
+      String groupId =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("Audited platform members"))
+              .persist()
+              .get()
+              .getId();
+      String userId = testUserHolder.get().getId();
+      String membersUri = PLATFORM_GROUPS_URI + "/" + groupId + "/users";
+
+      // Act
+      ObjectDiffUtils.FieldChange added =
+          putMembersAndGetMemberChange(
+              membersUri, new PlatformGroupUpdateUsersInput(List.of(userId)), groupId);
+      ObjectDiffUtils.FieldChange removed =
+          putMembersAndGetMemberChange(
+              membersUri, new PlatformGroupUpdateUsersInput(List.of()), groupId);
+
+      // Assert
+      assertMemberChange(added, List.of(), List.of(userId));
+      assertMemberChange(removed, List.of(userId), List.of());
     }
   }
 

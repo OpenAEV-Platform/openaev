@@ -42,6 +42,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
       TenantWriteScopeResolver writeScopeResolver,
+      UserGroupMembershipService userGroupMembershipService,
       SessionManager sessionManager) {
     super(
         tenantRoleService,
@@ -49,7 +50,8 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
         userService,
         tenantUserService,
         markingClearanceCacheManager,
-        writeScopeResolver);
+        writeScopeResolver,
+        userGroupMembershipService);
     this.sessionManager = sessionManager;
   }
 
@@ -83,7 +85,7 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
       String token = UUID.randomUUID().toString();
       User user =
           userService.createInternalUser(email, CATALOG_CONNECTOR_FIRSTNAME, null, false, token);
-      user.setGroups(new ArrayList<>(List.of(group)));
+      joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);
       return token;

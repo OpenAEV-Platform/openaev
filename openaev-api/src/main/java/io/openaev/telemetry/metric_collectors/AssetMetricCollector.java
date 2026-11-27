@@ -21,8 +21,7 @@ import org.springframework.stereotype.Service;
  * installed on the asset, agentless otherwise). Counts only, no asset content is ever collected.
  *
  * <p>The counts are intentionally instance-wide (all tenants): the query runs on the OTel exporter
- * thread, outside any request or tenant context. Under v1 that came for free, because the Hibernate
- * {@code tenantFilter} is only enabled on a transactional call. {@code assets} is on v2, and {@link
+ * thread, outside any request or tenant context. {@code assets} is on v2, and {@link
  * io.openaev.config.TenantStatementInspector} does not care whether a transaction is active: with
  * {@code app.current_tenants} unset, {@code can_access_tenant} returns false for every row and the
  * gauge reports an empty map. It keeps reporting, it just reports nothing.

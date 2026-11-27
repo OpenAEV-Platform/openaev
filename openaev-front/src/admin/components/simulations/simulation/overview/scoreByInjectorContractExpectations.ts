@@ -28,4 +28,13 @@ export const isTopLevelScoredExpectation = (expectation: InjectExpectationOutput
   return expectation.inject_expectation_asset != null;
 };
 
+interface ExpectationWithInject { inject_expectation_inject?: { inject_injector_contract?: { injector_contract_id?: string } } }
+
+/**
+ * The series an expectation belongs to in the score over time chart: the injector contract of its inject (#9931).
+ * An inject without a contract goes to the '' series.
+ */
+export const injectorContractKey = (expectation: ExpectationWithInject): string =>
+  expectation.inject_expectation_inject?.inject_injector_contract?.injector_contract_id ?? '';
+
 export default isTopLevelScoredExpectation;

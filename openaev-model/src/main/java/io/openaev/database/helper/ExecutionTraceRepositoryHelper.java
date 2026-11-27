@@ -119,16 +119,21 @@ public class ExecutionTraceRepositoryHelper {
    * @param injectStatusId the ID of the inject status to update
    * @param name the new status name (e.g., "SUCCESS", "ERROR", "PENDING")
    * @param endDate the end timestamp for the inject execution, or {@code null} if not yet completed
+   * @param expectedAgentCount the number of agents the inject was expected on, or {@code null} if
+   *     unknown
    * @throws org.springframework.dao.DataAccessException if the database update fails
    */
-  public void updateInjectStatus(String injectStatusId, String name, Instant endDate) {
+  public void updateInjectStatus(
+      String injectStatusId, String name, Instant endDate, Integer expectedAgentCount) {
     String sql =
-        "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ? WHERE status_id = ?";
+        "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ?,"
+            + " status_expected_agent_count = ? WHERE status_id = ?";
 
     jdbcTemplate.update(
         sql,
         name,
         endDate != null ? OffsetDateTime.ofInstant(endDate, ZoneOffset.UTC) : null,
+        expectedAgentCount,
         injectStatusId);
   }
 }

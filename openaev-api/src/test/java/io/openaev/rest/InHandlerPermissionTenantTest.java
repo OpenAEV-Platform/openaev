@@ -5,13 +5,16 @@ import static io.openaev.api.autonomous.AutonomousRunApi.AUTONOMOUS_URI;
 import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.notifier.NotifierApi.NOTIFIER_URI;
 import static io.openaev.api.notifier.NotifierApi.TENANT_NOTIFIER_URI;
-import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
+import static io.openaev.rest.asset.endpoint.EndpointApi.TENANT_ENDPOINT_URI;
 import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.reporting.ReportingApi.REPORTINGS_URI;
 import static io.openaev.rest.reporting.ReportingApi.TENANT_REPORTINGS_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asStringJson;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
+import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,10 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -37,6 +38,7 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.NotifierType;
 import io.openaev.database.model.Reporting;
 import io.openaev.database.model.ReportingContextType;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
@@ -48,11 +50,13 @@ import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.ReportingComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,8 +68,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
@@ -84,19 +86,14 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("In-handler permission decisions hold in the tenant of the rows they return")
-class InHandlerPermissionTenantTest extends IntegrationTest {
+class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ReportingComposer reportingComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
@@ -110,6 +107,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     reportingComposer.reset();
+    scenarioComposer.reset();
     endpointComposer.reset();
     markingDefinitionComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("in-handler-permission-b").getId();
@@ -512,6 +510,53 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
     }
   }
 
+  /**
+   * Scenarios are read in the scope of the request, like every active table. On the plain route
+   * selecting B the scope names B alone, so the list holds B's scenarios and decides on each of
+   * them with the rights the caller holds in B, whatever it holds in the default tenant that stays
+   * the ambient one.
+   */
+  @Nested
+  @DisplayName("Scenario list on the plain route")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  class ScenarioListOnThePlainRoute {
+
+    @Test
+    @DisplayName("given the right in the default tenant only should not list a scenario of B")
+    void given_rightInTheDefaultTenantOnly_should_notListAScenarioOfB() throws Exception {
+      // -- ARRANGE --
+      String scenarioId = persistScenarioOfB();
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(SCENARIO_URI)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[?(@.scenario_id == '" + scenarioId + "')]").isEmpty());
+    }
+
+    @Test
+    @DisplayName("given the right in B should list a scenario of B")
+    void given_rightInB_should_listAScenarioOfB() throws Exception {
+      // -- ARRANGE --
+      grantInB(Capability.ACCESS_ASSESSMENT);
+      String scenarioId = persistScenarioOfB();
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(SCENARIO_URI)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[?(@.scenario_id == '" + scenarioId + "')]").isNotEmpty());
+    }
+
+    private String persistScenarioOfB() {
+      Scenario scenario = createDefaultCrisisScenario();
+      scenario.setTenant(new Tenant(tenantB));
+      String scenarioId = scenarioComposer.forScenario(scenario).persist().get().getId();
+      // A request starts with an empty persistence context: the caller is loaded in its scope.
+      entityManager.flush();
+      entityManager.clear();
+      return scenarioId;
+    }
+  }
+
   @Nested
   @DisplayName("Marking assignment")
   @WithMockUser(
@@ -563,8 +608,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       String assetId = markedAssetInB();
 
       // -- ACT & ASSERT --
-      mvc.perform(inB(put(ASSET_URI + "/{assetId}/markings", assetId)).content(clearAsset()))
-          .andExpect(status().isForbidden());
+      mvc.perform(clearAssetInB(assetId)).andExpect(status().isForbidden());
     }
 
     @Test
@@ -575,16 +619,22 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       String assetId = markedAssetInB();
 
       // -- ACT & ASSERT --
-      mvc.perform(inB(put(ASSET_URI + "/{assetId}/markings", assetId)).content(clearAsset()))
-          .andExpect(status().isOk());
+      mvc.perform(clearAssetInB(assetId)).andExpect(status().isOk());
     }
 
     private String clearGroup() {
       return asJsonString(new GroupUpdateMarkingsInput(List.of(), null));
     }
 
-    private String clearAsset() {
-      return asJsonString(new AssetUpdateMarkingsInput(List.of()));
+    private MockHttpServletRequestBuilder clearAssetInB(String assetId) {
+      Map<String, Object> body =
+          asStringJson(
+              asJsonString(EndpointFixture.createWindowsEndpointInput(List.of())), Map.class);
+      body.put("asset_markings", List.of());
+      return put(TENANT_ENDPOINT_URI + "/{endpointId}", tenantB, assetId)
+          .content(asJsonString(body))
+          .contentType(MediaType.APPLICATION_JSON)
+          .with(csrf());
     }
   }
 

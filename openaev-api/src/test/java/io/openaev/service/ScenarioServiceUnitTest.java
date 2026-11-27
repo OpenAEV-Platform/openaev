@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -30,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -237,35 +235,6 @@ class ScenarioServiceUnitTest {
   class RetrieveScenario {
 
     @Test
-    void shouldReturnScenario_whenFound() {
-      Scenario scenario = new Scenario();
-      scenario.setId("sc-1");
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
-            .thenReturn(Optional.of(scenario));
-
-        Scenario result = scenarioService.scenario("sc-1");
-
-        assertNotNull(result);
-        assertEquals("sc-1", result.getId());
-      }
-    }
-
-    @Test
-    void shouldThrowElementNotFoundException_whenNotFound() {
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("missing", "tenant-1"))
-            .thenReturn(Optional.empty());
-
-        assertThrows(
-            io.openaev.rest.exception.ElementNotFoundException.class,
-            () -> scenarioService.scenario("missing"));
-      }
-    }
-
-    @Test
     void shouldDeleteScenarioById() {
       Scenario scenario = new Scenario();
       scenario.setId("sc-1");
@@ -400,11 +369,12 @@ class ScenarioServiceUnitTest {
 
       Scenario scenario = new Scenario();
       scenario.setId(scenarioId);
+      scenario.setTenant(new Tenant("tenant-1"));
       scenario.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
       when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
           .thenReturn(Optional.of(scenario));
-      when(teamRepository.findAllById(any()))
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
           .thenAnswer(
               invocation -> {
                 Iterable<String> ids = invocation.getArgument(0);
@@ -458,11 +428,13 @@ class ScenarioServiceUnitTest {
 
       Scenario scenario = new Scenario();
       scenario.setId(scenarioId);
+      scenario.setTenant(new Tenant("tenant-1"));
       scenario.setTeams(new ArrayList<>(List.of(existingTeam)));
 
       when(scenarioRepository.findByIdAndTenantIdIn(scenarioId, Set.of("tenant-1")))
           .thenReturn(Optional.of(scenario));
-      when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
+          .thenReturn(List.of(existingTeam));
       when(teamService.find(any())).thenReturn(List.of());
 
       scenarioService.replaceTeams(TxCtx.forTenant("tenant-1"), scenarioId, List.of("team-1"));

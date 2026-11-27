@@ -29,6 +29,17 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
+  /**
+   * The tenant ids of the user with this email, with no {@code User} entity hydration: {@code
+   * User.groups} is an eager association over the v2-active {@code groups} table, so loading the
+   * entity itself reads it under whatever scope happens to be set at that point. A caller that must
+   * widen the scope to the user's own tenants BEFORE that eager read runs (the SSO login) can only
+   * do so from a projection like this one, never from {@code findByEmailIgnoreCase(email)
+   * .getTenants()}. Empty for an unknown email or one with no tenant membership yet.
+   */
+  @Query("SELECT t.id FROM User u JOIN u.tenants t WHERE LOWER(u.email) = LOWER(:email)")
+  List<String> findTenantIdsByEmailIgnoreCase(@Param("email") String email);
+
   @Query(
       "SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE LOWER(u.email) IN :emails AND t.id = :tenantId")
   List<User> findAllByEmailInAndTenantIdNormalized(
@@ -104,6 +115,13 @@ public interface UserRepository
       value = "select ut.user_id from users_tenants ut where ut.tenant_id = :tenantId",
       nativeQuery = true)
   List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
+
+  // Native: users_tenants is a join table with no entity of its own; a read, so no listener side
+  // effect is lost.
+  @Query(
+      value = "select distinct ut.user_id from users_tenants ut where ut.tenant_id in :tenantIds",
+      nativeQuery = true)
+  List<String> findUserIdsByTenantIdIn(@Param("tenantIds") Collection<String> tenantIds);
 
   /**
    * Returns a projection rather than {@code User} entities, because loading one user also loads its

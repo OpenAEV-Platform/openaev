@@ -59,6 +59,21 @@ class OperationUtilsRuntimeTest {
       assertThat(OperationUtilsRuntime.notStartWithTexts("8443-tcp", List.of("443", "80")))
           .isTrue();
     }
+
+    @Test
+    @DisplayName("notEndWithTexts is false when the value ends with one of the texts")
+    void notEndWithTexts_should_beFalse_when_valueEndsWithOneText() {
+      List<String> suffixes = List.of(".corp.example", ".lab");
+      assertThat(OperationUtilsRuntime.notEndWithTexts("srv01.CORP.example", suffixes)).isFalse();
+    }
+
+    @Test
+    @DisplayName("notEndWithTexts is true when the value ends with none of the texts")
+    void notEndWithTexts_should_beTrue_when_valueEndsWithNoText() {
+      List<String> suffixes = List.of(".corp.example", ".lab");
+      assertThat(OperationUtilsRuntime.notEndWithTexts("srv01.corp.example.net", suffixes))
+          .isTrue();
+    }
   }
 
   @Nested
@@ -79,6 +94,14 @@ class OperationUtilsRuntimeTest {
           .isTrue();
       assertThat(OperationUtilsRuntime.containsTexts("hello world", List.of("foo", "bar")))
           .isFalse();
+    }
+
+    @Test
+    @DisplayName("endWithTexts is true when the value ends with at least one text, any case")
+    void endWithTexts_should_beTrue_when_valueEndsWithOneText() {
+      List<String> suffixes = List.of(".lab", ".corp.example");
+      assertThat(OperationUtilsRuntime.endWithTexts("SRV01.Corp.Example", suffixes)).isTrue();
+      assertThat(OperationUtilsRuntime.endWithTexts("srv01.lab.net", List.of(".lab"))).isFalse();
     }
   }
 }

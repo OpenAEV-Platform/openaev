@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -181,16 +180,17 @@ public class ScopeService {
    *
    * <p>Users are platform-level entities whose tenant membership lives in {@code users_tenants}, so
    * unlike teams (tenant-filtered entities) the lookup must be explicitly tenant-scoped: a stale or
-   * crafted PLAYER rule must never resolve a user outside the workflow's tenant.
+   * crafted PLAYER rule must never resolve a user outside the workflow's tenant. Every rule carries
+   * the tenant of its workflow, the one the users are looked up in.
    */
   public List<User> getValidPlayers(String workflowId) {
-    List<String> keptPlayerIds =
-        resolveAllowedMinusDeniedIds(
-            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
-            ScopeRuleValueType.PLAYER_ID);
-    return keptPlayerIds.isEmpty()
-        ? List.of()
-        : userRepository.findAllByIdInAndTenantId(keptPlayerIds, TenantContext.getCurrentTenant());
+    List<WorkflowScopeRule> rules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+    List<String> keptPlayerIds = resolveAllowedMinusDeniedIds(rules, ScopeRuleValueType.PLAYER_ID);
+    if (keptPlayerIds.isEmpty()) {
+      return List.of();
+    }
+    String workflowTenantId = rules.getFirst().getTenant().getId();
+    return userRepository.findAllByIdInAndTenantId(keptPlayerIds, workflowTenantId);
   }
 
   /**

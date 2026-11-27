@@ -38,6 +38,7 @@ public class FindingSearchApi extends RestBehavior {
   private final FindingRepository findingRepository;
   private final FindingDistinctSearchService findingDistinctSearchService;
   private final InjectService injectService;
+  private final FindingAssetGroupFilterResolver assetGroupFilterResolver;
 
   private final FindingMapper findingMapper;
 
@@ -57,14 +58,15 @@ public class FindingSearchApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
+    final SearchPaginationInput input = assetGroupFilterResolver.resolve(searchPaginationInput);
     if (distinct) {
-      return findingDistinctSearchService.searchDistinctFindings(searchPaginationInput);
+      return findingDistinctSearchService.searchDistinctFindings(input);
     }
     return buildPaginationJPA(
             (specification, pageable) ->
                 this.findingRepository.findAll(
                     FindingSpecification.matching(specification), pageable),
-            searchPaginationInput,
+            input,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
   }
@@ -93,9 +95,9 @@ public class FindingSearchApi extends RestBehavior {
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
     injectService.existsInScope(ctx, injectId);
+    final SearchPaginationInput input = assetGroupFilterResolver.resolve(searchPaginationInput);
     if (distinct) {
-      return findingDistinctSearchService.searchDistinctFindingsByInject(
-          injectId, searchPaginationInput);
+      return findingDistinctSearchService.searchDistinctFindingsByInject(injectId, input);
     }
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
@@ -103,7 +105,7 @@ public class FindingSearchApi extends RestBehavior {
                     FindingSpecification.findFindingsForInject(injectId)
                         .and(FindingSpecification.matching(specification)),
                     pageable),
-            searchPaginationInput,
+            input,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
   }
@@ -131,9 +133,9 @@ public class FindingSearchApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
+    final SearchPaginationInput input = assetGroupFilterResolver.resolve(searchPaginationInput);
     if (distinct) {
-      return findingDistinctSearchService.searchDistinctFindingsBySimulation(
-          simulationId, searchPaginationInput);
+      return findingDistinctSearchService.searchDistinctFindingsBySimulation(simulationId, input);
     }
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
@@ -141,7 +143,7 @@ public class FindingSearchApi extends RestBehavior {
                     FindingSpecification.findFindingsForSimulation(simulationId)
                         .and(FindingSpecification.matching(specification)),
                     pageable),
-            searchPaginationInput,
+            input,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
   }
@@ -169,9 +171,9 @@ public class FindingSearchApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
+    final SearchPaginationInput input = assetGroupFilterResolver.resolve(searchPaginationInput);
     if (distinct) {
-      return findingDistinctSearchService.searchDistinctFindingsByScenario(
-          scenarioId, searchPaginationInput);
+      return findingDistinctSearchService.searchDistinctFindingsByScenario(scenarioId, input);
     }
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
@@ -179,7 +181,7 @@ public class FindingSearchApi extends RestBehavior {
                     FindingSpecification.findFindingsForScenario(scenarioId)
                         .and(FindingSpecification.matching(specification)),
                     pageable),
-            searchPaginationInput,
+            input,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
   }
@@ -207,9 +209,9 @@ public class FindingSearchApi extends RestBehavior {
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
+    final SearchPaginationInput input = assetGroupFilterResolver.resolve(searchPaginationInput);
     if (distinct) {
-      return findingDistinctSearchService.searchDistinctFindingsByEndpoint(
-          endpointId, searchPaginationInput);
+      return findingDistinctSearchService.searchDistinctFindingsByEndpoint(endpointId, input);
     }
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
@@ -217,7 +219,7 @@ public class FindingSearchApi extends RestBehavior {
                     FindingSpecification.findFindingsForEndpoint(endpointId)
                         .and(FindingSpecification.matching(specification)),
                     pageable),
-            searchPaginationInput,
+            input,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
   }

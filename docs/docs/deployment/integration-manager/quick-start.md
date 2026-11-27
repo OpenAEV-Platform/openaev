@@ -51,6 +51,7 @@ Set configuration through environment variables:
 export COMPOSER_ENV=production
 export MANAGER__ID="my-manager-001"
 export MANAGER__CREDENTIALS_KEY_FILEPATH="/path/to/private_key_4096.pem"
+export OPENAEV__ENABLE=true
 export OPENAEV__URL="https://openaev.example.com"
 export OPENAEV__TOKEN="your-openaev-api-token"
 export OPENAEV__DAEMON__SELECTOR="kubernetes"

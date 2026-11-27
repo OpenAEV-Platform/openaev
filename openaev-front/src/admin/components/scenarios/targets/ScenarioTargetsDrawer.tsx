@@ -1,53 +1,73 @@
-import { Button, Text } from '@filigran/design-system';
-import { type FunctionComponent, useState } from 'react';
+import { Alert, Button, Chip, Drawer, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@filigran/design-system';
+import { PlayArrowOutlined } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 
-import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { NO_TARGETS, type ScenarioTargets } from './scenarioTargets';
-import ScenarioTargetsFields from './ScenarioTargetsFields';
 
 interface Props {
+  // What the drawer does (Install, Launch), above the scenario name.
+  overline: string;
   title: string;
-  description: string;
-  // A chained scenario acts inside its scope: it takes no targets.
-  withTargets: boolean;
+  version?: string;
   submitLabel: string;
-  onSubmit: (targets: ScenarioTargets) => Promise<unknown>;
+  // The submit starts a simulation.
+  launches: boolean;
+  blocked: boolean;
+  onSubmit: () => Promise<unknown>;
   onClose: () => void;
+  children: ReactNode;
 }
 
-const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, description, withTargets, submitLabel, onSubmit, onClose }) => {
+// The drawer where the targets of a scenario are chosen, to install it or to launch it.
+const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ overline, title, version, submitLabel, launches, blocked, onSubmit, onClose, children }) => {
   const { t } = useFormatter();
-  const [targets, setTargets] = useState<ScenarioTargets>(NO_TARGETS);
+  const theme = useTheme();
   const [submitting, setSubmitting] = useState(false);
+  // Why the submit failed, said in the drawer: a message behind its overlay is never seen.
+  const [failure, setFailure] = useState<string | null>(null);
 
   const submit = () => {
     setSubmitting(true);
-    onSubmit(targets)
-      .catch(() => undefined)
+    setFailure(null);
+    onSubmit()
+      .catch((error: { message?: string }) => setFailure(error?.message || t('Something went wrong. Please refresh the page or try again later.')))
       .finally(() => setSubmitting(false));
   };
 
   return (
-    <Drawer open handleClose={onClose} title={title}>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 24,
-      }}
-      >
-        <Text variant="content-base">{description}</Text>
-        {withTargets && <ScenarioTargetsFields value={targets} onChange={setTargets} />}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
-        }}
-        >
-          <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button type="button" loading={submitting} onClick={submit}>{submitLabel}</Button>
-        </div>
-      </div>
+    <Drawer open onOpenChange={next => !next && onClose()}>
+      <DrawerContent size="lg" busy={submitting}>
+        <DrawerHeader
+          overline={overline}
+          title={title}
+          badge={version ? <Chip label={`v${version}`} /> : undefined}
+          closeLabel={t('Close')}
+        />
+        <DrawerBody>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: theme.spacing(3),
+          }}
+          >
+            {children}
+            {failure && <Alert elevation={1} severity="error" title={failure} />}
+          </div>
+          <DrawerFooter>
+            <Button type="button" priority="secondary" disabled={submitting} onClick={onClose}>{t('Cancel')}</Button>
+            <Button
+              type="button"
+              loading={submitting}
+              disabled={blocked}
+              startIcon={launches ? <PlayArrowOutlined fontSize="small" /> : undefined}
+              onClick={submit}
+            >
+              {submitLabel}
+            </Button>
+          </DrawerFooter>
+        </DrawerBody>
+      </DrawerContent>
     </Drawer>
   );
 };

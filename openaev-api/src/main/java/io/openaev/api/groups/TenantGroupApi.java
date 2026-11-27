@@ -2,13 +2,17 @@ package io.openaev.api.groups;
 
 import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
+import static io.openaev.api.groups.dto.TenantGroupMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.api.groups.dto.TenantGroupMapper;
 import io.openaev.api.groups.dto.TenantGroupMarkingsOutput;
+import io.openaev.api.groups.dto.TenantGroupOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -17,6 +21,7 @@ import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.TenantGroupService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -44,8 +49,10 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input);
+  public TenantGroupOutput createGroup(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
+    return toOutput(
+        tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input));
   }
 
   @PostMapping("/{groupId}/grants")
@@ -54,10 +61,12 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(
-      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    return tenantGroupService.addGrant(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
+  public TenantGroupOutput groupGrant(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @Valid @RequestBody GroupGrantInput input) {
+    return toOutput(
+        tenantGroupService.addGrant(writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   // -- READ --
@@ -68,17 +77,21 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
-  public Group group(TxCtx ctx, @PathVariable String groupId) {
-    return tenantGroupService.findByIdInTenant(groupId);
+  public TenantGroupOutput group(@RequireTenantSelector TxCtx ctx, @PathVariable String groupId) {
+    return toOutput(
+        tenantGroupService.findByIdInTenants(groupId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)));
   }
 
   @LogExecutionTime
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
-  public Page<Group> groups(
-      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return tenantGroupService.search(searchPaginationInput);
+  public Page<TenantGroupOutput> groups(
+      @RequireTenantSelector TxCtx ctx,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return tenantGroupService
+        .search(searchPaginationInput, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
+        .map(TenantGroupMapper::toOutput);
   }
 
   // -- UPDATE --
@@ -90,10 +103,13 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupUsers(
-      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
-    return tenantGroupService.updateGroupUsers(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
+  public TenantGroupOutput updateGroupUsers(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @Valid @RequestBody GroupUpdateUsersInput input) {
+    return toOutput(
+        tenantGroupService.updateGroupUsers(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
@@ -111,10 +127,13 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(responseCode = "404", description = "Role or Group not found")
       })
-  public Group updateGroupRoles(
-      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
-    return tenantGroupService.updateGroupRoles(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
+  public TenantGroupOutput updateGroupRoles(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @Valid @RequestBody GroupUpdateRolesInput input) {
+    return toOutput(
+        tenantGroupService.updateGroupRoles(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
@@ -137,7 +156,9 @@ public class TenantGroupApi extends RestBehavior {
   // MANAGE_MARKING_ASSIGNMENT and escalation are checked in TenantGroupService instead - see its
   // doc.
   public TenantGroupMarkingsOutput updateGroupMarkings(
-      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @Valid @RequestBody GroupUpdateMarkingsInput input) {
     // Tenant resolved here and passed down - the service never touches TenantContext directly.
     return TenantGroupMarkingsOutput.from(
         tenantGroupService.updateGroupMarkings(
@@ -151,10 +172,13 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupInformation(
-      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.updateGroup(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
+  public TenantGroupOutput updateGroupInformation(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @Valid @RequestBody TenantGroupCreateInput input) {
+    return toOutput(
+        tenantGroupService.updateGroup(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   // -- DELETE --
@@ -166,9 +190,13 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group deleteGrant(TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
-    return tenantGroupService.removeGrant(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId);
+  public TenantGroupOutput deleteGrant(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String groupId,
+      @PathVariable String grantId) {
+    return toOutput(
+        tenantGroupService.removeGrant(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId));
   }
 
   @DeleteMapping("/{groupId}")
@@ -177,7 +205,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)
-  public void delete(TxCtx ctx, @PathVariable String groupId) {
+  public void delete(@RequireTenantSelector TxCtx ctx, @PathVariable String groupId) {
     tenantGroupService.delete(writeScopeResolver.tenantForWrite(ctx, null), groupId);
   }
 }

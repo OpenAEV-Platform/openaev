@@ -12,7 +12,6 @@ import static java.util.Collections.emptyList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
@@ -58,22 +57,25 @@ public class InjectUtils {
    * injector is auto-resolved from the contract's first linked injector (single-instance fallback).
    *
    * <p>Injectors have a composite key and built-in ids repeat across tenants, so the lookup names a
-   * tenant: the contract's, which is the one the inject is written in. The ambient tenant is the
-   * default one on the non-prefixed route, so it is only the fallback of a transient contract that
-   * carries none.
+   * tenant: the contract's, which is the one the inject is written in. A contract with no tenant
+   * resolves no injector.
    *
    * @param injectorId explicit injector ID from the input (may be null/blank)
    * @param injectorContract the contract associated with the inject
    * @return the resolved Injector, or {@code null} if no contract is provided
-   * @throws ElementNotFoundException if the explicit injector ID does not exist
+   * @throws ElementNotFoundException if the explicit injector ID does not exist in the tenant of
+   *     the contract
    */
   public Injector resolveInjector(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     String tenantId =
         injectorContract != null && injectorContract.getTenant() != null
             ? injectorContract.getTenant().getId()
-            : TenantContext.getCurrentTenant();
+            : null;
     if (StringUtils.isNotBlank(injectorId)) {
+      if (tenantId == null) {
+        throw new ElementNotFoundException("Injector not found with id: " + injectorId);
+      }
       return resolveInjectorInTenant(injectorId, tenantId);
     }
     // Auto-resolve from linked injectors (single-instance fallback)
@@ -82,7 +84,7 @@ public class InjectUtils {
         && !injectorContract.getInjectors().isEmpty()) {
       return injectorContract.getInjectors().getFirst();
     }
-    if (injectorContract != null) {
+    if (tenantId != null) {
       return injectorRepository
           .findFirstByContractsCompositeIdIdAndTenantId(injectorContract.getId(), tenantId)
           .orElse(null);

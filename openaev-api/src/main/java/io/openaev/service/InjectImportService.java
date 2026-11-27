@@ -18,7 +18,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
@@ -27,6 +26,7 @@ import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.UploadedFileUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
@@ -54,13 +54,11 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RequiredArgsConstructor
 @Service
@@ -102,7 +100,7 @@ public class InjectImportService {
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
     // Checked here so every upload route applies the same limits before the file is written.
-    validateUploadedFile(file);
+    UploadedFileUtils.validate(file, ACCEPTED_FILE_TYPES, MAXIMUM_FILE_SIZE_ALLOWED, "25 Mb");
     ImportPostSummary result = new ImportPostSummary();
     result.setAvailableSheets(new ArrayList<>());
     // Generating a UUID for identifying the file
@@ -146,25 +144,6 @@ public class InjectImportService {
     // Only an upload id is deleted: never the temp dir itself or a path outside it.
     isValidUUID(importId);
     FileUtils.deleteQuietly(validatePathTraversal(BASE_DIR, importId).toFile());
-  }
-
-  private void validateUploadedFile(MultipartFile file) {
-    validateExtension(file);
-    validateFileSize(file);
-  }
-
-  private void validateExtension(MultipartFile file) {
-    String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    if (!ACCEPTED_FILE_TYPES.contains(extension)) {
-      throw new UnsupportedMediaTypeException(
-          "Only the following file types are accepted : " + String.join(", ", ACCEPTED_FILE_TYPES));
-    }
-  }
-
-  private void validateFileSize(MultipartFile file) {
-    if (file.getSize() >= MAXIMUM_FILE_SIZE_ALLOWED) {
-      throw new FileTooBigException("File size cannot be greater than 25 Mb");
-    }
   }
 
   public ImportTestSummary importInjectIntoScenarioFromXLS(

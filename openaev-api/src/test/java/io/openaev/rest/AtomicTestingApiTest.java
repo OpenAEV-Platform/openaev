@@ -1,5 +1,7 @@
 package io.openaev.rest;
 
+import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
+import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -13,7 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.FindingOccurrenceRepository;
@@ -22,6 +27,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -32,6 +38,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
@@ -39,16 +46,30 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Atomic testing API flows. The {@code TenantIsolation} group is the isolation test of {@code
+ * injects}: it seeds atomic testings in two tenants and asserts that a caller scoped to one tenant
+ * neither reads, finds in a search, nor deletes the other tenant's atomic testing. An atomic
+ * testing has no parent simulation or scenario, so the search refusal rests on the statement
+ * inspector over {@code injects} alone.
+ */
+@CoversTenantIsolation("injects")
 @TestInstance(PER_CLASS)
 @Transactional
 public class AtomicTestingApiTest extends IntegrationTest {
 
-  public static final String ATOMIC_TESTINGS_URI = "/api/atomic-testings";
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   static Inject INJECT_WITH_STATUS_AND_COMMAND_LINES;
   static Inject INJECT_WITHOUT_STATUS;
@@ -65,6 +86,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
+  @Autowired private AssetAgentJobRepository assetAgentJobRepository;
+  @Autowired private FindingOccurrenceService findingOccurrenceService;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -109,11 +132,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Find an atomic testing without status")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithoutStatus() throws Exception {
     String response =
         mvc.perform(
-                get(ATOMIC_TESTINGS_URI + "/" + INJECT_WITHOUT_STATUS.getId())
+                get(ATOMIC_TESTING_URI + "/" + INJECT_WITHOUT_STATUS.getId())
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
@@ -128,9 +151,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Test
   @DisplayName(
       "Find an atomic testing with status, command lines and expectation Results from inject content")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAnAtomicTestingWithStatusAndCommandLines() throws Exception {
-    String url = ATOMIC_TESTINGS_URI + "/" + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
+    String url = ATOMIC_TESTING_URI + "/" + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
     String expectedInjectId = INJECT_WITH_STATUS_AND_COMMAND_LINES.getId();
     String expectedExpectationsJson =
         """
@@ -169,7 +192,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   void createAndUpdateAnAtomicTesting() throws Exception {
     String response =
         mvc.perform(
-                post(ATOMIC_TESTINGS_URI)
+                post(ATOMIC_TESTING_URI)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .content(
@@ -183,7 +206,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     String newInjectId = JsonPath.read(response, "$.inject_id");
     response =
         mvc.perform(
-                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                get(ATOMIC_TESTING_URI + "/" + newInjectId)
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
@@ -197,7 +220,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     response =
         mvc.perform(
-                put(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                put(ATOMIC_TESTING_URI + "/" + newInjectId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .content(asJsonString(InjectFixture.createAtomicTesting("test2", null)))
@@ -209,7 +232,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     assertNotNull(response);
     response =
         mvc.perform(
-                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                get(ATOMIC_TESTING_URI + "/" + newInjectId)
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
@@ -224,12 +247,12 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Duplicate and delete an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void duplicateAndDeleteAtomicTesting() throws Exception {
     // Duplicate
     String response =
         mvc.perform(
-                post(ATOMIC_TESTINGS_URI + "/" + INJECT_WITHOUT_STATUS.getId() + "/duplicate")
+                post(ATOMIC_TESTING_URI + "/" + INJECT_WITHOUT_STATUS.getId() + "/duplicate")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
@@ -242,7 +265,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     String newInjectId = JsonPath.read(response, "$.inject_id");
     response =
         mvc.perform(
-                get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+                get(ATOMIC_TESTING_URI + "/" + newInjectId)
                     .accept(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
@@ -252,13 +275,13 @@ public class AtomicTestingApiTest extends IntegrationTest {
     assertEquals(newInjectId, JsonPath.read(response, "$.inject_id"));
     // Delete
     mvc.perform(
-            delete(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+            delete(ATOMIC_TESTING_URI + "/" + newInjectId)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
     // Assert delete
     mvc.perform(
-            get(ATOMIC_TESTINGS_URI + "/" + newInjectId)
+            get(ATOMIC_TESTING_URI + "/" + newInjectId)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
@@ -268,6 +291,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Launch an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Ash",
       userLastName = "Ketchum",
       userMail = "ash.ketchum@unittests.invalid")
@@ -277,7 +301,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+    mvc.perform(post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
         .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
@@ -290,6 +314,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Relaunch an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Ash",
       userLastName = "Ketchum",
       userMail = "ash.ketchum@unittests.invalid")
@@ -301,7 +326,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     String relaunchedInject =
         mvc.perform(
-                post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
+                post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"))
             .andExpect(jsonPath("$.inject_launched_by_user.user_name").value("Ash Ketchum"))
@@ -314,20 +339,99 @@ public class AtomicTestingApiTest extends IntegrationTest {
     // persistence context: clear it so the next by-id read goes back to the database.
     entityManager.flush();
     entityManager.clear();
-    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
+    mvc.perform(get(ATOMIC_TESTING_URI + "/" + atomicTesting.getId()).with(csrf()))
         .andExpect(status().is4xxClientError());
-    mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))
+    mvc.perform(get(ATOMIC_TESTING_URI + "/" + relaunchedInjectId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
   }
 
   @Nested
+  @DisplayName("Stop a running Atomic Testing")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  class StopAtomicTesting {
+
+    @Test
+    @DisplayName(
+        "Should withdraw its agent jobs and end it in ERROR with a trace naming who stopped it")
+    void given_runningAtomicTesting_should_stopIt() throws Exception {
+      // Arrange
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(
+              AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor()));
+      Inject atomicTesting =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(agentWrapper))
+              .withInjectStatus(
+                  injectStatusComposer.forInjectStatus(
+                      InjectStatusFixture.createPendingInjectStatus()))
+              .persist()
+              .get();
+      AssetAgentJob job = AssetAgentJobFixture.createDefaultAssetAgentJob(agentWrapper.get());
+      job.setInject(atomicTesting);
+      job.setTenant(atomicTesting.getTenant());
+      String jobId = assetAgentJobRepository.save(job).getId();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/stop").with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.inject_status.status_name").value("ERROR"));
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(assetAgentJobRepository.findById(jobId)).isEmpty();
+      InjectStatus stopped =
+          injectRepository.findById(atomicTesting.getId()).orElseThrow().getStatus().orElseThrow();
+      assertThat(stopped.getName()).isEqualTo(ExecutionStatus.ERROR);
+      assertThat(stopped.getTrackingEndDate()).isNotNull();
+      assertThat(stopped.getTraces())
+          .anySatisfy(
+              trace -> {
+                assertThat(trace.getStatus()).isEqualTo(ExecutionTraceStatus.INTERRUPTED);
+                assertThat(trace.getAction()).isEqualTo(ExecutionTraceAction.COMPLETE);
+                assertThat(trace.getMessage()).startsWith("Atomic testing stopped by ");
+              });
+    }
+
+    @Test
+    @DisplayName("Should refuse an atomic testing that is not running")
+    void given_notRunningAtomicTesting_should_refuseToStopIt() throws Exception {
+      // Arrange
+      Inject draft = getAtomicTestingWrapper(null, null).persist().get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act and assert
+      mvc.perform(post(ATOMIC_TESTING_URI + "/" + draft.getId() + "/stop").with(csrf()))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(
+              injectRepository
+                  .findById(draft.getId())
+                  .orElseThrow()
+                  .getStatus()
+                  .map(InjectStatus::getName))
+          .contains(ExecutionStatus.DRAFT);
+    }
+  }
+
+  @Nested
+  @WithMockUser(withCapabilities = Capability.LAUNCH_ASSESSMENT, autoJoinDefaultTenant = true)
   @DisplayName("Launch in place of an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class LaunchInPlaceWithFindings {
 
     @Test
-    @DisplayName("Should delete the findings the inject wrote, and their occurrences")
-    void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
+    @DisplayName(
+        "Should keep the findings but detach their occurrences, so a new detection records a new one")
+    void given_injectWithFindings_should_detachTheirOccurrencesAndRecordANewOneOnNextDetection()
+        throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -345,28 +449,59 @@ public class AtomicTestingApiTest extends IntegrationTest {
           .isPresent();
 
       // Act
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+      mvc.perform(
+              post(
+                      TENANT_ATOMIC_TESTING_URI + "/{injectId}/launch",
+                      Tenant.DEFAULT_TENANT_UUID,
+                      atomicTesting.getId())
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(findingRepository.findById(findingId)).isPresent();
       assertThat(
               findingOccurrenceRepository.findByFindingIdAndInjectId(
                   findingId, atomicTesting.getId()))
           .isEmpty();
+      // The previous occurrence stays in the finding's history, without its inject
+      assertThat(occurrencesOf(findingId))
+          .singleElement()
+          .satisfies(occurrence -> assertThat(occurrence.getInject()).isNull());
+
+      // A new detection on the relaunched inject records a new occurrence
+      Finding finding = findingRepository.findById(findingId).orElseThrow();
+      Inject relaunched = injectRepository.findById(atomicTesting.getId()).orElseThrow();
+      findingOccurrenceService.recordOccurrences(
+          relaunched, Instant.now(), List.of(finding), Map.of());
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isPresent();
+      assertThat(occurrencesOf(findingId)).hasSize(2);
+    }
+
+    private List<FindingOccurrence> occurrencesOf(String findingId) {
+      return entityManager
+          .createQuery(
+              "SELECT o FROM FindingOccurrence o WHERE o.finding.id = :findingId",
+              FindingOccurrence.class)
+          .setParameter("findingId", findingId)
+          .getResultList();
     }
   }
 
   @Nested
+  @WithMockUser(withCapabilities = Capability.DELETE_ASSESSMENT, autoJoinDefaultTenant = true)
   @DisplayName("Delete an Atomic Testing that has findings")
-  @WithMockUser(isAdmin = true)
   class DeleteWithFindings {
 
     @Test
-    @DisplayName("Should delete the findings of the inject, and their occurrences")
-    void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
+    @DisplayName("Should keep the findings of the inject, their occurrences losing the inject")
+    void given_injectWithFindings_should_keepThemWithoutTheInject() throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -378,17 +513,32 @@ public class AtomicTestingApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      mvc.perform(delete(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
+      mvc.perform(
+              delete(
+                      TENANT_ATOMIC_TESTING_URI + "/{injectId}",
+                      Tenant.DEFAULT_TENANT_UUID,
+                      atomicTesting.getId())
+                  .with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId)).isEmpty();
-      assertThat(
-              findingOccurrenceRepository.findByFindingIdAndInjectId(
-                  findingId, atomicTesting.getId()))
-          .isEmpty();
+      assertThat(findingRepository.findById(findingId)).isPresent();
+      List<FindingOccurrence> occurrences =
+          entityManager
+              .createQuery(
+                  "SELECT o FROM FindingOccurrence o WHERE o.finding.id = :findingId",
+                  FindingOccurrence.class)
+              .setParameter("findingId", findingId)
+              .getResultList();
+      assertThat(occurrences)
+          .singleElement()
+          .satisfies(
+              occurrence -> {
+                assertThat(occurrence.getInject()).isNull();
+                assertThat(occurrence.getDate()).isNotNull();
+              });
     }
   }
 
@@ -396,6 +546,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @DisplayName("Set, carry over on relaunch, then clear the recurrence of an Atomic Testing")
   @WithMockUser(
       isAdmin = true,
+      autoJoinDefaultTenant = true,
       userFirstName = "Misty",
       userLastName = "Waterflower",
       userMail = "misty.waterflower@unittests.invalid")
@@ -411,7 +562,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     input.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
     input.setRecurrenceEnd(Instant.parse("2030-02-01T00:00:00Z"));
     mvc.perform(
-            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+            put(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/recurrence")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -427,7 +578,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     // -- RELAUNCH: the schedule (and its scheduler) follows the duplicated inject --
     String relaunchedInject =
         mvc.perform(
-                post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
+                post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.inject_recurrence").value("0 30 9 * * *"))
             .andExpect(jsonPath("$.inject_scheduled_by_user.user_name").value("Misty Waterflower"))
@@ -438,7 +589,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     // -- CLEAR --
     mvc.perform(
-            put(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId + "/recurrence")
+            put(ATOMIC_TESTING_URI + "/" + relaunchedInjectId + "/recurrence")
                 .content(asJsonString(new InjectRecurrenceInput()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -454,7 +605,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
         getAtomicTestingWrapper(InjectStatusFixture.createQueuingInjectStatus(), null)
             .persist()
             .get();
-    String uri = ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence";
+    String uri = ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/recurrence";
 
     // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
     InjectRecurrenceInput unixCron = new InjectRecurrenceInput();
@@ -521,7 +672,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Scheduling is Enterprise-gated with an EE-only executor, clearing is not")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateAtomicTestingRecurrenceWithEEExecutor() throws Exception {
     Inject atomicTesting =
         getAtomicTestingWrapper(
@@ -536,7 +687,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     InjectRecurrenceInput input = new InjectRecurrenceInput();
     input.setRecurrence("0 30 9 * * *");
     mvc.perform(
-            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+            put(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/recurrence")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -545,7 +696,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
     // Clearing a schedule is never gated.
     mvc.perform(
-            put(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/recurrence")
+            put(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/recurrence")
                 .content(asJsonString(new InjectRecurrenceInput()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -607,7 +758,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
       // Act
       String response =
           saveAtomicTesting(
-              post(ATOMIC_TESTINGS_URI),
+              post(ATOMIC_TESTING_URI),
               atomicTestingWithCredentials(List.of(credential.getId())),
               status().is2xxSuccessful());
 
@@ -624,14 +775,14 @@ public class AtomicTestingApiTest extends IntegrationTest {
       CredentialSecretReference credential = persistDefaultTenantCredential();
       String created =
           saveAtomicTesting(
-              post(ATOMIC_TESTINGS_URI),
+              post(ATOMIC_TESTING_URI),
               atomicTestingWithCredentials(List.of(credential.getId())),
               status().is2xxSuccessful());
       String injectId = JsonPath.read(created, "$.inject_id");
 
       // Act
       saveAtomicTesting(
-          put(ATOMIC_TESTINGS_URI + "/" + injectId),
+          put(ATOMIC_TESTING_URI + "/" + injectId),
           atomicTestingWithCredentials(List.of()),
           status().is2xxSuccessful());
 
@@ -646,7 +797,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
       // Act
       String response =
           saveAtomicTesting(
-              post(ATOMIC_TESTINGS_URI),
+              post(ATOMIC_TESTING_URI),
               atomicTestingWithCredentials(List.of(UUID.randomUUID().toString())),
               status().is2xxSuccessful());
 
@@ -658,7 +809,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Lock Atomic testing EE feature")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class LockAtomicTestingEEFeature {
 
     @Test
@@ -667,7 +818,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
       Inject atomicTesting =
           getAtomicTestingWrapper(null, executorFixture.getCrowdstrikeExecutor()).persist().get();
 
-      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+      mvc.perform(post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -682,8 +833,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      mvc.perform(
-              post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
+      mvc.perform(post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -698,8 +848,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      mvc.perform(
-              post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
+      mvc.perform(post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/relaunch").with(csrf()))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
     }
@@ -707,11 +856,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get the payload of an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findPayloadOutputByInjectId() throws Exception {
     String response =
         mvc.perform(
-                get(ATOMIC_TESTINGS_URI
+                get(ATOMIC_TESTING_URI
                         + "/"
                         + INJECT_WITH_STATUS_AND_COMMAND_LINES.getId()
                         + "/payload")
@@ -815,7 +964,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         String response =
             mvc.perform(
-                    get(ATOMIC_TESTINGS_URI
+                    get(ATOMIC_TESTING_URI
                             + "/"
                             + injectWrapper.get().getId()
                             + "/target_results/"
@@ -1028,7 +1177,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         String response =
             mvc.perform(
-                    get(ATOMIC_TESTINGS_URI
+                    get(ATOMIC_TESTING_URI
                             + "/"
                             + injectWrapper.get().getId()
                             + "/target_results/"
@@ -1234,7 +1383,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         String responseDetection =
             mvc.perform(
-                    get(ATOMIC_TESTINGS_URI
+                    get(ATOMIC_TESTING_URI
                             + "/"
                             + injectWrapper.get().getId()
                             + "/target_results/"
@@ -1285,7 +1434,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         String responsePrevention =
             mvc.perform(
-                    get(ATOMIC_TESTINGS_URI
+                    get(ATOMIC_TESTING_URI
                             + "/"
                             + injectWrapper.get().getId()
                             + "/target_results/"

@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -16,13 +17,14 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
+import io.openaev.rest.inject.service.ScenarioInjectService;
+import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,29 +48,30 @@ public class InjectTestStatusService {
   private final ManagerFactory managerFactory;
   private final ConnectorInstanceRepository connectorInstanceRepository;
   private final BulkOperationMonitor bulkOperationMonitor;
+  private final SimulationInjectService simulationInjectService;
+  private final ScenarioInjectService scenarioInjectService;
 
   @Autowired
   public void setContext(ApplicationContext context) {
     this.context = context;
   }
 
-  public InjectTestStatusOutput testInject(String injectId) {
-    Inject inject =
-        this.injectRepository
-            .findById(injectId)
-            .orElseThrow(() -> new EntityNotFoundException("Inject not found"));
+  /**
+   * Tests the inject only when it belongs to the simulation.
+   *
+   * @throws ElementNotFoundException when the id is unknown or the inject is not of the simulation
+   */
+  public InjectTestStatusOutput testInjectOfSimulation(String simulationId, String injectId) {
+    return runTest(simulationInjectService.findInjectForSimulation(simulationId, injectId));
+  }
 
-    if (!inject.getInjectTestable()) {
-      throw new IllegalArgumentException("Inject: " + injectId + " is not testable");
-    }
-
-    User user =
-        this.userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
-    InjectTestStatus injectStatus = testInject(inject, user);
-    return injectStatusMapper.toInjectTestStatusOutput(injectStatus);
+  /**
+   * Tests the inject only when it belongs to the scenario.
+   *
+   * @throws ElementNotFoundException when the id is unknown or the inject is not of the scenario
+   */
+  public InjectTestStatusOutput testInjectOfScenario(String scenarioId, String injectId) {
+    return runTest(scenarioInjectService.findInjectForScenario(scenarioId, injectId));
   }
 
   /**
@@ -79,7 +82,7 @@ public class InjectTestStatusService {
    * @return the list of inject test status
    */
   public List<InjectTestStatusOutput> bulkTestInjects(
-      final Specification<Inject> searchSpecifications) {
+      final TxCtx ctx, final Specification<Inject> searchSpecifications) {
     List<Inject> searchResult = this.injectRepository.findAll(searchSpecifications);
     if (searchResult.isEmpty()) {
       throw new BadRequestException("No inject ID is testable");
@@ -90,7 +93,7 @@ public class InjectTestStatusService {
             .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
     List<InjectTestStatus> results = new ArrayList<>();
-    String operationId = bulkOperationMonitor.start("test", "injects", searchResult.size());
+    String operationId = bulkOperationMonitor.start(ctx, "test", "injects", searchResult.size());
     try {
       for (Inject inject : searchResult) {
         results.add(testInject(inject, user));
@@ -128,12 +131,59 @@ public class InjectTestStatusService {
         .map(injectStatusMapper::toInjectTestStatusOutput);
   }
 
+  /**
+   * A test status carries no tenant of its own: it is answered only when its inject lies in the
+   * request scope, which leaves the inject association empty otherwise.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is outside the scope
+   */
   public InjectTestStatusOutput findInjectTestStatusById(String testId) {
     return injectStatusMapper.toInjectTestStatusOutput(
-        injectTestStatusRepository.findById(testId).orElseThrow());
+        injectTestStatusRepository
+            .findById(testId)
+            .filter(testStatus -> testStatus.getInject() != null)
+            .orElseThrow(() -> testStatusNotFound(testId)));
+  }
+
+  /**
+   * Deletes the test status only when its inject belongs to the simulation.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is not of the simulation
+   */
+  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
+    injectTestStatusRepository.delete(
+        injectTestStatusRepository
+            .findByIdAndInjectExerciseId(testId, simulationId)
+            .orElseThrow(() -> testStatusNotFound(testId)));
+  }
+
+  /**
+   * Deletes the test status only when its inject belongs to the scenario.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is not of the scenario
+   */
+  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
+    injectTestStatusRepository.delete(
+        injectTestStatusRepository
+            .findByIdAndInjectScenarioId(testId, scenarioId)
+            .orElseThrow(() -> testStatusNotFound(testId)));
   }
 
   // -- PRIVATE --
+  private InjectTestStatusOutput runTest(Inject inject) {
+    if (!inject.getInjectTestable()) {
+      throw new IllegalArgumentException("Inject: " + inject.getId() + " is not testable");
+    }
+
+    User user =
+        this.userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+    InjectTestStatus injectStatus = testInject(inject, user);
+    return injectStatusMapper.toInjectTestStatusOutput(injectStatus);
+  }
+
   private InjectTestStatus testInject(Inject inject, User user) {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
@@ -196,40 +246,7 @@ public class InjectTestStatusService {
     return this.injectTestStatusRepository.save(injectTestStatus);
   }
 
-  /**
-   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
-   *     the given simulation
-   */
-  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
-    deleteInjectTestOfParent(simulationId, testId, Inject::getExercise);
-  }
-
-  /**
-   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
-   *     the given scenario
-   */
-  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
-    deleteInjectTestOfParent(scenarioId, testId, Inject::getScenario);
-  }
-
-  private void deleteInjectTestOfParent(
-      String parentId, String testId, Function<Inject, ? extends Base> parentOf) {
-    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
-    Base parent = parentOf.apply(injectTestStatus.getInject());
-    if (parent == null || !parentId.equals(parent.getId())) {
-      throw injectTestNotFound(testId);
-    }
-    injectTestStatusRepository.delete(injectTestStatus);
-  }
-
-  private InjectTestStatus findInjectTestStatus(String testId) {
-    return injectTestStatusRepository
-        .findById(testId)
-        .orElseThrow(() -> injectTestNotFound(testId));
-  }
-
-  /** Same error for an unknown test and a test outside the parent, so both look alike. */
-  private static ElementNotFoundException injectTestNotFound(String testId) {
-    return new ElementNotFoundException("Inject test not found with id: " + testId);
+  private static ElementNotFoundException testStatusNotFound(String testId) {
+    return new ElementNotFoundException("Inject test status not found: " + testId);
   }
 }

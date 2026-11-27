@@ -1,0 +1,424 @@
+import { type APIRequestContext, expect, type Locator, type Page } from '@playwright/test';
+
+import { test } from '../../fixtures';
+import { tenantApiPath, tenantUrl } from '../../utils/url';
+
+/**
+ * The exploration graph answers its toolbar on the FIRST click (#9572). A layout button used to press
+ * itself and write the layout in the URL while every node stayed where it was: the layout plan was
+ * written into refs during the render, and the StrictMode replay of that render read the run as
+ * already done. Each test also fails on an uncaught exception or a console error the graph raises (a
+ * setState during render, a duplicate key, a frame read out of range): see GRAPH_DEFECTS.
+ */
+
+interface Seeded {
+  groupId: string;
+  assetIds: string[];
+}
+
+const createEndpoint = async (request: APIRequestContext, name: string): Promise<string> => {
+  const response = await request.post(tenantApiPath('/api/endpoints/agentless'), {
+    data: {
+      asset_name: name,
+      endpoint_platform: 'Linux',
+      endpoint_arch: 'x86_64',
+      endpoint_hostname: name,
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return ((await response.json()) as { asset_id: string }).asset_id;
+};
+
+/** An asset group with four endpoints: a focused view of five nodes. */
+const seed = async (request: APIRequestContext, tag: string): Promise<Seeded> => {
+  const assetIds = await Promise.all(['a', 'b', 'c', 'd'].map(name => createEndpoint(request, `graph-e2e-${tag}-${name}`)));
+  const group = await request.post(tenantApiPath('/api/asset_groups'), { data: { asset_group_name: `graph-e2e-${tag}` } });
+  expect(group.ok(), await group.text()).toBeTruthy();
+  const groupId = ((await group.json()) as { asset_group_id: string }).asset_group_id;
+  // The creation ignores the members: they are set on their own endpoint.
+  const members = await request.put(tenantApiPath(`/api/asset_groups/${groupId}/assets`), { data: { asset_group_assets: assetIds } });
+  expect(members.ok(), await members.text()).toBeTruthy();
+  return {
+    groupId,
+    assetIds,
+  };
+};
+
+/** Every node's transform, by node id, serialised: what the user sees move. */
+const positions = (page: Page) => page.locator('.react-flow__node').evaluateAll(nodes => JSON.stringify(Object.fromEntries(
+  nodes.map(n => [(n as HTMLElement).dataset.id, (n as HTMLElement).style.transform]),
+)));
+
+/** Waits until the nodes stop moving (two reads a beat apart agree) and answers where they are. */
+const settled = async (page: Page) => {
+  let last = '';
+  await expect.poll(async () => {
+    const now = await positions(page);
+    const still = now === last;
+    last = now;
+    return still;
+  }, { intervals: [250] }).toBe(true);
+  return last;
+};
+
+/**
+ * The console errors a graph defect raises. The React warnings are logged by the development build (a local
+ * run against the dev server), the minified React error by the production build (CI). Other console messages
+ * do not fail the test: browser notices, such as the report-only Content-Security-Policy, are no defect of
+ * the graph and differ from one browser to the next.
+ */
+const GRAPH_DEFECTS = [
+  /Cannot update a component .* while rendering a different component/,
+  /Encountered two children with the same key/,
+  /Maximum update depth exceeded/,
+  /Minified React error/,
+  /\b(TypeError|RangeError|ReferenceError)\b/,
+];
+
+/** The console listener: a known graph defect logged in the console, or any uncaught exception, fails the test. */
+const watchConsole = (page: Page) => {
+  const problems: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (message.type() === 'error' && GRAPH_DEFECTS.some(defect => defect.test(text))) {
+      problems.push(`${message.type()}: ${text}`);
+    }
+  });
+  page.on('pageerror', (error) => {
+    // A browser notice, raised when a resize observer settles across frames: not an application error.
+    if (!error.message.includes('ResizeObserver loop')) {
+      problems.push(`pageerror: ${error.message}`);
+    }
+  });
+  return problems;
+};
+
+/** An element's box on screen, asserted drawn. */
+const box = async (locator: Locator) => {
+  const found = await locator.boundingBox();
+  expect(found, 'the element is drawn').not.toBeNull();
+  return found as {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+/** One click on a layout button: it is pressed and the nodes leave their place, then settle. */
+const switchLayout = async (page: Page, name: string) => {
+  const before = await settled(page);
+  const button = page.getByTestId('graph-canvas-toolbar').getByRole('button', { name: new RegExp(`^${name}`) });
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => positions(page), { message: `${name}: the nodes move after one click` }).not.toBe(before);
+  await settled(page);
+};
+
+test.describe('Exploration graph interactions', () => {
+  let seeded: Seeded;
+
+  test.beforeAll(async ({ request }) => {
+    seeded = await seed(request, `${Date.now()}`);
+  });
+
+  test('each layout button moves the nodes on the first click, and Re-run plays the layout again', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+
+    await switchLayout(page, 'Hierarchical layout');
+    await switchLayout(page, 'Radial layout');
+    await switchLayout(page, 'Force layout');
+
+    // Re-run plays the force simulation from its seed: the nodes leave their place, then come back.
+    const force = await settled(page);
+    await page.getByTestId('graph-canvas-toolbar').getByRole('button', { name: 'Re-run the layout' }).click();
+    await expect.poll(() => positions(page), { message: 'Re-run animates the layout' }).not.toBe(force);
+    expect(await settled(page)).toBe(force);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('a click selects one node alone, the canvas and Esc clear it, Ctrl+click adds to it', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const node = (index: number) => page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[index]}"]`);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    // The persistent Drawer's root is a zero-size docked box (its paper is absolutely positioned): assert on the paper.
+    const panel = page.getByTestId('graph-side-panel').locator('.MuiDrawer-paper');
+
+    // The focus anchor has its own mark, never the selection ring.
+    await expect(page.locator('[data-testid^="graph-node-"][data-anchor="true"]')).toHaveCount(1);
+
+    // A plain click on A then on B: B alone is selected (OpenCTI's graph).
+    await node(0).click();
+    await expect(ringed).toHaveCount(1);
+    await node(1).click();
+    await expect(ringed).toHaveCount(1);
+    await expect(node(1).locator('[data-selected="true"]')).toHaveCount(1);
+    await expect(panel).toBeVisible();
+
+    // A click on the empty canvas clears the selection and closes the panel.
+    const pane = await page.locator('.react-flow__pane').boundingBox();
+    await page.mouse.click((pane?.x ?? 0) + 12, (pane?.y ?? 0) + (pane?.height ?? 400) / 2);
+    await expect(ringed).toHaveCount(0);
+    await expect(panel).toHaveCount(0);
+
+    // Esc does the same.
+    await node(2).click();
+    await expect(ringed).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(ringed).toHaveCount(0);
+    await expect(panel).toHaveCount(0);
+
+    // Ctrl+click adds a node to the selection: both stay selected.
+    await node(0).click();
+    await node(3).click({ modifiers: ['Control'] });
+    await expect(ringed).toHaveCount(2);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('an expand keeps the nodes on screen still and undo restores the view', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    const before = JSON.parse(await settled(page)) as Record<string, string>;
+
+    await page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[0]}"]`).dblclick();
+    const after = JSON.parse(await settled(page)) as Record<string, string>;
+    Object.keys(before).forEach(id => expect(after[id], `${id} stays where it was`).toBe(before[id]));
+
+    await page.getByTestId('graph-canvas-toolbar').getByRole('button', { name: 'Undo' }).click();
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('each node shows its connections in the data, the badge equals the API count', async ({ page, request }) => {
+    const problems = watchConsole(page);
+    const response = await request.get(tenantApiPath(`/api/graph/asset_group/${seeded.groupId}/neighbourhood`));
+    expect(response.ok()).toBeTruthy();
+    const slice = (await response.json()) as {
+      graph_nodes: {
+        node_id: string;
+        node_relation_counts?: Record<string, number> | null;
+      }[];
+    };
+    const groupNode = slice.graph_nodes.find(n => n.node_id === `ASSET_GROUP:${seeded.groupId}`);
+    const apiTotal = Object.values(groupNode?.node_relation_counts ?? {}).reduce((sum, n) => sum + n, 0);
+    expect(apiTotal).toBe(4);
+
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    // The group draws its 4 members: 4 connections, none left to expand.
+    const groupBadge = page.getByTestId(`graph-node-connections-ASSET_GROUP:${seeded.groupId}`);
+    await expect(groupBadge).toHaveAttribute('data-total', String(apiTotal));
+    await expect(groupBadge).toHaveAttribute('data-hidden', '0');
+    // Each member draws its one group membership.
+    const memberBadge = page.getByTestId(`graph-node-connections-ASSET:${seeded.assetIds[0]}`);
+    await expect(memberBadge).toHaveAttribute('data-total', '1');
+
+    expect(problems).toEqual([]);
+  });
+
+  test('the OpenCTI keyboard shortcuts: Ctrl+A selects every node, + zooms, Shift+F frames the selection', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    const viewport = () => page.locator('.react-flow__viewport').evaluate(v => (v as HTMLElement).style.transform);
+
+    // A click puts the focus in the graph; Ctrl+A then selects the five nodes.
+    await page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[0]}"]`).click();
+    await page.keyboard.press('Control+a');
+    await expect(ringed).toHaveCount(5);
+
+    const before = await viewport();
+    await page.keyboard.press('+');
+    await expect.poll(viewport, { message: '+ zooms in' }).not.toBe(before);
+
+    const zoomed = await viewport();
+    await page.keyboard.press('Escape');
+    await page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[1]}"]`).click();
+    await page.keyboard.press('Shift+F');
+    await expect.poll(viewport, { message: 'Shift+F frames the selected node' }).not.toBe(zoomed);
+
+    // G folds the legend and unfolds it again, as OpenCTI's toggleLegend.
+    const legend = page.getByRole('group', { name: 'Legend' });
+    await expect(legend).toBeVisible();
+    await page.keyboard.press('g');
+    await expect(legend).toHaveCount(0);
+    await page.keyboard.press('g');
+    await expect(legend).toBeVisible();
+
+    // One header row: no 'Back to the landing' row, the breadcrumb leads back to the landing.
+    await expect(page.getByRole('button', { name: 'Back to the landing' })).toHaveCount(0);
+    await page.getByTestId('graph-header').getByRole('link', { name: 'Graph' }).click();
+    await expect(page).not.toHaveURL(/focus=/);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('the OpenCTI context menu actions: select by type, zoom to the node, path between two selected nodes', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const ringed = page.locator('[data-testid^="graph-node-"][data-selected="true"]');
+    const node = (index: number) => page.locator(`.react-flow__node[data-id="ASSET:${seeded.assetIds[index]}"]`);
+    const viewport = () => page.locator('.react-flow__viewport').evaluate(v => (v as HTMLElement).style.transform);
+
+    // Right click on an endpoint: every endpoint (4 of the 5 nodes, the group left out) is selected.
+    await node(0).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Select every node of this type' }).click();
+    await expect(ringed).toHaveCount(4);
+
+    // A plain click selects one node alone; Ctrl+click adds a second; the selection menu offers the path between them.
+    await node(0).click();
+    await node(1).click({ modifiers: ['Control'] });
+    await node(1).click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Find the path between them' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Zoom to this node changes the viewport.
+    const before = await viewport();
+    await node(2).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Zoom to this node' }).click();
+    await expect.poll(viewport, { message: 'Zoom to this node frames it' }).not.toBe(before);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('the estate overview fills the canvas: packed bubbles, no overlap, selection card, grey explained', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto(tenantUrl('/admin/graph?view=overview'));
+    const canvas = page.getByTestId('graph-overview');
+    const bubbles = page.locator('[data-testid^="graph-overview-group-"]');
+    await expect(bubbles.first()).toBeVisible();
+    // Any bubble is an asset group: the first one is selected and unfolded below.
+    const bubble = bubbles.first();
+
+    // Every bubble sits inside the canvas, no two overlap, none sits under the open Start here panel,
+    // and the pack spans the room it is packed in on one side: the whole canvas, or the room below or
+    // beside the panel when the whole-canvas pack would run under it (#9572 UX round 1 B3).
+    const geometry = await canvas.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const panelElement = document.querySelector('[data-testid="graph-start-here"] > div');
+      const panelRect = panelElement && panelElement.querySelector('[data-testid="graph-start-here-fold"]')
+        ? panelElement.getBoundingClientRect()
+        : null;
+      const circles = Array.from(element.querySelectorAll('[data-testid^="graph-overview-group-"]')).map((b) => {
+        const r = b.getBoundingClientRect();
+        return {
+          x: r.left + r.width / 2,
+          y: r.top + r.height / 2,
+          r: r.width / 2,
+        };
+      });
+      const boxRect = {
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+      };
+      // Distance from each bubble centre to the panel, minus its radius: never negative (no bubble under it).
+      const panelGaps = panelRect
+        ? circles.map((c) => {
+            const nearestX = Math.max(panelRect.left, Math.min(c.x, panelRect.right));
+            const nearestY = Math.max(panelRect.top, Math.min(c.y, panelRect.bottom));
+            return Math.hypot(c.x - nearestX, c.y - nearestY) - c.r;
+          })
+        : [];
+      // The whole canvas, then below the panel (full width) and beside it (full height), its 8 px offset and
+      // 16 px margin out.
+      const rooms = [{
+        width: boxRect.width,
+        height: boxRect.height,
+      }].concat(panelRect
+        ? [{
+            width: boxRect.width,
+            height: boxRect.top + boxRect.height - panelRect.bottom - 16,
+          }, {
+            width: panelRect.left - 8 - boxRect.left,
+            height: boxRect.height,
+          }]
+        : []);
+      return {
+        box: boxRect,
+        circles,
+        panelGaps,
+        rooms,
+      };
+    });
+    geometry.circles.forEach((c) => {
+      expect(c.x - c.r).toBeGreaterThanOrEqual(geometry.box.left - 1);
+      expect(c.y - c.r).toBeGreaterThanOrEqual(geometry.box.top - 1);
+      expect(c.x + c.r).toBeLessThanOrEqual(geometry.box.left + geometry.box.width + 1);
+      expect(c.y + c.r).toBeLessThanOrEqual(geometry.box.top + geometry.box.height + 1);
+    });
+    for (let i = 0; i < geometry.circles.length; i += 1) {
+      for (let j = i + 1; j < geometry.circles.length; j += 1) {
+        const a = geometry.circles[i];
+        const b = geometry.circles[j];
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(a.r + b.r - 1);
+      }
+    }
+    geometry.panelGaps.forEach((gap) => {
+      expect(gap).toBeGreaterThanOrEqual(-1);
+    });
+    const spanX = Math.max(...geometry.circles.map(c => c.x + c.r)) - Math.min(...geometry.circles.map(c => c.x - c.r));
+    const spanY = Math.max(...geometry.circles.map(c => c.y + c.r)) - Math.min(...geometry.circles.map(c => c.y - c.r));
+    expect(geometry.rooms.some(room => spanX >= room.width * 0.9 || spanY >= room.height * 0.9)).toBe(true);
+
+    // The grey state is explained, and a click selects a bubble.
+    await expect(page.getByTestId('graph-overview-not-tested-help')).toBeVisible();
+    await bubble.click();
+    await expect(bubble).toHaveAttribute('aria-pressed', 'true');
+
+    // A double-click unfolds the group in the graph.
+    await bubble.dblclick();
+    await expect(page).toHaveURL(/focus=asset_group|\/admin\/assets/);
+
+    expect(problems).toEqual([]);
+  });
+
+  test('the canvas takes the page: filters inside its frame, a floating Start here panel, an accessible list of the entities', async ({ page }) => {
+    const problems = watchConsole(page);
+
+    // The landing: the Start here panel floats over the canvas (no column beside it) and folds to a pill.
+    await page.goto(tenantUrl('/admin/graph?view=overview'));
+    const start = page.getByTestId('graph-start-here');
+    await expect(start).toBeVisible();
+    const canvasBox = await box(page.getByTestId('graph-overview').locator('..'));
+    const startBox = await box(start);
+    expect(startBox.x + startBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+    await start.getByRole('button', { name: 'Fold the Start here panel' }).click();
+    await expect(start.getByRole('button', { name: 'Fold the Start here panel' })).toHaveCount(0);
+    await start.getByRole('button', { name: 'Start here' }).click();
+    await expect(start.getByRole('button', { name: 'Fold the Start here panel' })).toBeVisible();
+
+    // A focused view: the filter bar sits inside the canvas frame, nothing between the header and the canvas.
+    await page.goto(tenantUrl(`/admin/graph?focus=asset_group:${seeded.groupId}`));
+    await expect(page.locator('.react-flow__node')).toHaveCount(5);
+    await settled(page);
+    const frame = await box(page.locator('.react-flow'));
+    const filters = await box(page.getByTestId('graph-filter-bar'));
+    expect(filters.y).toBeGreaterThanOrEqual(frame.y);
+    expect(filters.y + filters.height).toBeLessThanOrEqual(frame.y + frame.height);
+
+    // The accessible list names every entity drawn; a row selects its node and closes the list.
+    await page.getByTestId('graph-canvas-toolbar').getByRole('button', { name: 'List the entities' }).click();
+    const list = page.getByTestId('graph-entity-list');
+    await expect(list.getByRole('button')).toHaveCount(5);
+    await list.getByRole('button').first().click();
+    await expect(list).toHaveCount(0);
+    await expect(page.locator('[data-testid^="graph-node-"][data-selected="true"]')).toHaveCount(1);
+
+    expect(problems).toEqual([]);
+  });
+});

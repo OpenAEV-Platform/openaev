@@ -136,7 +136,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
   @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
-  @Autowired private io.openaev.service.finding.FindingDetachService findingDetachService;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -183,8 +182,7 @@ class ScenarioServiceTest extends IntegrationTest {
         workflowExportInitializer,
         bulkDeleteExecutor,
         autonomousRunServiceProvider,
-        permissionServiceProvider,
-        findingDetachService);
+        permissionServiceProvider);
   }
 
   @AfterAll
@@ -402,7 +400,9 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
 
     // -- EXECUTE --
-    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+    Scenario scenarioDuplicated =
+        scenarioService.getDuplicateScenario(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), scenario.getId());
 
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
@@ -442,7 +442,8 @@ class ScenarioServiceTest extends IntegrationTest {
       entityManager.flush();
 
       // -- EXECUTE --
-      Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+      Scenario scenarioDuplicated =
+          scenarioService.getDuplicateScenario(TxCtx.forTenant(tenant.getId()), scenario.getId());
 
       // -- ASSERT --
       Team duplicatedContextualTeam =
@@ -475,7 +476,9 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+    Scenario scenarioDuplicated =
+        scenarioService.getDuplicateScenario(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), scenario.getId());
 
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
     assertFalse(scenarioDuplicated.isLessonsEnabled());

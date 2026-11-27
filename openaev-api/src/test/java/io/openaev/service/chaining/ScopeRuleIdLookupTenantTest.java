@@ -11,9 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -57,8 +56,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
@@ -78,13 +75,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Scope rules resolve the asset ids they store in the tenant of the workflow")
-class ScopeRuleIdLookupTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class ScopeRuleIdLookupTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String RUN_SCOPE_URI = AutonomousRunApi.AUTONOMOUS_URI + "/{runId}/scope";
@@ -287,6 +278,48 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
       // Act + Assert
       assertThatThrownBy(() -> scopeService.getValidAssets(workflow))
           .isInstanceOf(ElementNotFoundException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Valid players of a workflow")
+  class ValidPlayers {
+
+    @Test
+    @DisplayName(
+        "given no ambient tenant when a rule names a player of the workflow tenant then the player"
+            + " is in scope")
+    void given_noAmbientTenant_should_resolveThePlayerInTheWorkflowTenant() {
+      // Arrange
+      String player = saveUser("ScopeRulePlayer", tenantA).getId();
+      String workflow = seedWorkflowOfTenantA(allowPlayer(player));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      List<User> players = scopeService.getValidPlayers(workflow);
+
+      // Assert
+      assertThat(players).extracting(User::getId).containsExactly(player);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope holding both tenants when a rule of a workflow of A names a player of B then"
+            + " nobody is in scope")
+    void given_ruleNamingAPlayerOfAnotherTenant_should_resolveNobody() {
+      // Arrange
+      String foreignPlayer = saveUser("ScopeRuleForeignPlayer", tenantB).getId();
+      String workflow = seedWorkflowOfTenantA(allowPlayer(foreignPlayer));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(List.of(tenantA, tenantB)));
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      List<User> players = scopeService.getValidPlayers(workflow);
+
+      // Assert
+      assertThat(players).isEmpty();
     }
   }
 

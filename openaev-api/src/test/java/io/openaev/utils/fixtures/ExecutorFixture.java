@@ -67,7 +67,7 @@ public class ExecutorFixture {
     return executor;
   }
 
-  private Executor createTaniumExecutor() {
+  public Executor createTaniumExecutor() {
     Executor executor = new Executor();
     executor.setType(TANIUM_EXECUTOR_TYPE);
     executor.setName(TANIUM_EXECUTOR_NAME);

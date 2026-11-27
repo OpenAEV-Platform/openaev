@@ -85,8 +85,11 @@ public class FindingRecordingService {
     List<FindingLocation> findingLocations =
         upsertLocations(detectedFindings.stream().map(DetectedFinding::location).toList());
 
-    // 3 - find or create the findings, with their tags
-    List<Finding> findings = upsertFindings(tenantId, date, detectedFindings, findingLocations);
+    // 3 - find or create the findings, with their tags; a detection makes the finding open
+    // again, set by this inject (a re-test that reproduces it lands here too), marked before the
+    // save so the row is written once and publishes one event
+    List<Finding> findings =
+        upsertFindings(tenantId, inject.getId(), date, detectedFindings, findingLocations);
 
     // 4 - record their occurrence on the inject, with the field of their first detection
     findingOccurrenceService.recordOccurrences(
@@ -141,13 +144,7 @@ public class FindingRecordingService {
   }
 
   private static DetectedFinding withUnknownLocation(DetectedFinding detection) {
-    return new DetectedFinding(
-        detection.type(),
-        detection.value(),
-        detection.field(),
-        detection.name(),
-        UnknownLocation.INSTANCE,
-        detection.tagIds());
+    return detection.toBuilder().location(UnknownLocation.INSTANCE).build();
   }
 
   /**
@@ -190,8 +187,7 @@ public class FindingRecordingService {
             .filter(entry -> !existingKeys.contains(entry.getKey()))
             .map(entry -> newFindingLocation(entry.getValue()))
             .toList();
-    // Flushed: the database computes the key the findings are matched on
-    List<FindingLocation> added = findingLocationRepository.saveAllAndFlush(missing);
+    List<FindingLocation> added = findingLocationRepository.saveAll(missing);
     return Stream.concat(existing.stream(), added.stream()).toList();
   }
 
@@ -199,6 +195,7 @@ public class FindingRecordingService {
     FindingLocation findingLocation = new FindingLocation();
     findingLocation.setAsset(referenceResolver.resolve(assetIdOf(location), Asset.class));
     findingLocation.setUser(referenceResolver.resolve(userIdOf(location), User.class));
+    findingLocation.setLocationKey(findingLocationKeyOf(location));
     return findingLocation;
   }
 
@@ -206,6 +203,7 @@ public class FindingRecordingService {
 
   private List<Finding> upsertFindings(
       String tenantId,
+      String injectId,
       Instant occurrenceDate,
       List<DetectedFinding> detectedFindings,
       List<FindingLocation> findingLocations) {
@@ -238,9 +236,9 @@ public class FindingRecordingService {
             .toList();
 
     List<Finding> updated =
-        refreshExistingFindings(existing, detectionsByKey, tagById, occurrenceDate);
+        refreshExistingFindings(existing, detectionsByKey, tagById, injectId, occurrenceDate);
     List<Finding> added =
-        addFindings(tenantId, occurrenceDate, missing, findingLocationByKey, tagById);
+        addFindings(tenantId, injectId, occurrenceDate, missing, findingLocationByKey, tagById);
     return Stream.concat(updated.stream(), added.stream()).toList();
   }
 
@@ -248,12 +246,14 @@ public class FindingRecordingService {
       List<Finding> existing,
       Map<FindingKey, List<DetectedFinding>> detectionsByKey,
       Map<String, Tag> tagById,
+      String injectId,
       Instant occurrenceDate) {
     for (Finding finding : existing) {
       List<DetectedFinding> detections = detectionsByKey.get(FindingKey.of(finding));
       refreshFinding(finding, detections.getLast(), occurrenceDate);
       addTags(finding, detections, tagById);
       linkLegacyLocation(finding, detections.getLast().location());
+      FindingRetestService.markDetected(finding, injectId);
       finding.setUpdateDate(Instant.now());
     }
     return fromIterable(findingRepository.saveAll(existing));
@@ -261,6 +261,7 @@ public class FindingRecordingService {
 
   private List<Finding> addFindings(
       String tenantId,
+      String injectId,
       Instant occurrenceDate,
       List<List<DetectedFinding>> missing,
       Map<String, FindingLocation> findingLocationByKey,
@@ -279,6 +280,7 @@ public class FindingRecordingService {
       finding.setLastSeen(occurrenceDate);
       addTags(finding, detections, tagById);
       linkLegacyLocation(finding, last.location());
+      FindingRetestService.markDetected(finding, injectId);
       newFindings.add(finding);
     }
     return fromIterable(findingRepository.saveAll(newFindings));

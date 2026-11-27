@@ -1,6 +1,5 @@
 import { Button } from '@filigran/design-system';
 import { FormHelperText } from '@mui/material';
-import * as R from 'ramda';
 import { useCallback, useRef, useState } from 'react';
 import { Field } from 'react-final-form';
 
@@ -16,7 +15,7 @@ const FileFieldInput = ({ input, filters, disabled }) => {
       const files = [...e.target.files];
       const isErroredFile = files.length > 0
         && files.filter(
-          f => !filters || R.any(n => f.type.includes(n), filters),
+          f => !filters || filters.some(n => f.type.includes(n)),
         ).length === 0;
       if (!isErroredFile) {
         setAcceptedFiles(files);
@@ -28,7 +27,7 @@ const FileFieldInput = ({ input, filters, disabled }) => {
 
   const isErroredFile = acceptedFiles.length > 0
     && acceptedFiles.filter(
-      f => !filters || R.any(n => f.type.includes(n), filters),
+      f => !filters || filters.some(n => f.type.includes(n)),
     ).length === 0;
   const files = isErroredFile
     ? [

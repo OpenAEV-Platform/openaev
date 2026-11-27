@@ -44,37 +44,27 @@ Then:
 
 | Check | Rule |
 |---|---|
-| **Module boundaries** | Respects `openaev-model` / `openaev-api` separation? No new code in `openaev-framework` (deprecated). |
-| **Layering** | Controller → Service → Repository? Controller calls **one** service method, no repository injection? |
-| **Service boundary** | Service returns entities, never an `*Output`? No HTTP types (`ResponseEntity`, `ResponseStatusException`)? Injects only its own repository, other aggregates through their service? |
-| **Entity logic** | Nothing new in `openaev-model/**/model/` beyond state and mapping: no computed `@JsonProperty` getter, stream, branching or static factory? |
-| **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
-| **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
-| **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only, no `/api/...` alias |
-| **No unused code** | Every class, method, field and constant added has a caller in the PR? No default or option nobody decided? |
-| **One role per service** | Service split by job and transaction rule? Long methods read as named steps, no generic machinery? |
-| **Mapping** | Input → entity and entity → output copied in a mapper, DTOs in `api/{feature}/dto`? |
-| **Types** | Kinds with their own fields as `SINGLE_TABLE` subclasses? Type-dependent rules on the enum? |
-| **Preview features** | Checked in the endpoint with `PreviewFeatureService` (404), no `@Conditional`? |
-| **Service pattern** | Business logic in `@Service`, `@Transactional` on each method, `readOnly = true` on reads |
-| **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
-| **Error handling** | Service throws a domain exception (`io.openaev.rest.exception`)? No try/catch or `ResponseStatusException` in a controller (status set only in `RestBehavior`)? |
-| **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
-| **CI scripts** | No `${{ }}` inside a `run:` or `github-script` script? Values passed through the step `env:` and quoted? (🔴 when the value can come from a PR, branch name or other untrusted input) |
-
-> Full rules: `backend.instructions.md` → Layering, Entities.
+| **Module boundaries** | [copilot-instructions.md › Architecture](../copilot-instructions.md#architecture), [backend.instructions.md › Package Rule](../instructions/backend.instructions.md) |
+| **Layering, service boundary, error handling** | [backend.instructions.md › Layering](../instructions/backend.instructions.md#layering) |
+| **Entity logic, types** | [backend.instructions.md › Entities](../instructions/backend.instructions.md#entities) |
+| **Naming** | [backend.instructions.md › Code Quality](../instructions/backend.instructions.md#code-quality), [database.instructions.md › Schema Naming](../instructions/database.instructions.md#schema-naming) |
+| **DTO pattern, tenant routes, preview features** | [backend.instructions.md › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi) |
+| **Mapping** | [backend.instructions.md › API DTOs, Mappers & Sub-resources](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources) |
+| **No unused code** | [backend.instructions.md › Scope of a Pull Request](../instructions/backend.instructions.md#scope-of-a-pull-request) |
+| **Service pattern, one role per service, type rules on the enum** | [backend.instructions.md › Services](../instructions/backend.instructions.md#services) |
+| **No writes in read paths** | [backend.instructions.md › Hibernate](../instructions/backend.instructions.md#hibernate) |
+| **Logging** | [backend.instructions.md › Lombok](../instructions/backend.instructions.md#lombok) |
+| **CI scripts** | [ci.instructions.md › No `${{ }}` inside scripts](../instructions/ci.instructions.md#no---inside-scripts) → 🔴 when the value can come from a PR, branch name or other untrusted input |
 
 ### Phase 3 — Code Quality
 
-| Check | What to look for |
+| Check | Rule |
 |---|---|
-| **Dead code** | Unused imports, commented-out blocks, unreachable branches |
-| **Complexity** | Methods >30 lines, >3 levels of nesting, >4 parameters |
-| **Duplication** | Copy-pasted logic that should be extracted |
-| **Javadoc** | Paraphrases the signature (`/** Updates a tenant. */`) → 🟡 `suggestion:` remove it. Keep only side effects, thrown exceptions, non-obvious behaviour |
-| **Null safety** | Proper use of `Optional`, null checks on external inputs |
-| **Immutability** | Prefer `final` fields, records for DTOs, unmodifiable collections |
-| **Transactions** | `org.springframework.transaction.annotation.Transactional` (never `jakarta.transaction.Transactional`) |
+| **Dead code, duplication** | [backend.instructions.md › Scope of a Pull Request](../instructions/backend.instructions.md#scope-of-a-pull-request) |
+| **Complexity** | Hint, not a rule: a method over 30 lines, 3 levels of nesting or 4 parameters is worth a look |
+| **Null safety, immutability** | [backend.instructions.md › Code Quality](../instructions/backend.instructions.md#code-quality) |
+| **Javadoc** | [backend.instructions.md › Code Comments](../instructions/backend.instructions.md#code-comments) → 🟡 `suggestion:` remove it |
+| **Transactions** | [backend.instructions.md › Services](../instructions/backend.instructions.md#services) |
 
 ### Phase 4 — Delegation Check
 

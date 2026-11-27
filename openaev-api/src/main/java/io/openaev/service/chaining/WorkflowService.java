@@ -18,6 +18,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -27,6 +28,7 @@ import io.openaev.validator.IpAddressUtils;
 import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,7 @@ public class WorkflowService {
   private final StepDelayQueueService stepDelayQueueService;
   private final ScopeSnapshotService scopeSnapshotService;
   private final ScopeService scopeService;
+  private final FaithfulCopyTransaction faithfulCopy;
   private final LessonsService lessonsService;
 
   private final WorkflowRepository workflowRepository;
@@ -207,6 +210,8 @@ public class WorkflowService {
     }
     if (change.scopeRulesChanged()) {
       realignTemplateActionTargets(workflow);
+      // The realignment cleared the persistence context: the workflow is loaded again.
+      workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       pruneLessonTargets(workflow);
     }
     return workflow;
@@ -339,21 +344,38 @@ public class WorkflowService {
    * TEMPLATE workflow, so a reset simulation does not relaunch with unresolvable scope entries.
    * Only allow/deny rules are considered; the referenced entity is probed with the same current
    * resolution used by the snapshot diff (null = no longer exists).
+   *
+   * <p>The probe runs in the caller's scope, where an asset the user is not cleared for resolves to
+   * null like a deleted one. A reset keeps everything and only the clearance narrows what is seen,
+   * so a rule is a ghost only when its asset does not exist at all: the assets that exist but are
+   * hidden from the caller are looked up again by {@link ScopeSnapshotService#hiddenAssetIds}, and
+   * their rules are kept.
    */
   public void cleanScopeRulesSimulation(@NotBlank String simulationId) {
     Workflow template =
         workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
     if (template != null) {
 
-      List<WorkflowScopeRule> rulesToRemove = new ArrayList<>();
+      List<WorkflowScopeRule> unresolved = new ArrayList<>();
       for (WorkflowScopeRule rule : template.getWorkflowScopeRules()) {
         if (rule.getSelectedMode() != null
             && (ScopeRuleSource.ASSET.equals(rule.getRuleSource())
-                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))) {
-          ScopeRuleSnapshot current = scopeSnapshotService.buildCurrentSnapshot(rule);
-          if (current == null) rulesToRemove.add(rule);
+                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))
+            && scopeSnapshotService.buildCurrentSnapshot(rule) == null) {
+          unresolved.add(rule);
         }
       }
+      Set<String> hiddenAssetIds =
+          scopeSnapshotService.hiddenAssetIds(
+              template.getTenant() != null ? template.getTenant().getId() : null,
+              unresolved.stream()
+                  .filter(rule -> ScopeRuleSource.ASSET.equals(rule.getRuleSource()))
+                  .map(WorkflowScopeRule::getRuleValue)
+                  .toList());
+      List<WorkflowScopeRule> rulesToRemove =
+          unresolved.stream()
+              .filter(rule -> !hiddenAssetIds.contains(rule.getRuleValue()))
+              .toList();
       if (!rulesToRemove.isEmpty()) {
         template.getWorkflowScopeRules().removeAll(rulesToRemove);
         workflowRepository.save(template);
@@ -452,13 +474,30 @@ public class WorkflowService {
       return;
     }
     workflowRepository.flush();
-    List<String> scopedAssetIds =
-        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
-            .orElse(List.of())
-            .stream()
-            .map(Asset::getId)
-            .toList();
-    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
+    String workflowId = workflow.getId();
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
+    stepService.syncScopeAssetsOnStepTemplates(
+        workflow, scopeAssetIdsOfAnyClearance(workflowId, tenantId));
+  }
+
+  /**
+   * The assets of the saved scope (allowlist minus denylist), whatever the writer is cleared for.
+   * Under the writer's clearance an asset it cannot see is never in the scope, so rewriting the
+   * templates from that view would strip it for everyone, and keeping every hidden asset the
+   * templates already carry would keep one the writer has just removed (or denylisted, through a
+   * group it saw). The scope is resolved on the current transaction, which sees the rule changes
+   * not yet committed, with every marking of the tenant. The persistence context is cleared on both
+   * sides, so the caller reloads the workflow it uses afterwards.
+   */
+  private List<String> scopeAssetIdsOfAnyClearance(String workflowId, String tenantId) {
+    Supplier<List<String>> resolution =
+        () ->
+            Optional.ofNullable(scopeService.getValidAssets(workflowId)).orElse(List.of()).stream()
+                .map(Asset::getId)
+                .toList();
+    return tenantId == null
+        ? resolution.get()
+        : faithfulCopy.readIds(TxCtx.forTenant(tenantId), resolution);
   }
 
   /**
@@ -1215,13 +1254,20 @@ public class WorkflowService {
     if (CollectionUtils.isEmpty(ruleInputs) && CollectionUtils.isEmpty(existing)) {
       return false;
     }
+    // The configuration read drops the rules of the assets the writer is not cleared for, so the
+    // list it sends back never holds them. Absent from the input does not mean removed by the
+    // writer: those rules are left as they are, and an input cannot rewrite one through its id.
+    Set<String> hiddenRuleIds = hiddenAssetRuleIds(workflow, existing);
     // SECURITY_PLATFORM rows are engine-written snapshot rows (frozen at launch, see ADR-006),
     // never a legitimate configuration input, so the reconciliation below must neither remove nor
     // create nor mutate them: a live-steering update (updateRunWorkflowConfiguration) or an
     // emptied scope would otherwise silently destroy the frozen security-platform photos of a RUN
     // workflow, and a crafted input could mint or overwrite protected rows.
     if (CollectionUtils.isEmpty(ruleInputs)) {
-      return existing.removeIf(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM);
+      return existing.removeIf(
+          r ->
+              r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+                  && !hiddenRuleIds.contains(r.getId()));
     }
 
     List<WorkflowScopeRuleInput> deduplicated =
@@ -1243,7 +1289,8 @@ public class WorkflowService {
         existing.removeIf(
             r ->
                 r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
-                    && !inputIds.contains(r.getId()));
+                    && !inputIds.contains(r.getId())
+                    && !hiddenRuleIds.contains(r.getId()));
 
     // Build new rules from inputs without an ID
     List<WorkflowScopeRule> newRules =
@@ -1268,6 +1315,7 @@ public class WorkflowService {
         WorkflowScopeRule existingRule = existingById.get(ruleId);
         if (existingRule != null
             && existingRule.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+            && !hiddenRuleIds.contains(ruleId)
             && hasRuleChanged(existingRule, ruleInput)) {
           updateScopeRule(existingRule, ruleInput);
           changed = true;
@@ -1276,6 +1324,30 @@ public class WorkflowService {
     }
 
     return changed;
+  }
+
+  /**
+   * The ids of the rules that name an asset which exists but the writer is not cleared for. The
+   * configuration read does not return them (see {@code WorkflowConfigurationMapper}), so a save
+   * must neither remove nor change them.
+   */
+  private Set<String> hiddenAssetRuleIds(Workflow workflow, List<WorkflowScopeRule> rules) {
+    Map<String, String> assetIdByRuleId = new HashMap<>();
+    for (WorkflowScopeRule rule : rules) {
+      if (rule.getRuleSource() == ScopeRuleSource.ASSET && rule.getId() != null) {
+        assetIdByRuleId.put(rule.getId(), rule.getRuleValue());
+      }
+    }
+    if (assetIdByRuleId.isEmpty()) {
+      return Set.of();
+    }
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
+    Set<String> hiddenAssetIds =
+        scopeSnapshotService.hiddenAssetIds(tenantId, assetIdByRuleId.values());
+    return assetIdByRuleId.entrySet().stream()
+        .filter(entry -> hiddenAssetIds.contains(entry.getValue()))
+        .map(Map.Entry::getKey)
+        .collect(Collectors.toSet());
   }
 
   /**
@@ -1375,10 +1447,10 @@ public class WorkflowService {
    * scope rule (asset / group name, team name, or player name-or-email), so a past run's scope
    * stays readable after the referenced object is deleted.
    *
-   * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
-   * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
-   * expose) another tenant's name. Ids that do not resolve within the caller's tenant - or MANUAL /
-   * CSV rules - stay {@code null}.
+   * <p>The lookup is tenant-scoped on purpose: a plain {@code findById} on a user-supplied id
+   * carries no tenant predicate on a table outside {@code active-tables}, so it snapshots (and
+   * later exposes) another tenant's name. Ids that do not resolve within the caller's tenant - or
+   * MANUAL / CSV rules - stay {@code null}.
    */
   private String resolveValueLabel(WorkflowScopeRuleInput input) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {

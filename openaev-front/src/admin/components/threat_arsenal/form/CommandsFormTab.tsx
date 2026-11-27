@@ -11,6 +11,8 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
 import InjectFormSection from '../../common/injects/form/InjectFormSection';
+import LockedFields from '../customization/LockedFields';
+import RevertToFiligran from '../customization/RevertToFiligran';
 import PayloadArgumentsField from './PayloadArgumentsField';
 import useArgumentRowStyles from './useArgumentRowStyles';
 
@@ -113,15 +115,19 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           gap: theme.spacing(2),
         }}
         >
-          <SelectFieldController disabled={!(actionType == 'Command' || actionType == 'Executable')} name="action_execution_arch" label={t('Architecture')} items={architecturesItems} required />
+          <LockedFields>
+            <SelectFieldController disabled={!(actionType == 'Command' || actionType == 'Executable')} name="action_execution_arch" label={t('Architecture')} items={architecturesItems} required />
+          </LockedFields>
           <PlatformFieldController name="action_platforms" label={t('Platforms')} required />
         </div>
       )}
+      <RevertToFiligran fields={['PLATFORMS']} />
 
       {actionType === 'Command' && (
         <InjectFormSection
           title={t('Attack command')}
           helper={t('The command executed on the targeted assets.')}
+          action={<RevertToFiligran fields={['COMMAND_EXECUTOR', 'COMMAND_CONTENT']} />}
           required
         >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
@@ -129,47 +135,49 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
         </InjectFormSection>
       )}
 
-      {actionType === 'Executable' && (
-        <Controller
-          control={control}
-          name="executable_file"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <FileLoader
-              name="executable_file"
-              label={t('Executable file')}
-              setFieldValue={(_name, document) => {
-                onChange(document?.id);
-              }}
-              initialValue={{ id: value }}
-              InputLabelProps={{ required: true }}
-              error={!!error}
-            />
-          )}
-        />
-      )}
+      <LockedFields>
+        {actionType === 'Executable' && (
+          <Controller
+            control={control}
+            name="executable_file"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <FileLoader
+                name="executable_file"
+                label={t('Executable file')}
+                setFieldValue={(_name, document) => {
+                  onChange(document?.id);
+                }}
+                initialValue={{ id: value }}
+                InputLabelProps={{ required: true }}
+                error={!!error}
+              />
+            )}
+          />
+        )}
 
-      {actionType === 'FileDrop' && (
-        <Controller
-          control={control}
-          name="file_drop_file"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <FileLoader
-              name="file_drop_file"
-              label={t('File to drop')}
-              setFieldValue={(_name, document) => {
-                onChange(document?.id);
-              }}
-              initialValue={{ id: value }}
-              InputLabelProps={{ required: true }}
-              error={!!error}
-            />
-          )}
-        />
-      )}
+        {actionType === 'FileDrop' && (
+          <Controller
+            control={control}
+            name="file_drop_file"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <FileLoader
+                name="file_drop_file"
+                label={t('File to drop')}
+                setFieldValue={(_name, document) => {
+                  onChange(document?.id);
+                }}
+                initialValue={{ id: value }}
+                InputLabelProps={{ required: true }}
+                error={!!error}
+              />
+            )}
+          />
+        )}
 
-      {actionType === 'DnsResolution' && (
-        <TextFieldController name="dns_resolution_hostname" label={t('Hostname')} required />
-      )}
+        {actionType === 'DnsResolution' && (
+          <TextFieldController name="dns_resolution_hostname" label={t('Hostname')} required />
+        )}
+      </LockedFields>
 
       {actionType && actionType != '' && (
         <>
@@ -177,6 +185,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Arguments')}
             helper={t('Variables the command can reference at execution time.')}
+            action={<RevertToFiligran fields={['ARGUMENTS']} />}
           >
             {argumentsFields.map((argsField, argIndex) => (
               <PayloadArgumentsField
@@ -210,6 +219,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Prerequisites')}
             helper={t('Commands run beforehand to make sure the action can execute.')}
+            action={<RevertToFiligran fields={['PREREQUISITES']} />}
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
@@ -259,6 +269,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           <InjectFormSection
             title={t('Cleanup command')}
             helper={t('Executed after the action to restore the asset to its initial state.')}
+            action={<RevertToFiligran fields={['CLEANUP_EXECUTOR', 'CLEANUP_COMMAND']} />}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
             <TextFieldController multiline rows={3} name="action_cleanup_command" />

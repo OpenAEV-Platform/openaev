@@ -18,7 +18,6 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.UUID;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -141,7 +140,6 @@ class EndpointSearchCountScopeTest extends IntegrationTest {
 
   private Page<Endpoint> searchUnder(String tenantId) {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     return endpointService.searchEndpoints(PaginationFixture.simpleTextSearch(NAME));
   }
 }

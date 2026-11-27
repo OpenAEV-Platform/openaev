@@ -319,13 +319,16 @@ export const MAX_VISIBLE_FINDING_TYPES = 4;
 // `cl-ft-<type>` id space: a finding type literally named "more" must not collide with the chip.
 export const AP_TYPE_OVERFLOW_ID = 'cl-ft|more';
 
-// Aggregate a set of prevention/detection statuses into one worst-case verdict: RED beats ORANGE beats
+// Aggregate a set of execution statuses into one worst-case verdict: RED beats YELLOW beats ORANGE beats
 // GREEN — one bad execution among several (e.g. one endpoint undetected while the rest were prevented)
 // must not read as fully green just because it's a minority.
 const aggregateStatus = (statuses: Array<string | undefined>): string | undefined => {
-  const set = new Set(statuses.filter((s): s is string => s === 'GREEN' || s === 'ORANGE' || s === 'RED'));
+  const set = new Set(statuses.filter((s): s is string => s === 'GREEN' || s === 'ORANGE' || s === 'YELLOW' || s === 'RED'));
   if (set.has('RED')) {
     return 'RED';
+  }
+  if (set.has('YELLOW')) {
+    return 'YELLOW';
   }
   if (set.has('ORANGE')) {
     return 'ORANGE';
@@ -2197,6 +2200,9 @@ export const buildCausalChainFlow = (
           let clusterStatus = 'GREEN';
           if (row.fids.some(f => findingById.get(f)?.status === 'ORANGE')) {
             clusterStatus = 'ORANGE';
+          }
+          if (row.fids.some(f => findingById.get(f)?.status === 'YELLOW')) {
+            clusterStatus = 'YELLOW';
           }
           if (row.fids.some(f => (findingById.get(f)?.status ?? 'RED') === 'RED')) {
             clusterStatus = 'RED';

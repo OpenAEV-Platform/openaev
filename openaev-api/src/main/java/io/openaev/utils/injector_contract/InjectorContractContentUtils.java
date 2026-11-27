@@ -9,10 +9,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.helper.InjectModelHelper;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -251,21 +253,157 @@ public class InjectorContractContentUtils {
    * @return true if field is found, false if not
    */
   public boolean hasField(InjectorContract injectorContract, String field) {
-    if (injectorContract == null || injectorContract.getContent() == null) {
-      return false;
+    return fields(injectorContract).containsKey(field);
+  }
+
+  /**
+   * The keys of the fields an inject must fill, by group: any one field of a group fills it. A
+   * mandatory field is a group of its own; a field mandatory on a condition counts when the inject
+   * meets it.
+   */
+  public Set<Set<String>> mandatoryFieldGroups(Inject inject) {
+    return mandatoryFieldGroups(
+        fields(inject.getInjectorContract().orElse(null)),
+        field ->
+            InjectModelHelper.getFieldValue(
+                inject.getTeams().stream().map(Team::getId).toList(),
+                inject.getAssets().stream().map(Asset::getId).toList(),
+                inject.getAssetGroups().stream().map(AssetGroup::getId).toList(),
+                field,
+                inject.getContent()));
+  }
+
+  /** The same groups among these contract fields, reading the inject's values with valuesOf. */
+  public static Set<Set<String>> mandatoryFieldGroups(
+      Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
+    Set<Set<String>> groups = new LinkedHashSet<>();
+    fields.forEach(
+        (key, field) -> {
+          if (field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
+              || isMandatoryOnCondition(field, fields, valuesOf)) {
+            groups.add(Set.of(key));
+          }
+          Set<String> group = new LinkedHashSet<>();
+          field
+              .path(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)
+              .forEach(member -> group.add(member.asText()));
+          if (!group.isEmpty()) {
+            groups.add(group);
+          }
+        });
+    return groups;
+  }
+
+  private static boolean isMandatoryOnCondition(
+      JsonNode field, Map<String, JsonNode> fields, Function<JsonNode, List<String>> valuesOf) {
+    JsonNode values = field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
+    return StreamSupport.stream(
+            field.path(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS).spliterator(), false)
+        .map(JsonNode::asText)
+        .filter(fields::containsKey)
+        .anyMatch(
+            key ->
+                !values.has(key)
+                    || isConditionMet(values.get(key), valuesOf.apply(fields.get(key))));
+  }
+
+  private static boolean isConditionMet(JsonNode expected, List<String> actualValues) {
+    List<String> expectedValues = new ArrayList<>();
+    if (expected.isArray()) {
+      expected.forEach(value -> expectedValues.add(value.asText()));
+    } else {
+      expectedValues.add(expected.asText());
     }
+    return actualValues.stream().anyMatch(expectedValues::contains);
+  }
 
+  /** The contract's fields by key, empty when its content cannot be read. */
+  public Map<String, JsonNode> fields(InjectorContract injectorContract) {
+    Map<String, JsonNode> fields = new LinkedHashMap<>();
+    if (injectorContract == null || injectorContract.getContent() == null) {
+      return fields;
+    }
     try {
-      ObjectNode objectNode = (ObjectNode) mapper.readTree(injectorContract.getContent());
-
-      return objectNode.get("fields") != null
-          && objectNode.get("fields").isArray()
-          && StreamSupport.stream(
-                  Spliterators.spliteratorUnknownSize(objectNode.get("fields").iterator(), 0),
-                  false)
-              .anyMatch(node -> node.has("key") && field.equals(node.get("key").asText()));
+      mapper
+          .readTree(injectorContract.getContent())
+          .path(FIELDS)
+          .forEach(
+              field -> {
+                if (field.has(CONTRACT_ELEMENT_CONTENT_KEY)) {
+                  fields.put(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), field);
+                }
+              });
     } catch (JsonProcessingException e) {
-      return false;
+      return new LinkedHashMap<>();
+    }
+    return fields;
+  }
+
+  /** The keys of the contract's fields of the given type, in contract order. */
+  public List<String> fieldKeysOfType(InjectorContract injectorContract, ContractFieldType type) {
+    List<String> keys = new ArrayList<>();
+    fields(injectorContract)
+        .forEach(
+            (key, field) -> {
+              if (type.label.equals(field.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())) {
+                keys.add(key);
+              }
+            });
+    return keys;
+  }
+
+  /**
+   * The ids an inject content holds under a field key: one id for a cardinality 1 field, the list
+   * for a cardinality n one; blank values are left out.
+   */
+  public static List<String> idsOf(JsonNode content, String key) {
+    List<String> ids = new ArrayList<>();
+    if (content == null) {
+      return ids;
+    }
+    JsonNode value = content.get(key);
+    if (value == null || value.isNull()) {
+      return ids;
+    }
+    if (value.isArray()) {
+      value.forEach(
+          item -> {
+            if (item.isTextual() && !item.asText().isBlank()) {
+              ids.add(item.asText());
+            }
+          });
+    } else if (value.isTextual() && !value.asText().isBlank()) {
+      ids.add(value.asText());
+    }
+    return ids;
+  }
+
+  /**
+   * Rewrites the reference fields of an imported inject content in place: a tags field keeps the
+   * ids of the imported tags, given by importedTagId (an id with no imported tag is dropped), and
+   * an asset group reference field is cleared, since asset groups are not part of the export and an
+   * id of another platform names nothing here; the form's required rule then asks for it again.
+   */
+  public void remapImportedReferenceFields(
+      InjectorContract injectorContract,
+      ObjectNode content,
+      Function<String, Optional<String>> importedTagId) {
+    if (content == null) {
+      return;
+    }
+    for (String key : fieldKeysOfType(injectorContract, ContractFieldType.Tags)) {
+      if (!content.has(key)) {
+        continue;
+      }
+      ArrayNode remapped = mapper.createArrayNode();
+      idsOf(content, key).stream()
+          .map(importedTagId)
+          .flatMap(Optional::stream)
+          .forEach(remapped::add);
+      content.set(key, remapped);
+    }
+    for (String key : fieldKeysOfType(injectorContract, ContractFieldType.AssetGroupReference)) {
+      content.remove(key);
     }
   }
 

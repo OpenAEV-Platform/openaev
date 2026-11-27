@@ -19,7 +19,6 @@ import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.UserRepository;
@@ -33,6 +32,7 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantExtension;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -72,7 +72,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   @Autowired private XtmHubService xtmHubService;
   @Autowired private NewsFeedItemRepository newsFeedItemRepository;
   @Autowired private UserRepository userRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ApplicationEvents applicationEvents;
@@ -100,18 +100,9 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   void cleanup() {
     setDevFeatures(originalDevFeatures);
     newsFeedItemRepository.deleteAll();
-    // By id, members first: the detached entities still reference each other and would be
-    // re-persisted.
-    List<String> groupIds = createdGroups.stream().map(Group::getId).toList();
-    groupRepository
-        .findAllById(groupIds)
-        .forEach(
-            group -> {
-              group.setUsers(new ArrayList<>());
-              groupRepository.save(group);
-            });
+    // Groups first, each in the scope it was written in: deleting a group drops its memberships.
+    createdGroups.forEach(groupFixtureWriter::delete);
     userRepository.deleteAllById(createdUsers.stream().map(User::getId).toList());
-    groupRepository.deleteAllById(groupIds);
     createdTenantIds.forEach(registrationRepository::deleteByTenantId);
     createdTenantIds.forEach(tenantRepository::deleteById);
   }
@@ -862,7 +853,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
     member.setAdmin(false);
     User saved = saveUsers(List.of(member), tenants).getFirst();
     group.setUsers(new ArrayList<>(List.of(saved)));
-    groupRepository.save(group);
+    groupFixtureWriter.save(group);
     return saved;
   }
 
@@ -872,7 +863,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
             ? PlatformGroupFixture.getPlatformGroup("News feed platform group")
             : TenantGroupFixture.getGroup("News feed tenant group");
     group.setTenant(tenant);
-    Group saved = groupRepository.save(group);
+    Group saved = groupFixtureWriter.save(group);
     createdGroups.add(saved);
     return saved;
   }

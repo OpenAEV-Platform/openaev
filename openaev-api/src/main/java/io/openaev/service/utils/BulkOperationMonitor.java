@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.SessionHelper;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -87,8 +87,12 @@ public class BulkOperationMonitor {
   /** Spring application event carrying a bulk operation snapshot, broadcast to the SSE stream. */
   public record BulkOperationEvent(BulkOperation operation) {}
 
-  /** Registers a new running operation and notifies the stream. Returns the operation id. */
-  public String start(String action, String entityLabel, int total) {
+  /**
+   * Registers a new running operation and notifies the stream. Returns the operation id. The
+   * operation carries the tenant of the request's scope when the scope pins one, and none when it
+   * spans several: an operation with no tenant is visible to its launcher only, in every tenant.
+   */
+  public String start(TxCtx ctx, String action, String entityLabel, int total) {
     evictExpired();
     String id = UUID.randomUUID().toString();
     BulkOperation operation =
@@ -101,12 +105,18 @@ public class BulkOperationMonitor {
             BulkOperationStatus.RUNNING,
             Instant.now(),
             null,
-            TenantContext.getCurrentTenant(),
+            operationTenant(ctx),
             currentUserId());
     operations.put(id, operation);
     journalInsert(operation);
     eventPublisher.publishEvent(new BulkOperationEvent(operation));
     return id;
+  }
+
+  private static String operationTenant(TxCtx ctx) {
+    return ctx instanceof TxCtx.Restricted restricted && restricted.tenantIds().size() == 1
+        ? restricted.tenantIds().getFirst()
+        : null;
   }
 
   /** Adds processed items to a running operation and notifies the stream. */
@@ -176,10 +186,11 @@ public class BulkOperationMonitor {
    * to FAILED before reading.
    *
    * <p>{@code tenantIds} null or empty means no tenant filter (only {@code userId} narrows the
-   * result); a non-empty set narrows to operations tagged with one of those tenants. Callers on a
-   * fail-closed path (e.g. an HTTP handler deriving the set from a {@code TxCtx}) must reject an
-   * empty resolved scope themselves before calling this method — this method treats "no ids" as "no
-   * filter", not "no access".
+   * result); a non-empty set narrows to operations tagged with one of those tenants, plus the
+   * operations with no tenant that {@code userId} launched. Callers on a fail-closed path (e.g. an
+   * HTTP handler deriving the set from a {@code TxCtx}) must reject an empty resolved scope
+   * themselves before calling this method: this method treats "no ids" as "no filter", not "no
+   * access".
    */
   public List<BulkOperation> findForUser(String userId, Collection<String> tenantIds) {
     evictExpired();
@@ -189,13 +200,24 @@ public class BulkOperationMonitor {
     // write failed.
     operations.values().stream()
         .filter(op -> userId == null || Objects.equals(op.userId(), userId))
-        .filter(op -> tenantIds == null || tenantIds.isEmpty() || tenantIds.contains(op.tenantId()))
+        .filter(op -> isInTenants(op, userId, tenantIds))
         .forEach(op -> byId.put(op.id(), op));
     List<BulkOperation> result = new ArrayList<>(byId.values());
     result.sort(
         Comparator.comparing((BulkOperation op) -> op.status() != BulkOperationStatus.RUNNING)
             .thenComparing(BulkOperation::startedAt, Comparator.reverseOrder()));
     return result.size() > HISTORY_SIZE ? result.subList(0, HISTORY_SIZE) : result;
+  }
+
+  private static boolean isInTenants(
+      BulkOperation op, String userId, Collection<String> tenantIds) {
+    if (tenantIds == null || tenantIds.isEmpty()) {
+      return true;
+    }
+    if (op.tenantId() == null) {
+      return userId != null && userId.equals(op.userId());
+    }
+    return tenantIds.contains(op.tenantId());
   }
 
   private void evictExpired() {
@@ -316,11 +338,13 @@ public class BulkOperationMonitor {
       List<Object> args = new ArrayList<>();
       args.add(userId);
       args.addAll(tenantIds);
+      args.add(userId);
       args.add(HISTORY_SIZE);
       return jdbcTemplate.query(
-          "SELECT * FROM bulk_operations WHERE operation_user_id = ? AND operation_tenant_id IN ("
+          "SELECT * FROM bulk_operations WHERE operation_user_id = ? AND (operation_tenant_id IN ("
               + placeholders
-              + ") ORDER BY operation_started_at DESC LIMIT ?",
+              + ") OR (operation_tenant_id IS NULL AND operation_user_id = ?))"
+              + " ORDER BY operation_started_at DESC LIMIT ?",
           rowMapper,
           args.toArray());
     } catch (Exception e) {

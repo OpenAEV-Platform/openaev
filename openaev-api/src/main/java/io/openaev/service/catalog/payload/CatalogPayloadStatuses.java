@@ -2,9 +2,12 @@ package io.openaev.service.catalog.payload;
 
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogItemStatus;
-import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.model.catalog.CatalogPayload;
+import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogRevocations;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,12 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogPayloadStatuses {
 
-  private final CatalogItemRepository catalogItemRepository;
+  private final CatalogListService catalogListService;
 
   @Transactional(readOnly = true)
   public Snapshot current() {
+    List<CatalogPayload> items = catalogListService.all(CatalogPayload.class);
     return new Snapshot(
-        catalogItemRepository.findAllPayloads().stream()
+        items.stream()
             .collect(
                 Collectors.toMap(
                     item ->
@@ -28,7 +32,8 @@ public class CatalogPayloadStatuses {
                             item.getRelease().getRepository(),
                             item.getExternalId(),
                             item.getVersion()),
-                    item -> item.getStatus())));
+                    CatalogPayload::getStatus)),
+        CatalogRevocations.of(items));
   }
 
   public record Version(String repository, String externalId, String version) {
@@ -39,29 +44,22 @@ public class CatalogPayloadStatuses {
           payload.getCatalogExternalId(),
           payload.getCatalogVersion());
     }
-
-    public boolean is(Payload payload) {
-      return equals(of(payload));
-    }
   }
 
-  public record Snapshot(Map<Version, CatalogItemStatus> statuses) {
+  public record Snapshot(Map<Version, CatalogItemStatus> statuses, CatalogRevocations revocations) {
 
-    public List<Version> revoked() {
-      return statuses.entrySet().stream()
-          .filter(entry -> entry.getValue() == CatalogItemStatus.REVOKED)
-          .map(Map.Entry::getKey)
-          .toList();
+    public Set<String> revokedExternalIds() {
+      return revocations.externalIds();
     }
 
     public boolean revokes(Payload payload) {
-      return statuses.get(Version.of(payload)) == CatalogItemStatus.REVOKED;
+      return revocations.revokes(payload.getCatalogExternalId(), payload.getCatalogVersion());
     }
 
     // A version the catalogue no longer lists stays revoked.
     public boolean clears(Payload payload) {
       CatalogItemStatus status = statuses.get(Version.of(payload));
-      return status != null && status != CatalogItemStatus.REVOKED;
+      return status != null && !revokes(payload);
     }
   }
 }

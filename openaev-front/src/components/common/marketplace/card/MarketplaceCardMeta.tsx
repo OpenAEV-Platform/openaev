@@ -16,11 +16,28 @@ const MarketplaceCardMeta = ({ status, platforms }: Props) => (
     display: 'flex',
     alignItems: 'center',
     gap: 4,
+    minWidth: 0,
   }}
   >
-    {status}
-    {platforms.slice(0, MAX_PLATFORMS).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
-    {platforms.length > MAX_PLATFORMS && <Chip label={`+${platforms.length - MAX_PLATFORMS}`} />}
+    {status && (
+      <span style={{
+        display: 'flex',
+        minWidth: 0,
+      }}
+      >
+        {status}
+      </span>
+    )}
+    <span style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0,
+    }}
+    >
+      {platforms.slice(0, MAX_PLATFORMS).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+      {platforms.length > MAX_PLATFORMS && <Chip label={`+${platforms.length - MAX_PLATFORMS}`} />}
+    </span>
   </div>
 );
 

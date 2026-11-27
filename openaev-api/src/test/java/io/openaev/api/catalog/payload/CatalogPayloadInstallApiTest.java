@@ -1,6 +1,6 @@
 package io.openaev.api.catalog.payload;
 
-import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
+import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
@@ -41,14 +41,15 @@ import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.DetectionRemediation;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadRevocation;
-import io.openaev.database.repository.CatalogHistoryRepository;
+import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -106,7 +107,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
-  @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
@@ -255,26 +256,31 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   }
 
   private void runByInject(String payloadId) {
-    injectRepository.save(
+    Inject inject =
         InjectFixture.createInject(
-            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject"));
+            injectorContractRepository.findById(contractOf(payloadId)).orElseThrow(), "Inject");
+    inject.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+    injectRepository.save(inject);
     entityManager.flush();
   }
 
   private List<String> autoInstalledVersions() {
     entityManager.flush();
-    return catalogHistoryRepository.findAll().stream()
-        .filter(row -> row.getMode() == CatalogHistory.Mode.AUTO)
-        .map(CatalogHistory::getVersion)
+    return contentChangeRepository.findAll().stream()
+        .filter(row -> row.getMode() == ContentChange.Mode.AUTO)
+        .map(ContentChange::getVersion)
         .toList();
   }
 
-  private List<CatalogHistory.Action> history() {
+  private List<ContentChange> historyRows() {
     entityManager.flush();
-    return catalogHistoryRepository.findAll().stream()
+    return contentChangeRepository.findAll().stream()
         .filter(row -> PAYLOAD_ID.equals(row.getExternalId()))
-        .map(CatalogHistory::getAction)
         .toList();
+  }
+
+  private List<ContentChange.Action> history() {
+    return historyRows().stream().map(ContentChange::getAction).toList();
   }
 
   // -- INSTALL --
@@ -301,7 +307,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(payload.getStatus()).isEqualTo(Payload.PAYLOAD_STATUS.VERIFIED);
       assertThat(payload.getAuthorOrganization().getName()).isEqualTo(CatalogItemMapper.FILIGRAN);
       assertThat(threatArsenalContracts()).containsExactly(contractOf(payload.getId()));
-      assertThat(history()).containsExactly(CatalogHistory.Action.INSTALL);
+      assertThat(history()).containsExactly(ContentChange.Action.INSTALL);
     }
 
     @Test
@@ -337,9 +343,9 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(threatArsenalContracts()).containsExactly(contractOf(first.getFirst()));
       assertThat(history())
           .containsExactly(
-              CatalogHistory.Action.INSTALL,
-              CatalogHistory.Action.UNINSTALL,
-              CatalogHistory.Action.INSTALL);
+              ContentChange.Action.INSTALL,
+              ContentChange.Action.UNINSTALL,
+              ContentChange.Action.INSTALL);
     }
 
     static Stream<Arguments> refusals() {
@@ -449,11 +455,20 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @DisplayName("Browsing the catalogue")
   class Browsing {
 
-    private static final String PAYLOAD_IDS = "$[?(@.action_kind == 'PAYLOAD')].action_id";
-    private static final String INTEGRATION_IDS = "$[?(@.action_kind == 'INTEGRATION')].action_id";
+    private static final String PAYLOAD_IDS = "$.content[?(@.action_kind == 'PAYLOAD')].action_id";
+    private static final String INTEGRATION_IDS =
+        "$.content[?(@.action_kind == 'INTEGRATION')].action_id";
 
     private ResultActions read(String uri, Object... variables) throws Exception {
       return mvc.perform(get(TENANT_CATALOG_URI + uri, variables));
+    }
+
+    private ResultActions available() throws Exception {
+      return mvc.perform(
+          post(TENANT_CATALOG_URI + "/actions/search", DEFAULT_TENANT_UUID)
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(mapper.writeValueAsString(new SearchPaginationInput())));
     }
 
     @BeforeEach
@@ -480,7 +495,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       injectorRepository.save(injector);
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result
@@ -512,7 +527,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       }
 
       // Act
-      ResultActions result = read("/actions", DEFAULT_TENANT_UUID);
+      ResultActions result = available();
 
       // Assert
       result
@@ -704,6 +719,26 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
           .containsExactly(REVOKED_BY_FILIGRAN, true);
     }
 
+    @Test
+    @DisplayName("revokes every installed version of a payload whose newest version is revoked")
+    void given_newestVersionRevokedByRelease_should_revokeTheInstalledOne() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      publish(
+          "1.261110.0",
+          new Released("1.0.0", "VERIFIED", RELEASED),
+          new Released("1.1.0", "REVOKED", RELEASED));
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(revocation(payloadId))
+          .get()
+          .extracting(PayloadRevocation::isByCatalogue)
+          .isEqualTo(true);
+    }
+
     static Stream<Arguments> laterReleases() {
       return Stream.of(
           Arguments.of("verified again, revoked by the release", false, "VERIFIED", false),
@@ -735,6 +770,48 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(revocation(payloadId).isPresent()).isEqualTo(stillRevoked);
+    }
+
+    @Test
+    @DisplayName(
+        "records a revocation by a tenant admin and its lift in the history, with the admin")
+    void given_revokedThenLiftedByAdmin_should_recordBothWithTheAdmin() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      revokeByAdmin(payloadId);
+
+      // Act
+      lift(payloadId).andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != ContentChange.Action.INSTALL)
+          .extracting(ContentChange::getAction, ContentChange::getMode, ContentChange::getVersion)
+          .containsExactly(
+              tuple(ContentChange.Action.REVOKE, ContentChange.Mode.MANUAL, "1.0.0"),
+              tuple(ContentChange.Action.LIFT_REVOCATION, ContentChange.Mode.MANUAL, "1.0.0"));
+      assertThat(historyRows()).extracting(ContentChange::getUser).doesNotContainNull();
+    }
+
+    @Test
+    @DisplayName("records its own revocation and lift in the history, by itself")
+    void given_releaseRevokesThenClears_should_recordBothAsAuto() throws Exception {
+      // Arrange
+      installed();
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+      applyCatalogueRevocations();
+      publish("1.261111.0", "VERIFIED", RELEASED, "1.0.0");
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(historyRows())
+          .filteredOn(row -> row.getAction() != ContentChange.Action.INSTALL)
+          .extracting(ContentChange::getAction, ContentChange::getMode)
+          .containsExactly(
+              tuple(ContentChange.Action.REVOKE, ContentChange.Mode.AUTO),
+              tuple(ContentChange.Action.LIFT_REVOCATION, ContentChange.Mode.AUTO));
     }
 
     @ParameterizedTest(name = "revoked by a tenant admin: {0}")
@@ -784,7 +861,7 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       assertThat(threatArsenalContracts()).isEmpty();
       assertThat(payloadRepository.findById(payloadId)).isPresent();
       assertThat(history())
-          .containsExactly(CatalogHistory.Action.INSTALL, CatalogHistory.Action.UNINSTALL);
+          .containsExactly(ContentChange.Action.INSTALL, ContentChange.Action.UNINSTALL);
     }
 
     /** The payload a refused uninstall points at, once its case is arranged. */

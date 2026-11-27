@@ -39,7 +39,7 @@ public class PayloadRevocationService {
   @Transactional(rollbackFor = Exception.class)
   public void revoke(TxCtx ctx, String tenantId, String payloadId, String reason) {
     Payload payload = payloadService.payload(tenantId, payloadId);
-    if (payloadRevocationRepository.existsByTenantIdAndPayloadId(tenantId, payloadId)) {
+    if (isRevoked(tenantId, payloadId)) {
       throw new AlreadyExistingException(ALREADY_REVOKED);
     }
     payloadRevocationRepository.save(
@@ -52,6 +52,10 @@ public class PayloadRevocationService {
     return payloadRevocationRepository
         .findByTenantIdAndPayloadId(tenantId, payloadId)
         .orElseThrow(() -> new ElementNotFoundException(NOT_REVOKED));
+  }
+
+  public boolean isRevoked(String tenantId, String payloadId) {
+    return payloadRevocationRepository.existsByTenantIdAndPayloadId(tenantId, payloadId);
   }
 
   /** The revocations of these payload versions in the tenant, by payload id. */
@@ -104,9 +108,9 @@ public class PayloadRevocationService {
     Map<String, PayloadRevocation> revocations =
         payloadRevocationRepository.findAllByTenantId(tenantId).stream()
             .collect(Collectors.toMap(r -> r.getPayload().getId(), Function.identity()));
-    for (CatalogPayloadStatuses.Version revoked : catalogue.revoked()) {
-      payloadService.versions(tenantId, revoked.externalId()).stream()
-          .filter(revoked::is)
+    for (String externalId : catalogue.revokedExternalIds()) {
+      payloadService.versions(tenantId, externalId).stream()
+          .filter(catalogue::revokes)
           .filter(payload -> !revocations.containsKey(payload.getId()))
           .forEach(
               payload -> payloadRevocationRepository.save(PayloadRevocation.byCatalogue(payload)));

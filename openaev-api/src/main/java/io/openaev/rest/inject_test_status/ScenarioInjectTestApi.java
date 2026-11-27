@@ -1,5 +1,6 @@
 package io.openaev.rest.inject_test_status;
 
+import static io.openaev.database.specification.InjectSpecification.fromScenario;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -16,7 +17,6 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.service.InjectTestStatusService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,6 @@ public class ScenarioInjectTestApi extends RestBehavior {
 
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
-  private final ScenarioInjectService scenarioInjectService;
 
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/injects/test/search",
@@ -82,8 +81,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank String injectId)
       throws Exception {
-    scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
-    return injectTestStatusService.testInject(injectId);
+    return injectTestStatusService.testInjectOfScenario(scenarioId, injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -114,8 +112,8 @@ public class ScenarioInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope (bulkTestInjects reads Inject#getInjector()/getFirstInjector() per inject).
+      // The TxCtx parameter sets the tenant scope (bulkTestInjects reads Inject#getInjector()/
+      // getFirstInjector() per inject) and the tenant of the bulk operation it reports.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
@@ -134,10 +132,11 @@ public class ScenarioInjectTestApi extends RestBehavior {
     Specification<Inject> filterSpecifications =
         this.injectService
             .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
+            .and(fromScenario(scenarioId))
             .and(testable());
 
     // Services calls
     // Bulk test
-    return injectTestStatusService.bulkTestInjects(filterSpecifications);
+    return injectTestStatusService.bulkTestInjects(ctx, filterSpecifications);
   }
 }

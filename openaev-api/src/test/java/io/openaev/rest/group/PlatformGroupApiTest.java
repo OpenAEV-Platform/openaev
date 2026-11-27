@@ -25,11 +25,11 @@ import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
-import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +47,7 @@ public class PlatformGroupApiTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private PlatformRoleComposer platformRoleComposer;
-  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private RoleRepository roleRepository;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -331,21 +331,19 @@ public class PlatformGroupApiTest extends IntegrationTest {
     void given_managePlatform_should_allowRenamingAlreadyDefaultGroup() throws Exception {
       // -------- Arrange --------
       // Only the transition to default is an escalation; an already-flagged group stays editable.
+      // The group is written whole, under the platform-write marker, as it was committed before
+      // the request that renames it.
+      Group alreadyDefault = PlatformGroupFixture.getPlatformGroup("AlreadyDefault");
+      alreadyDefault.setDefaultUserAssignation(true);
       Group group =
           platformGroupComposer
-              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("AlreadyDefault"))
+              .forPlatformGroup(alreadyDefault)
+              .withRole(
+                  platformRoleComposer.forPlatformRole(
+                      PlatformRoleFixture.getPlatformRole(
+                          "RoleForAlreadyDefault", Set.of(Capability.ACCESS_PLATFORM_SETTINGS))))
               .persist()
               .get();
-      Role role =
-          platformRoleComposer
-              .forPlatformRole(
-                  PlatformRoleFixture.getPlatformRole(
-                      "RoleForAlreadyDefault", Set.of(Capability.ACCESS_PLATFORM_SETTINGS)))
-              .persist()
-              .get();
-      group.setRoles(new ArrayList<>(List.of(role)));
-      group.setDefaultUserAssignation(true);
-      groupRepository.save(group);
 
       PlatformGroupInput input = new PlatformGroupInput("AlreadyDefaultRenamed", "desc", true);
 
@@ -747,7 +745,9 @@ public class PlatformGroupApiTest extends IntegrationTest {
     @DisplayName("Tenant groups should not appear in platform group search")
     void given_tenantGroupExists_should_notAppearInPlatformSearch() throws Exception {
       // -------- Arrange --------
-      tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("TenantOnlyGroup")).persist();
+      Group tenantGroup = TenantGroupFixture.getGroup("TenantOnlyGroup");
+      tenantGroup.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      groupFixtureWriter.save(tenantGroup);
 
       SearchPaginationInput input = new SearchPaginationInput();
       input.setSize(100);

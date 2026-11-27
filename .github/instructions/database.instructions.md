@@ -28,22 +28,19 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 
 ## Flyway Migrations
 
-- Java-based: `V{major}_{NN}__Description.java` in `io.openaev.migration`
-- Versioning rule: use `NN` from `01` to `99`; when exceeding `99`, increment `major` (e.g., `V4_99` -> `V5_01`, `V5_99` -> `V6_01`)
-- Find next number: inspect latest files in `openaev-api/src/main/java/io/openaev/migration/` and continue the sequence using the rule above
+- Java-based, in `io.openaev.migration`; name: see [migration.instructions.md › Naming Convention](migration.instructions.md#naming-convention)
 - Extends `BaseJavaMigration`, annotated `@Component`
 - Use `context.getConnection().createStatement()` for raw SQL
-- Batch: `statement.addBatch(...)` then `statement.executeBatch()`. On a large table, follow ADR-023 (`migration.instructions.md` rule 5), not a plain primary-key-order batch loop
+- Batch a data change over 1000 rows: `statement.addBatch(...)` then `statement.executeBatch()`. On a large table, follow ADR-023 (`migration.instructions.md` rule 5), not a plain primary-key-order batch loop
 - Default tenant UUID: `2cffad3a-0001-4078-b0e2-ef74274022c3`
 - For a search index rebuild: re-feed in place or reset with the sentinel, never `DELETE FROM indexing_status` (see rule 6 of `migration.instructions.md`)
 
 ## Multi-tenancy
 
 - `TenantContext.getCurrentTenant()` — ThreadLocal
-- `@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")` on all `TenantBase` entities
-- Activated automatically by `HibernateFilterTransactionAspect` on every `@Transactional`
+- No Hibernate `@Filter` on any entity (`TenantFilterRemovedArchTest`): read isolation is the statement inspector, for the tables in `openaev.tenant.active-tables`
 - `TenantBaseListener`: auto-sets tenant on `@PrePersist`, asserts immutability on `@PreUpdate`
-- Native `@Query` bypasses the filter — always add `WHERE tenant_id = :tenantId`
+- A query on a table outside `active-tables` has no ambient isolation: add `WHERE tenant_id = :tenantId`
 
 ### Dual-Scope Entities (Settings, User, Role, Group)
 

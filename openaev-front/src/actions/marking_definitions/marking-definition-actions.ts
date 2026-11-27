@@ -1,10 +1,13 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { ImportFileError } from '../../components/common/import/import-report-types';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import {
+  type ImportReport,
   type MarkingDefinitionInput,
   type SearchPaginationInput,
 } from '../../utils/api-types';
+import { type Error as ApiError, notifyErrorHandler } from '../../utils/error/errorHandlerUtil';
 import * as schema from '../Schema';
 
 const MARKING_DEFINITIONS_URI = '/api/marking_definitions';
@@ -21,6 +24,11 @@ export const searchMarkingDefinitions = (searchPaginationInput: SearchPagination
 // Unlike searchMarkingDefinitions, this returns a plain array, not a paginated {content: [...]}.
 export const fetchAssignableMarkingDefinitions = () => {
   return simpleCall(`${MARKING_DEFINITIONS_URI}/assignable`);
+};
+
+// Loaded once into the store, like tags: every marking a visible row carries is within this set.
+export const fetchMarkingDefinitions = () => (dispatch: Dispatch) => {
+  return getReferential(schema.arrayOfMarkingDefinitions, `${MARKING_DEFINITIONS_URI}/assignable`)(dispatch);
 };
 
 // Whether any entity currently carries this marking definition - checked before a delete, which
@@ -42,4 +50,36 @@ export const updateMarkingDefinition = (
 
 export const deleteMarkingDefinition = (markingDefinitionId: string) => (dispatch: Dispatch) => {
   return delReferential(`${MARKING_DEFINITIONS_URI}/${markingDefinitionId}`, 'marking_definitions', markingDefinitionId)(dispatch);
+};
+
+// -- EXPORT / IMPORT --
+
+// Exports what the list currently shows: the search input of the list, without its paging.
+export const exportMarkingDefinitions = (searchPaginationInput: SearchPaginationInput | undefined): Promise<{
+  data: string;
+  filename: string;
+}> => {
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/export/csv`, searchPaginationInput).then((response) => {
+    return {
+      data: response.data,
+      filename: response.headers['content-disposition']?.split('filename=')[1] ?? 'MarkingDefinitions.csv',
+    };
+  });
+};
+
+// A 400 is a file-level failure (empty file, missing column, too big...): the generic error
+// notification is turned off for it, the message is shown in the report dialog as an
+// ImportFileError. Any other failure keeps the generic notification.
+export const importMarkingDefinitions = (file: File): Promise<ImportReport> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(`${MARKING_DEFINITIONS_URI}/import/csv`, formData, undefined, false)
+    .then(response => response.data)
+    .catch((error: ApiError) => {
+      if (error.status === 400 && error.message) {
+        throw new ImportFileError(error.message);
+      }
+      notifyErrorHandler(error);
+      throw error;
+    });
 };

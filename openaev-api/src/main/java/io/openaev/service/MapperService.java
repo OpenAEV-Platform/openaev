@@ -18,12 +18,7 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.CsvToBean;
-import com.opencsv.bean.StatefulBeanToCsv;
-import com.opencsv.bean.StatefulBeanToCsvBuilder;
-import com.opencsv.exceptions.CsvDataTypeMismatchException;
-import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
@@ -40,8 +35,8 @@ import io.openaev.rest.mapper.form.*;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagExportImport;
-import io.openaev.service.utils.CustomColumnPositionStrategy;
 import io.openaev.utils.CopyObjectListUtils;
+import io.openaev.utils.CsvExportUtils;
 import io.openaev.utils.CsvType;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.constants.Constants;
@@ -52,10 +47,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -98,13 +90,6 @@ public class MapperService {
     // on the v1 listener's default. The query inspector does not attribute INSERT ... VALUES.
     importMapper.setTenant(new Tenant(tenantId));
     return importMapperRepository.save(importMapper);
-  }
-
-  // No write scope resolved (e.g. the transient test-import dry run): fall back to the
-  // thread-local.
-  // The persisted create/import paths pass the resolved tenant via the overload below.
-  public ImportMapper createImportMapper(ImportMapperAddInput importMapperAddInput) {
-    return createImportMapper(importMapperAddInput, TenantContext.getCurrentTenant());
   }
 
   public ImportMapper createImportMapper(
@@ -384,19 +369,14 @@ public class MapperService {
   private <T> void exportMappersCsv(
       CsvExportConfig<T> exportConfig, SearchPaginationInput input, HttpServletResponse response) {
     try {
-      exportCsv(
+      CsvExportUtils.write(
           response,
-          buildExportCsvFilename(exportConfig.filenamePrefix()),
+          exportConfig.filenamePrefix(),
           exportConfig.exporter().export(input),
           exportConfig.exportClass());
     } catch (Exception e) {
       throw new RuntimeException("Error during export CSV", e);
     }
-  }
-
-  private String buildExportCsvFilename(String filenamePrefix) {
-    String dateNow = DateTimeFormatter.ofPattern("yyyyMMddHHmm").format(LocalDateTime.now());
-    return filenamePrefix + dateNow + ".csv";
   }
 
   private record CsvExportConfig<T>(
@@ -405,27 +385,6 @@ public class MapperService {
   @FunctionalInterface
   private interface CsvExporter<T> {
     List<T> export(SearchPaginationInput input) throws Exception;
-  }
-
-  private static <T> void exportCsv(
-      HttpServletResponse response, String filename, List<T> exports, Class<T> exportClass)
-      throws IOException, CsvDataTypeMismatchException, CsvRequiredFieldEmptyException {
-
-    response.setContentType("text/csv");
-    response.setHeader("Content-Disposition", "attachment; filename=" + filename);
-    response.setStatus(HttpServletResponse.SC_OK);
-
-    CustomColumnPositionStrategy<T> columns = new CustomColumnPositionStrategy<>();
-    columns.setType(exportClass);
-
-    StatefulBeanToCsv<T> writer =
-        new StatefulBeanToCsvBuilder<T>(response.getWriter())
-            .withQuotechar(DEFAULT_QUOTE_CHARACTER)
-            .withSeparator(DEFAULT_SEPARATOR)
-            .withMappingStrategy(columns)
-            .build();
-
-    writer.write(exports);
   }
 
   private List<EndpointExportImport> getEndpointsToExport(SearchPaginationInput input)
@@ -450,6 +409,10 @@ public class MapperService {
                   .map(tag -> new TagExportImport(tag.getName(), tag.getColor()))
                   .collect(Collectors.toSet())));
       endpointExport.setEol(endpoint.isEoL());
+      endpointExport.setCategory(endpoint.getCategory());
+      endpointExport.setSubcategory(endpoint.getSubcategory());
+      endpointExport.setUrl(endpoint.getUrl());
+      endpointExport.setInternetFacing(endpoint.getInternetFacing());
       exports.add(endpointExport);
     }
     return exports;
@@ -614,6 +577,15 @@ public class MapperService {
 
     List list = csv.parse();
 
+    // Every row's classification is checked before the first write, so an invalid subcategory on
+    // row N refuses the file instead of leaving rows 1 to N-1 imported.
+    for (Object object : list) {
+      EndpointExportImport row = (EndpointExportImport) object;
+      if (row.getCategory() != null || row.getSubcategory() != null) {
+        AssetCategorizationValidator.validate(row.getCategory(), row.getSubcategory());
+      }
+    }
+
     for (Object object : list) {
       EndpointExportImport endpointExportImport = (EndpointExportImport) object;
 
@@ -642,6 +614,14 @@ public class MapperService {
       }
       endpoint.setTags(iterableToSet(tagsForCreation));
       endpoint.setEoL(endpointExportImport.isEol());
+      if (endpointExportImport.getCategory() != null) {
+        endpoint.setCategory(endpointExportImport.getCategory());
+        endpoint.setSubcategory(endpointExportImport.getSubcategory());
+      }
+      if (StringUtils.isNotBlank(endpointExportImport.getUrl())) {
+        endpoint.setUrl(endpointExportImport.getUrl().trim());
+      }
+      endpoint.setInternetFacing(endpointExportImport.getInternetFacing());
       // CSV import writes into the tenant the request selected, never the thread-local.
       // main plumbs the TxCtx down to this method; lot B made the tenant a REQUIRED argument of
       // createEndpoint, so a forgotten attribution is a compile error rather than a silent write
@@ -666,7 +646,11 @@ public class MapperService {
           "arch",
           "macAddresses",
           "tags",
-          "isEol"
+          "isEol",
+          "category",
+          "subcategory",
+          "url",
+          "internetFacing"
         };
     strategy.setColumnMapping(columns);
     return strategy;

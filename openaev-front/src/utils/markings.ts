@@ -1,23 +1,12 @@
 import { type MarkingDefinitionOutput } from './api-types';
 import { type Option } from './Option';
 
-// Order-independent: a marking picker's Autocomplete can re-emit the same selection in a
-// different order without the assigned set actually changing, and treating that as "changed"
-// would fire the markings PUT (and its own success/failure notification) on every save even when
-// markings never moved. Shared by every form that hosts a markings picker (AssetForm,
-// AiTargetForm, ...) so they all draw the same "did markings actually change?" line.
-const markingIdSetsEqual = (a: string[], b: string[]): boolean => {
-  const setA = new Set(a);
-  const setB = new Set(b);
-  return setA.size === setB.size && [...setA].every(id => setB.has(id));
-};
-
 // Seeded definitions already store the display value with its type baked in, e.g.
 // `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
 // unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
 // does not already carry it. Always rendered uppercase (e.g. `TLP:GREEN`), regardless of how the
 // type/definition were cased when the marking was created.
-// Shared by every marking display (MarkingChip, MarkingField's picker, ItemMarkings' tooltip) so
+// Shared by every marking display (MarkingField's picker, ItemMarkings and its tooltip) so
 // they all render the exact same label instead of re-deriving their own "type:definition" format.
 export const markingLabel = (marking: MarkingDefinitionOutput) => {
   const type = marking.marking_definition_type.toUpperCase();
@@ -52,4 +41,11 @@ export const collapseToHighestPerType = (
     .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
 };
 
-export default markingIdSetsEqual;
+// Most restrictive first within a type (TLP:RED at the top), for the marking pickers.
+export const sortMarkings = (markings: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
+  [...markings].sort((a, b) => {
+    if (a.marking_definition_type !== b.marking_definition_type) {
+      return a.marking_definition_type.localeCompare(b.marking_definition_type);
+    }
+    return b.marking_definition_order - a.marking_definition_order;
+  });

@@ -1,7 +1,6 @@
 package io.openaev.executors.sentinelone.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -61,22 +60,12 @@ public class SentinelOneExecutorService implements Runnable {
 
   @Override
   public void run() {
-    try {
-      tenantTx.execute(
-          TxCtx.forTenant(executor.getTenantId()),
-          () -> {
-            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
-            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
-            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
-            // set here otherwise and falls back to the default tenant, silently scoping the v1
-            // Hibernate filter to the wrong tenant.
-            TenantContext.setCurrentTenant(executor.getTenantId());
-            doRun();
-            return null;
-          });
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
   }
 
   private void doRun() {
@@ -131,7 +120,7 @@ public class SentinelOneExecutorService implements Runnable {
         assetGroup.setName(assetGroupIdNameMap.get(assetGroupId));
         assetGroup.setAssets(
             agents.stream()
-                .filter(agent -> agentIds.contains(agent.getId()))
+                .filter(agent -> agentIds.contains(agent.getExternalReference()))
                 .map(Agent::getAsset)
                 .collect(Collectors.toCollection(ArrayList::new)));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(

@@ -14,7 +14,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.MarkingCtx;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
@@ -29,6 +28,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -114,7 +114,7 @@ public class StreamService {
 
   /**
    * Resolves the per-event READ permission through the short-lived decision cache. Must be called
-   * with the consumer's tenant context already set (the underlying check is tenant-aware). Cache
+   * inside {@link #inConsumerTenant}: the underlying check reads the user's rights there. Cache
    * misses of the same key may race and both hit the database: bounded and far cheaper than one
    * resolution per event per consumer.
    *
@@ -171,22 +171,6 @@ public class StreamService {
   }
 
   /**
-   * Once per event, after commit; on failure, only the readers who see everything get it. With the
-   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
-   */
-  private StreamVisibility visibilityOf(BaseEvent event) {
-    if (!streamClearanceService.isFiltering()) {
-      return StreamVisibility.UNFILTERED;
-    }
-    try {
-      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
-    } catch (RuntimeException e) {
-      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
-      return StreamVisibility.unresolved();
-    }
-  }
-
-  /**
    * The marking clearance the event is checked against for this consumer. Checked after the READ
    * permission: reading assets does not mean reading every asset.
    */
@@ -209,13 +193,14 @@ public class StreamService {
 
   /**
    * Whether a denied event must still reach the consumer, as an id-only tombstone: only the
-   * deletion of a grant-managed root (scenario, simulation, atomic testing). Its grants are deleted
-   * with it, so the check, run after commit, denies everyone who read it through a grant, and the
-   * tombstone is what removes it from their client. Any other denial is a real one: capability
-   * checks still hold once the row is gone, and a child is checked against its parent, which still
-   * exists.
+   * deletion of a grant-managed root (scenario, simulation, atomic testing). Also read by the
+   * notification engine, which captures the readers of such a root before the delete. Its grants
+   * are deleted with it, so the check, run after commit, denies everyone who read it through a
+   * grant, and the tombstone is what removes it from their client. Any other denial is a real one:
+   * capability checks still hold once the row is gone, and a child is checked against its parent,
+   * which still exists.
    */
-  private static boolean isGrantManagedRootDeletion(BaseEvent event) {
+  public static boolean isGrantManagedRootDeletion(BaseEvent event) {
     return DATA_DELETE.equals(event.getType())
         && Objects.equals(event.getInstance().getId(), event.getPermissionResourceId())
         && PermissionService.isManagedByGrants(event.getPermissionResourceType());
@@ -288,6 +273,25 @@ public class StreamService {
     sendStreamEvent(flux, event, mapper.valueToTree(event.getInstance()));
   }
 
+  /** A deletion carrying the id only. */
+  private void sendTombstone(FluxSink<Object> flux, BaseEvent event) {
+    try {
+      String propertyId = event.getAttributeId();
+      if (propertyId == null || propertyId.isBlank()) {
+        log.warn(
+            "Class {} can't be streamed without an identifier",
+            event.getInstance().getClass().getSimpleName());
+        return;
+      }
+      ObjectNode deleteNode = mapper.createObjectNode();
+      deleteNode.set(propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+      sendStreamEvent(flux, event.clone(), deleteNode);
+    } catch (Exception e) {
+      String simpleName = event.getInstance().getClass().getSimpleName();
+      log.warn(String.format("Class %s can't be streamed", simpleName), e);
+    }
+  }
+
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event, JsonNode instanceData) {
     event.setInstanceData(instanceData);
     ServerSentEvent<BaseEvent> message =
@@ -303,6 +307,18 @@ public class StreamService {
   private static final String USER_IS_PLAYER_FIELD = "user_is_player";
   private static final String USER_GRANTS_FIELD = "user_grants";
   private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+  // Derived from the user's groups and the roles loaded with them, in the scope of the write.
+  private static final List<String> USER_GROUP_DERIVED_FIELDS =
+      List.of(
+          "user_groups",
+          "user_capabilities",
+          "user_is_planner",
+          "user_is_observer",
+          "user_is_manager",
+          USER_IS_PLAYER_FIELD,
+          "user_is_external",
+          "user_is_only_player",
+          "user_is_admin_or_bypass");
 
   /**
    * The user as the stream serializes it: the fields that read a lazy collection are not
@@ -352,7 +368,8 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
-    StreamVisibility visibility = visibilityOf(event);
+    StreamVisibility visibility =
+        streamVisibilityService.visibilityOrUnresolved(event, markingTenantOf(event));
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
@@ -387,70 +404,62 @@ public class StreamService {
     // Resolved from a short-lived cache instead of a DB query per event per consumer,
     // which used to exhaust the connection pool while viewing busy simulations.
     User user = resolveUser(consumer.principal().getId());
+    inConsumerTenant(consumer, () -> deliver(consumer, user, event, visibility));
+  }
 
-    // Set the tenant context for permission checks on the async thread.
-    // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
-    // tenant-scoped capabilities to be invisible and incorrect DELETE events
-    // to be sent for entities on non-default tenants. Legacy consumers
-    // (blank tenant) are explicitly cleared so a reused @Async pool thread
-    // can never evaluate (and cache) their decisions under a tenant leaked
-    // by a previous task.
-    if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-      TenantContext.setCurrentTenant(consumer.tenantId());
-    } else {
-      TenantContext.clearCurrentTenant();
-    }
+  /**
+   * Runs {@code delivery} with the consumer's rights read in its tenant: the permission checks, the
+   * capabilities and grants of the user, and the user fields derived from them all read the rights
+   * of the user in that tenant. A consumer with no tenant reads them in the default tenant; the
+   * stream API names a tenant for every consumer.
+   */
+  private void inConsumerTenant(StreamConsumer consumer, Runnable delivery) {
+    String tenantId =
+        consumer.tenantId() != null && !consumer.tenantId().isBlank()
+            ? consumer.tenantId()
+            : Tenant.DEFAULT_TENANT_UUID;
+    permissionService.inTenant(
+        tenantId,
+        () -> {
+          delivery.run();
+          return null;
+        });
+  }
 
-    try {
-      FluxSink<Object> fluxSink = consumer.fluxSink();
-      if (!hasReadPermission(consumer, user, event)) {
-        // A consumer that cannot read the entity gets nothing: even an id-only tombstone
-        // discloses the id, schema and timing of an unreadable mutation.
-        if (!isGrantManagedRootDeletion(event)) {
-          return;
-        }
-        try {
-          String propertyId = event.getAttributeId();
-          if (propertyId == null || propertyId.isBlank()) {
-            log.warn(
-                "Class {} can't be streamed without an identifier",
-                event.getInstance().getClass().getSimpleName());
-            return;
-          }
-          ObjectNode deleteNode = mapper.createObjectNode();
-          deleteNode.set(
-              propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-          sendStreamEvent(fluxSink, event.clone(), deleteNode);
-        } catch (Exception e) {
-          String simpleName = event.getInstance().getClass().getSimpleName();
-          log.warn(String.format("Class %s can't be streamed", simpleName), e);
-        }
-      } else {
-        MarkingCtx clearance =
-            visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
-        if (!visibility.visibleUnder(clearance)) {
-          // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
-          // tombstone, since the id and timing of a hidden asset are already a disclosure.
-          return;
-        }
-        if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
-            && !permissionService.hasCapabilityPermission(
-                user, ResourceType.NOTIFIER, Action.READ)) {
-          ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-          instanceData.putNull("notifier_configuration");
-          sendStreamEvent(fluxSink, event.clone(), instanceData);
-        } else if (event.getInstance() instanceof User streamedUser) {
-          sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
-        } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
-          sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
-        } else {
-          sendStreamEvent(fluxSink, event);
-        }
+  private void deliver(
+      StreamConsumer consumer, User user, BaseEvent event, StreamVisibility visibility) {
+    FluxSink<Object> fluxSink = consumer.fluxSink();
+    if (!hasReadPermission(consumer, user, event)) {
+      // A consumer that cannot read the entity gets nothing: even an id-only tombstone
+      // discloses the id, schema and timing of an unreadable mutation.
+      if (isGrantManagedRootDeletion(event)) {
+        sendTombstone(fluxSink, event);
       }
-    } finally {
-      // Reset tenant context unconditionally to avoid leaking into other
-      // consumers in the loop or into later tasks on this pooled thread
-      TenantContext.clearCurrentTenant();
+      return;
+    }
+    MarkingCtx clearance =
+        visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
+    if (!visibility.visibleUnder(clearance)) {
+      // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
+      // tombstone, since the id and timing of a hidden asset are already a disclosure.
+      // Accepted disclosure: a deleted row whose parent is gone has no markings left to read,
+      // so its tombstone goes to every READ consumer, who may learn its id and deletion time.
+      if (DATA_DELETE.equals(event.getType()) && visibility.parentDeleted()) {
+        sendTombstone(fluxSink, event);
+      }
+      return;
+    }
+    if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+        && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
+      ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+      instanceData.putNull("notifier_configuration");
+      sendStreamEvent(fluxSink, event.clone(), instanceData);
+    } else if (event.getInstance() instanceof User streamedUser) {
+      sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
+    } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
+      sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
+    } else {
+      sendStreamEvent(fluxSink, event);
     }
   }
 
@@ -464,19 +473,24 @@ public class StreamService {
    *       the entities already loaded, nothing is initialized. The field is left out, so the
    *       consumer keeps what it holds, when a collection or one of its links was not loaded, or
    *       when nothing of its tenant was loaded and the write was made in another tenant.
-   *   <li>{@code user_is_player} is true for an admin, a planner or an observer, as serialized for
-   *       the consumer's tenant, and otherwise follows the {@code user_teams} sent: true when it
-   *       holds an id, false when it is sent empty, left out when {@code user_teams} is.
+   *   <li>{@code user_is_player}, for a write made in the consumer's tenant, is true for an admin,
+   *       a planner or an observer, as serialized for the consumer's tenant, and otherwise follows
+   *       the {@code user_teams} sent: true when it holds an id, false when it is sent empty, left
+   *       out when {@code user_teams} is.
    *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
    *       user is only loaded with the organizations of the write.
+   *   <li>{@code user_groups}, {@code user_capabilities} and every {@code user_is_*} flag are left
+   *       out when the write was made in another tenant: the roles of the groups are loaded in the
+   *       scope of the write, which does not read the roles of the consumer's tenant.
    *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
    *       never sent.
    *   <li>{@code user_grants} and {@code user_home_dashboard} hold ids of the tenant that set them,
    *       and only the user reads them: they go to the consumer of that user.
    * </ul>
    *
-   * The groups, capabilities and the other flags are derived from the tenant context of the
-   * consumer, set by the caller, and need no trim.
+   * When the write was made in the consumer's tenant, the groups, capabilities and flags are
+   * derived from the rights of the user in the consumer's tenant, which the caller reads there
+   * ({@link #inConsumerTenant}), and need no trim.
    *
    * <p>When the consumer's tenant is null, the write is never in the consumer's tenant: no id is of
    * its tenant, and {@code user_teams} and {@code user_tags} are left out, not sent empty.
@@ -496,6 +510,7 @@ public class StreamService {
     putIsPlayer(data);
     if (!writtenInConsumerTenant) {
       data.remove(USER_ORGANIZATION_FIELD);
+      data.remove(USER_GROUP_DERIVED_FIELDS);
     }
     if (!consumer.principal().getId().equals(user.getId())) {
       data.remove(USER_GRANTS_FIELD);
@@ -571,10 +586,10 @@ public class StreamService {
             return;
           }
           // Defensive tenant check on top of the user scoping, mirroring isVisibleForTenant:
-          // tenant-scoped consumers only see operations carrying exactly their tenant id (an
-          // operation without a tenant id stays off tenant streams, so no cross-tenant
-          // operational metadata can leak).
-          if (consumer.tenantId() != null
+          // tenant-scoped consumers see operations carrying their tenant id. An operation with no
+          // tenant spans several tenants of its launcher, so every stream of that user shows it.
+          if (operation.tenantId() != null
+              && consumer.tenantId() != null
               && !consumer.tenantId().isBlank()
               && !consumer.tenantId().equals(operation.tenantId())) {
             return;
@@ -616,22 +631,20 @@ public class StreamService {
           if (!event.tenantId().equals(consumer.tenantId())) {
             return;
           }
-          TenantContext.setCurrentTenant(consumer.tenantId());
-          try {
-            // Resolved inside the tenant scope: the user's filtered collections must not load under
-            // the default-tenant fallback.
-            User user = resolveUser(consumer.principal().getId());
-            if (hasReadPermission(
-                consumer,
-                event.simulationId(),
-                ResourceType.SIMULATION,
-                CHECK_ATTACK_PATH,
-                () -> attackPathAccessControl.canRead(user, event.simulationId()))) {
-              consumer.fluxSink().next(message);
-            }
-          } finally {
-            TenantContext.clearCurrentTenant();
-          }
+          User user = resolveUser(consumer.principal().getId());
+          // The read check resolves the simulation and the user's grants in the consumer's tenant.
+          inConsumerTenant(
+              consumer,
+              () -> {
+                if (hasReadPermission(
+                    consumer,
+                    event.simulationId(),
+                    ResourceType.SIMULATION,
+                    CHECK_ATTACK_PATH,
+                    () -> attackPathAccessControl.canRead(user, event.simulationId()))) {
+                  consumer.fluxSink().next(message);
+                }
+              });
         });
   }
 
@@ -670,11 +683,14 @@ public class StreamService {
     return true;
   }
 
-  public Flux<Object> makeDataFlux(String sessionId) {
+  /**
+   * @param tenantId the tenant whose events the consumer receives, and in which its rights are read
+   */
+  public Flux<Object> makeDataFlux(String sessionId, String tenantId) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
     return Flux.create(
         fluxSinkConsumer -> {
-          StreamConsumer consumer =
-              new StreamConsumer(currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer);
+          StreamConsumer consumer = new StreamConsumer(currentUser(), tenantId, fluxSinkConsumer);
           consumers.put(sessionId, consumer);
           // The stream never ends on its own: a client leaving cancels it instead of terminating
           // it, so the cleanup must run on dispose (cancel, complete or error).

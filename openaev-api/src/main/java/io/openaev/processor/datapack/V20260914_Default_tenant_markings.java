@@ -1,12 +1,14 @@
 package io.openaev.processor.datapack;
 
 import io.openaev.database.model.MarkingDefinition;
+import io.openaev.database.model.MarkingDefinitionStixIds;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantGroupService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -58,8 +60,9 @@ public class V20260914_Default_tenant_markings extends DataPack {
     markingDefinition.setColor(seed.color());
     markingDefinition.setOrder(seed.order());
     markingDefinition.setProtectedDefinition(true);
+    markingDefinition.setStixId(MarkingDefinitionStixIds.generate(seed.type(), seed.definition()));
     markingDefinition.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
     tenantGroupService.grantToAutoNewMarkingGroups(
-        markingDefinitionRepository.save(markingDefinition));
+        List.of(markingDefinitionRepository.save(markingDefinition)));
   }
 }

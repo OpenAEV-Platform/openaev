@@ -10,8 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
@@ -22,15 +21,12 @@ import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.FlushModeType;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,20 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("Platform role API with roles active")
-class PlatformRoleApiPlatformWriteTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with roles on it: the test holds before and after roles joins that list
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("roles"))
-                    .distinct()
-                    .toList()));
-  }
+class PlatformRoleApiPlatformWriteTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;

@@ -163,10 +163,8 @@ const launchScenario = async (page: Page): Promise<string> => {
     name: 'Normal',
     exact: true,
   }).first().click();
-  await page.getByRole('button', {
-    name: 'Confirm',
-    exact: true,
-  }).click();
+  // The catalogue preview launches through the launch check drawer, otherwise through a confirm dialog.
+  await page.getByRole('dialog').getByRole('button', { name: /^(Confirm|Launch now|Launch anyway)$/ }).click();
   await page.waitForURL(/\/admin\/simulations\/[0-9a-f-]+\/attack-path$/);
   return page.url();
 };

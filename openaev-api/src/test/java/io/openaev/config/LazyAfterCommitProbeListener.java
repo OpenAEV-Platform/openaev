@@ -11,13 +11,11 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
@@ -364,15 +362,14 @@ public class LazyAfterCommitProbeListener implements QueryExecutionListener {
     return FailClosedDetectorListener.UNKNOWN_CALLER;
   }
 
-  private TenantSqlLeakOracle oracle() {
+  TenantSqlLeakOracle oracle() {
     TenantSqlLeakOracle local = oracle;
     if (local == null) {
-      Set<String> tables =
-          Arrays.stream(environment.getProperty("openaev.tenant.active-tables", "").split(","))
-              .map(String::trim)
-              .filter(name -> !name.isEmpty())
-              .collect(Collectors.toCollection(LinkedHashSet::new));
-      local = new TenantSqlLeakOracle(tables);
+      // armedBy expands the terminal '*': an oracle built on the token itself watches no table.
+      local =
+          new TenantSqlLeakOracle(
+              ProductionActiveTables.armedBy(
+                  environment.getProperty("openaev.tenant.active-tables", "")));
       oracle = local;
     }
     return local;

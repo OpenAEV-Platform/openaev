@@ -4,17 +4,17 @@ import type { DomainHelper } from '../../../../actions/domains/domain-helper';
 import { fetchScenarioAuthorOptions } from '../../../../actions/scenarios/scenario-actions';
 import { buildAuthorRows, useAuthorFacetFilter, useAuthorOptions } from '../../../../components/common/facets/ContractFacets';
 import { type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
+import { FACET_PLATFORMS, platformFacetIcon } from '../../../../components/common/facets/facetPlatforms';
 import useFacetFilterToggle from '../../../../components/common/facets/useFacetFilterToggle';
 import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
 import { useFormatter } from '../../../../components/i18n';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
 import { type Domain, type SearchPaginationInput } from '../../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
 import { type Option } from '../../../../utils/Option';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import { orderDomains } from '../../workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainsWidgetUtils';
-import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED } from '../scenario/ScenarioType';
+import { SCENARIO_TYPES } from '../constants';
 
 interface Facet {
   key: string;
@@ -58,16 +58,16 @@ const ScenariosSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
     {
       key: 'scenario_platforms',
       label: 'Platform',
-      values: ['Windows', 'Linux', 'MacOS'].map(platform => ({
+      values: FACET_PLATFORMS.map(platform => ({
         value: platform,
         label: platform,
-        icon: () => <PlatformIcon platform={platform} width={16} />,
+        icon: () => platformFacetIcon(platform),
       })),
     },
     {
       key: 'scenario_type',
       label: 'Type',
-      values: [SCENARIO_TYPE_TIME_BASED, SCENARIO_TYPE_CHAINED].map(type => ({
+      values: SCENARIO_TYPES.map(type => ({
         value: type,
         label: type,
       })),

@@ -8,6 +8,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import { useFormatter } from '../../../../components/i18n';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
+import { type OpenedTab } from '../hook/useOpenedAction';
 import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
 
@@ -22,9 +23,10 @@ interface Props {
   isChecked: (action: ThreatArsenalAction) => boolean;
   onSelect: (action: ThreatArsenalAction) => void;
   onToggle: (action: ThreatArsenalAction, event: MouseEvent<HTMLElement>) => void;
-  onUpdate: (result: ThreatArsenalAction) => void;
+  onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: (actionId: string) => void;
+  onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
 const ThreatArsenalList: FunctionComponent<Props> = ({
@@ -41,6 +43,7 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  onShowVersions,
 }) => {
   const { t } = useFormatter();
   if (!loading && actions.length === 0) {
@@ -99,6 +102,7 @@ const ThreatArsenalList: FunctionComponent<Props> = ({
                   onUpdate={onUpdate}
                   onDuplicate={onDuplicate}
                   onDelete={() => onDelete(action.injector_contract_id)}
+                  onShowVersions={onShowVersions}
                 />
               ))}
             </Fragment>

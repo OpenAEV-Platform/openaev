@@ -1,4 +1,4 @@
-import { Button, CardBanner, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -13,26 +13,33 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectIcon from '../../common/injects/InjectIcon';
+import { type OpenedTab } from '../hook/useOpenedAction';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import actionDomains from '../utils/actionDomains';
-import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
+import { getActionStatus, getPayloadSourceLabel, getStatusLabel, isShownRevoked, type PayloadStatus, STATUS_CHIP_SEVERITY } from '../utils/threatArsenalStatusUtils';
+import useThreatArsenalCardBanner from './useThreatArsenalCardBanner';
 
 interface Props {
   action: ThreatArsenalAction;
+  // How many injects still run an older version of its payload.
+  olderUsages: number;
   onSelect: () => void;
-  onUpdate: (result: ThreatArsenalAction) => void;
+  onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
   onRunTest: () => void;
+  onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
+  olderUsages,
   onSelect,
   onUpdate,
   onDuplicate,
   onDelete,
   onRunTest,
+  onShowVersions,
 }) => {
   const { t, tPick, nsd } = useFormatter();
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
@@ -45,10 +52,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     .sort();
   const name = tPick(action.action_labels);
   const catalog = isFeatureEnabled('CATALOG');
-  const revoked = catalog && !!action.action_payload_revoked;
-  const status = revoked ? 'REVOKED' : action.action_payload?.payload_status;
+  const revoked = isShownRevoked(action);
+  const status = getActionStatus(action);
   const statusLabel = getStatusLabel(status);
   const platforms = action.action_platforms ?? [];
+  const banner = useThreatArsenalCardBanner(action, olderUsages, onShowVersions);
 
   return (
     <MarketplaceCard
@@ -68,7 +76,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
       onClick={onSelect}
-      banner={revoked && <CardBanner severity="error">{t('Revoked: injects using it fail')}</CardBanner>}
+      banner={banner}
       chips={techniques.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -86,7 +94,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
               value: action.action_payload_version ? `v${action.action_payload_version}` : '–',
             }, {
               label: t('Source'),
-              value: action.action_payload ? t(action.action_payload_managed ? 'Filigran' : 'Local') : '–',
+              value: action.action_payload ? t(getPayloadSourceLabel(action)) : '–',
             }]
           : []),
         {
@@ -115,6 +123,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             onUpdate={onUpdate}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onShowVersions={onShowVersions}
           />
         </Box>
       )}

@@ -4,15 +4,20 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.opencsv.CSVReaderBuilder;
 import io.openaev.IntegrationTest;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
@@ -23,6 +28,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
@@ -35,6 +41,8 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import jakarta.persistence.EntityManager;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +55,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -327,6 +337,32 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       // Act & Assert
       mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, saved.getId()).with(csrf()))
           .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    @DisplayName("given_definitionGrantedToCallersGroup_should_deleteAndRevokeGrant")
+    void given_definitionGrantedToCallersGroup_should_deleteAndRevokeGrant() throws Exception {
+      // Arrange - the caller's group holds the definition, so the group sits in the session
+      // through the caller when the delete is flushed.
+      MarkingDefinition granted =
+          createPersistedMarkingDefinition(
+              Tenant.DEFAULT_TENANT_UUID, "TLP", uniqueDefinition(), "#00AA00", 61, Instant.now());
+      Group group = TenantGroupFixture.getGroup("marking-delete-" + uniqueDefinition());
+      group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+      group.getMarkings().add(granted);
+      tenantGroupComposer.forGroup(group).persist();
+      entityManager.flush();
+
+      // Act
+      mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, granted.getId()).with(csrf()))
+          .andExpect(status().isNoContent());
+      // The test transaction never commits: flush to run what the commit would.
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(repository.findById(granted.getId())).isEmpty();
+      assertThat(entityManager.find(Group.class, group.getId()).getMarkings()).isEmpty();
     }
   }
 
@@ -1040,7 +1076,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input("TLP", "TLP:ABOVE-CLEARANCE", 63)))
                   .with(csrf()))
-          .andExpect(status().isForbidden());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MarkingAboveClearanceException.CODE));
 
       // Assert
       assertThat(
@@ -1257,6 +1294,338 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     private MarkingDefinitionInput input(String type, String definition, int order) {
       return new MarkingDefinitionInput(type, definition, "#123456", order);
     }
+  }
+
+  @Nested
+  @WithMockUser(
+      withCapabilities = {
+        Capability.MANAGE_MARKING_DEFINITION,
+        Capability.ACCESS_MARKING_DEFINITION
+      })
+  @DisplayName("CSV export and import")
+  class ExportAndImport {
+
+    private static final String EXPORT_URI = URI + "/export/csv";
+    private static final String IMPORT_URI = URI + "/import/csv";
+    private static final String HEADER = "type,definition,color,order\n";
+
+    @Test
+    @DisplayName("given_markingsInTwoTenants_should_exportOnlyTheCallersTenantSortedAsCsv")
+    void given_markingsInTwoTenants_should_exportOnlyTheCallersTenantSortedAsCsv()
+        throws Exception {
+      // Arrange
+      Tenant tenantA = tenantWithManageAndAccess("marking-export-a");
+      Tenant tenantB = tenantWithManageAndAccess("marking-export-b");
+      createPersistedMarkingDefinition(
+          tenantA.getId(), "ZZEXPORT", "ZZEXPORT:HIGH", "#111111", 62, Instant.now());
+      createPersistedMarkingDefinition(
+          tenantA.getId(), "ZZEXPORT", "ZZEXPORT:LOW", "#222222", 61, Instant.now());
+      createPersistedMarkingDefinition(
+          tenantB.getId(), "ZZEXPORT", "ZZEXPORT:OTHER", "#333333", 61, Instant.now());
+      MarkingDefinition protectedRow =
+          MarkingDefinitionFixture.createProtectedMarkingDefinition(
+              "ZZEXPORT", "ZZEXPORT:PROTECTED", 63, "#444444");
+      protectedRow.setTenant(entityManager.getReference(Tenant.class, tenantA.getId()));
+      repository.save(protectedRow);
+
+      // Act
+      List<String[]> rows = parse(export(tenantA.getId(), new SearchPaginationInput()));
+
+      // Assert
+      assertThat(rows.get(0))
+          .extracting(String::toLowerCase)
+          .containsExactly("type", "definition", "color", "order");
+      assertThat(rows).allSatisfy(row -> assertThat(row).hasSize(4));
+      List<String> definitions = rows.stream().skip(1).map(row -> row[1]).toList();
+      assertThat(definitions)
+          .contains("ZZEXPORT:LOW", "ZZEXPORT:HIGH", "ZZEXPORT:PROTECTED")
+          .doesNotContain("ZZEXPORT:OTHER");
+      assertThat(definitions.indexOf("ZZEXPORT:LOW"))
+          .isLessThan(definitions.indexOf("ZZEXPORT:HIGH"));
+      assertThat(rows.stream().filter(row -> row[1].equals("ZZEXPORT:LOW")).findFirst())
+          .get()
+          .satisfies(
+              row -> assertThat(row).containsExactly("ZZEXPORT", "ZZEXPORT:LOW", "#222222", "61"));
+    }
+
+    @Test
+    @DisplayName("given_aTextSearch_should_exportExactlyWhatSearchReturnsForTheSameInput")
+    void given_aTextSearch_should_exportExactlyWhatSearchReturnsForTheSameInput() throws Exception {
+      // Arrange
+      Tenant tenant = tenantWithManageAndAccess("marking-export-filter");
+      String token = MarkingDefinitionFixture.uniqueSearchToken();
+      createPersistedMarkingDefinition(
+          tenant.getId(), "ZZFILTER", token + ":A", "#111111", 1, Instant.now());
+      createPersistedMarkingDefinition(
+          tenant.getId(), "ZZFILTER", token + ":B", "#111111", 2, Instant.now());
+      createPersistedMarkingDefinition(
+          tenant.getId(), "ZZFILTER", "UNRELATED", "#111111", 3, Instant.now());
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setTextSearch(token);
+
+      // Act
+      List<String> exported =
+          parse(export(tenant.getId(), input)).stream().skip(1).map(row -> row[1]).toList();
+      String searched =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> searchedDefinitions =
+          JsonPath.read(searched, "$.content[*].marking_definition_definition");
+      assertThat(exported)
+          .containsExactlyInAnyOrder(token + ":A", token + ":B")
+          .containsExactlyInAnyOrderElementsOf(searchedDefinitions);
+    }
+
+    @Test
+    @DisplayName("given_aValueStartingAFormula_should_exportItNeutralisedAndImportItBackUnchanged")
+    void given_aValueStartingAFormula_should_exportItNeutralisedAndImportItBackUnchanged()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantWithManageAndAccess("marking-export-roundtrip");
+      MarkingDefinition formula =
+          createPersistedMarkingDefinition(
+              tenant.getId(), "ZZFORMULA", "=1+1", "#444444", 5, Instant.now());
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setTextSearch("1+1");
+
+      // Act
+      String csv = export(tenant.getId(), input);
+      repository.delete(formula);
+      entityManager.flush();
+      importCsv(tenant.getId(), "markings.csv", csv)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.import_created").value(1));
+
+      // Assert
+      assertThat(parse(csv).get(1)[1]).isEqualTo("'=1+1");
+      assertThat(repository.findByTypeAndDefinitionAndTenantId("ZZFORMULA", "=1+1", tenant.getId()))
+          .isPresent();
+    }
+
+    @Test
+    @DisplayName("given_nonAsciiDefinitions_should_exportUtf8BytesAndImportThemBackUnchanged")
+    void given_nonAsciiDefinitions_should_exportUtf8BytesAndImportThemBackUnchanged()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantWithManageAndAccess("marking-export-utf8");
+      // One type per row: the caller holds no marking, so a second definition of a type the file
+      // just created would be above its clearance.
+      List<String> types = List.of("ZZUTF8A", "ZZUTF8B");
+      // Upper case, as the platform stores them: create and import both normalise the value.
+      List<String> definitions = List.of("CONFIDENTIEL DÉFENSE", "機密 СЕКРЕТ");
+      List<MarkingDefinition> persisted = new ArrayList<>();
+      for (int i = 0; i < definitions.size(); i++) {
+        persisted.add(
+            createPersistedMarkingDefinition(
+                tenant.getId(), types.get(i), definitions.get(i), "#555555", 1, Instant.now()));
+      }
+
+      // Act
+      byte[] exported = exportBytes(tenant.getId(), new SearchPaginationInput());
+      repository.deleteAll(persisted);
+      entityManager.flush();
+      importCsv(tenant.getId(), "markings.csv", exported)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.import_created").value(definitions.size()));
+
+      // Assert
+      for (int i = 0; i < definitions.size(); i++) {
+        assertThat(exported).containsSequence(definitions.get(i).getBytes(StandardCharsets.UTF_8));
+        assertThat(
+                repository.findByTypeAndDefinitionAndTenantId(
+                    types.get(i), definitions.get(i), tenant.getId()))
+            .isPresent();
+      }
+    }
+
+    @Test
+    @DisplayName("given_aMixedFile_should_createTheValidRowsAndReportEveryRowWithoutOverwriting")
+    void given_aMixedFile_should_createTheValidRowsAndReportEveryRowWithoutOverwriting()
+        throws Exception {
+      // Arrange - the caller holds no marking, so a row of an existing type is above its clearance.
+      Tenant tenant = tenantWithManageAndAccess("marking-import-mixed");
+      createPersistedMarkingDefinition(
+          tenant.getId(), "ZZMIX", "ZZMIX:X", "#123456", 62, Instant.now());
+      String csv =
+          HEADER
+              + "ZZNEW,ZZNEW:A,#111111,1\n"
+              + "ZZNEW,ZZNEW:B,not-a-color,2\n"
+              + "ZZMIX,ZZMIX:X,#999999,62\n"
+              + "ZZMIX,ZZMIX:X,#123456,62\n"
+              + "ZZMIX,ZZMIX:NEW,#123456,63\n";
+
+      // Act
+      importCsv(tenant.getId(), "markings.csv", csv)
+          // Assert
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.import_created").value(1))
+          .andExpect(jsonPath("$.import_skipped").value(3))
+          .andExpect(jsonPath("$.import_ignored").value(1))
+          .andExpect(jsonPath("$.import_columns[0]").value("type"))
+          .andExpect(jsonPath("$.import_rows[0].import_row_status").value("CREATED"))
+          .andExpect(jsonPath("$.import_rows[0].import_row_params").isEmpty())
+          .andExpect(jsonPath("$.import_rows[1].import_row_position").value(2))
+          .andExpect(jsonPath("$.import_rows[1].import_row_reason").value("INVALID_VALUE"))
+          .andExpect(jsonPath("$.import_rows[1].import_row_params.column").value("color"))
+          .andExpect(jsonPath("$.import_rows[1].import_row_values.color").value("not-a-color"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_reason").value("CONFLICT"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_params.color").value("#999999"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_params.known_color").value("#123456"))
+          .andExpect(jsonPath("$.import_rows[2].import_row_message").doesNotExist())
+          .andExpect(jsonPath("$.import_rows[3].import_row_status").value("IGNORED"))
+          .andExpect(jsonPath("$.import_rows[4].import_row_reason").value("INSUFFICIENT_ACCESS"))
+          .andExpect(jsonPath("$..tenant_id").doesNotExist());
+      assertThat(repository.findByTypeAndDefinitionAndTenantId("ZZNEW", "ZZNEW:A", tenant.getId()))
+          .isPresent();
+      assertThat(repository.findByTypeAndDefinitionAndTenantId("ZZNEW", "ZZNEW:B", tenant.getId()))
+          .isEmpty();
+      MarkingDefinition untouched =
+          repository.findByTypeAndDefinitionAndTenantId("ZZMIX", "ZZMIX:X", tenant.getId()).get();
+      assertThat(untouched.getColor()).isEqualTo("#123456");
+      assertThat(untouched.getOrder()).isEqualTo(62);
+    }
+
+    @Test
+    @DisplayName("given_unacceptableFiles_should_refuseThemAndCreateNothing")
+    void given_unacceptableFiles_should_refuseThemAndCreateNothing() throws Exception {
+      // Arrange
+      Tenant tenant = tenantWithManageAndAccess("marking-import-refused");
+      long countBefore = repository.count();
+
+      // Act & Assert
+      importCsv(tenant.getId(), "markings.txt", HEADER + "ZZREFUSED,ZZREFUSED:A,#111111,1\n")
+          .andExpect(status().isUnsupportedMediaType());
+      importCsv(tenant.getId(), "markings.csv", "x".repeat(1024 * 1024 + 1))
+          .andExpect(status().isBadRequest());
+      importCsv(tenant.getId(), "markings.csv", HEADER).andExpect(status().isBadRequest());
+      importCsv(tenant.getId(), "markings.csv", "type,definition,color\nA,B,#111111\n")
+          .andExpect(status().isBadRequest());
+      assertThat(repository.count()).isEqualTo(countBefore);
+    }
+
+    @Test
+    @DisplayName("given_theSameKeyInAnotherTenant_should_createItWithoutAConflict")
+    void given_theSameKeyInAnotherTenant_should_createItWithoutAConflict() throws Exception {
+      // Arrange
+      Tenant tenantA = tenantWithManageAndAccess("marking-import-iso-a");
+      Tenant tenantB = tenantWithManageAndAccess("marking-import-iso-b");
+      createPersistedMarkingDefinition(
+          tenantB.getId(), "ZZISO", "ZZISO:SHARED", "#111111", 5, Instant.now());
+
+      // Act
+      importCsv(tenantA.getId(), "markings.csv", HEADER + "ZZISO,ZZISO:SHARED,#222222,7\n")
+          // Assert
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.import_created").value(1))
+          .andExpect(jsonPath("$.import_skipped").value(0))
+          .andExpect(jsonPath("$.import_ignored").value(0));
+      assertThat(
+              repository.findByTypeAndDefinitionAndTenantId(
+                  "ZZISO", "ZZISO:SHARED", tenantA.getId()))
+          .get()
+          .satisfies(created -> assertThat(created.getOrder()).isEqualTo(7));
+    }
+
+    private Tenant tenantWithManageAndAccess(String name) throws Exception {
+      return tenantIsolationTestHelper.createTenantWithCapabilities(
+          name, Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
+    }
+  }
+
+  @Nested
+  @WithMockUser(withCapabilities = Capability.ACCESS_MARKING_DEFINITION)
+  @DisplayName("CSV export and import - read-only caller")
+  class ExportAndImportReadOnly {
+
+    @Test
+    @DisplayName("given_accessWithoutManage_should_exportButRefuseTheImport")
+    void given_accessWithoutManage_should_exportButRefuseTheImport() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-readonly-csv", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      // Act & Assert
+      export(tenant.getId(), new SearchPaginationInput());
+      importCsv(
+              tenant.getId(),
+              "markings.csv",
+              "type,definition,color,order\nZZRO,ZZRO:A,#111111,1\n")
+          .andExpect(status().isForbidden());
+      assertThat(repository.findByTypeAndDefinitionAndTenantId("ZZRO", "ZZRO:A", tenant.getId()))
+          .isEmpty();
+    }
+  }
+
+  @Nested
+  @WithMockUser(autoJoinDefaultTenant = true)
+  @DisplayName("CSV export and import - caller without capability")
+  class ExportAndImportWithoutCapability {
+
+    @Test
+    @DisplayName("given_noCapability_should_refuseBothEndpoints")
+    void given_noCapability_should_refuseBothEndpoints() throws Exception {
+      // Act & Assert
+      mvc.perform(
+              post(URI + "/export/csv", Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new SearchPaginationInput()))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+      importCsv(
+              Tenant.DEFAULT_TENANT_UUID,
+              "markings.csv",
+              "type,definition,color,order\nZZNONE,ZZNONE:A,#111111,1\n")
+          .andExpect(status().isForbidden());
+    }
+  }
+
+  private String export(String tenantId, SearchPaginationInput input) throws Exception {
+    return new String(exportBytes(tenantId, input), StandardCharsets.UTF_8);
+  }
+
+  private byte[] exportBytes(String tenantId, SearchPaginationInput input) throws Exception {
+    return mvc.perform(
+            post(URI + "/export/csv", tenantId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/csv"))
+        .andExpect(
+            header()
+                .string(
+                    "Content-Disposition",
+                    matchesPattern("attachment; filename=MarkingDefinitions\\d{12}\\.csv")))
+        .andReturn()
+        .getResponse()
+        .getContentAsByteArray();
+  }
+
+  private List<String[]> parse(String csv) throws Exception {
+    return new CSVReaderBuilder(new StringReader(csv)).build().readAll();
+  }
+
+  private ResultActions importCsv(String tenantId, String filename, String content)
+      throws Exception {
+    return importCsv(tenantId, filename, content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private ResultActions importCsv(String tenantId, String filename, byte[] content)
+      throws Exception {
+    return mvc.perform(
+        multipart(URI + "/import/csv", tenantId)
+            .file(new MockMultipartFile("file", filename, "text/csv", content))
+            .with(csrf()));
   }
 
   /**
