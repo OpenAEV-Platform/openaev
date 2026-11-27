@@ -75,7 +75,9 @@ public class ScenarioUpdateMapper {
 
   public static ScenarioCatalogStateOutput toOutput(ScenarioCatalogState state) {
     return new ScenarioCatalogStateOutput(
-        state.revoked(), state.lastUpdate() == null ? null : toOutput(state.lastUpdate()));
+        state.revoked(),
+        state.newerVersion(),
+        state.lastUpdate() == null ? null : toOutput(state.lastUpdate()));
   }
 
   public static ScenarioRevisionOutput toOutput(NumberedRevision numbered) {

@@ -1,5 +1,6 @@
 package io.openaev.service.payload;
 
+import io.openaev.api.threat_arsenal.dto.PayloadUsageCountOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
@@ -12,7 +13,8 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
-import io.openaev.database.raw.RawOlderVersionUsages;
+import io.openaev.database.raw.RawOtherVersionAction;
+import io.openaev.database.raw.RawScenarioUsageCount;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -26,7 +28,6 @@ import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,12 +60,10 @@ public class PayloadVersionService {
 
   /** Newest first. */
   public List<PayloadVersionOutput> versions(String tenantId, String actionId) {
-    List<Payload> versions = payloadService.versionsOf(tenantId, payload(tenantId, actionId));
+    List<Payload> versions = versionsOf(tenantId, actionId);
     Map<String, PayloadRevocation> revocations =
         payloadRevocationService.revocations(tenantId, versions);
-    Map<String, InjectorContract> actions =
-        injectorContractService.injectorContractsOfPayloads(
-            tenantId, versions.stream().map(Payload::getId).toList());
+    Map<String, InjectorContract> actions = versionActions(tenantId, versions);
     return versions.stream()
         .sorted(Comparator.comparing(Payload::getVersion, SemanticVersion.ORDER.reversed()))
         .map(
@@ -167,18 +166,43 @@ public class PayloadVersionService {
     return new PayloadUsagesOutput(visible, usages.size() - visible.size());
   }
 
-  /** The scenario injects and steps running these versions, by scenario id. */
-  public Map<String, List<PayloadUsageOutput>> scenarioUsages(
-      String tenantId, Collection<Payload> versions) {
-    return injectorContractService
-        .injectorContractsOfPayloads(tenantId, versions.stream().map(Payload::getId).toList())
-        .values()
+  /**
+   * How many usages each version of the action's payload has, by payload id; unused ones left out.
+   */
+  public List<PayloadUsageCountOutput> usageCounts(String tenantId, String actionId) {
+    Map<String, String> versionOfAction =
+        versionActions(tenantId, versionsOf(tenantId, actionId)).values().stream()
+            .collect(
+                Collectors.toMap(InjectorContract::getId, action -> action.getPayload().getId()));
+    return injectRepository
+        .countUsagesByTenantIdAndActionIds(tenantId, versionOfAction.keySet())
         .stream()
-        .flatMap(action -> usages(tenantId, action).stream())
-        .filter(usage -> usage.scenarioId() != null)
-        .collect(
-            Collectors.groupingBy(
-                PayloadUsageOutput::scenarioId, LinkedHashMap::new, Collectors.toList()));
+        .map(
+            count ->
+                new PayloadUsageCountOutput(
+                    versionOfAction.get(count.getActionId()), count.getUsageCount()))
+        .toList();
+  }
+
+  /** How many scenario injects and steps run these versions, by scenario. */
+  public List<RawScenarioUsageCount> scenarioUsages(String tenantId, Collection<Payload> versions) {
+    Set<String> actionIds =
+        versionActions(tenantId, versions).values().stream()
+            .map(InjectorContract::getId)
+            .collect(Collectors.toSet());
+    return actionIds.isEmpty()
+        ? List.of()
+        : injectRepository.countScenarioUsagesByTenantIdAndActionIds(tenantId, actionIds);
+  }
+
+  private List<Payload> versionsOf(String tenantId, String actionId) {
+    return payloadService.versionsOf(tenantId, payload(tenantId, actionId));
+  }
+
+  private Map<String, InjectorContract> versionActions(
+      String tenantId, Collection<Payload> versions) {
+    return injectorContractService.injectorContractsOfPayloads(
+        tenantId, versions.stream().map(Payload::getId).toList());
   }
 
   private List<PayloadUsageOutput> usages(String tenantId, InjectorContract action) {
@@ -208,10 +232,23 @@ public class PayloadVersionService {
     if (actionIds.isEmpty()) {
       return Map.of();
     }
-    return payloadIdentityRepository.countOlderVersionUsagesByTenantId(tenantId, actionIds).stream()
-        .filter(action -> action.getUsages() > 0)
-        .collect(
-            Collectors.toMap(RawOlderVersionUsages::getActionId, RawOlderVersionUsages::getUsages));
+    Map<String, List<String>> cardsOfOtherVersion =
+        payloadIdentityRepository.findOtherVersionActionsByTenantId(tenantId, actionIds).stream()
+            .collect(
+                Collectors.groupingBy(
+                    RawOtherVersionAction::getOtherVersionActionId,
+                    Collectors.mapping(RawOtherVersionAction::getActionId, Collectors.toList())));
+    if (cardsOfOtherVersion.isEmpty()) {
+      return Map.of();
+    }
+    return injectRepository
+        .countUsagesByTenantIdAndActionIds(tenantId, cardsOfOtherVersion.keySet())
+        .stream()
+        .flatMap(
+            count ->
+                cardsOfOtherVersion.get(count.getActionId()).stream()
+                    .map(card -> Map.entry(card, count.getUsageCount())))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Long::sum));
   }
 
   // -- UPDATE --

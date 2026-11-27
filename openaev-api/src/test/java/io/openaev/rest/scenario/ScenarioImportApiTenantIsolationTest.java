@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Scenario;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
@@ -63,7 +62,6 @@ class ScenarioImportApiTenantIsolationTest extends IntegrationTest {
     String tenantB = tenantHelper.createTenantWithCurrentUser("scen-iso-b").getId();
     mapperA = seedMapper(tenantA, "scen-mapper-a");
     mapperB = seedMapper(tenantB, "scen-mapper-b");
-    when(scenarioService.scenario(any())).thenReturn(new Scenario());
     when(injectImportService.importInjectIntoScenarioFromXLS(
             any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());

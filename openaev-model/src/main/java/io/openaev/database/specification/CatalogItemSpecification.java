@@ -2,12 +2,14 @@ package io.openaev.database.specification;
 
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogItem;
+import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.scenario.ScenarioIdentity;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import java.util.Collection;
 import org.springframework.data.jpa.domain.Specification;
 
 /** The catalogue items an Available tab lists: the offered version of each, not installed. */
@@ -50,6 +52,10 @@ public class CatalogItemSpecification {
   /** A scenario of the tenant comes from the item, none at the version offered. */
   public static Specification<CatalogItem> scenarioUpdateAvailable(String tenantId) {
     return scenarioInstalled(tenantId).and(Specification.not(installedScenario(tenantId, true)));
+  }
+
+  public static Specification<CatalogItem> scenarioTypeIn(Collection<String> types) {
+    return (root, query, cb) -> cb.treat(root, CatalogScenario.class).get("scenarioType").in(types);
   }
 
   private static Specification<CatalogItem> installedScenario(

@@ -4,6 +4,7 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSEN
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.RequirePreviewFeature;
+import io.openaev.api.threat_arsenal.dto.PayloadUsageCountOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionChangeOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
@@ -83,6 +84,20 @@ public class ThreatArsenalVersionApi {
   public PayloadUsagesOutput usages(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
     return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
+  }
+
+  @Operation(
+      summary = "How many usages each version of the action's payload has; unused ones left out")
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/usage-counts")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadUsageCountOutput> usageCounts(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    return payloadVersionService.usageCounts(
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
   }
 
   @Operation(summary = "The action listed for a payload version, for links that only know it")

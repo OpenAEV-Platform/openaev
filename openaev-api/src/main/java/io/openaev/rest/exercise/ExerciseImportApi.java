@@ -51,7 +51,7 @@ public class ExerciseImportApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestPart("file") @NotNull MultipartFile file) {
-    this.exerciseService.existsByIdAndTenantId(exerciseId);
+    this.exerciseService.existsInScope(ctx, exerciseId);
     return injectImportService.storeXlsFileForImport(file);
   }
 

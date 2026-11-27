@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class BulkOperationApi {
 
   public static final String BULK_OPERATION_URI = "/api/bulk-operations";
+  public static final String TENANT_BULK_OPERATION_URI = TENANT_PREFIX + "/bulk-operations";
 
   private final BulkOperationMonitor bulkOperationMonitor;
 
@@ -38,7 +39,7 @@ public class BulkOperationApi {
               + " history, most recent first. Seeds the header progress indicator; live updates"
               + " flow through the bulk-operation SSE events.")
   @LogExecutionTime
-  @GetMapping({BULK_OPERATION_URI, TENANT_PREFIX + "/bulk-operations"})
+  @GetMapping({BULK_OPERATION_URI, TENANT_BULK_OPERATION_URI})
   @Transactional(propagation = Propagation.SUPPORTS)
   // Scoped to the caller's own operations and exposes only aggregate counts and entity labels,
   // never entity data: no per-resource RBAC applies.

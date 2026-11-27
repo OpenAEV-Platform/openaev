@@ -16,6 +16,19 @@ const v2 = aVersion({
   payload_version: '2',
 });
 
+const render = (versions: PayloadVersionOutput[], key = 0) => renderHook(
+  ({ asked, reloadKey }: {
+    asked: PayloadVersionOutput[];
+    reloadKey: number;
+  }) => useUsagesByVersion(asked, reloadKey),
+  {
+    initialProps: {
+      asked: versions,
+      reloadKey: key,
+    },
+  },
+);
+
 describe('useUsagesByVersion', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -28,10 +41,10 @@ describe('useUsagesByVersion', () => {
     fetchUsages.mockImplementation((actionId: string) => Promise.resolve({ data: actionId === 'action-v1' ? usagesV1 : usagesV2 }));
 
     // Act
-    const { result } = renderHook(() => useUsagesByVersion([v1, v2]));
+    const { result } = render([v1, v2]);
 
     // Assert
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({});
     await waitFor(() => expect(result.current).toEqual({
       'payload-v1': usagesV1,
       'payload-v2': usagesV2,
@@ -40,10 +53,10 @@ describe('useUsagesByVersion', () => {
 
   it('given no versions should load nothing', () => {
     // Act
-    const { result } = renderHook(() => useUsagesByVersion(null));
+    const { result } = render([]);
 
     // Assert
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({});
     expect(fetchUsages).not.toHaveBeenCalled();
   });
 
@@ -52,39 +65,69 @@ describe('useUsagesByVersion', () => {
     fetchUsages.mockRejectedValue(new Error('down'));
 
     // Act
-    const { result } = renderHook(() => useUsagesByVersion([v1]));
+    const { result } = render([v1]);
 
     // Assert
     await waitFor(() => expect(result.current).toEqual({ 'payload-v1': { payload_usages: [] } }));
   });
 
-  it('given the same versions in a new list should not load again', async () => {
+  it('given another version asked should load only that one and keep the first', async () => {
     // Arrange
-    fetchUsages.mockResolvedValue({ data: someUsages([]) });
-    const { result, rerender } = renderHook(({ versions }) => useUsagesByVersion(versions), { initialProps: { versions: [v1] } });
-    await waitFor(() => expect(result.current).not.toBeNull());
+    fetchUsages.mockImplementation((actionId: string) => Promise.resolve({ data: someUsages(actionId === 'action-v1' ? [aUsage()] : []) }));
+    const { result, rerender } = render([v1]);
+    await waitFor(() => expect(result.current['payload-v1']).toBeDefined());
 
     // Act
-    rerender({ versions: [{ ...v1 }] });
+    rerender({
+      asked: [{ ...v1 }, v2],
+      reloadKey: 0,
+    });
 
     // Assert
-    expect(fetchUsages).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(result.current['payload-v2']).toBeDefined());
+    expect(result.current['payload-v1']).toEqual(someUsages([aUsage()]));
+    expect(fetchUsages).toHaveBeenCalledTimes(2);
   });
 
   it('given a new reload key should load again', async () => {
     // Arrange
     fetchUsages.mockResolvedValue({ data: someUsages([]) });
-    const { result, rerender } = renderHook(({ key }) => useUsagesByVersion([v1], key), { initialProps: { key: 0 } });
-    await waitFor(() => expect(result.current).not.toBeNull());
+    const { result, rerender } = render([v1]);
+    await waitFor(() => expect(result.current['payload-v1']).toBeDefined());
 
     // Act
-    rerender({ key: 1 });
+    rerender({
+      asked: [v1],
+      reloadKey: 1,
+    });
 
     // Assert
     await waitFor(() => expect(fetchUsages).toHaveBeenCalledTimes(2));
   });
 
-  it('given other versions chosen should drop the answer for the previous ones', async () => {
+  it('given a version no longer asked should drop it and load it again when asked again', async () => {
+    // Arrange
+    fetchUsages.mockResolvedValue({ data: someUsages([]) });
+    const { result, rerender } = render([v1]);
+    await waitFor(() => expect(result.current['payload-v1']).toBeDefined());
+
+    // Act
+    rerender({
+      asked: [],
+      reloadKey: 0,
+    });
+    await waitFor(() => expect(result.current).toEqual({}));
+    rerender({
+      asked: [v1],
+      reloadKey: 0,
+    });
+
+    // Assert
+    await waitFor(() => expect(result.current['payload-v1']).toBeDefined());
+    expect(fetchUsages).toHaveBeenCalledTimes(2);
+  });
+
+  it('given a version dropped before its answer should ignore that answer', async () => {
     // Arrange
     let answerFirst: (value: { data: unknown }) => void = () => {};
     fetchUsages
@@ -92,13 +135,13 @@ describe('useUsagesByVersion', () => {
         answerFirst = resolve;
       }))
       .mockResolvedValueOnce({ data: someUsages([]) });
-    const { result, rerender } = renderHook(
-      ({ versions }: { versions: PayloadVersionOutput[] }) => useUsagesByVersion(versions),
-      { initialProps: { versions: [v1] } },
-    );
+    const { result, rerender } = render([v1]);
 
     // Act
-    rerender({ versions: [v2] });
+    rerender({
+      asked: [v2],
+      reloadKey: 0,
+    });
     await waitFor(() => expect(result.current).toEqual({ 'payload-v2': someUsages([]) }));
     await act(async () => {
       answerFirst({ data: someUsages([aUsage()]) });

@@ -46,10 +46,8 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, lift, v
   const count = usages ? usageCount(usages) : 0;
   const versionLabel = version?.payload_version ?? '';
   // What keeps running elsewhere, said even when revoking breaks nothing.
-  const allUsages = useUsagesByVersion(open && !lift ? versions : null);
-  const otherUsages = allUsages
-    ? versions.filter(v => v.payload_id !== selected).reduce((sum, v) => sum + (allUsages[v.payload_id] ? usageCount(allUsages[v.payload_id]) : 0), 0)
-    : 0;
+  const allUsages = useUsagesByVersion(open && !lift ? versions : []);
+  const otherUsages = versions.filter(v => v.payload_id !== selected).reduce((sum, v) => sum + (allUsages[v.payload_id] ? usageCount(allUsages[v.payload_id]) : 0), 0);
 
   // The button says what happens: moving the injects first is part of the action.
   let submitLabel = lift ? t('Lift revocation') : t('Revoke');

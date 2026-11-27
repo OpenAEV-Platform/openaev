@@ -586,10 +586,10 @@ public class StreamService {
             return;
           }
           // Defensive tenant check on top of the user scoping, mirroring isVisibleForTenant:
-          // tenant-scoped consumers only see operations carrying exactly their tenant id (an
-          // operation without a tenant id stays off tenant streams, so no cross-tenant
-          // operational metadata can leak).
-          if (consumer.tenantId() != null
+          // tenant-scoped consumers see operations carrying their tenant id. An operation with no
+          // tenant spans several tenants of its launcher, so every stream of that user shows it.
+          if (operation.tenantId() != null
+              && consumer.tenantId() != null
               && !consumer.tenantId().isBlank()
               && !consumer.tenantId().equals(operation.tenantId())) {
             return;

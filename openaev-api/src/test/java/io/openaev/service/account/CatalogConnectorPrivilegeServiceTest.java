@@ -282,7 +282,7 @@ class CatalogConnectorPrivilegeServiceTest {
     @DisplayName("Reserves the account role")
     void given_catalogConnectorRoleId_should_beRejected() {
       // Act & Assert
-      assertThatThrownBy(() -> ReservedKeyValidator.validateRoleId(ROLE_ID))
+      assertThatThrownBy(() -> ReservedKeyValidator.validateRoleId(ROLE_ID, TENANT_ID))
           .isInstanceOf(BadRequestException.class);
     }
 

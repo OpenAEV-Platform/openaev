@@ -8,7 +8,6 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
@@ -86,12 +85,6 @@ public class DomainService implements DependenciesManager {
   @Transactional
   public Domain upsert(final DomainBaseInput input, final String tenantId) {
     return doUpsert(input.getName(), input.getColor(), new Tenant(tenantId));
-  }
-
-  @Transactional
-  public Domain upsert(final DomainBaseInput input) {
-    return doUpsert(
-        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Transactional

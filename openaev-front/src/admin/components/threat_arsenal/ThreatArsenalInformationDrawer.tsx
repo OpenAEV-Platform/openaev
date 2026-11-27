@@ -85,7 +85,9 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     setTab,
     showVersions,
     versions,
+    counts,
     usages,
+    openVersion,
     reloadUsages,
     customization,
     shownId,
@@ -108,7 +110,9 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     versions: () => (
       <PayloadVersionsTab
         versions={versions}
+        counts={counts}
         usages={usages}
+        onOpen={openVersion}
         onMoved={reloadUsages}
         notInstalled={notInstalled}
         focusMove={initialTab === 'move' || initialTab === 'saved'}
