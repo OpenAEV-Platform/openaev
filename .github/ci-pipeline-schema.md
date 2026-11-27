@@ -113,6 +113,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, are listed in the job summary and do not fail the job. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
+| 🔐 **Tenant Shadow** | 30 min | Nightly only. The API suite under a multi-tenancy shadow mode, one cell per `api-shadow-matrix` entry. `continue-on-error`, never gates |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
 
@@ -126,7 +127,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov and without the Java migrations, against the latest report of `main`; on a failure, posts a `Backend Coverage` check that explains it (not on fork PRs) and fails, unless the PR description has a `Coverage exempt: <why>` line. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
-| 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
+| 🔐 **Tenant Shadow Verdict** | 10 min | Nightly only. Collects the Tenant Shadow shards' pass or fail into one table |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
 ---
@@ -151,10 +152,12 @@ the advisory list in the gate makes it blocking.
 merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
 coverage rules that pass or fail run in our own `coverage-backend-gate` job.
 
-**The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
-`api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
-shard is red. Those runs report rather than gate: the job carries `continue-on-error`, so its red
-stays out of the run conclusion and does not page the on-call.
+**The Tenant Shadow shards and their verdict are deliberately excluded too.** They only exist when
+the caller passes `api-shadow-matrix`, which today means Nightly, and they are red whenever the
+multi-tenancy migration still breaks a test under a shadow mode. Those runs report rather than
+gate: they run as their own job, apart from the API Tests so a red shadow shard is not read as an
+API test failure, and both jobs carry `continue-on-error`, so their red stays out of the run
+conclusion and does not page the on-call.
 
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.

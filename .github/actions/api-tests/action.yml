@@ -44,9 +44,9 @@ inputs:
       ones, which surfaces what activating the rest would break. Both turn the fail-closed
       detector on, so an unscoped production read fails its test instead of silently returning zero
       rows.
-      A shadow shard reports a true pass or fail, and cannot fail the workflow: the matrix entry
-      carries continue_on_error. What those runs currently fail on is written down in
-      .github/tenant-shadow-distance.md.
+      A shadow shard reports a true pass or fail, and cannot fail the workflow: it runs in the
+      pipeline's api-shadow-tests job, which is continue-on-error. What those runs currently fail
+      on is written down in .github/tenant-shadow-distance.md.
       Scope, exactly: the list is a JVM system property, and a class carrying
       @TestPropertySource(properties = "openaev.tenant.active-tables=...") keeps its own narrower
       list, because inlined test properties win over system properties. Those classes are the
@@ -276,7 +276,7 @@ runs:
         echo "🔐 tenant shadow: mode=$MODE"
         echo "   active-tables=$LIST"
         # No maven.test.failure.ignore here, on purpose. A shadow shard must report a true pass or
-        # fail, and it already cannot fail the workflow: the matrix entry carries continue_on_error,
+        # fail, and it already cannot fail the workflow: the api-shadow-tests job is continue-on-error,
         # which keeps a red job out of the run conclusion. Measured, not assumed: the runs of 13 and
         # 14 September had every shadow shard red, the Pipeline Gate green and the run green. Ignoring
         # the failures instead made the job green whatever happened, which is the one state nobody can

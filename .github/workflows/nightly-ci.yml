@@ -18,17 +18,6 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── Multi-tenancy v2 shadow runs (epic #6393), Elasticsearch only ──
-      # Same suite, different activation. "shadow-prod" runs under the active-tables list
-      # main ships, so a regression on a table that is already live surfaces the night it
-      # lands, whoever wrote it. "shadow-all" runs with every tenant table active,
-      # which is the exhaustive list of what activating the rest would break, obtained
-      # without changing anything on main. Both turn the fail-closed detector on.
-      # Reports, not gates: continue_on_error keeps a red one from failing the workflow, so a
-      # shard reports its true result and the "Tenant shadow verdict" job collects them into one
-      # table on the run page. Their measured distance to green, and what they currently fail on,
-      # is in .github/tenant-shadow-distance.md.
-      # Retire both when the migration is done; shadow-prod may then become a core gate.
       # ── API Tests: 15 shards + catch-all across Elasticsearch and OpenSearch ──
       # The engine client is detected from the server: search_engine picks the server started
       # (elasticsearch8, elasticsearch for the compose default major, or opensearch).
@@ -81,56 +70,70 @@ jobs:
           {"shard":"13","shard_name":"13-os","search_engine":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"14","shard_name":"14-os","search_engine":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"15","shard_name":"15-os","search_engine":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
-          {"shard":"16","shard_name":"remaining-os","search_engine":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""},
-
-          {"shard":"1","shard_name":"1-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"2","shard_name":"2-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"3","shard_name":"3-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"4","shard_name":"4-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"5","shard_name":"5-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"6","shard_name":"6-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"7","shard_name":"7-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"8","shard_name":"8-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"9","shard_name":"9-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"10","shard_name":"10-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"11","shard_name":"11-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"12","shard_name":"12-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"13","shard_name":"13-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"14","shard_name":"14-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"15","shard_name":"15-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"16","shard_name":"remaining-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"1","shard_name":"elk9-1-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"2","shard_name":"elk9-2-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"3","shard_name":"elk9-3-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"4","shard_name":"elk9-4-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"5","shard_name":"elk9-5-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"6","shard_name":"elk9-6-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"7","shard_name":"elk9-7-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"8","shard_name":"elk9-8-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"9","shard_name":"elk9-9-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"10","shard_name":"elk9-10-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"11","shard_name":"elk9-11-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"12","shard_name":"elk9-12-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"13","shard_name":"elk9-13-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"14","shard_name":"elk9-14-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"15","shard_name":"elk9-15-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"16","shard_name":"elk9-remaining-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"1","shard_name":"1-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"2","shard_name":"2-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"3","shard_name":"3-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"4","shard_name":"4-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"5","shard_name":"5-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"6","shard_name":"6-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"7","shard_name":"7-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"8","shard_name":"8-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"9","shard_name":"9-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"10","shard_name":"10-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"11","shard_name":"11-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"12","shard_name":"12-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"13","shard_name":"13-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"14","shard_name":"14-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"15","shard_name":"15-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"16","shard_name":"remaining-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"catchall","excludes":"","tenant_mode":"all","continue_on_error":true}
+          {"shard":"16","shard_name":"remaining-os","search_engine":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
+        ]
+      # ── Multi-tenancy v2 shadow runs (epic #6393), Elasticsearch only ──
+      # Same suite, different activation. "shadow-prod" runs under the active-tables list
+      # main ships, so a regression on a table that is already live surfaces the night it
+      # lands, whoever wrote it. "shadow-all" runs with every tenant table active,
+      # which is the exhaustive list of what activating the rest would break, obtained
+      # without changing anything on main. Both turn the fail-closed detector on.
+      # Reports, not gates: they run as the "Tenant Shadow" job, apart from the API tests, so a
+      # red shadow shard is never read as an API test failure. That job is continue-on-error and
+      # out of the Pipeline Gate, so a red one does not fail the workflow; the "Tenant Shadow
+      # Verdict" job collects them into one table on the run page. Their measured distance to
+      # green, and what they currently fail on, is in .github/tenant-shadow-distance.md.
+      # Retire both when the migration is done; shadow-prod may then become a core gate.
+      api-shadow-matrix: >
+        [
+          {"shard":"1","shard_name":"1-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"2","shard_name":"2-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"3","shard_name":"3-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"4","shard_name":"4-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"5","shard_name":"5-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"6","shard_name":"6-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"7","shard_name":"7-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"8","shard_name":"8-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"9","shard_name":"9-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"10","shard_name":"10-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"11","shard_name":"11-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"12","shard_name":"12-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"13","shard_name":"13-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"14","shard_name":"14-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"15","shard_name":"15-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"16","shard_name":"remaining-shadow-prod","search_engine":"elasticsearch8","artifact_suffix":"-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production"},
+          {"shard":"1","shard_name":"elk9-1-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"2","shard_name":"elk9-2-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"3","shard_name":"elk9-3-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"4","shard_name":"elk9-4-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"5","shard_name":"elk9-5-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"6","shard_name":"elk9-6-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"7","shard_name":"elk9-7-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"8","shard_name":"elk9-8-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"9","shard_name":"elk9-9-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"10","shard_name":"elk9-10-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"11","shard_name":"elk9-11-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"12","shard_name":"elk9-12-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"13","shard_name":"elk9-13-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"14","shard_name":"elk9-14-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"15","shard_name":"elk9-15-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production"},
+          {"shard":"16","shard_name":"elk9-remaining-shadow-prod","search_engine":"elasticsearch","artifact_suffix":"-elk9-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production"},
+          {"shard":"1","shard_name":"1-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"2","shard_name":"2-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"3","shard_name":"3-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"4","shard_name":"4-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"5","shard_name":"5-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"6","shard_name":"6-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"7","shard_name":"7-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"8","shard_name":"8-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"9","shard_name":"9-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"10","shard_name":"10-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"11","shard_name":"11-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"12","shard_name":"12-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"13","shard_name":"13-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"14","shard_name":"14-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"15","shard_name":"15-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all"},
+          {"shard":"16","shard_name":"remaining-shadow-all","search_engine":"elasticsearch8","artifact_suffix":"-shadow-all","includes":"catchall","excludes":"","tenant_mode":"all"}
         ]
       # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
       # artifact_suffix must be unique per cell: the report artifact is named

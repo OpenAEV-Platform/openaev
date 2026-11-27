@@ -13,6 +13,14 @@ on:
         description: "JSON array of API test matrix entries"
         type: string
         required: true
+      api-shadow-matrix:
+        description: >
+          JSON array of multi-tenancy shadow API test entries, each with a tenant_mode. They run as
+          their own job, apart from the API tests, and never fail the workflow. Empty (default) runs
+          no shadow shard.
+        type: string
+        required: false
+        default: ""
       e2e-matrix:
         description: "JSON array of E2E test matrix entries (includes both regular and infra)"
         type: string
@@ -190,9 +198,6 @@ jobs:
     name: "🧪 API Tests (${{ matrix.shard_name }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # A matrix entry may set continue_on_error: the multi-tenancy shadow runs are instruments, not
-    # gates, and a red one must not fail the workflow while the migration is in progress.
-    continue-on-error: ${{ matrix.continue_on_error || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -222,14 +227,56 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
+  # Tenant shadow API tests — multi-tenancy instruments, not gates
+  # ════════════════════════════════════════════════════════════════════
+
+  # The same suite as api-tests under a tenant shadow mode (api-tests/action.yml, tenant-mode).
+  # A job of its own, so the run page lists the shadow shards apart from the API tests: they are
+  # red most nights while the migration is in progress, and mixed in with the API tests they
+  # read as API test failures. continue-on-error keeps a red one out of the run conclusion, and
+  # the job stays out of pipeline-gate's needs. The name leaves out "API Tests" on purpose:
+  # collect-test-timings.py selects the shard jobs to rebalance by that string.
+  api-shadow-tests:
+    name: "🔐 Tenant Shadow (${{ matrix.shard_name }})"
+    if: ${{ inputs.api-shadow-matrix != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.api-shadow-matrix) }}
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-tests
+        with:
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          shard: ${{ matrix.shard }}
+          shard-name: ${{ matrix.shard_name }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+          tenant-mode: ${{ matrix.tenant_mode }}
+          no-cache: ${{ inputs.no-cache }}
+
+  # ════════════════════════════════════════════════════════════════════
   # Tenant shadow verdict: one readable result for the shadow shards
   # ════════════════════════════════════════════════════════════════════
 
   tenant-shadow-report:
-    name: "Tenant shadow verdict"
-    needs: [api-tests]
-    # Runs only when the caller's matrix actually has shadow entries, so Core CI never sees it.
-    if: ${{ !cancelled() && contains(inputs.api-matrix, 'tenant_mode') }}
+    name: "🔐 Tenant Shadow Verdict"
+    needs: [api-shadow-tests]
+    # Runs only when the caller passes shadow entries, so Core CI never sees it.
+    if: ${{ !cancelled() && inputs.api-shadow-matrix != '' }}
     # Deliberately absent from pipeline-gate's needs, and continue-on-error so its own red cannot
     # reach the run conclusion. The shadow runs are instruments: a red one must be visible at a
     # glance, and must not page the on-call, who is alerted on a failed Nightly run.
@@ -249,7 +296,7 @@ jobs:
         shell: bash
         env:
           DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
-          API_MATRIX: ${{ inputs.api-matrix }}
+          API_MATRIX: ${{ inputs.api-shadow-matrix }}
         run: |
           set -uo pipefail
           DIR=tenant-shadow-verdicts
@@ -696,8 +743,9 @@ jobs:
       - fds-mui-regression
       - api-tests
       - coverage-backend-gate
-      # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
-      # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
+      # api-shadow-tests and tenant-shadow-report are deliberately absent: the shadow runs and
+      # their verdict report rather than gate. Adding them here would fail the Nightly run and page
+      # the on-call.
       - e2e-tests
       - api-types-check
       - backend-package
