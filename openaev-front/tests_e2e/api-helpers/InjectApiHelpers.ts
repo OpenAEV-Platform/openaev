@@ -1,6 +1,6 @@
 import { type APIRequestContext } from '@playwright/test';
 
-import { type ExecutionTraceOutput, type Inject } from '../../src/utils/api-types';
+import { type ExecutionTraceOutput, type Inject, type InjectStatusOutput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
 
 class InjectApiHelpers {
@@ -10,6 +10,16 @@ class InjectApiHelpers {
 
   async getInject(id: string): Promise<Inject> {
     const response = await this.request.get(`${this.injectUri}/${id}`);
+    return response.json();
+  }
+
+  /** The status as the caller sees it: the platform recomputes it from the traces the caller's clearance covers. */
+  async getStatus(injectId: string): Promise<InjectStatusOutput> {
+    const uri = `${this.injectUri}/status`;
+    const response = await this.request.get(uri, { params: { injectId } });
+    if (!response.ok()) {
+      throw new Error(`Failed to get inject status (GET ${uri}): ${response.status()} ${response.statusText()} - ${await response.text()}`);
+    }
     return response.json();
   }
 

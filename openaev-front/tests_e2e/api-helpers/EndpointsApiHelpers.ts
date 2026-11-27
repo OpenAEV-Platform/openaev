@@ -1,6 +1,6 @@
 import { type APIRequestContext } from '@playwright/test';
 
-import { type Endpoint, type MarkedEndpointInput } from '../../src/utils/api-types';
+import { type AssetBulkReplaceMarkingsInput, type Endpoint, type MarkedEndpointInput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
 
 class EndpointsApiHelpers {
@@ -28,6 +28,18 @@ class EndpointsApiHelpers {
       throw new Error(`Failed to create endpoint (POST ${this.endpointsUri}/agentless): ${response.status()} ${response.statusText()} - ${await response.text()}`);
     }
     return response.json();
+  }
+
+  async replaceMarkings(assetIds: string[], markingIds: string[]) {
+    const uri = tenantApiPath('/api/assets/markings/bulk');
+    const input: AssetBulkReplaceMarkingsInput = {
+      asset_ids_to_process: assetIds,
+      marking_ids: markingIds,
+    };
+    const response = await this.request.put(uri, { data: input });
+    if (!response.ok()) {
+      throw new Error(`Failed to replace asset markings (PUT ${uri}): ${response.status()} ${response.statusText()} - ${await response.text()}`);
+    }
   }
 
   async deleteEndpoint(id: string) {
