@@ -51,7 +51,8 @@ public class TenantGroupApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput createGroup(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
-    return toOutput(tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input));
+    return toOutput(
+        tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input));
   }
 
   @PostMapping("/{groupId}/grants")
@@ -64,8 +65,8 @@ public class TenantGroupApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String groupId,
       @Valid @RequestBody GroupGrantInput input) {
-    return toOutput(tenantGroupService.addGrant(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
+    return toOutput(
+        tenantGroupService.addGrant(writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   // -- READ --
@@ -77,7 +78,8 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
   public TenantGroupOutput group(@RequireTenantSelector TxCtx ctx, @PathVariable String groupId) {
-    return toOutput(tenantGroupService.findByIdInTenants(groupId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)));
+    return toOutput(
+        tenantGroupService.findByIdInTenants(groupId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)));
   }
 
   @LogExecutionTime
@@ -87,8 +89,8 @@ public class TenantGroupApi extends RestBehavior {
   public Page<TenantGroupOutput> groups(
       @RequireTenantSelector TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return tenantGroupService.search(
-        searchPaginationInput, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
+    return tenantGroupService
+        .search(searchPaginationInput, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
         .map(TenantGroupMapper::toOutput);
   }
 
@@ -105,8 +107,9 @@ public class TenantGroupApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String groupId,
       @Valid @RequestBody GroupUpdateUsersInput input) {
-    return toOutput(tenantGroupService.updateGroupUsers(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
+    return toOutput(
+        tenantGroupService.updateGroupUsers(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
@@ -128,8 +131,9 @@ public class TenantGroupApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String groupId,
       @Valid @RequestBody GroupUpdateRolesInput input) {
-    return toOutput(tenantGroupService.updateGroupRoles(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
+    return toOutput(
+        tenantGroupService.updateGroupRoles(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
@@ -172,8 +176,9 @@ public class TenantGroupApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String groupId,
       @Valid @RequestBody TenantGroupCreateInput input) {
-    return toOutput(tenantGroupService.updateGroup(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
+    return toOutput(
+        tenantGroupService.updateGroup(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   // -- DELETE --
@@ -189,8 +194,9 @@ public class TenantGroupApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String groupId,
       @PathVariable String grantId) {
-    return toOutput(tenantGroupService.removeGrant(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId));
+    return toOutput(
+        tenantGroupService.removeGrant(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId));
   }
 
   @DeleteMapping("/{groupId}")
