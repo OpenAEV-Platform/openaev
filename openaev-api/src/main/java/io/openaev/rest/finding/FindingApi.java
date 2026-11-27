@@ -64,8 +64,10 @@ public class FindingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingOutput> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
+    Finding finding = this.findingService.finding(ctx, id);
     return ResponseEntity.ok(
-        this.findingMapper.toFindingOutput(this.findingService.finding(ctx, id)));
+        this.findingMapper.toFindingOutput(
+            finding, this.findingOccurrenceService.countOccurrences(id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
