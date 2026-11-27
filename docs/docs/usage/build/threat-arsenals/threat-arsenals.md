@@ -39,19 +39,6 @@ columns:
 | **Status**   | Whether the Action's version can be used: *Approved*, *Pending approval*, *Rejected*, *Superseded* or *Revoked*. See [Approval of payloads](#approval-of-payloads). |
 | **Updated**  | The date of the last modification.                                                                              |
 
-### Custom views
-
-*Active*, *Available* and *To review* (or *My changes*) are built-in tabs: they cannot be changed. On *Active*, change
-the filters and search as you need, then keep them as a **custom view** of your own:
-
-1. Filter the *Active* list.
-2. Open **Custom views** and select **New custom view**, then name it. The view keeps the filters and search on screen.
-
-A custom view opens in one click with its saved filters. Change them in the view: a banner offers to **Save changes**
-in the view, **Save as new view**, or **Discard** them. Each view's menu renames or deletes it; deleting a view does not
-change any Action. Up to three custom views show as tabs, the others are under *Custom views*, and **Customize** chooses
-and orders them. Only you see your custom views, and only in the tenant where you made them.
-
 ### Action tags
 
 Whether Filigran verified an Action is shown as a tag, not as a status: it never decides whether the Action can be used.
@@ -248,7 +235,7 @@ v1.0.2*, *Published from a draft*), or when a rejected version is fixed and sent
 v1.0.0* on a version published from a draft. A card and a list row show a *Draft* chip while the Action has a draft.
 
 To find drafts, the **Status** filter of the Active tab has a *Draft* value that keeps the Actions with a draft and the
-drafts of new Actions (a custom view can keep it); any other filter leaves the drafts of new Actions out, and the search
+drafts of new Actions; any other filter leaves the drafts of new Actions out, and the search
 finds them by name. **My changes** also lists the drafts you saved, new Actions included, in a *Drafts* group above the
 others. The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
 

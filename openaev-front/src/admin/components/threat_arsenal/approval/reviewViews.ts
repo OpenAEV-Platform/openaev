@@ -4,7 +4,7 @@ import { type QueueItem } from './useApprovalQueue';
  * The side filters of the review tab of the Threat Arsenal (To review for approvers, My changes for
  * authors): the Active tab's (domains, platform, status, approval) plus what only a review needs: new
  * action or new version, where it comes from, who submitted it. A built-in tab: its filters change
- * while looking and are never saved (custom views are saved filters of the Active tab, customViews.ts).
+ * while looking and are never saved.
  */
 export type ReviewMode = 'to-review' | 'my-changes';
 export type FacetKey = 'domain' | 'platform' | 'status' | 'approval' | 'kind' | 'source' | 'author';

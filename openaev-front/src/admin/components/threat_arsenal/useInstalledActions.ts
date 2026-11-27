@@ -33,22 +33,17 @@ export const INSTALLED_FILTER_NAMES = [
   MITRE_FILTER_KEY,
 ];
 
-/**
- * The list of the Active tab, or of a custom view: then it keeps its filters under the view's own key
- * and starts from the view's saved filters and search.
- */
-const useInstalledActions = (storageKey = 'threat-arsenal', initialFilters?: Pick<SearchPaginationInput, 'filterGroup' | 'textSearch'>) => {
+const useInstalledActions = () => {
   const { t } = useFormatter();
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
-    storageKey,
+    'threat-arsenal',
     buildSearchPagination({
       sorts: [{
         property: 'action_updated_at',
         direction: 'DESC',
       }],
-      ...initialFilters,
     }),
   );
 
