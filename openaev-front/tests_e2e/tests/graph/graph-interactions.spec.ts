@@ -90,8 +90,9 @@ const watchConsole = (page: Page) => {
     }
   });
   page.on('pageerror', (error) => {
-    // A browser notice, raised when a resize observer settles across frames: not an application error.
-    if (!error.message.includes('ResizeObserver loop')) {
+    // Not graph defects: a browser notice, raised when a resize observer settles across frames, and an API
+    // call cut short by page.goto, which the network layer rejects with `false` (no response, see network.ts).
+    if (!error.message.includes('ResizeObserver loop') && error.message !== 'false') {
       problems.push(`pageerror: ${error.message}`);
     }
   });
