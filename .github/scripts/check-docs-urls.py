@@ -155,6 +155,11 @@ def removed_not_retired(base: dict, head: dict) -> list[str]:
     return sorted({value for value in base.get("links", {}).values() if value not in kept and value not in retired})
 
 
+def dropped_retired(base: dict, head: dict) -> list[str]:
+    """Paths of the base's `retired` that the head no longer lists."""
+    return sorted(set(base.get("retired", [])) - set(head.get("retired", [])))
+
+
 def escape_data(text: str) -> str:
     """Escape the message of a GitHub workflow command."""
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
@@ -192,7 +197,14 @@ def check_retired(root: Path, base_ref: str) -> int:
         return 0
     head_file = root / LINKS_FILE
     head = json.loads(head_file.read_text(encoding="utf-8")) if head_file.is_file() else {}
-    missing = removed_not_retired(json.loads(base_file.stdout), head)
+    base = json.loads(base_file.stdout)
+    missing = removed_not_retired(base, head)
+    # A retired path is dropped on purpose once no supported release opens it, so this only warns.
+    for value in dropped_retired(base, head):
+        message = escape_data(
+            f"'{value}' was removed from retired since {base_ref}: keep it while a supported release still opens it"
+        )
+        print(f"::warning file={escape_property(LINKS_FILE)}::{message}")
     for value in missing:
         message = escape_data(
             f"'{value}' was removed from links since {base_ref}: add it to retired, released versions still open it"

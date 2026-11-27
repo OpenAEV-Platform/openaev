@@ -8,7 +8,7 @@ It works from any directory and only needs the Python standard library. <python>
 Python 3.6 or later: run.py first chooses the interpreter (docs/README.md, "Which Python runs the
 docs toolchain"). It uses the one running it when that one is at least the version of
 docs/.python-version and has the venv and ensurepip modules. Otherwise it runs itself again with
-the first usable python3.N, from python3.20 down to the minimum (`py -3.N` too on Windows), unless
+the first usable python3.N, from the minimum up to python3.20 (`py -3.N` too on Windows), unless
 OPENAEV_DOCS_PYTHON is set: the Python chosen explicitly is never replaced, it must be usable.
 
 It then runs check.py, `properdocs serve` or the unit tests of docs/tests with the Python of a
@@ -118,10 +118,11 @@ def interpreter_problem(version, required):
 
 
 def candidates(required, windows=None):
-    """The commands to try, newest first: python3.N, and `py -3.N` on Windows."""
+    """The commands to try, from the minimum up: python3.N, and `py -3.N` on Windows. The minimum comes first
+    because CI checks the lock on it; a newer Python may lack wheels for its pinned packages."""
     windows = os.name == "nt" if windows is None else windows
     found = []
-    for minor in range(HIGHEST_MINOR, required[1] - 1, -1):
+    for minor in range(required[1], HIGHEST_MINOR + 1):
         name = "%d.%d" % (required[0], minor)
         if windows:
             found.append(["py", "-" + name])

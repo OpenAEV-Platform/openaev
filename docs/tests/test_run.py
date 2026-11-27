@@ -67,8 +67,8 @@ class VersionTest(unittest.TestCase):
         with mock.patch.dict(sys.modules, {"ensurepip": None}):
             self.assertIn("cannot create a virtual environment", run.interpreter_problem(VERSION, VERSION))
 
-    def test_candidates_go_from_the_newest_down_to_the_minimum(self):
-        self.assertEqual(run.candidates((3, 18), windows=False), [["python3.20"], ["python3.19"], ["python3.18"]])
+    def test_candidates_go_from_the_minimum_up_to_the_newest(self):
+        self.assertEqual(run.candidates((3, 18), windows=False), [["python3.18"], ["python3.19"], ["python3.20"]])
         self.assertEqual(run.candidates((3, 20), windows=True), [["py", "-3.20"], ["python3.20"]])
 
 
@@ -129,7 +129,8 @@ class ChoosePythonTest(unittest.TestCase):
         # This interpreter, as python3.N first on the PATH, and a run.py that sees it as too old.
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
-            (folder / f"python3.{run.HIGHEST_MINOR}").symlink_to(sys.executable)
+            minimum = run.required_version()[1]
+            (folder / f"python3.{minimum}").symlink_to(sys.executable)
             env = {**os.environ, "PATH": f"{folder}{os.pathsep}{os.environ['PATH']}"}
             env.pop(run.EXPLICIT_VARIABLE, None)
             env.pop(run.REEXEC_VARIABLE, None)
@@ -138,7 +139,7 @@ class ChoosePythonTest(unittest.TestCase):
                     "sys.exit(run.choose_python(['--no-such-option']))\n")
             result = subprocess.run([sys.executable, "-c", code], cwd=run.DOCS, env=env, capture_output=True,
                                     text=True, check=False, timeout=60)
-        self.assertIn(f"using python3.{run.HIGHEST_MINOR}", result.stdout, result.stderr)
+        self.assertIn(f"using python3.{minimum}", result.stdout, result.stderr)
         # The real run.py ran again with the arguments, and its exit code came back: argparse rejects them.
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("run.py: error:", result.stderr)

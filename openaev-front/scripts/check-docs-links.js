@@ -33,15 +33,20 @@ const fail = (message) => {
 
 const label = candidate => candidate.join(' ');
 
-// Python variables of the developer's shell would change what the probed interpreter imports
-const probeEnv = Object.fromEntries(Object.entries(process.env)
+// Python variables of the developer's shell would change what the interpreter imports, for the
+// probe and for run.py itself (a broken PYTHONHOME would otherwise exit 1, the docs-problems code)
+const pythonEnv = Object.fromEntries(Object.entries(process.env)
   .filter(([name]) => !['PYTHONPATH', 'PYTHONHOME', 'PYTHONSAFEPATH'].includes(name)));
 
-const answers = ([command, ...args]) => spawnSync(command, [...args, '--version'], {
-  env: probeEnv,
-  stdio: 'ignore',
-  timeout: PROBE_TIMEOUT_MS,
-}).status === 0;
+// Python 2 answers --version too, then fails on run.py with a syntax error (exit 1): skip it
+const answers = ([command, ...args]) => {
+  const probe = spawnSync(command, [...args, '--version'], {
+    env: pythonEnv,
+    encoding: 'utf8',
+    timeout: PROBE_TIMEOUT_MS,
+  });
+  return probe.status === 0 && /^Python 3\./.test(`${probe.stdout ?? ''}${probe.stderr ?? ''}`.trim());
+};
 
 const findPython = () => {
   const explicit = process.env[EXPLICIT_VARIABLE];
@@ -68,7 +73,7 @@ const [command, ...args] = candidate;
 const explicit = Boolean(process.env[EXPLICIT_VARIABLE]);
 // run.py reads OPENAEV_DOCS_PYTHON too: give it the absolute path
 const env = {
-  ...process.env,
+  ...pythonEnv,
   ...(explicit && { [EXPLICIT_VARIABLE]: command }),
 };
 

@@ -39,8 +39,8 @@ the version of `.python-version` and has the `venv` and `ensurepip` modules.
 1. When the Python running `run.py` is usable, it runs the command.
 2. Otherwise, when `OPENAEV_DOCS_PYTHON` is set, it stops with exit code 4 and says why: the
    Python chosen explicitly is never replaced.
-3. Otherwise it looks for `python3.N`, from `python3.20` down to the minor version of
-   `.python-version` (and `py -3.N` on Windows), runs `run.py` again with the first usable one,
+3. Otherwise it looks for `python3.N`, from the minor version of `.python-version` up to
+   `python3.20` (and `py -3.N` on Windows), the version CI checks the lock on first, runs `run.py` again with the first usable one,
    with the same arguments, and returns its exit code. With none, it stops with exit code 4 and
    lists what it tried.
 

@@ -84,7 +84,7 @@ See the domain-specific instruction files in `.github/instructions/` for detaile
 **Frontend Missing**: Backend needs frontend built first (copies from `builder/prod/build/`)
 **Service Errors**: Ensure Docker services running; CI waits 60s for readiness
 **Memory**: Use `NODE_OPTIONS=--max_old_space_size=8192` for frontend tests
-**Python not found / `python3-venv` missing**: The `openaev-api` build warns that the docs check did not run, and `yarn check-docs-links` fails. Install [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version`, with `venv` (`sudo apt install python3-venv` on Debian/Ubuntu), point `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python` to it when it is not found (see [docs/README.md](../docs/README.md#which-python-runs-the-docs-toolchain), or add `-Dopenaev.docs.check.skip=true`
+**Python not found / `python3-venv` missing**: The `openaev-api` build warns that the docs check did not run, and `yarn check-docs-links` fails. Install [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version`, with `venv` (`sudo apt install python3-venv` on Debian/Ubuntu), point `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python` to it when it is not found (see [docs/README.md](../docs/README.md#which-python-runs-the-docs-toolchain)), or add `-Dopenaev.docs.check.skip=true`
 **Could not find goal 'docs-check'**: `~/.m2` holds an older build of `openaev-maven-plugin` with the same version — run `mvn -pl openaev-maven-plugin install` once (or a full `mvn install -DskipTests`)
 
 ## Pre-PR Checklist

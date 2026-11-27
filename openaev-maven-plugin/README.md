@@ -75,7 +75,9 @@ mvn package -Dopenaev.docs.check.skip=true
 Builds that do not include this module (`-pl openaev-api` without `-am`, the offline fast restart) take the plugin
 from the local Maven repository. When it holds the same version from before a new goal was added, Maven fails with
 `Could not find goal '<goal>' in plugin io.openaev:openaev-maven-plugin:<version>` (for example
-`Could not find goal 'docs-check'`), and a changed goal keeps its old behaviour. Install the plugin again once:
+`Could not find goal 'docs-check'`), and a changed goal keeps its old behaviour. Install the plugin again once
+(`-Dopenaev.docs.check.skip=true` also gets past the missing `docs-check` goal, since it turns off the
+profile that binds it):
 ```shell
 mvn -pl openaev-maven-plugin install
 ```

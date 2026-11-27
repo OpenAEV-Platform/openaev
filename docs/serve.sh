@@ -8,13 +8,21 @@
 set -e
 docs=$(dirname "$0")
 
+# PYTHONPATH and friends could make a working Python fail, for the probe and for run.py itself.
+unset PYTHONPATH PYTHONHOME PYTHONSAFEPATH
+
 answers() {
-  # PYTHONPATH and friends could make a working Python fail; `timeout` is missing on some systems.
+  # Python 2 answers --version too, then fails on run.py: only a Python 3 counts. `timeout` is
+  # missing on some systems.
   if command -v timeout > /dev/null 2>&1; then
-    (unset PYTHONPATH PYTHONHOME PYTHONSAFEPATH; timeout 10 "$1" --version) > /dev/null 2>&1
+    version=$(timeout 10 "$1" --version 2>&1) || return 1
   else
-    (unset PYTHONPATH PYTHONHOME PYTHONSAFEPATH; "$1" --version) > /dev/null 2>&1
+    version=$("$1" --version 2>&1) || return 1
   fi
+  case $version in
+    "Python 3."*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 if [ -n "$OPENAEV_DOCS_PYTHON" ]; then

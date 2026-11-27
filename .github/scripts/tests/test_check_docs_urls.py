@@ -189,6 +189,11 @@ class RemovedNotRetiredTest(unittest.TestCase):
     def test_a_deleted_map_retires_nothing(self):
         self.assertEqual(guard.removed_not_retired(self.BASE, {}), ["w/", "x/", "y/#z"])
 
+    def test_a_dropped_retired_path_is_reported(self):
+        base = {"retired": ["old/", "older/#a"]}
+        self.assertEqual(guard.dropped_retired(base, {"retired": ["old/"]}), ["older/#a"])
+        self.assertEqual(guard.dropped_retired(base, {"retired": ["older/#a", "old/", "new/"]}), [])
+
 
 class EscapeTest(unittest.TestCase):
     def test_workflow_command_escapes(self):

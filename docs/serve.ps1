@@ -28,7 +28,7 @@ function Test-Python([string]$Command, [string[]]$Arguments) {
             $process.Kill()
             return $false
         }
-        return $process.ExitCode -eq 0 -and "$($output.Result)$($errors.Result)" -match "Python \d"
+        return $process.ExitCode -eq 0 -and "$($output.Result)$($errors.Result)" -match "Python 3\."
     } catch {
         return $false
     }
@@ -60,5 +60,7 @@ if ($env:OPENAEV_DOCS_PYTHON) {
         exit 4
     }
 }
+# The variables that redirect the imports of Python would break run.py itself too.
+foreach ($name in "PYTHONPATH", "PYTHONHOME", "PYTHONSAFEPATH") { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
 & $command @arguments "$PSScriptRoot\run.py" serve @args
 exit $LASTEXITCODE

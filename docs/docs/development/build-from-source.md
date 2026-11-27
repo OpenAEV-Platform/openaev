@@ -120,9 +120,9 @@ also skips itself in CI, where the blocking Docs Check job runs it.
     A build that leaves out the plugin module (`-pl openaev-api` without `-am`, or the offline fast restart
     `mvn -o -pl openaev-model,openaev-framework,openaev-api ...`) uses the `openaev-maven-plugin` installed in
     your local Maven repository (`~/.m2`). If it was installed before the docs check was added, with the same
-    version, the build fails with `Could not find goal 'docs-check'`, and
-    `-Dopenaev.docs.check.skip=true` does not help. Install the plugin once (add `-o` when offline), then build
-    again:
+    version, the build fails with `Could not find goal 'docs-check'`. Install the plugin once (add `-o` when
+    offline), then build again, or build with `-Dopenaev.docs.check.skip=true`, which turns the check off before
+    Maven looks the goal up:
 
     ```bash
     mvn -pl openaev-maven-plugin install
