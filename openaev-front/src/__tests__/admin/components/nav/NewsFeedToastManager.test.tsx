@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { TooltipProvider } from '@filigran/design-system';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
@@ -34,24 +35,30 @@ const { default: NewsFeedToastManager, MAX_VISIBLE_TOASTS } = await import('../.
 const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 const HUB_URL = 'https://hub.example.com';
+const PLATFORM_ID = 'platform-1';
 
 const renderManager = () => render(
   <IntlProvider locale="en" messages={{}} onError={() => {}}>
-    <TooltipProvider>
-      <UserContext.Provider
-        value={{
-          me: {} as User,
-          settings: { xtm_hub_url: HUB_URL } as PlatformSettings,
-          isXTMHubAccessible: true,
-          userTenants: [],
-          currentUserTenant: null,
-          switchUserTenant: async () => {},
-          reloadUserTenants: async () => {},
-        }}
-      >
-        <NewsFeedToastManager />
-      </UserContext.Provider>
-    </TooltipProvider>
+    <MemoryRouter>
+      <TooltipProvider>
+        <UserContext.Provider
+          value={{
+            me: {} as User,
+            settings: {
+              xtm_hub_url: HUB_URL,
+              platform_id: PLATFORM_ID,
+            } as PlatformSettings,
+            isXTMHubAccessible: true,
+            userTenants: [],
+            currentUserTenant: null,
+            switchUserTenant: async () => {},
+            reloadUserTenants: async () => {},
+          }}
+        >
+          <NewsFeedToastManager />
+        </UserContext.Provider>
+      </TooltipProvider>
+    </MemoryRouter>
   </IntlProvider>,
 );
 
@@ -61,10 +68,12 @@ const streamEvent = (
     urlPath = `/cybersecurity-solutions/open-aev-scenarios/${title}`,
     eventType = DATA_FETCH_SUCCESS,
     schema = NEWS_FEED_ITEM_SCHEMA,
+    type = 'RESOURCE_SCENARIO',
   }: {
     urlPath?: string;
     eventType?: string;
     schema?: string;
+    type?: string;
   } = {},
 ) => ({
   data: JSON.stringify({
@@ -74,7 +83,7 @@ const streamEvent = (
     instance: {
       news_feed_item_id: title,
       news_feed_item_title: title,
-      news_feed_item_type: 'RESOURCE_SCENARIO',
+      news_feed_item_type: type,
       news_feed_item_url_path: urlPath,
     },
     listened: true,
@@ -196,6 +205,73 @@ describe('NewsFeedToastManager', () => {
       expect(within(region).queryByText('F')).not.toBeInTheDocument();
       expect(within(region).getByText('(+2) Click to view all the new resources on the Hub')).toBeInTheDocument();
       expect(within(region).getByRole('link', { name: 'View all on XTM Hub' })).toHaveAttribute('href', `${HUB_URL}/app`);
+    });
+
+    it('toasts a blogpost with its label and a link through the XTM Hub redirect', async () => {
+      // Arrange
+      renderManager();
+
+      // Act
+      await pushEvents(streamEvent('Threat report', {
+        type: 'BLOG_POST',
+        urlPath: '/redirect/blog/threat-report',
+      }));
+
+      // Assert
+      const region = liveRegion();
+      expect(within(region).getByText('Blogpost')).toBeInTheDocument();
+      expect(within(region).queryByText('Unsupported type')).not.toBeInTheDocument();
+      expect(within(region).getByRole('link', { name: 'Open on Filigran blog' }))
+        .toHaveAttribute('href', `${HUB_URL}/redirect/blog/threat-report?platform_id=${PLATFORM_ID}`);
+    });
+
+    describe('overflow banner', () => {
+      const pushTypes = (types: string[]) => pushEvents(...types.map((type, index) => streamEvent(`item-${index}`, { type })));
+
+      it('links to the Filigran blog when only blogposts are hidden', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes(Array(7).fill('BLOG_POST'));
+
+        // Assert
+        const region = liveRegion();
+        expect(within(region).getByText('(+2) Click to view all the new blogposts')).toBeInTheDocument();
+        expect(within(region).queryByText(/new resources on the Hub/)).not.toBeInTheDocument();
+        const url = new URL(within(region).getByRole('link', { name: 'See all' }).getAttribute('href') as string);
+        expect(url.origin + url.pathname).toBe('https://filigran.io/blog');
+        expect(url.searchParams.get('utm_source')).toBe('openaev');
+        expect(url.searchParams.get('utm_content')).toBe('see_all');
+        expect(url.searchParams.has('platform_id')).toBe(false);
+      });
+
+      it('uses a neutral wording when blogposts and resources are hidden together', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes([...Array(5).fill('RESOURCE_SCENARIO'), 'BLOG_POST', 'RESOURCE_SCENARIO']);
+
+        // Assert
+        const region = liveRegion();
+        expect(within(region).getByText('(+2) Click to view all the new items')).toBeInTheDocument();
+        // the blogposts are not in the XTM Hub library: the link goes to the news feed of the platform, in the same tab
+        const link = within(region).getByRole('link', { name: 'View all' });
+        expect(link).toHaveAttribute('href', '/admin/profile/news-feed');
+        expect(link).not.toHaveAttribute('target');
+      });
+
+      it('keeps the XTM Hub wording when only resources are hidden', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes([...Array(5).fill('BLOG_POST'), 'RESOURCE_SCENARIO', 'RESOURCE_SCENARIO']);
+
+        // Assert
+        expect(within(liveRegion()).getByText('(+2) Click to view all the new resources on the Hub')).toBeInTheDocument();
+      });
     });
 
     it('links nowhere when the item has no XTM Hub path', async () => {

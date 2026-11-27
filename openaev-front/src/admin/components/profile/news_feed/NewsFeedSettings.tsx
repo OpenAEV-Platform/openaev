@@ -8,6 +8,9 @@ import SimpleError from '../../../../components/SimpleError';
 import type { NewsFeedSettingsOutput } from '../../../../utils/api-types';
 import { NEWS_FEED_TYPES, type NewsFeedType } from './useNewsFeedSettings';
 
+// The scenarios are still delivered and subscribed, the user just has no switch for them.
+const HIDDEN_TYPES: NewsFeedType[] = ['RESOURCE_SCENARIO'];
+
 interface Props {
   settings: NewsFeedSettingsOutput | null;
   failed: boolean;
@@ -49,7 +52,10 @@ const SettingRow = ({ label, checked, disabled, primary = false, onCheckedChange
   );
 };
 
-/** Subscriptions of the user: one switch per news feed type, and one that turns them all on or off. */
+/**
+ * Subscriptions of the user: one switch per news feed type XTM Hub provisions, as on OpenCTI, and one that turns
+ * every type on or off.
+ */
 const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
   const { t } = useFormatter();
 
@@ -61,10 +67,19 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
   }
 
   const subscribedTypes = settings.news_feed_settings_subscribed_types;
+  // Until XTM Hub told which types it provisions (no collector run since the upgrade), every known type is listed.
+  const listedTypes = settings.news_feed_settings_available_types.length > 0 ? settings.news_feed_settings_available_types : NEWS_FEED_TYPES;
+  // On when a listed type is: a subscription to a type that is not listed shows nowhere.
+  const isAnyListedTypeSubscribed = listedTypes.some(type => subscribedTypes.includes(type));
   // Changing the preferences is only possible when XTM Hub delivers the items.
   const disabled = saving || !settings.news_feed_settings_hub_registered;
 
-  const typeLabel = (type: NewsFeedType) => (type === 'RESOURCE_SCENARIO' ? t('Scenario') : type);
+  const switchableTypes = listedTypes.filter(type => !HIDDEN_TYPES.includes(type));
+
+  const typeLabels: Record<NewsFeedType, string> = {
+    RESOURCE_SCENARIO: t('Scenario'),
+    BLOG_POST: t('Blogpost'),
+  };
 
   const toggleType = (type: NewsFeedType, checked: boolean) => {
     onChange(checked ? [...subscribedTypes, type] : subscribedTypes.filter(subscribed => subscribed !== type));
@@ -89,28 +104,32 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
           <SettingRow
             primary
             label={t('Enable News Feed notifications')}
-            checked={subscribedTypes.length > 0}
+            checked={isAnyListedTypeSubscribed}
             disabled={disabled}
             onCheckedChange={checked => onChange(checked ? NEWS_FEED_TYPES : [])}
           />
-          <Divider />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            padding: '0 20px',
-          }}
-          >
-            {NEWS_FEED_TYPES.map(type => (
-              <SettingRow
-                key={type}
-                label={typeLabel(type)}
-                checked={subscribedTypes.includes(type)}
-                disabled={disabled}
-                onCheckedChange={checked => toggleType(type, checked)}
-              />
-            ))}
-          </div>
+          {switchableTypes.length > 0 && (
+            <>
+              <Divider />
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                padding: '0 20px',
+              }}
+              >
+                {switchableTypes.map(type => (
+                  <SettingRow
+                    key={type}
+                    label={typeLabels[type]}
+                    checked={subscribedTypes.includes(type)}
+                    disabled={disabled}
+                    onCheckedChange={checked => toggleType(type, checked)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </Paper>
     </section>

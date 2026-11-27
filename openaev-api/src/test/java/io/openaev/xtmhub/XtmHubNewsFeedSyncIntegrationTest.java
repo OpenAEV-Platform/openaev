@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -78,6 +80,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   @Autowired private ApplicationEvents applicationEvents;
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private CacheManager cacheManager;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @MockitoBean private XtmHubClient xtmHubClient;
 
@@ -150,7 +153,14 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
           FIRST_TOKEN,
           scenario("hub-1"),
           new ProvisionedNewsFeedItem(
-              "hub-1", "Updated title", "RESOURCE_SCENARIO", List.of(), null, CREATION_DATE, false),
+              "hub-1",
+              "Updated title",
+              "RESOURCE_SCENARIO",
+              List.of(),
+              null,
+              Map.of(),
+              CREATION_DATE,
+              false),
           scenario("hub-2"));
 
       // Act
@@ -284,6 +294,125 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Blogposts")
+  class BlogPosts {
+
+    private ProvisionedNewsFeedItem blogPost(Map<String, String> metadata) {
+      return new ProvisionedNewsFeedItem(
+          "hub-blog",
+          "Blogpost",
+          "BLOG_POST",
+          List.of("threat intel"),
+          "/redirect/blog/hub-blog",
+          metadata,
+          CREATION_DATE,
+          false);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a blogpost, should store it with its metadata for the users subscribed to it")
+    void given_blogPost_should_storeItWithMetadataForSubscribedUsers() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User subscribed = createUser(firstTenant);
+      User unsubscribed = createUser(firstTenant);
+      unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {"BLOG_POST"});
+      userRepository.save(unsubscribed);
+      Map<String, String> metadata =
+          Map.of("description", "A description", "author_names", "[\"Jane\"]");
+      givenHubReturns(FIRST_TOKEN, blogPost(metadata), scenario("hub-1"));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      NewsFeedItem stored =
+          itemsOf(subscribed).stream()
+              .filter(item -> "hub-blog".equals(item.getHubItemId()))
+              .findFirst()
+              .orElseThrow();
+      assertThat(stored.getType()).isEqualTo(NewsFeedType.BLOG_POST.name());
+      assertThat(metadataOf(stored)).isEqualTo(metadata);
+      assertThat(itemsOf(unsubscribed))
+          .extracting(NewsFeedItem::getHubItemId)
+          .containsExactly("hub-1");
+    }
+
+    @Test
+    @DisplayName("Given changed metadata, should replace the metadata of every user in full")
+    void given_changedMetadata_should_replaceThemInFull() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      User first = createUser(firstTenant);
+      User second = createUser(firstTenant);
+      givenHubReturns(
+          FIRST_TOKEN,
+          blogPost(Map.of("description", "Old", "image_url", "https://img.test/old.png")));
+      xtmHubService.syncNewsFeed();
+      Map<String, String> changed = Map.of("description", "New", "read_minutes", "4");
+      givenHubReturns(FIRST_TOKEN, blogPost(changed));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      for (User user : List.of(first, second)) {
+        assertThat(itemsOf(user))
+            .singleElement()
+            .satisfies(item -> assertThat(metadataOf(item)).isEqualTo(changed));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "Given the types the Hub provisions, should store them on the registered tenants only")
+    void given_availableTypes_should_storeThemOnRegisteredTenants() {
+      // Arrange
+      saveRegistration(FIRST_TOKEN, firstTenant, LocalDateTime.now().minusDays(2));
+      saveRegistration(
+          SECOND_TOKEN,
+          secondTenant,
+          LocalDateTime.now().minusDays(1),
+          XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      when(xtmHubClient.consumeProvisionedNewsFeedItems(eq(FIRST_TOKEN), any()))
+          .thenReturn(
+              new NewsFeedFetchResult.Fetched(
+                  new ProvisionedNewsFeedItems(
+                      List.of(), List.of("RESOURCE_SCENARIO", "BLOG_POST"))));
+
+      // Act
+      xtmHubService.syncNewsFeed();
+
+      // Assert
+      assertThat(availableTypesOf(firstTenant)).containsExactly("RESOURCE_SCENARIO", "BLOG_POST");
+      assertThat(availableTypesOf(secondTenant)).isEmpty();
+    }
+
+    private Map<String, String> metadataOf(NewsFeedItem item) {
+      return jdbcTemplate
+          .queryForList(
+              "SELECT news_feed_item_metadata_key, news_feed_item_metadata_value"
+                  + " FROM news_feed_items_metadata WHERE news_feed_item_id = ?",
+              item.getId())
+          .stream()
+          .collect(
+              Collectors.toMap(
+                  row -> (String) row.get("news_feed_item_metadata_key"),
+                  row -> (String) row.get("news_feed_item_metadata_value")));
+    }
+
+    // Read with JDBC: the registrations are tenant-isolated, and the test runs no transaction.
+    private String[] availableTypesOf(Tenant tenant) {
+      return jdbcTemplate.queryForObject(
+          "SELECT registration_available_news_feed_types FROM tenant_xtmhub_registrations"
+              + " WHERE tenant_id = ?",
+          (rs, rowNum) -> (String[]) rs.getArray(1).getArray(),
+          tenant.getId());
+    }
+  }
+
+  @Nested
   @DisplayName("Deleted and changed items")
   class DeletedAndChangedItems {
 
@@ -294,6 +423,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
           "RESOURCE_SCENARIO",
           List.of("ransomware"),
           "/scenarios/renamed-" + hubItemId,
+          Map.of(),
           CREATION_DATE.plusSeconds(3600),
           false);
     }
@@ -305,6 +435,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
           "RESOURCE_SCENARIO",
           List.of(),
           null,
+          Map.of(),
           CREATION_DATE,
           true);
     }
@@ -666,13 +797,21 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
           FIRST_TOKEN,
           scenario("hub-valid"),
           new ProvisionedNewsFeedItem(
-              "hub-deleted", "Deleted", "RESOURCE_SCENARIO", List.of(), null, CREATION_DATE, true),
+              "hub-deleted",
+              "Deleted",
+              "RESOURCE_SCENARIO",
+              List.of(),
+              null,
+              Map.of(),
+              CREATION_DATE,
+              true),
           new ProvisionedNewsFeedItem(
               "hub-unknown",
               "Unknown",
               "RESOURCE_PLAYBOOK",
               List.of(),
               null,
+              Map.of(),
               CREATION_DATE,
               false));
 
@@ -900,6 +1039,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
         "RESOURCE_SCENARIO",
         List.of("phishing"),
         "/scenarios/" + hubItemId,
+        Map.of(),
         CREATION_DATE,
         false);
   }

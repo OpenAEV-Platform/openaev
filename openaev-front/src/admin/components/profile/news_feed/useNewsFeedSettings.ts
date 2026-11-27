@@ -8,8 +8,8 @@ import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/er
 
 export type NewsFeedType = NewsFeedSettingsOutput['news_feed_settings_subscribed_types'][number];
 
-/** The news feed types a user can subscribe to, in display order. */
-export const NEWS_FEED_TYPES: NewsFeedType[] = ['RESOURCE_SCENARIO'];
+/** Every news feed type this version knows: the main switch subscribes to them all. */
+export const NEWS_FEED_TYPES: NewsFeedType[] = ['RESOURCE_SCENARIO', 'BLOG_POST'];
 
 /** Preferences of the current user, loaded once and replaced by the server answer on each save. */
 const useNewsFeedSettings = () => {

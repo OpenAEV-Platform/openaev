@@ -8,6 +8,9 @@ public class NewsFeedSettingsMapper {
 
   public static NewsFeedSettingsOutput toOutput(NewsFeedSettings settings) {
     return new NewsFeedSettingsOutput(
-        settings.subscribedTypes(), settings.hubRegistered(), settings.hubConnected());
+        settings.subscribedTypes(),
+        settings.hubRegistered(),
+        settings.hubConnected(),
+        settings.availableTypes());
   }
 }
