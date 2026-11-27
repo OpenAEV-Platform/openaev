@@ -4,9 +4,11 @@ import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.executors.DeviceSync;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.executors.model.DeviceGroup;
+import io.openaev.executors.model.RemoteDevice;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.NodeEndpoint;
@@ -26,10 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TaniumExecutorService implements Runnable {
   private final TaniumExecutorClient client;
   private final TaniumExecutorConfig config;
-  private final EndpointService endpointService;
-  private final AgentService agentService;
-  private final AssetGroupService assetGroupService;
-  private final TenantScopedTransaction tenantTx;
+  private final DeviceSync deviceSync;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -60,65 +59,32 @@ public class TaniumExecutorService implements Runnable {
     this.executor = executor;
     this.client = client;
     this.config = config;
-    this.endpointService = endpointService;
-    this.agentService = agentService;
-    this.assetGroupService = assetGroupService;
-    this.tenantTx = tenantTx;
+    this.deviceSync = new DeviceSync(endpointService, agentService, assetGroupService, tenantTx);
   }
 
   @Override
   public void run() {
-    tenantTx.execute(
-        TxCtx.forTenant(executor.getTenantId()),
-        () -> {
-          doRun();
-          return null;
-        });
+    deviceSync.sync(executor, this::devices);
   }
 
-  private void doRun() {
+  private List<RemoteDevice> devices() {
     log.info("Running Tanium executor endpoints gathering...");
-    String tenantId = executor.getTenantId();
-    try {
-      List<String> computerGroupIds =
-          Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
-      for (String computerGroupId : computerGroupIds) {
-        TaniumComputerGroup computerGroup =
-            this.client.computerGroup(computerGroupId).getComputerGroup();
-        List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
-        if (!nodeEndpoints.isEmpty()) {
-          Optional<AssetGroup> existingAssetGroup =
-              assetGroupService.findByExternalReference(computerGroupId, executor.getTenantId());
-          AssetGroup assetGroup;
-          if (existingAssetGroup.isPresent()) {
-            assetGroup = existingAssetGroup.get();
-          } else {
-            assetGroup = new AssetGroup();
-            assetGroup.setExternalReference(computerGroupId);
-            assetGroup.setTenant(new Tenant(executor.getTenantId()));
-          }
-          assetGroup.setName(computerGroup.getName());
-          log.info(
-              "Tanium executor provisioning based on "
-                  + nodeEndpoints.size()
-                  + " assets for the computer group "
-                  + assetGroup.getName());
-          List<Agent> agents =
-              endpointService.syncAgentsEndpoints(
-                  toAgentEndpoint(nodeEndpoints),
-                  agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), tenantId),
-                  tenantId);
-          assetGroup.setAssets(
-              agents.stream()
-                  .map(Agent::getAsset)
-                  .collect(Collectors.toCollection(ArrayList::new)));
-          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(
-              assetGroup, executor.getTenantId());
-        }
-      }
-    } catch (Exception e) {
-      log.error("Error during Tanium executor endpoints gathering", e);
-    }
+    List<String> computerGroupIds =
+        Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
+    return DeviceGroup.readEach(computerGroupIds, this::computerGroupDevices);
+  }
+
+  private List<RemoteDevice> computerGroupDevices(String computerGroupId) {
+    TaniumComputerGroup computerGroup =
+        this.client.computerGroup(computerGroupId).getComputerGroup();
+    List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
+    log.info(
+        "Tanium executor provisioning based on {} assets for the computer group {}",
+        nodeEndpoints.size(),
+        computerGroup.getName());
+    return RemoteDevice.inGroup(
+        toAgentEndpoint(nodeEndpoints),
+        new DeviceGroup(computerGroupId, computerGroup.getName(), null));
   }
 
   // -- PRIVATE --

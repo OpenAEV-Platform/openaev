@@ -109,16 +109,12 @@ public class SentinelOneExecutorServiceTest {
         sentinelOneExecutor.getTenantId(),
         tenantCaptor.getValue(),
         "the asset group must be attributed to the executor's own tenant");
-    assertEquals(3, assetGroupCaptor.getAllValues().size());
-    assertEquals(
-        sentinelOneAgent.getAccountId(),
-        assetGroupCaptor.getAllValues().get(0).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getGroupId(),
-        assetGroupCaptor.getAllValues().get(1).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getSiteId(),
-        assetGroupCaptor.getAllValues().get(2).getExternalReference());
+    assertThat(assetGroupCaptor.getAllValues())
+        .extracting(AssetGroup::getExternalReference)
+        .containsExactlyInAnyOrder(
+            sentinelOneAgent.getAccountId(),
+            sentinelOneAgent.getSiteId(),
+            sentinelOneAgent.getGroupId());
   }
 
   @Test

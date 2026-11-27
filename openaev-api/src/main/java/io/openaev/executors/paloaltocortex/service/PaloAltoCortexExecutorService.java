@@ -4,9 +4,11 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.executors.DeviceSync;
 import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.executors.model.DeviceGroup;
+import io.openaev.executors.model.RemoteDevice;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexEndpoint;
@@ -24,10 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PaloAltoCortexExecutorService implements Runnable {
   private final PaloAltoCortexExecutorClient client;
   private final PaloAltoCortexExecutorConfig config;
-  private final EndpointService endpointService;
-  private final AgentService agentService;
-  private final AssetGroupService assetGroupService;
-  private final TenantScopedTransaction tenantTx;
+  private final DeviceSync deviceSync;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -50,57 +49,29 @@ public class PaloAltoCortexExecutorService implements Runnable {
     this.executor = executor;
     this.client = client;
     this.config = config;
-    this.endpointService = endpointService;
-    this.agentService = agentService;
-    this.assetGroupService = assetGroupService;
-    this.tenantTx = tenantTx;
+    this.deviceSync = new DeviceSync(endpointService, agentService, assetGroupService, tenantTx);
   }
 
   @Override
   public void run() {
-    tenantTx.execute(
-        TxCtx.forTenant(executor.getTenantId()),
-        () -> {
-          doRun();
-          return null;
-        });
+    deviceSync.sync(executor, this::devices);
   }
 
-  private void doRun() {
+  private List<RemoteDevice> devices() {
     log.info("Running Palo Alto Cortex executor endpoints gathering...");
     List<String> groupNames = Stream.of(this.config.getGroupName().split(",")).distinct().toList();
-    for (String groupName : groupNames) {
-      List<PaloAltoCortexEndpoint> paloAltoCortexEndpoints = this.client.endpoints(groupName);
-      if (!paloAltoCortexEndpoints.isEmpty()) {
-        Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(
-                PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName, executor.getTenantId());
-        AssetGroup assetGroup;
-        if (existingAssetGroup.isPresent()) {
-          assetGroup = existingAssetGroup.get();
-        } else {
-          assetGroup = new AssetGroup();
-          assetGroup.setExternalReference(PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName);
-          assetGroup.setTenant(new Tenant(executor.getTenantId()));
-        }
-        assetGroup.setName(groupName);
-        log.info(
-            "Palo alto cortex executor provisioning based on "
-                + paloAltoCortexEndpoints.size()
-                + " assets for the group "
-                + assetGroup.getName());
-        List<Agent> agents =
-            endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(paloAltoCortexEndpoints),
-                agentService.getAgentsByExecutorIdAndTenantId(
-                    executor.getId(), executor.getTenantId()),
-                executor.getTenantId());
-        assetGroup.setAssets(
-            agents.stream().map(Agent::getAsset).collect(Collectors.toCollection(ArrayList::new)));
-        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(
-            assetGroup, executor.getTenantId());
-      }
-    }
+    return DeviceGroup.readEach(groupNames, this::groupDevices);
+  }
+
+  private List<RemoteDevice> groupDevices(String groupName) {
+    List<PaloAltoCortexEndpoint> endpoints = this.client.endpoints(groupName);
+    log.info(
+        "Palo Alto Cortex executor provisioning based on {} assets for the group {}",
+        endpoints.size(),
+        groupName);
+    return RemoteDevice.inGroup(
+        toAgentEndpoint(endpoints),
+        new DeviceGroup(PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName, groupName, null));
   }
 
   private List<AgentRegisterInput> toAgentEndpoint(List<PaloAltoCortexEndpoint> endpoints) {
