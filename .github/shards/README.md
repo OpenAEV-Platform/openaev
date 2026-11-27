@@ -28,10 +28,10 @@ package is listed by no shard file, so it runs in the catch-all until the next
 rebalance.
 
 A shard's heap grows with the Spring contexts its classes keep in the test
-context cache: `rest/exercise` once ran a shard's Surefire fork out of heap. A
-class that runs on the production list of isolated tables extends
-`ProductionTablesIntegrationTest` instead of declaring its own
-`@DynamicPropertySource`, so it shares one context with every other such class.
+context cache: `rest/exercise` once ran a shard's Surefire fork out of heap. The
+statement inspector gates every tenant table in every test context, so a class
+needs no `@DynamicPropertySource` for the gate and shares one context with the
+other classes of its shard.
 
 `architecture` has shard 15 to itself since
 [run 44228102277](https://github.com/OpenAEV-Platform/openaev/actions/runs/44228102277),
