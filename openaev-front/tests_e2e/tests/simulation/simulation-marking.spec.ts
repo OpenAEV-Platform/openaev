@@ -3,8 +3,7 @@ import { type APIRequestContext, expect } from '@playwright/test';
 import {
   type Exercise,
   type InjectOutput,
-  TenantGroupGrantOutput,
-  TenantGroupOutput
+  type TenantGroupGrantOutput,
 } from '../../../src/utils/api-types';
 import GroupApiHelpers from '../../api-helpers/GroupApiHelpers';
 import InjectApiHelpers from '../../api-helpers/InjectApiHelpers';

@@ -1,6 +1,6 @@
 import { type APIRequestContext } from '@playwright/test';
 
-import {type GroupGrantInput, TenantGroupGrantOutput, TenantGroupOutput} from '../../src/utils/api-types';
+import { type GroupGrantInput, type TenantGroupGrantOutput, type TenantGroupOutput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
 
 interface GroupApiOutput {
