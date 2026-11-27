@@ -5,7 +5,7 @@ import { type CounterpartKindPath } from '../../../actions/xtm/counterpart-actio
 export type GraphNodeType = 'ASSET' | 'ASSET_GROUP' | 'FINDING' | 'INJECT' | 'SIMULATION' | 'SCENARIO' | 'PERSON' | 'ORGANIZATION' | 'TEAM';
 
 export type GraphEdgeType = 'MEMBER_OF' | 'FOUND_ON' | 'PRODUCED' | 'TARGETS' | 'PART_OF' | 'RUN_OF'
-  | 'IDENTITY_OF' | 'WORKS_FOR' | 'IN_TEAM' | 'TEAM_OF' | 'LINKED_TO' | 'ATTACK_STEP';
+  | 'IDENTITY_OF' | 'WORKS_FOR' | 'IN_TEAM' | 'TEAM_OF' | 'LINKED_TO' | 'OWNED_BY' | 'MANAGED_BY' | 'ATTACK_STEP';
 
 export type GraphResult = 'SUCCESS' | 'PENDING' | 'FAILED';
 
@@ -44,7 +44,7 @@ export const ALL_NODE_TYPES: GraphNodeType[] = ['ASSET', 'ASSET_GROUP', 'FINDING
 
 export const ALL_EDGE_TYPES: GraphEdgeType[] = [
   'MEMBER_OF', 'FOUND_ON', 'PRODUCED', 'TARGETS', 'PART_OF', 'RUN_OF',
-  'IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'TEAM_OF', 'LINKED_TO', 'ATTACK_STEP',
+  'IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'TEAM_OF', 'LINKED_TO', 'OWNED_BY', 'MANAGED_BY', 'ATTACK_STEP',
 ];
 
 /**
@@ -52,15 +52,15 @@ export const ALL_EDGE_TYPES: GraphEdgeType[] = [
  * context menu offer only these (OpenCTI offers only the relations an entity can hold).
  */
 export const EDGE_TYPES_BY_NODE_TYPE: Record<GraphNodeType, GraphEdgeType[]> = {
-  ASSET: ['MEMBER_OF', 'IDENTITY_OF', 'LINKED_TO', 'ATTACK_STEP', 'FOUND_ON', 'TARGETS'],
+  ASSET: ['MEMBER_OF', 'IDENTITY_OF', 'LINKED_TO', 'OWNED_BY', 'MANAGED_BY', 'ATTACK_STEP', 'FOUND_ON', 'TARGETS'],
   ASSET_GROUP: ['MEMBER_OF', 'TARGETS'],
   FINDING: ['FOUND_ON', 'PRODUCED'],
   INJECT: ['TARGETS', 'PRODUCED', 'PART_OF'],
   SIMULATION: ['PART_OF', 'RUN_OF', 'ATTACK_STEP'],
   SCENARIO: ['RUN_OF'],
-  PERSON: ['IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM'],
+  PERSON: ['IDENTITY_OF', 'WORKS_FOR', 'IN_TEAM', 'OWNED_BY', 'MANAGED_BY'],
   ORGANIZATION: ['WORKS_FOR', 'TEAM_OF'],
-  TEAM: ['IN_TEAM', 'TEAM_OF'],
+  TEAM: ['IN_TEAM', 'TEAM_OF', 'OWNED_BY', 'MANAGED_BY'],
 };
 
 export const ALL_RESULTS: GraphResult[] = ['FAILED', 'PENDING', 'SUCCESS'];
@@ -104,6 +104,8 @@ export const EDGE_TYPE_LABEL: Record<GraphEdgeType, string> = {
   IN_TEAM: 'In team',
   TEAM_OF: 'Team of',
   LINKED_TO: 'Linked to',
+  OWNED_BY: 'Owned by',
+  MANAGED_BY: 'Managed by',
   ATTACK_STEP: 'Attack step',
 };
 

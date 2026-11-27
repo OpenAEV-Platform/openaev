@@ -395,6 +395,7 @@ class MarkingLinkedTablesTest {
               "injects_assets",
               "asset_groups_assets",
               "assets_links",
+              "assets_owners",
               "findings_assets",
               "findings",
               "injects_expectations",

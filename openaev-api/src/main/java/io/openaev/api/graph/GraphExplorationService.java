@@ -210,7 +210,7 @@ public class GraphExplorationService {
   }
 
   /** A person's label: full name, else email, else id. */
-  static String personLabel(Object id, Object firstname, Object lastname, Object email) {
+  public static String personLabel(Object id, Object firstname, Object lastname, Object email) {
     String name =
         ((firstname == null ? "" : firstname.toString())
                 + " "
@@ -514,6 +514,9 @@ public class GraphExplorationService {
     if (want.test(GraphEdgeType.LINKED_TO)) {
       linkedAssets(slice, tenantIds, id, here, cap);
     }
+    if (want.test(GraphEdgeType.OWNED_BY) || want.test(GraphEdgeType.MANAGED_BY)) {
+      owners(slice, tenantIds, id, here, want, cap);
+    }
     if (want.test(GraphEdgeType.ATTACK_STEP)) {
       steps(slice, tenantIds, STEPS_OF_ASSET, id, cap);
     }
@@ -792,7 +795,49 @@ public class GraphExplorationService {
             slice.edge(GraphEdgeType.IN_TEAM, here, t, null);
           });
     }
+    ownedAssets(slice, tenantIds, id, here, want, cap, ASSETS_OWNED_BY_USER);
     return focus;
+  }
+
+  private static final String ASSETS_OWNED_BY_USER =
+      "SELECT a.id, a.name, a.type, o.role FROM AssetOwner o, Asset a"
+          + " WHERE o.userId = :id AND a.id = o.assetId AND a.tenant.id IN :tenantIds"
+          + " ORDER BY a.name";
+
+  private static final String ASSETS_OWNED_BY_TEAM =
+      "SELECT a.id, a.name, a.type, o.role FROM AssetOwner o, Asset a"
+          + " WHERE o.teamId = :id AND a.id = o.assetId AND a.tenant.id IN :tenantIds"
+          + " ORDER BY a.name";
+
+  /**
+   * The assets a person or a team owns or manages ({@code assets_owners}, #9725), drawn from the
+   * asset to the owner as on the asset side. {@code query} is {@link #ASSETS_OWNED_BY_USER} or
+   * {@link #ASSETS_OWNED_BY_TEAM}: a constant, never built from input.
+   */
+  private void ownedAssets(
+      Slice slice,
+      Collection<String> tenantIds,
+      String ownerId,
+      String here,
+      Predicate<GraphEdgeType> want,
+      int cap,
+      String query) {
+    if (!want.test(GraphEdgeType.OWNED_BY) && !want.test(GraphEdgeType.MANAGED_BY)) {
+      return;
+    }
+    rows(
+        slice,
+        query,
+        tenantIds,
+        ownerId,
+        cap,
+        r -> {
+          GraphEdgeType type = GraphEdgeType.valueOf(r[3].toString());
+          if (want.test(type)) {
+            String a = slice.node(GraphNodeType.ASSET, (String) r[0], (String) r[1], (String) r[2]);
+            slice.edge(type, a, here, null);
+          }
+        });
   }
 
   /** An organization, its people and its teams. */
@@ -895,6 +940,7 @@ public class GraphExplorationService {
             slice.edge(GraphEdgeType.TEAM_OF, here, o, null);
           });
     }
+    ownedAssets(slice, tenantIds, id, here, want, cap, ASSETS_OWNED_BY_TEAM);
     return focus;
   }
 
@@ -1076,7 +1122,7 @@ public class GraphExplorationService {
             + " FROM AssetLink l, Asset b"
             + " WHERE ((l.assetId = :id AND b.id = l.linkedAssetId)"
             + " OR (l.linkedAssetId = :id AND b.id = l.assetId))"
-            + " AND b.tenant.id IN :tenantIds ORDER BY b.name",
+            + " AND l.suppressed = false AND b.tenant.id IN :tenantIds ORDER BY b.name",
         tenantIds,
         assetId,
         cap,
@@ -1085,6 +1131,51 @@ public class GraphExplorationService {
           boolean outgoing = ((Number) r[3]).intValue() == 1;
           slice.edge(
               GraphEdgeType.LINKED_TO, outgoing ? here : other, outgoing ? other : here, null);
+        });
+  }
+
+  /**
+   * The people and teams that own or manage an asset ({@code assets_owners}, #9725), drawn from the
+   * asset to its owner with the owner's role as the edge type.
+   */
+  private void owners(
+      Slice slice,
+      Collection<String> tenantIds,
+      String assetId,
+      String here,
+      Predicate<GraphEdgeType> want,
+      int cap) {
+    rows(
+        slice,
+        "SELECT u.id, u.firstname, u.lastname, u.email, o.role FROM AssetOwner o, Asset a, User u"
+            + " WHERE a.id = :id AND o.assetId = a.id AND u.id = o.userId"
+            + " AND a.tenant.id IN :tenantIds ORDER BY u.lastname, u.firstname",
+        tenantIds,
+        assetId,
+        cap,
+        r -> {
+          GraphEdgeType type = GraphEdgeType.valueOf(r[4].toString());
+          if (want.test(type)) {
+            String p =
+                slice.node(
+                    GraphNodeType.PERSON, (String) r[0], personLabel(r[0], r[1], r[2], r[3]), null);
+            slice.edge(type, here, p, null);
+          }
+        });
+    rows(
+        slice,
+        "SELECT t.id, t.name, o.role FROM AssetOwner o, Asset a, Team t"
+            + " WHERE a.id = :id AND o.assetId = a.id AND t.id = o.teamId"
+            + " AND t.tenant.id = a.tenant.id AND a.tenant.id IN :tenantIds ORDER BY t.name",
+        tenantIds,
+        assetId,
+        cap,
+        r -> {
+          GraphEdgeType type = GraphEdgeType.valueOf(r[2].toString());
+          if (want.test(type)) {
+            String t = slice.node(GraphNodeType.TEAM, (String) r[0], (String) r[1], null);
+            slice.edge(type, here, t, null);
+          }
         });
   }
 

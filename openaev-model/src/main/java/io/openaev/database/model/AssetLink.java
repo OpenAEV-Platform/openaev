@@ -37,6 +37,22 @@ public class AssetLink {
   @Column(name = "asset_link_created_at", updatable = false)
   private Instant createdAt = Instant.now();
 
+  /** Who added the link (#9725): a person, or an automatic source such as an agent. */
+  @Column(name = "asset_link_source", nullable = false)
+  @Enumerated(EnumType.STRING)
+  private AssetRelationSource source = AssetRelationSource.MANUAL;
+
+  /** When an automatic source last reported the link; null for a link only a person added. */
+  @Column(name = "asset_link_last_seen_at")
+  private Instant lastSeenAt;
+
+  /**
+   * A person removed this automatic link: it is kept hidden so the next report of its source does
+   * not bring it back. Adding it by hand clears the flag.
+   */
+  @Column(name = "asset_link_suppressed", nullable = false)
+  private boolean suppressed;
+
   @Data
   public static class AssetLinkId implements Serializable {
 

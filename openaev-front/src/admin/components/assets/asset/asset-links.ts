@@ -75,6 +75,9 @@ export type AssetLinkRow = {
   otherId: string;
   otherName: string;
   type: AssetLinkType;
+  /** MANUAL, AGENT, COLLECTOR or SYNC: who created the link. */
+  origin?: string;
+  lastSeenAt?: string;
 };
 
 // One row per link as seen from the asset page: the other end is the asset to navigate to, and the
@@ -99,6 +102,8 @@ export const toAssetLinkRows = (links: AssetLinkOutput[], assetId: string): Asse
         otherId: outgoing ? targetId : sourceId,
         otherName: outgoing ? targetName : sourceName,
         type,
+        origin: link.asset_link_origin,
+        lastSeenAt: link.asset_link_last_seen_at,
       };
     });
 };
