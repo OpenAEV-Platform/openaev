@@ -102,12 +102,14 @@ tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // both scopes, prev
 
 Without the v2 scope, a read on an active table returns no rows (`can_access_tenant` is false when no tenant is set).
 
-Setting only the v2 primitive is **not** enough, and it fails silently: `TenantBaseListener` stamps
-every insert from `TenantContext.getCurrentTenant()`, which falls back to `Tenant.DEFAULT_TENANT_UUID`
-when nothing is set, so the row is attributed to the default tenant. Single-tenant deployments never
-see it, because the fallback is the right tenant. This shipped once: scheduled inject execution
-resolved another tenant's endpoints and created a customer simulation's expectations against them
-(`InjectsExecutionJob#executeInTenant`).
+Setting only the v2 primitive is **not** enough for a write that names no tenant: `TenantBaseListener`
+stamps that insert from the ambient tenant. Under the production list (`openaev.tenant.active-tables=*`)
+the insert fails with `unattributed tenant write` when no ambient tenant is set
+(`TenantBaseListener.manageTenant`). On a list that does not name the table, the listener falls back to
+`Tenant.DEFAULT_TENANT_UUID` and the row lands in the default tenant with no error; single-tenant
+deployments never see it, because the fallback is the right tenant. This shipped once: scheduled
+inject execution resolved another tenant's endpoints and created a customer simulation's expectations
+against them (`InjectsExecutionJob#executeInTenant`).
 
 A green `findById` proves nothing about scoping on a table outside `active-tables`, and a
 deliberately cross-tenant sweep must set the tenant explicitly on anything it writes. A cross-tenant

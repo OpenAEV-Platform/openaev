@@ -119,9 +119,9 @@ public class ScenarioExecutionJob implements Job {
   }
 
   /**
-   * Runs one step of the pass in its tenant's transaction. A failure is logged and goes no further:
-   * the other steps of this tenant and the other tenants run all the same, as in {@code
-   * forEachTenant}.
+   * Runs one step of the pass in its tenant's transaction. A failure rolls that step back, is
+   * logged, and ends there: the job raises nothing, and the other steps of this tenant and the
+   * other tenants run all the same.
    */
   private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
     try {
