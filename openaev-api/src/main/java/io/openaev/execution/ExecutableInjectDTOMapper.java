@@ -32,7 +32,10 @@ public class ExecutableInjectDTOMapper {
       assetsToExecute =
           injectService.resolveAllAssetsToExecute(executableInject.getInjection().getInject());
     }
-    List<String> credentialReferenceIds = executableInject.credentialReferenceIds(assetsToExecute);
+    List<String> credentialReferenceIds =
+        executableInject.credentialReferenceIds(
+            injectService.targetsSentToInjector(
+                executableInject.getInjection().getInject(), assetsToExecute));
     return ExecutableInjectDTO.builder()
         .injection(executableInject.getInjection())
         .assets(

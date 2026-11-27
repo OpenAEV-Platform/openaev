@@ -1622,6 +1622,9 @@ class InjectServiceTest {
     @DisplayName("Inject without secret references should not persist an authorisation code")
     void given_noSecretReferences_should_notPersistInjectAuthorisation() {
       ExecutableInject executableInject = mock(ExecutableInject.class);
+      Injection injection = mock(Injection.class);
+      when(injection.getInject()).thenReturn(mock(Inject.class));
+      when(executableInject.getInjection()).thenReturn(injection);
       when(executableInject.getAssetsToExecute()).thenReturn(List.of());
       when(executableInject.credentialReferenceIds(List.of())).thenReturn(List.of());
 

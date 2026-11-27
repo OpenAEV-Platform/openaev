@@ -652,6 +652,19 @@ public class InjectService {
     return resolveAssetsToExecuteByClearance(inject).cleared();
   }
 
+  /** Drops the AI targets when the inject's injector does not declare an AI target field. */
+  public List<AssetToExecute> targetsSentToInjector(
+      @NotNull final Inject inject, @NotNull final List<AssetToExecute> targets) {
+    boolean handlesAiTargets =
+        !injectorContractContentUtils
+            .fieldKeysOfType(inject.getInjectorContract().orElse(null), ContractFieldType.AiTarget)
+            .isEmpty();
+    return targets.stream()
+        .filter(
+            target -> handlesAiTargets || target.asset().getCategory() != AssetCategory.AI_TARGET)
+        .toList();
+  }
+
   /**
    * Resolves the targets once and splits them by {@link #resolveLaunchedByClearance}'s
    * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
@@ -2151,10 +2164,13 @@ public class InjectService {
       executableInject.cacheAssetsToExecute(
           resolveAssetsToExecuteByClearance(executableInject.getInjection().getInject()));
     }
-    if (executableInject.credentialReferenceIds(executableInject.getAssetsToExecute()).isEmpty()) {
+    Inject inject = executableInject.getInjection().getInject();
+    if (executableInject
+        .credentialReferenceIds(
+            targetsSentToInjector(inject, executableInject.getAssetsToExecute()))
+        .isEmpty()) {
       return null;
     }
-    Inject inject = executableInject.getInjection().getInject();
     String rawCode = UUID.randomUUID().toString();
     String hashedCode = hashWithSHA256(rawCode);
 
@@ -2198,7 +2214,8 @@ public class InjectService {
     SecretReference secretReference =
         Stream.concat(
                 inject.getSecretReferences().stream(),
-                AssetToExecute.aiTargetCredentials(resolveAllAssetsToExecute(inject)))
+                AssetToExecute.aiTargetCredentials(
+                    targetsSentToInjector(inject, resolveAllAssetsToExecute(inject))))
             .filter(ref -> ref.getId().equals(attachmentId))
             .findFirst()
             .orElseThrow(() -> new CredentialResolutionException(CREDENTIAL_NOT_FOUND));

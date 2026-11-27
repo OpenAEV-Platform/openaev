@@ -88,7 +88,7 @@ class ExecutableInjectDTOMapperTest {
     assertThat(dto.getAssets())
         .extracting(EndpointTargetOutput::getId)
         .containsExactly("endpoint-green");
-    verifyNoInteractions(injectService);
+    verify(injectService, never()).resolveAllAssetsToExecute(any());
   }
 
   @Test
