@@ -23,9 +23,12 @@ const NewsFeedToastItem: FunctionComponent<Props> = ({ item }) => {
   const isScenario = item.news_feed_item_type === 'RESOURCE_SCENARIO';
   let TypeIcon = NotificationsOutlined;
   let typeLabel = t('Unsupported type');
+  // A blogpost is an article of the Filigran blog, whereas the other types are resources of XTM Hub.
+  let openLabel = t('Open in XTM Hub');
   if (isBlogPost) {
     TypeIcon = ArticleOutlined;
     typeLabel = t('Blogpost');
+    openLabel = t('Open on Filigran blog');
   } else if (isScenario) {
     TypeIcon = RouteOutlined;
     typeLabel = t('New scenario');
@@ -66,13 +69,13 @@ const NewsFeedToastItem: FunctionComponent<Props> = ({ item }) => {
               asChild
               priority="tertiary"
               size="sm"
-              aria-label={t('Open in XTM Hub')}
+              aria-label={openLabel}
               icon={<OpenInNewOutlined fontSize="small" />}
             >
               <a href={hubUrl} target="_blank" rel="noopener noreferrer" />
             </IconButton>
           </TooltipTrigger>
-          <TooltipContent>{t('Open in XTM Hub')}</TooltipContent>
+          <TooltipContent>{openLabel}</TooltipContent>
         </Tooltip>
       )}
     </div>

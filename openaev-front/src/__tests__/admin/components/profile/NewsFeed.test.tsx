@@ -351,17 +351,24 @@ describe('NewsFeed page', () => {
 
   describe('settings', () => {
     it('shows the type the user is subscribed to as enabled', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
       renderPage('settings');
-      expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeChecked();
-      expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).toBeChecked();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeChecked();
     });
 
-    it('lists every known type until XTM Hub told which types it provisions', async () => {
+    it('has no switch for the scenarios, which XTM Hub provisions and the user stays subscribed to', async () => {
+      renderPage('settings');
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+      expect(screen.queryByRole('switch', { name: 'Scenario' })).not.toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeChecked();
+    });
+
+    it('lists every known type but the scenarios until XTM Hub told which types it provisions', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: [] }) });
       renderPage('settings');
-      expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeChecked();
-      expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
+      expect(screen.queryByRole('switch', { name: 'Scenario' })).not.toBeInTheDocument();
     });
 
     it('turns the global switch off when the user is subscribed to none of the listed types', async () => {
@@ -376,7 +383,7 @@ describe('NewsFeed page', () => {
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).not.toBeChecked();
     });
 
-    it('lists only the types XTM Hub provisions', async () => {
+    it('lists only the types XTM Hub provisions, the scenarios apart', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_available_types: ['BLOG_POST'] }) });
       renderPage('settings');
       expect(await screen.findByRole('switch', { name: 'Blogpost' })).toBeInTheDocument();
@@ -392,22 +399,24 @@ describe('NewsFeed page', () => {
     it('shows nothing as enabled when the user unsubscribed from everything', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
-      expect(await screen.findByRole('switch', { name: 'Scenario' })).not.toBeChecked();
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).not.toBeChecked();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).not.toBeChecked();
     });
 
-    it('unsubscribes from a type when its switch is turned off', async () => {
+    it('unsubscribes from a type when its switch is turned off, and keeps the scenarios', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
       renderPage('settings');
-      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
-      await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).not.toBeChecked());
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
+      await waitFor(() => expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeChecked());
     });
 
     it('unsubscribes from a type when its label is clicked', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
       renderPage('settings');
-      await screen.findByRole('switch', { name: 'Scenario' });
-      fireEvent.click(screen.getByText('Scenario'));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
+      await screen.findByRole('switch', { name: 'Blogpost' });
+      fireEvent.click(screen.getByText('Blogpost', { selector: 'label' }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
     });
 
     it('unsubscribes from everything when the label of the global switch is clicked', async () => {
@@ -420,9 +429,9 @@ describe('NewsFeed page', () => {
     it('subscribes to a type again when its switch is turned back on', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
-      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
-      await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked());
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['BLOG_POST'] }, false));
+      await waitFor(() => expect(screen.getByRole('switch', { name: 'Blogpost' })).toBeChecked());
     });
 
     it('unsubscribes from everything with the global switch', async () => {
@@ -439,29 +448,31 @@ describe('NewsFeed page', () => {
     });
 
     it('keeps the previous state when the save fails', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
       mockUpdateSettings.mockRejectedValue(new Error('boom'));
       renderPage('settings');
-      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
       await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());
-      await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).not.toBeDisabled());
-      expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked();
+      await waitFor(() => expect(screen.getByRole('switch', { name: 'Blogpost' })).not.toBeDisabled());
+      expect(screen.getByRole('switch', { name: 'Blogpost' })).toBeChecked();
     });
 
     it('explains that the product is no longer connected when the save is refused with a 403', async () => {
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO', 'BLOG_POST'] }) });
       mockUpdateSettings.mockRejectedValue({ status: 403 });
       renderPage('settings');
-      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
       await waitFor(() => expect(mockNotifyError).toHaveBeenCalledWith('Your OpenAEV product is no longer connected to XTM Hub'));
-      expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false);
+      expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false);
       expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
-      expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Blogpost' })).toBeChecked();
     });
 
     it('lets the generic handler notify any other save failure', async () => {
       const error = new Error('boom');
       mockUpdateSettings.mockRejectedValue(error);
       renderPage('settings');
-      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
+      fireEvent.click(await screen.findByRole('switch', { name: 'Blogpost' }));
       await waitFor(() => expect(mockNotifyErrorHandler).toHaveBeenCalledWith(error));
       expect(mockNotifyError).not.toHaveBeenCalled();
     });
@@ -474,7 +485,7 @@ describe('NewsFeed page', () => {
         }),
       });
       renderPage('settings');
-      expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeDisabled();
+      expect(await screen.findByRole('switch', { name: 'Blogpost' })).toBeDisabled();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeDisabled();
     });
 

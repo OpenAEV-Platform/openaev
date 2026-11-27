@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { TooltipProvider } from '@filigran/design-system';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../constants/ActionTypes';
@@ -38,24 +39,26 @@ const PLATFORM_ID = 'platform-1';
 
 const renderManager = () => render(
   <IntlProvider locale="en" messages={{}} onError={() => {}}>
-    <TooltipProvider>
-      <UserContext.Provider
-        value={{
-          me: {} as User,
-          settings: {
-            xtm_hub_url: HUB_URL,
-            platform_id: PLATFORM_ID,
-          } as PlatformSettings,
-          isXTMHubAccessible: true,
-          userTenants: [],
-          currentUserTenant: null,
-          switchUserTenant: async () => {},
-          reloadUserTenants: async () => {},
-        }}
-      >
-        <NewsFeedToastManager />
-      </UserContext.Provider>
-    </TooltipProvider>
+    <MemoryRouter>
+      <TooltipProvider>
+        <UserContext.Provider
+          value={{
+            me: {} as User,
+            settings: {
+              xtm_hub_url: HUB_URL,
+              platform_id: PLATFORM_ID,
+            } as PlatformSettings,
+            isXTMHubAccessible: true,
+            userTenants: [],
+            currentUserTenant: null,
+            switchUserTenant: async () => {},
+            reloadUserTenants: async () => {},
+          }}
+        >
+          <NewsFeedToastManager />
+        </UserContext.Provider>
+      </TooltipProvider>
+    </MemoryRouter>
   </IntlProvider>,
 );
 
@@ -218,7 +221,7 @@ describe('NewsFeedToastManager', () => {
       const region = liveRegion();
       expect(within(region).getByText('Blogpost')).toBeInTheDocument();
       expect(within(region).queryByText('Unsupported type')).not.toBeInTheDocument();
-      expect(within(region).getByRole('link', { name: 'Open in XTM Hub' }))
+      expect(within(region).getByRole('link', { name: 'Open on Filigran blog' }))
         .toHaveAttribute('href', `${HUB_URL}/redirect/blog/threat-report?platform_id=${PLATFORM_ID}`);
     });
 
@@ -253,7 +256,10 @@ describe('NewsFeedToastManager', () => {
         // Assert
         const region = liveRegion();
         expect(within(region).getByText('(+2) Click to view all the new items')).toBeInTheDocument();
-        expect(within(region).getByRole('link', { name: 'View all' })).toHaveAttribute('href', `${HUB_URL}/app`);
+        // the blogposts are not in the XTM Hub library: the link goes to the news feed of the platform, in the same tab
+        const link = within(region).getByRole('link', { name: 'View all' });
+        expect(link).toHaveAttribute('href', '/admin/profile/news-feed');
+        expect(link).not.toHaveAttribute('target');
       });
 
       it('keeps the XTM Hub wording when only resources are hidden', async () => {

@@ -84,7 +84,7 @@ describe('NewsFeedBlogPostCard', () => {
   });
 
   describe('content', () => {
-    it('shows the image, the full title, the authors, the read time, the description, the tags and the date', () => {
+    it('shows the image, the title, the authors, the read time, the tags and the date', () => {
       // Act
       renderCard(buildBlogPost());
 
@@ -96,7 +96,7 @@ describe('NewsFeedBlogPostCard', () => {
       })).toBeInTheDocument();
       expect(screen.getByText('Jane Doe, John Doe')).toBeInTheDocument();
       expect(screen.getByText('7 min read')).toBeInTheDocument();
-      expect(screen.getByText('What changed this month')).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Jane Doe, John Doe' })).toBeInTheDocument();
       expect(screen.getByText('threat intel')).toBeInTheDocument();
       expect(document.querySelector('time')).toHaveAttribute('dateTime', '2026-03-15T12:00:00Z');
     });
@@ -110,7 +110,7 @@ describe('NewsFeedBlogPostCard', () => {
 
       // Assert
       expect(screen.getByRole('heading', { name: TITLE })).toBeInTheDocument();
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'The cover' })).not.toBeInTheDocument();
       expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
       expect(document.querySelector('time')).toBeInTheDocument();
     });
@@ -124,6 +124,14 @@ describe('NewsFeedBlogPostCard', () => {
 
       // Assert
       expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+    });
+
+    it('folds the authors beyond the third into a counter', () => {
+      // Act
+      renderCard(buildBlogPost({ news_feed_item_metadata: metadataOf({ author_names: '["Ann A","Bob B","Cyd C","Dan D","Eve E"]' }) }));
+
+      // Assert
+      expect(screen.getByText('+2')).toBeInTheDocument();
     });
 
     it('shows no read time when it is not a positive number of minutes', () => {
@@ -145,7 +153,7 @@ describe('NewsFeedBlogPostCard', () => {
       renderCard(buildBlogPost({ news_feed_item_metadata: metadataOf({ image_url: imageUrl }) }));
 
       // Assert
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'The cover' })).not.toBeInTheDocument();
     });
 
     it('removes an image that fails to load, leaving no gap', () => {
@@ -156,7 +164,7 @@ describe('NewsFeedBlogPostCard', () => {
       fireEvent.error(screen.getByRole('img', { name: 'The cover' }));
 
       // Assert
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'The cover' })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: TITLE })).toBeInTheDocument();
     });
   });
@@ -173,12 +181,24 @@ describe('NewsFeedBlogPostCard', () => {
       expect(window.open).toHaveBeenCalledWith(`${HUB_URL}/redirect/blog/hub-1?platform_id=${PLATFORM_ID}`, '_blank', 'noopener,noreferrer');
     });
 
+    it('also offers the article as a real link, opening in a new tab without referrer', () => {
+      // Act
+      renderCard(buildBlogPost());
+
+      // Assert
+      const link = screen.getByRole('link', { name: 'Open on Filigran blog' });
+      expect(link).toHaveAttribute('href', `${HUB_URL}/redirect/blog/hub-1?platform_id=${PLATFORM_ID}`);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('cannot be clicked when the XTM Hub path leaves XTM Hub', () => {
       // Act
       renderCard(buildBlogPost({ news_feed_item_url_path: 'https://evil.example/steal' }));
 
       // Assert
       expect(screen.queryByRole('button', { name: TITLE })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Open on Filigran blog' })).not.toBeInTheDocument();
     });
   });
 });

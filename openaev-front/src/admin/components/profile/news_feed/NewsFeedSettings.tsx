@@ -8,6 +8,9 @@ import SimpleError from '../../../../components/SimpleError';
 import type { NewsFeedSettingsOutput } from '../../../../utils/api-types';
 import { NEWS_FEED_TYPES, type NewsFeedType } from './useNewsFeedSettings';
 
+// The scenarios are still delivered and subscribed, the user just has no switch for them.
+const HIDDEN_TYPES: NewsFeedType[] = ['RESOURCE_SCENARIO'];
+
 interface Props {
   settings: NewsFeedSettingsOutput | null;
   failed: boolean;
@@ -71,6 +74,8 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
   // Changing the preferences is only possible when XTM Hub delivers the items.
   const disabled = saving || !settings.news_feed_settings_hub_registered;
 
+  const switchableTypes = listedTypes.filter(type => !HIDDEN_TYPES.includes(type));
+
   const typeLabels: Record<NewsFeedType, string> = {
     RESOURCE_SCENARIO: t('Scenario'),
     BLOG_POST: t('Blogpost'),
@@ -103,24 +108,28 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
             disabled={disabled}
             onCheckedChange={checked => onChange(checked ? NEWS_FEED_TYPES : [])}
           />
-          <Divider />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            padding: '0 20px',
-          }}
-          >
-            {listedTypes.map(type => (
-              <SettingRow
-                key={type}
-                label={typeLabels[type]}
-                checked={subscribedTypes.includes(type)}
-                disabled={disabled}
-                onCheckedChange={checked => toggleType(type, checked)}
-              />
-            ))}
-          </div>
+          {switchableTypes.length > 0 && (
+            <>
+              <Divider />
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                padding: '0 20px',
+              }}
+              >
+                {switchableTypes.map(type => (
+                  <SettingRow
+                    key={type}
+                    label={typeLabels[type]}
+                    checked={subscribedTypes.includes(type)}
+                    disabled={disabled}
+                    onCheckedChange={checked => toggleType(type, checked)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </Paper>
     </section>
