@@ -214,10 +214,27 @@ public class FullTextSearchService {
         .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
   }
 
+  /**
+   * Builds the {@code to_tsquery} text for the user's search box input: one prefix lexeme per
+   * whitespace-separated word, ANDed together.
+   *
+   * <p>Each lexeme is single-quoted and its {@code \} and {@code '} escaped, because the raw input
+   * is not a tsquery: an interior double space, a {@code &}, an unbalanced parenthesis or a colon
+   * produced {@code (acme:*) & (:*) & (corp:*)}, which Postgres rejects with {@code syntax error in
+   * tsquery} and the endpoint answers 500. Quoting keeps the parser away from those characters
+   * while leaving matching unchanged - the quoted lexeme is tokenized by the same parser as the
+   * document, so {@code C++} still searches {@code 'c':*}.
+   */
   private static String getFinalSearchTerm(String searchTerm) {
-    return Arrays.stream(searchTerm.split(" "))
-        .map(s -> "(" + s + ":*)")
+    return Arrays.stream(searchTerm.trim().split("\\s+"))
+        .filter(word -> !word.isEmpty())
+        .map(word -> "(" + quoteTsQueryLexeme(word) + ":*)")
         .collect(Collectors.joining(" & "));
+  }
+
+  /** Quotes one tsquery lexeme: inside a quoted lexeme only {@code \} and {@code '} are special. */
+  private static String quoteTsQueryLexeme(String word) {
+    return "'" + word.replace("\\", "\\\\").replace("'", "\\'") + "'";
   }
 
   public List<String> getAllowedClass() {
