@@ -46,7 +46,7 @@ RUN mvn install -DskipTests -Pdev
 # (adoptium/containers#1146), so arm64 stays on 21.0.13_9 meanwhile.
 # TODO: once the arm64 image of 21.0.13.1_2 is published, go back to a single FROM for app.
 FROM eclipse-temurin:21.0.13.1_2-jre-noble@sha256:897ec01ae1350622de0d5393a48a4ffffee8fe1609f248f4389578b919eaf9f5 AS app-base-amd64
-FROM eclipse-temurin:21.0.13_9-jre-noble@sha256:b4f9d2a0bc273417cf5219b7b832bbf0493ed500b7b57d5001d9f83374659060 AS app-base-arm64
+FROM eclipse-temurin:21.0.13.1_2-jre-noble@sha256:897ec01ae1350622de0d5393a48a4ffffee8fe1609f248f4389578b919eaf9f5 AS app-base-arm64
 
 FROM app-base-${TARGETARCH} AS app
 
