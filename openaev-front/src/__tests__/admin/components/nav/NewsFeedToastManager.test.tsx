@@ -31,7 +31,7 @@ vi.mock('../../../../utils/hooks/useDataLoader', () => ({
   },
 }));
 
-const { default: NewsFeedToastManager, MAX_UNREAD_TOASTS, MAX_VISIBLE_TOASTS } = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { default: NewsFeedToastManager, MAX_UNREAD_TOASTS, MAX_VISIBLE_TOASTS, REGISTRATION_CHECK_SIZE } = await import('../../../../admin/components/nav/NewsFeedToastManager');
 const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 const HUB_URL = 'https://hub.example.com';
@@ -98,7 +98,7 @@ const pushEvents = async (...events: MessageEvent[]) => {
 };
 
 // The search of the unread items at mount asks for a page, the registration check after a stream burst for a single item.
-const isRegistrationCheck = (input: { size: number }) => input.size === 1;
+const isRegistrationCheck = (input: { size: number }) => input.size === REGISTRATION_CHECK_SIZE;
 
 const searchAnswers = (registrationCheckItemCount: number, unreadItems: Record<string, unknown>[] = []) => mocks.searchMyNewsFeedItems.mockImplementation(
   (input: { size: number }) => Promise.resolve({
@@ -122,6 +122,18 @@ const hubItem = (title: string, { read = false, type = 'RESOURCE_SCENARIO' }: {
   news_feed_item_url_path: `/cybersecurity-solutions/open-aev-scenarios/${title}`,
   news_feed_item_is_read: read,
 });
+
+// The registration check answers at once, the search of the unread items when the test resolves it.
+const deferredUnreadSearch = () => {
+  let resolve: (items: Record<string, unknown>[]) => void = () => {};
+  const pending = new Promise<{ data: { content: Record<string, unknown>[] } }>((resolvePending) => {
+    resolve = items => resolvePending({ data: { content: items } });
+  });
+  mocks.searchMyNewsFeedItems.mockImplementation((input: { size: number }) => (
+    isRegistrationCheck(input) ? Promise.resolve({ data: { content: [{}] } }) : pending
+  ));
+  return { resolve };
+};
 
 const mountAndLoad = async (unreadItems: Record<string, unknown>[]) => {
   searchAnswers(1, unreadItems);
@@ -403,16 +415,40 @@ describe('NewsFeedToastManager', () => {
     });
 
     it('does not toast twice an item that the stream delivered before the unread items arrived', async () => {
-      // Arrange
-      searchAnswers(1, [hubItem('A'), hubItem('B')]);
+      // Arrange: the unread search stays pending while the stream events are flushed
+      const unreadSearch = deferredUnreadSearch();
       renderManager();
+      await pushEvents(streamEvent('A'));
+      expect(within(liveRegion()).getAllByText('A')).toHaveLength(1);
 
       // Act
-      await pushEvents(streamEvent('A'));
+      await act(async () => {
+        unreadSearch.resolve([hubItem('A'), hubItem('B')]);
+        await vi.advanceTimersByTimeAsync(0);
+      });
 
       // Assert
       expect(within(liveRegion()).getAllByText('A')).toHaveLength(1);
       expect(within(liveRegion()).getAllByText('B')).toHaveLength(1);
+    });
+
+    it('does not toast the unread items that arrive after the user dismissed all the toasts', async () => {
+      // Arrange
+      const unreadSearch = deferredUnreadSearch();
+      renderManager();
+      await pushEvents(streamEvent('A'));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss all' }));
+      });
+
+      // Act
+      await act(async () => {
+        unreadSearch.resolve([hubItem('B')]);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(liveRegion()).toBeEmptyDOMElement();
     });
 
     it('keeps toasting the items created while the user is logged in', async () => {
@@ -527,7 +563,7 @@ describe('NewsFeedToastManager', () => {
 
       // Assert
       expect(registrationChecks()).toHaveLength(1);
-      expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledWith(expect.objectContaining({ size: 1 }), false);
+      expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledWith(expect.objectContaining({ size: REGISTRATION_CHECK_SIZE }), false);
       expect(liveRegion()).toBeEmptyDOMElement();
     });
 

@@ -1,7 +1,7 @@
 import { IconButton, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowForward, Close, OpenInNewOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { searchMyNewsFeedItems } from '../../../actions/news_feed/news-feed-actions';
@@ -26,6 +26,9 @@ export const MAX_VISIBLE_TOASTS = 5;
 // behind the badge of the news feed.
 export const MAX_UNREAD_TOASTS = 50;
 
+// A single item is enough for the registration check of the stream events: only whether the page is empty matters.
+export const REGISTRATION_CHECK_SIZE = 1;
+
 // The unread items first (false sorts before true), the newest first among them.
 const UNREAD_SEARCH = buildSearchPagination({
   size: MAX_UNREAD_TOASTS,
@@ -49,6 +52,8 @@ const NewsFeedToastManager: FunctionComponent = () => {
   const { surface, card } = useNewsFeedToastStyles();
   const enabled = isFeatureEnabled('XTM_HUB_NEWS_FEED');
   const [toasts, setToasts] = useState<NewsFeedToastData[]>([]);
+  // The unread items that arrive after "Dismiss all" were already dismissed by the user.
+  const dismissedAll = useRef(false);
 
   useEffect(() => {
     if (!enabled) {
@@ -57,11 +62,14 @@ const NewsFeedToastManager: FunctionComponent = () => {
     let active = true;
     let pendingItems: NewsFeedToastData[] = [];
     let batchTimer: ReturnType<typeof setTimeout> | undefined;
-    // The same search answers both: an empty page also means that the current tenant is not registered on XTM Hub.
+    // This one search lists the unread items and also shows whether the tenant is registered on XTM Hub (an empty
+    // page means it is not).
     searchMyNewsFeedItems(UNREAD_SEARCH, false)
       .then(({ data }) => {
+        // Not redundant: the backend can sort on the read state but not filter on it, so when there are fewer than
+        // MAX_UNREAD_TOASTS unread items, read items fill the rest of the page.
         const unreadItems: NewsFeedToastData[] = data.content.filter((item: NewsFeedItemOutput) => !item.news_feed_item_is_read);
-        if (active && unreadItems.length > 0) {
+        if (active && !dismissedAll.current && unreadItems.length > 0) {
           setToasts(previous => addNewToasts(previous, unreadItems));
         }
       })
@@ -71,7 +79,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
       pendingItems = [];
       // Items carry no tenant and reach the user whatever tenant they browse: the search of the current
       // tenant answers an empty page when that tenant is not registered on XTM Hub.
-      searchMyNewsFeedItems(buildSearchPagination({ size: 1 }), false)
+      searchMyNewsFeedItems(buildSearchPagination({ size: REGISTRATION_CHECK_SIZE }), false)
         .then(({ data }) => {
           if (!active || data.content.length === 0) {
             return;
@@ -154,7 +162,15 @@ const NewsFeedToastManager: FunctionComponent = () => {
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <IconButton priority="tertiary" aria-label={t('Dismiss all')} icon={<Close fontSize="small" />} onClick={() => setToasts([])} />
+              <IconButton
+                priority="tertiary"
+                aria-label={t('Dismiss all')}
+                icon={<Close fontSize="small" />}
+                onClick={() => {
+                  dismissedAll.current = true;
+                  setToasts([]);
+                }}
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Dismiss all')}</TooltipContent>
           </Tooltip>
