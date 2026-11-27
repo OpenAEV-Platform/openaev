@@ -5,10 +5,12 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import { searchMyNewsFeedItems } from '../../../actions/news_feed/news-feed-actions';
+import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
 import { DATA_FETCH_SUCCESS } from '../../../constants/ActionTypes';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
+import type { NewsFeedItemOutput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../utils/utils';
@@ -20,7 +22,26 @@ import { useNewsFeedToastStyles } from './newsFeedToastSurface';
 
 export const MAX_VISIBLE_TOASTS = 5;
 
-/** Toasts the news feed items the collector creates for the current user, until they are dismissed. */
+// The unread items at login are a safety net, not a pagination: the newest ones are toasted, the others stay
+// behind the badge of the news feed.
+export const MAX_UNREAD_TOASTS = 50;
+
+// The unread items first (false sorts before true), the newest first among them.
+const UNREAD_SEARCH = buildSearchPagination({
+  size: MAX_UNREAD_TOASTS,
+  sorts: [
+    ...initSorting('news_feed_item_is_read', 'ASC'),
+    ...initSorting('news_feed_item_creation_date', 'DESC'),
+  ],
+});
+
+// An item already toasted is not toasted twice, whether it came from the stream or from the unread items.
+const addNewToasts = (toasts: NewsFeedToastData[], items: NewsFeedToastData[]) => items.reduce(
+  (toastList, item) => (toastList.some(toast => toast.news_feed_item_id === item.news_feed_item_id) ? toastList : [...toastList, item]),
+  toasts,
+);
+
+/** Toasts the unread news feed items of the current user at login, then those the collector creates, until they are dismissed. */
 const NewsFeedToastManager: FunctionComponent = () => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -36,6 +57,15 @@ const NewsFeedToastManager: FunctionComponent = () => {
     let active = true;
     let pendingItems: NewsFeedToastData[] = [];
     let batchTimer: ReturnType<typeof setTimeout> | undefined;
+    // The same search answers both: an empty page also means that the current tenant is not registered on XTM Hub.
+    searchMyNewsFeedItems(UNREAD_SEARCH, false)
+      .then(({ data }) => {
+        const unreadItems: NewsFeedToastData[] = data.content.filter((item: NewsFeedItemOutput) => !item.news_feed_item_is_read);
+        if (active && unreadItems.length > 0) {
+          setToasts(previous => addNewToasts(previous, unreadItems));
+        }
+      })
+      .catch(() => {});
     const flush = () => {
       const items = pendingItems;
       pendingItems = [];
@@ -46,10 +76,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
           if (!active || data.content.length === 0) {
             return;
           }
-          setToasts(previous => items.reduce(
-            (toastList, item) => (toastList.some(toast => toast.news_feed_item_id === item.news_feed_item_id) ? toastList : [...toastList, item]),
-            previous,
-          ));
+          setToasts(previous => addNewToasts(previous, items));
         })
         .catch(() => {});
     };

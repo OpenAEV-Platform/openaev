@@ -31,7 +31,7 @@ vi.mock('../../../../utils/hooks/useDataLoader', () => ({
   },
 }));
 
-const { default: NewsFeedToastManager, MAX_VISIBLE_TOASTS } = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { default: NewsFeedToastManager, MAX_UNREAD_TOASTS, MAX_VISIBLE_TOASTS } = await import('../../../../admin/components/nav/NewsFeedToastManager');
 const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 const HUB_URL = 'https://hub.example.com';
@@ -97,7 +97,39 @@ const pushEvents = async (...events: MessageEvent[]) => {
   });
 };
 
-const searchAnswers = (itemCount: number) => mocks.searchMyNewsFeedItems.mockResolvedValue({ data: { content: Array.from({ length: itemCount }, () => ({})) } });
+// The search of the unread items at mount asks for a page, the registration check after a stream burst for a single item.
+const isRegistrationCheck = (input: { size: number }) => input.size === 1;
+
+const searchAnswers = (registrationCheckItemCount: number, unreadItems: Record<string, unknown>[] = []) => mocks.searchMyNewsFeedItems.mockImplementation(
+  (input: { size: number }) => Promise.resolve({
+    data: {
+      content: isRegistrationCheck(input)
+        ? Array.from({ length: registrationCheckItemCount }, () => ({}))
+        : unreadItems,
+    },
+  }),
+);
+
+const registrationChecks = () => mocks.searchMyNewsFeedItems.mock.calls.filter(([input]) => isRegistrationCheck(input));
+
+const hubItem = (title: string, { read = false, type = 'RESOURCE_SCENARIO' }: {
+  read?: boolean;
+  type?: string;
+} = {}) => ({
+  news_feed_item_id: title,
+  news_feed_item_title: title,
+  news_feed_item_type: type,
+  news_feed_item_url_path: `/cybersecurity-solutions/open-aev-scenarios/${title}`,
+  news_feed_item_is_read: read,
+});
+
+const mountAndLoad = async (unreadItems: Record<string, unknown>[]) => {
+  searchAnswers(1, unreadItems);
+  renderManager();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+};
 
 const liveRegion = () => screen.getByRole('status');
 
@@ -287,6 +319,156 @@ describe('NewsFeedToastManager', () => {
     });
   });
 
+  describe('unread items at login', () => {
+    it('toasts the unread items when the manager mounts, the same way as a created item', async () => {
+      // Act
+      await mountAndLoad([hubItem('Ransomware'), hubItem('Threat report', { type: 'BLOG_POST' })]);
+
+      // Assert
+      const region = liveRegion();
+      expect(within(region).getByText('Ransomware')).toBeInTheDocument();
+      expect(within(region).getByText('New scenario')).toBeInTheDocument();
+      expect(within(region).getByText('Threat report')).toBeInTheDocument();
+      expect(within(region).getByText('Blogpost')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dismiss all' })).toBeInTheDocument();
+    });
+
+    it('asks for the unread items of both categories first, the newest first, within a bounded page', async () => {
+      // Act
+      await mountAndLoad([]);
+
+      // Assert
+      expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledTimes(1);
+      expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledWith(
+        expect.objectContaining({
+          size: MAX_UNREAD_TOASTS,
+          sorts: [
+            {
+              property: 'news_feed_item_is_read',
+              direction: 'ASC',
+            },
+            {
+              property: 'news_feed_item_creation_date',
+              direction: 'DESC',
+            },
+          ],
+        }),
+        false,
+      );
+    });
+
+    it('does not toast the items that are read', async () => {
+      // Act
+      await mountAndLoad([hubItem('Unread'), hubItem('Read', { read: true })]);
+
+      // Assert
+      expect(within(liveRegion()).getByText('Unread')).toBeInTheDocument();
+      expect(within(liveRegion()).queryByText('Read')).not.toBeInTheDocument();
+    });
+
+    it(`shows ${MAX_VISIBLE_TOASTS} toasts at most and counts the other unread items in the overflow banner`, async () => {
+      // Act
+      await mountAndLoad(['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(title => hubItem(title)));
+
+      // Assert
+      const region = liveRegion();
+      expect(within(region).getAllByRole('link', { name: 'Open in XTM Hub' })).toHaveLength(MAX_VISIBLE_TOASTS);
+      expect(within(region).queryByText('F')).not.toBeInTheDocument();
+      expect(within(region).getByText('(+2) Click to view all the new resources on the Hub')).toBeInTheDocument();
+    });
+
+    it('dismisses the unread items with the single dismiss all control', async () => {
+      // Arrange
+      await mountAndLoad([hubItem('A'), hubItem('B')]);
+
+      // Act
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss all' }));
+      });
+
+      // Assert
+      expect(liveRegion()).toBeEmptyDOMElement();
+    });
+
+    it('does not toast again an unread item that the stream delivers afterwards', async () => {
+      // Arrange
+      await mountAndLoad([hubItem('A')]);
+
+      // Act
+      await pushEvents(streamEvent('A'), streamEvent('B'));
+
+      // Assert
+      expect(within(liveRegion()).getAllByText('A')).toHaveLength(1);
+      expect(within(liveRegion()).getByText('B')).toBeInTheDocument();
+    });
+
+    it('does not toast twice an item that the stream delivered before the unread items arrived', async () => {
+      // Arrange
+      searchAnswers(1, [hubItem('A'), hubItem('B')]);
+      renderManager();
+
+      // Act
+      await pushEvents(streamEvent('A'));
+
+      // Assert
+      expect(within(liveRegion()).getAllByText('A')).toHaveLength(1);
+      expect(within(liveRegion()).getAllByText('B')).toHaveLength(1);
+    });
+
+    it('keeps toasting the items created while the user is logged in', async () => {
+      // Arrange
+      await mountAndLoad([hubItem('A')]);
+
+      // Act
+      await pushEvents(streamEvent('B'));
+
+      // Assert
+      expect(within(liveRegion()).getByText('A')).toBeInTheDocument();
+      expect(within(liveRegion()).getByText('B')).toBeInTheDocument();
+    });
+
+    it('shows no toast when there is no unread item or the tenant is not registered on XTM Hub', async () => {
+      // Act
+      await mountAndLoad([]);
+
+      // Assert
+      expect(liveRegion()).toBeEmptyDOMElement();
+    });
+
+    it('shows no toast when the unread items cannot be fetched', async () => {
+      // Arrange
+      mocks.searchMyNewsFeedItems.mockRejectedValue(new Error('Network Error'));
+      renderManager();
+
+      // Act
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(liveRegion()).toBeEmptyDOMElement();
+    });
+
+    it('shows nothing once unmounted before the unread items arrive', async () => {
+      // Arrange
+      let resolveSearch: (value: unknown) => void = () => {};
+      mocks.searchMyNewsFeedItems.mockReturnValue(new Promise((resolve) => {
+        resolveSearch = resolve;
+      }));
+      const { unmount } = renderManager();
+      unmount();
+
+      // Act
+      await act(async () => {
+        resolveSearch({ data: { content: [hubItem('A')] } });
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(screen.queryByText('A')).not.toBeInTheDocument();
+    });
+  });
+
   describe('stream filtering', () => {
     it('toasts each item of a burst once, with a single registration check', async () => {
       // Arrange
@@ -296,7 +478,7 @@ describe('NewsFeedToastManager', () => {
       await pushEvents(streamEvent('A'), streamEvent('B'), streamEvent('A'));
 
       // Assert
-      expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledTimes(1);
+      expect(registrationChecks()).toHaveLength(1);
       expect(within(liveRegion()).getAllByText('A')).toHaveLength(1);
       expect(within(liveRegion()).getByText('B')).toBeInTheDocument();
     });
@@ -315,7 +497,7 @@ describe('NewsFeedToastManager', () => {
         await pushEvents(event);
 
         // Assert
-        expect(mocks.searchMyNewsFeedItems).not.toHaveBeenCalled();
+        expect(registrationChecks()).toHaveLength(0);
         expect(liveRegion()).toBeEmptyDOMElement();
       });
     });
@@ -329,6 +511,7 @@ describe('NewsFeedToastManager', () => {
 
       // Assert
       expect(mocks.streamHandlers.size).toBe(0);
+      expect(mocks.searchMyNewsFeedItems).not.toHaveBeenCalled();
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
   });
@@ -343,6 +526,7 @@ describe('NewsFeedToastManager', () => {
       await pushEvents(streamEvent('Ransomware'));
 
       // Assert
+      expect(registrationChecks()).toHaveLength(1);
       expect(mocks.searchMyNewsFeedItems).toHaveBeenCalledWith(expect.objectContaining({ size: 1 }), false);
       expect(liveRegion()).toBeEmptyDOMElement();
     });
