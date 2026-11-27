@@ -120,7 +120,6 @@ io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | Tenant
 io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.catalog.event.CatalogAutoInstallListener#onReleaseApplied | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.service.chaining.WorkflowService#resolveValueLabel | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
 io.openaev.service.connector_instances.ConnectorInstanceService#getConnectorInstancesInMemoryByConnectorType | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item

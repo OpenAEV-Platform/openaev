@@ -2235,6 +2235,7 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.TEMPLATE)
               .version(0)
               .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .tenant(new Tenant(TENANT))
               .build();
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
@@ -2264,16 +2265,12 @@ class WorkflowServiceTest {
       when(asset.getName()).thenReturn("Prod DB");
       when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.of(asset));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-1"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-1"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertEquals("Prod DB", result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertEquals("Prod DB", result.getAllowlist().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2285,16 +2282,12 @@ class WorkflowServiceTest {
       when(assetGroupRepository.findByIdAndTenantId("group-1", TENANT))
           .thenReturn(Optional.of(group));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.ASSET_GROUP, "group-1"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.ASSET_GROUP, "group-1"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertEquals("Crown jewels", result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertEquals("Crown jewels", result.getAllowlist().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2306,16 +2299,12 @@ class WorkflowServiceTest {
       team.setName("It team");
       when(teamRepository.findByIdAndTenantId("team-1", TENANT)).thenReturn(Optional.of(team));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.TEAM, "team-1"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.TEAM, "team-1"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertEquals("It team", result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertEquals("It team", result.getAllowlist().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2330,16 +2319,12 @@ class WorkflowServiceTest {
       when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), TENANT))
           .thenReturn(List.of(user));
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.PLAYER, "player-1"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.PLAYER, "player-1"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertEquals("John Doe", result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertEquals("John Doe", result.getAllowlist().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2347,16 +2332,12 @@ class WorkflowServiceTest {
     void given_manualRule_should_notSnapshotLabel() {
       Workflow workflow = buildTemplate();
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.MANUAL, "10.0.0.1"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.MANUAL, "10.0.0.1"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
       verifyNoInteractions(assetRepository, assetGroupRepository);
     }
 
@@ -2366,16 +2347,12 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate();
       when(assetRepository.findByIdAndTenantId("asset-x", TENANT)).thenReturn(Optional.empty());
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result =
+          service.updateWorkflowConfiguration(
+              workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-x"));
 
-        Workflow result =
-            service.updateWorkflowConfiguration(
-                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-x"));
-
-        assertEquals(1, result.getAllowlist().size());
-        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getAllowlist().size());
+      assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2410,14 +2387,10 @@ class WorkflowServiceTest {
                           .build()))
               .build();
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
 
-        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
-
-        assertEquals(1, result.getWorkflowScopeRules().size());
-        assertEquals("New name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getWorkflowScopeRules().size());
+      assertEquals("New name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
     }
 
     @Test
@@ -2452,15 +2425,11 @@ class WorkflowServiceTest {
                           .build()))
               .build();
 
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
 
-        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
-
-        assertEquals(1, result.getWorkflowScopeRules().size());
-        assertEquals(
-            "Snapshotted name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
-      }
+      assertEquals(1, result.getWorkflowScopeRules().size());
+      assertEquals(
+          "Snapshotted name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
     }
   }
 

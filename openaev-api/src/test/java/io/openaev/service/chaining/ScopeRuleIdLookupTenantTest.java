@@ -8,17 +8,21 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
@@ -28,17 +32,20 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -46,7 +53,9 @@ import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -90,6 +99,12 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
       TENANT_PREFIX
           + AutonomousRunApi.AUTONOMOUS_URI.substring("/api".length())
           + "/{runId}/target-teams";
+  private static final String RUN_CONFIGURATION_URI =
+      AutonomousRunApi.AUTONOMOUS_URI + "/{runId}/configuration";
+  private static final String TENANT_RUN_CONFIGURATION_URI =
+      TENANT_PREFIX
+          + AutonomousRunApi.AUTONOMOUS_URI.substring("/api".length())
+          + "/{runId}/configuration";
   private static final String OWN_NAME = "scope-rule-own-endpoint";
   private static final String FOREIGN_NAME = "scope-rule-foreign-endpoint";
 
@@ -106,6 +121,8 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private WorkflowService workflowService;
 
   private String tenantA;
   private String tenantB;
@@ -126,6 +143,7 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     userComposer.reset();
     scenarioComposer.reset();
     workflowComposer.reset();
+    exerciseComposer.reset();
     // The caller belongs to both tenants, so the header can name both of them.
     tenantA = tenantHelper.createTenantWithCurrentUser("scope-rule-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("scope-rule-b").getId();
@@ -473,6 +491,197 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
           .getContentAsString();
     }
   }
+
+  @Nested
+  @DisplayName("Value labels of the scope rules written on a workflow")
+  class ValueLabels {
+
+    private String groupInA;
+    private String teamInA;
+    private String teamInB;
+    private String playerInA;
+    private String playerInB;
+
+    @BeforeEach
+    void seedOneObjectOfEachSourceInEachTenant() {
+      groupInA = saveGroup(tenantA, "scope-rule-own-group", saveEndpoint(tenantA, "member-a"));
+      teamInA = saveTeam(tenantA, "scope-rule-own-team");
+      teamInB = saveTeam(tenantB, "scope-rule-foreign-team");
+      playerInA = saveUser("ScopeRuleOwn", tenantA).getId();
+      playerInB = saveUser("ScopeRuleForeign", tenantB).getId();
+    }
+
+    @Test
+    @DisplayName(
+        "given no ambient tenant when rules of a workflow of A name an object of A then each rule"
+            + " carries the name of its object")
+    void given_noAmbientTenant_should_snapshotTheNamesOfTheWorkflowTenant() {
+      // Arrange
+      String workflow = seedWorkflowOfTenantA();
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      workflowService.updateWorkflowConfiguration(
+          workflow,
+          configuration(
+              allowInput(ScopeRuleSource.ASSET, endpointInA),
+              allowInput(ScopeRuleSource.ASSET_GROUP, groupInA),
+              allowInput(ScopeRuleSource.TEAM, teamInA),
+              allowInput(ScopeRuleSource.PLAYER, playerInA)));
+
+      // Assert
+      assertThat(labelsOf(workflow))
+          .containsEntry(endpointInA, OWN_NAME)
+          .containsEntry(groupInA, "scope-rule-own-group")
+          .containsEntry(teamInA, "scope-rule-own-team")
+          .containsEntry(playerInA, "ScopeRuleOwn Player");
+    }
+
+    @Test
+    @DisplayName(
+        "given an ambient tenant B when rules of a workflow of A name an object of B then no rule"
+            + " carries a name")
+    void given_rulesNamingObjectsOfAnotherTenant_should_snapshotNoName() {
+      // Arrange
+      // The configuration route is tenant-prefixed, so its scope is the workflow tenant alone; the
+      // ambient tenant names the tenant of the objects, the one a label must not come from.
+      String workflow = seedWorkflowOfTenantA();
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      TenantContext.setCurrentTenant(tenantB);
+
+      // Act: an allowlisted group of another tenant refuses the whole update when the scope is
+      // realigned ("Asset group not found"), so the group source is left out of this input.
+      workflowService.updateWorkflowConfiguration(
+          workflow,
+          configuration(
+              allowInput(ScopeRuleSource.ASSET, endpointInB),
+              allowInput(ScopeRuleSource.TEAM, teamInB),
+              allowInput(ScopeRuleSource.PLAYER, playerInB)));
+
+      // Assert
+      assertThat(labelsOf(workflow))
+          .hasSize(3)
+          .containsEntry(endpointInB, null)
+          .containsEntry(teamInB, null)
+          .containsEntry(playerInB, null);
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming tenant A when the live configuration of a run of A names a team of"
+            + " A then the rule carries the name of the team")
+    void given_headerNamingTheRunTenant_should_snapshotTheTeamNameOnTheLiveConfiguration()
+        throws Exception {
+      // Arrange
+      LiveRun live = seedLiveRunOfTenantA();
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      mvc.perform(
+              put(RUN_CONFIGURATION_URI, live.runId())
+                  .header(TENANT_HEADER, tenantA)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(teamConfigurationBody(teamInA))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      assertThat(labelsOf(live.workflowId())).containsEntry(teamInA, "scope-rule-own-team");
+    }
+
+    @Test
+    @DisplayName(
+        "given the path of tenant A when the live configuration of a run of A names a team of A"
+            + " then the rule carries the name of the team")
+    void given_pathOfTheRunTenant_should_snapshotTheTeamNameOnTheLiveConfiguration()
+        throws Exception {
+      // Arrange
+      LiveRun live = seedLiveRunOfTenantA();
+
+      // Act
+      mvc.perform(
+              put(TENANT_RUN_CONFIGURATION_URI, tenantA, live.runId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(teamConfigurationBody(teamInA))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      assertThat(labelsOf(live.workflowId())).containsEntry(teamInA, "scope-rule-own-team");
+    }
+
+    private WorkflowConfigurationInput configuration(WorkflowScopeRuleInput... rules) {
+      return WorkflowConfigurationInput.builder()
+          .safeModeEnabled(true)
+          .workflowScopeRules(List.of(rules))
+          .build();
+    }
+
+    private WorkflowScopeRuleInput allowInput(ScopeRuleSource source, String value) {
+      return WorkflowScopeRuleInput.builder()
+          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+          .ruleSource(source)
+          .ruleValue(value)
+          .build();
+    }
+
+    private String teamConfigurationBody(String team) {
+      return "{\"workflow_configuration_safe_mode_enabled\":true,\"workflow_scope_rules\":["
+          + "{\"workflow_scope_rule_selected_mode\":\"ALLOWLIST\","
+          + "\"workflow_scope_rule_source\":\"TEAM\","
+          + "\"workflow_scope_rule_value\":\""
+          + team
+          + "\"}]}";
+    }
+
+    /** The label of each rule of the workflow, by the value the rule names. */
+    private Map<String, String> labelsOf(String workflow) {
+      entityManager.flush();
+      entityManager.clear();
+      Map<String, String> labels = new HashMap<>();
+      entityManager
+          .createQuery(
+              "select r.ruleValue, r.ruleValueLabel from WorkflowScopeRule r"
+                  + " where r.workflow.id = :workflow",
+              Object[].class)
+          .setParameter("workflow", workflow)
+          .getResultList()
+          .forEach(row -> labels.put((String) row[0], (String) row[1]));
+      return labels;
+    }
+
+    /** A run of tenant A driving one simulation of A with its RUN workflow. */
+    private LiveRun seedLiveRunOfTenantA() {
+      seedWorkflowOfTenantA();
+      Exercise simulation = ExerciseFixture.getExercise();
+      simulation.setTenant(new Tenant(tenantA));
+      Workflow runWorkflow = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+      runWorkflow.setSafeModeEnabled(true);
+      workflowComposer
+          .forWorkflow(runWorkflow)
+          .withSimulation(exerciseComposer.forExercise(simulation))
+          .persist();
+      String run = UUID.randomUUID().toString();
+      execute(
+          "INSERT INTO autonomous_runs (autonomous_run_id, tenant_id, autonomous_run_objective,"
+              + " autonomous_run_status, autonomous_run_scenario_id, autonomous_run_simulation_id)"
+              + " VALUES (?, ?, 'Own the domain', 'RUNNING', ?, ?)",
+          run,
+          tenantA,
+          scenarioOfLastWorkflow,
+          simulation.getId());
+      entityManager.flush();
+      entityManager.clear();
+      return new LiveRun(run, runWorkflow.getId());
+    }
+  }
+
+  private record LiveRun(String runId, String workflowId) {}
 
   @Nested
   @DisplayName("Target team of an autonomous run")
