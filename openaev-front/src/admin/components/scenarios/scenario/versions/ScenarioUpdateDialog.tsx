@@ -192,13 +192,14 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
           <Text variant="content-caption" className="text-default-secondary">{target.keptCaption}</Text>
           <Text
             variant="content-code"
-            as="pre"
+            as="div"
             style={{
               margin: 0,
               padding: theme.spacing(1, 1.5),
               border: '1px solid var(--border-elevation-subtle-soft)',
               borderRadius: 'var(--radius-sm)',
               whiteSpace: 'pre-wrap',
+              overflowWrap: 'break-word',
             }}
           >
             {value || t('(empty)')}
