@@ -4,9 +4,9 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.ocsf.schema.v190.OcsfClassUid;
-import io.openaev.ocsf.schema.v190.OcsfFilter;
-import io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT;
+import io.openaev.ocsf.schema.v1100.OcsfClassUid;
+import io.openaev.ocsf.schema.v1100.OcsfFilter;
+import io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT;
 import io.openaev.utils.fixtures.ProwlerOcsfOutputFixture;
 import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;

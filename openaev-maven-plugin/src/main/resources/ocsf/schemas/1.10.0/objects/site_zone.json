@@ -1,0 +1,97 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the entity.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The site zone type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the entity.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "An area restricted to authorized persons.",
+          "caption" : "Restricted"
+        },
+        "6" : {
+          "description" : "An outdoor area within the site boundary.",
+          "caption" : "External"
+        },
+        "0" : {
+          "description" : "The zone type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The outer boundary of the site.",
+          "caption" : "Perimeter"
+        },
+        "2" : {
+          "description" : "An area open to the public.",
+          "caption" : "Public"
+        },
+        "4" : {
+          "description" : "An area containing critical assets.",
+          "caption" : "Critical"
+        },
+        "99" : {
+          "description" : "The zone type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "5" : {
+          "description" : "A lobby, corridor, or other transitional space.",
+          "caption" : "Transitional"
+        }
+      },
+      "description" : "The normalized classification of the site zone by security posture. These are generic tiers by security posture. Regime-specific tiers map onto them rather than extending the list: for example, a controlled, limited, or protected area maps to Restricted, and an exclusion, vital, or material access area maps to Critical. Carry the native tier name in <code>type</code>.",
+      "group" : "classification",
+      "references" : [ {
+        "description" : "DoD 5200.08-R, Physical Security Program: restricted areas (controlled, limited, exclusion)",
+        "url" : "https://www.esd.whs.mil/Portals/54/Documents/DD/issuances/dodm/520008rm.pdf"
+      }, {
+        "description" : "10 CFR 73.2, NRC definitions: protected area, vital area, material access area",
+        "url" : "https://www.ecfr.gov/current/title-10/chapter-I/part-73/subpart-A/section-73.2"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "is_armed" : {
+      "type" : "boolean_t",
+      "description" : "Indicates whether the intrusion detection or alarm system protecting the site zone was armed (active) at the time of the event. <code>false</code> means it was disarmed.",
+      "requirement" : "optional",
+      "caption" : "Armed",
+      "type_name" : "Boolean"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "site_zone",
+  "description" : "The Site Zone object describes a site zone: a defined area within a physical site that shares a common security posture, such as a perimeter, a public lobby, or a restricted area. It is distinct from the <code>zone</code> attribute, which describes a network zone.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Site Zone",
+  "_links" : [ ]
+}

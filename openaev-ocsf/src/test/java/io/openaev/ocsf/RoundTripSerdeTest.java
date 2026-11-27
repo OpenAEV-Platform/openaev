@@ -4,8 +4,8 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import io.openaev.ocsf.schema.v190.OcsfFilter;
-import io.openaev.ocsf.schema.v190.classes.OcsfClassDetectionFinding;
+import io.openaev.ocsf.schema.v1100.OcsfFilter;
+import io.openaev.ocsf.schema.v1100.classes.OcsfClassDetectionFinding;
 import io.openaev.utils.fixtures.ProwlerOcsfOutputFixture;
 import java.io.IOException;
 import java.util.List;

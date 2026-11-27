@@ -1,0 +1,298 @@
+{
+  "attributes" : {
+    "data" : {
+      "type" : "json_t",
+      "description" : "Additional data describing the application.",
+      "requirement" : "optional",
+      "caption" : "Data",
+      "type_name" : "JSON"
+    },
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the application.",
+      "requirement" : "recommended",
+      "caption" : "Application Name",
+      "type_name" : "String"
+    },
+    "owner" : {
+      "type" : "object_t",
+      "description" : "The identity of the service or user account that owns the application.",
+      "requirement" : "recommended",
+      "caption" : "Owner",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of application as defined by the event source, e.g., <code>GitHub</code>, <code>Azure Logic App</code>, or <code>Amazon Elastic BeanStalk</code>.",
+      "requirement" : "optional",
+      "caption" : "Application Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The semantic version of the application, e.g., <code>1.7.4</code>.",
+      "requirement" : "optional",
+      "caption" : "Application Version",
+      "type_name" : "String"
+    },
+    "group" : {
+      "type" : "object_t",
+      "description" : "The name of the related application or associated resource group.",
+      "requirement" : "optional",
+      "caption" : "Group",
+      "object_type" : "group",
+      "object_name" : "Group"
+    },
+    "product" : {
+      "type" : "object_t",
+      "description" : "The software product that this application is an instance of, carrying product identity such as <code>vendor_name</code>, <code>cpe_name</code>, and canonical <code>version</code>.",
+      "requirement" : "optional",
+      "caption" : "Product",
+      "object_type" : "product",
+      "object_name" : "Product"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "A description or commentary for an application, usually retrieved from an upstream system.",
+      "requirement" : "optional",
+      "caption" : "Application Description",
+      "type_name" : "String"
+    },
+    "hostname" : {
+      "type" : "hostname_t",
+      "description" : "The fully qualified name of the application.",
+      "requirement" : "optional",
+      "caption" : "Hostname",
+      "type_name" : "Hostname"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier for the application.",
+      "requirement" : "recommended",
+      "caption" : "Application ID",
+      "type_name" : "String"
+    },
+    "labels" : {
+      "type" : "string_t",
+      "description" : "The list of labels associated to the application.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Labels",
+      "type_name" : "String"
+    },
+    "url" : {
+      "type" : "object_t",
+      "description" : "The URL of the application.",
+      "requirement" : "optional",
+      "caption" : "URL",
+      "object_type" : "url",
+      "object_name" : "Uniform Resource Locator"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated to the application.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the application was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "criticality" : {
+      "type" : "string_t",
+      "description" : "Criticality or relative importance of a resource/object in question, normalized to the caption of <code>criticality_id</code>. In the case of Other, the value is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Business Criticality",
+      "type_name" : "String"
+    },
+    "criticality_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Critical to core operations. Compromise leads to significant, but recoverable disruptions.",
+          "caption" : "High"
+        },
+        "0" : {
+          "description" : "The criticality level is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Minimal operational or security importance.",
+          "caption" : "Low"
+        },
+        "2" : {
+          "description" : "Affects localized functions or specific business processes.",
+          "caption" : "Medium"
+        },
+        "4" : {
+          "description" : "Mission critical, essential to business survival. Compromise could result in catastrophic consequences.",
+          "caption" : "Very High"
+        },
+        "99" : {
+          "description" : "The criticality level is not mapped. See the <code>criticality</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "Criticality or relative importance of a resource/object in question.",
+      "requirement" : "optional",
+      "caption" : "Criticality Level ID",
+      "sibling" : "criticality",
+      "type_name" : "Integer"
+    },
+    "first_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The initial discovery time of the application.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "type_name" : "Timestamp"
+    },
+    "last_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The most recent discovery time of the application.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the application was last known to have been modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "region" : {
+      "type" : "string_t",
+      "description" : "The cloud region of the resource.",
+      "requirement" : "optional",
+      "caption" : "Region",
+      "profiles" : [ "cloud" ],
+      "type_name" : "String"
+    },
+    "resource_relationship" : {
+      "type" : "object_t",
+      "description" : "A graph representation showing how this application relates to and interacts with other entities in the environment. This can include parent/child relationships, dependencies, or other connections.",
+      "requirement" : "optional",
+      "caption" : "Application Relationship",
+      "object_type" : "graph",
+      "object_name" : "Graph"
+    },
+    "risk_level" : {
+      "type" : "string_t",
+      "description" : "The risk level, normalized to the caption of the risk_level_id value.",
+      "requirement" : "optional",
+      "caption" : "Risk Level",
+      "type_name" : "String"
+    },
+    "risk_level_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "High"
+        },
+        "0" : {
+          "caption" : "Info"
+        },
+        "1" : {
+          "caption" : "Low"
+        },
+        "2" : {
+          "caption" : "Medium"
+        },
+        "4" : {
+          "caption" : "Critical"
+        },
+        "99" : {
+          "description" : "The risk level is not mapped. See the <code>risk_level</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized risk level id.",
+      "requirement" : "optional",
+      "caption" : "Risk Level ID",
+      "sibling" : "risk_level",
+      "type_name" : "Integer",
+      "suppress_checks" : [ "enum_convention" ]
+    },
+    "risk_score" : {
+      "type" : "integer_t",
+      "description" : "The risk score as reported by the event source.",
+      "requirement" : "optional",
+      "caption" : "Risk Score",
+      "type_name" : "Integer"
+    },
+    "sbom" : {
+      "type" : "object_t",
+      "description" : "The Software Bill of Materials (SBOM) associated with the application",
+      "requirement" : "optional",
+      "caption" : "Related SBOM",
+      "object_type" : "sbom",
+      "object_name" : "Software Bill of Materials"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The URL to the application's record or detail page within the reporting event source (e.g., a link to the application in the security tool's UI).",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "uid_alt" : {
+      "type" : "string_t",
+      "description" : "An alternative or contextual identifier for the application, such as a configuration, organization, or license UID.",
+      "requirement" : "optional",
+      "caption" : "Application Alternative ID",
+      "type_name" : "String"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the application was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "first_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The initial discovery time of the application.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The most recent discovery time of the application.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the application was last known to have been modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "application",
+  "description" : "An Application describes the details for an inventoried application as reported by an Application Security tool or other Developer-centric tooling. Applications can be defined as Kubernetes resources, Containerized resources, or application hosting-specific cloud sources such as AWS Elastic BeanStalk, AWS Lightsail, or Azure Logic Apps.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "uid", "name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Application.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Application/"
+  } ],
+  "caption" : "Application",
+  "profiles" : [ "data_classification", "datetime", "physical_site" ],
+  "_links" : [ ]
+}

@@ -1,0 +1,278 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the security control rule.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The rule type.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The rule version. For example: <code>1.1</code>.",
+      "requirement" : "optional",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the security control rule.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the security control rule.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "action" : {
+      "type" : "string_t",
+      "description" : "The normalized caption of <code>action_id</code>. When <code>action_id</code> is <code>99</code> (Other), this attribute contains the source-specific action.",
+      "requirement" : "optional",
+      "caption" : "Action",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The rule category.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "duration" : {
+      "type" : "long_t",
+      "description" : "The rule response time duration, usually used for challenge completion time.",
+      "requirement" : "optional",
+      "caption" : "Duration Milliseconds",
+      "type_name" : "Long"
+    },
+    "disposition" : {
+      "type" : "string_t",
+      "description" : "The normalized caption of <code>disposition_id</code>. When <code>disposition_id</code> is <code>99</code> (Other), this attribute contains the source-specific disposition.",
+      "requirement" : "optional",
+      "caption" : "Disposition",
+      "type_name" : "String"
+    },
+    "action_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The activity was observed, but neither explicitly allowed nor denied by this rule evaluation.",
+          "caption" : "Observed"
+        },
+        "0" : {
+          "description" : "The action is unknown. The disposition may still be known.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The activity was allowed by this rule evaluation.",
+          "caption" : "Allowed"
+        },
+        "2" : {
+          "description" : "The activity was denied by this rule evaluation.",
+          "caption" : "Denied"
+        },
+        "4" : {
+          "description" : "The activity was modified, adjusted, or corrected by this rule evaluation.",
+          "caption" : "Modified"
+        },
+        "99" : {
+          "description" : "The action is not mapped. See the <code>action</code> attribute, which contains the source-specific action.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized action reported for this security control rule evaluation. An unknown action may still correspond to a known disposition. Refer to <code>disposition_id</code> for the outcome of this evaluation.",
+      "requirement" : "optional",
+      "caption" : "Action ID",
+      "sibling" : "action",
+      "type_name" : "Integer"
+    },
+    "condition" : {
+      "type" : "string_t",
+      "description" : "The rule trigger condition for the rule. For example: SQL_INJECTION.",
+      "requirement" : "optional",
+      "caption" : "Condition",
+      "type_name" : "String"
+    },
+    "disposition_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A suspicious file or other content was moved to a benign location.",
+          "caption" : "Quarantined"
+        },
+        "6" : {
+          "description" : "The request was detected as a threat and resulted in the connection being dropped.",
+          "caption" : "Dropped"
+        },
+        "0" : {
+          "description" : "The disposition is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Granted access or allowed the action to the protected resource.",
+          "caption" : "Allowed"
+        },
+        "2" : {
+          "description" : "Denied access or blocked the action to the protected resource.",
+          "caption" : "Blocked"
+        },
+        "4" : {
+          "description" : "A session was isolated on the network or within a browser.",
+          "caption" : "Isolated"
+        },
+        "99" : {
+          "description" : "The disposition is not mapped. See the <code>disposition</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "5" : {
+          "description" : "A file or other content was deleted.",
+          "caption" : "Deleted"
+        },
+        "7" : {
+          "description" : "A custom action was executed such as running of a command script. Use the <code>message</code> attribute of the base class for details.",
+          "caption" : "Custom Action"
+        },
+        "8" : {
+          "description" : "A request or submission was approved. For example, when a form was properly filled out and submitted. This is distinct from <code>1</code> 'Allowed'.",
+          "caption" : "Approved"
+        },
+        "9" : {
+          "description" : "A quarantined file or other content was restored to its original location.",
+          "caption" : "Restored"
+        },
+        "10" : {
+          "description" : "A suspicious or risky entity was deemed to no longer be suspicious (re-scored).",
+          "caption" : "Exonerated"
+        },
+        "11" : {
+          "description" : "A corrupt file or configuration was corrected.",
+          "caption" : "Corrected"
+        },
+        "12" : {
+          "description" : "A corrupt file or configuration was partially corrected.",
+          "caption" : "Partially Corrected"
+        },
+        "14" : {
+          "description" : "An operation was delayed, for example if a restart was required to finish the operation.",
+          "caption" : "Delayed"
+        },
+        "15" : {
+          "description" : "Suspicious activity or a policy violation was detected without further action.",
+          "caption" : "Detected"
+        },
+        "16" : {
+          "description" : "The outcome of an operation had no action taken.",
+          "caption" : "No Action"
+        },
+        "17" : {
+          "description" : "The operation or action was logged without further action.",
+          "caption" : "Logged"
+        },
+        "18" : {
+          "description" : "A file or other entity was marked with extended attributes.",
+          "caption" : "Tagged"
+        },
+        "20" : {
+          "description" : "Counted the request or activity but did not determine whether to allow it or block it.",
+          "caption" : "Count"
+        },
+        "21" : {
+          "description" : "The request was detected as a threat and resulted in the connection being reset.",
+          "caption" : "Reset"
+        },
+        "22" : {
+          "description" : "Required the end user to solve a CAPTCHA puzzle to prove that a human being is sending the request.",
+          "caption" : "Captcha"
+        },
+        "23" : {
+          "description" : "Ran a silent challenge that required the client session to verify that it's a browser, and not a bot.",
+          "caption" : "Challenge"
+        },
+        "24" : {
+          "description" : "The requestor's access has been revoked due to security policy enforcements. Note: use the <code>Host</code> profile if the <code>User</code> or <code>Actor</code> requestor is not present in the event class.",
+          "caption" : "Access Revoked"
+        },
+        "25" : {
+          "description" : "A request or submission was rejected.  For example, when a form was improperly filled out and submitted. This is distinct from <code>2</code> 'Blocked'.",
+          "caption" : "Rejected"
+        },
+        "26" : {
+          "description" : "An attempt to access a resource was denied due to an authorization check that failed. This is a more specific disposition than <code>2</code> 'Blocked' and can be complemented with the <code>authorizations</code> attribute for more detail.",
+          "caption" : "Unauthorized"
+        },
+        "27" : {
+          "description" : "An error occurred during the processing of the activity or request. Use the <code>message</code> attribute of the base class for details.",
+          "caption" : "Error"
+        },
+        "13" : {
+          "description" : "A corrupt file or configuration was not corrected.",
+          "caption" : "Uncorrected"
+        },
+        "19" : {
+          "description" : "The rule evaluation detected a threat and produced a notification without itself blocking the activity. Other rule evaluations may determine the event-level outcome.",
+          "caption" : "Alert"
+        }
+      },
+      "description" : "The normalized outcome reported for this security control rule evaluation. This disposition does not imply the event-level disposition.",
+      "requirement" : "optional",
+      "caption" : "Disposition ID",
+      "sibling" : "disposition",
+      "type_name" : "Integer"
+    },
+    "match_details" : {
+      "type" : "string_t",
+      "description" : "The data in a request that rule matched. For example: '[\"10\",\"and\",\"1\"]'.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Match Details",
+      "type_name" : "String"
+    },
+    "match_location" : {
+      "type" : "string_t",
+      "description" : "The location of the matched data in the source which resulted in the triggered firewall rule. For example: HEADER.",
+      "requirement" : "optional",
+      "caption" : "Match Location",
+      "type_name" : "String"
+    },
+    "rate_limit" : {
+      "type" : "integer_t",
+      "description" : "The rate limit for a rate-based rule.",
+      "requirement" : "optional",
+      "caption" : "Rate Limit",
+      "type_name" : "Integer"
+    },
+    "sensitivity" : {
+      "type" : "string_t",
+      "description" : "The sensitivity of the firewall rule in the matched event. For example: HIGH.",
+      "requirement" : "optional",
+      "caption" : "Sensitivity",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "firewall_rule_evaluation",
+  "description" : "The Security Control Rule Evaluation object describes a reported evaluation of a security control rule, including its properties, match context, and action and disposition. The action and disposition apply to this evaluation and do not imply the event-level outcome.",
+  "extends" : "firewall_rule",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Security Control Rule Evaluation",
+  "_links" : [ ]
+}

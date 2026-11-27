@@ -1,0 +1,91 @@
+{
+  "attributes" : {
+    "stop_reason" : {
+      "type" : "string_t",
+      "description" : "The reason the model completion ended, as reported by the event source. Normalized to the caption of the <code>stop_reason_id</code> value (e.g. <code>Token Limit</code>); when the value is 'Other', this carries the event source's native label (e.g. <code>recitation</code>, <code>malformed_function_call</code>).",
+      "requirement" : "optional",
+      "caption" : "Stop Reason",
+      "type_name" : "String"
+    },
+    "permission_result" : {
+      "type" : "string_t",
+      "description" : "The outcome of the agent runtime's permission check for this operation, as reported by the runtime. Normalized to the caption of the <code>permission_result_id</code> value; when the value is 'Other', this carries the runtime's native label.",
+      "requirement" : "optional",
+      "caption" : "Permission Result",
+      "type_name" : "String"
+    },
+    "permission_result_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "0" : {
+          "description" : "The permission check outcome could not be determined, so the authorization state of the operation is not established.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The agent runtime's permission check permitted the operation to proceed.",
+          "caption" : "Allowed"
+        },
+        "2" : {
+          "description" : "The agent runtime's permission check refused the operation.",
+          "caption" : "Denied"
+        },
+        "99" : {
+          "description" : "The permission result is not mapped. See the <code>permission_result</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized outcome of the agent runtime's permission check for this operation, as reported by the runtime. Producers map their runtime's native value into this set; when the value is 'Other', set <code>permission_result</code> to the runtime's native label.",
+      "requirement" : "optional",
+      "caption" : "Permission Result ID",
+      "sibling" : "permission_result",
+      "type_name" : "Integer"
+    },
+    "stop_reason_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The completion paused to invoke a tool. The turn is not finished; the model expects the tool result and will continue.",
+          "caption" : "Tool Use"
+        },
+        "6" : {
+          "description" : "The completion ended because the sub-agent performing it was stopped - the parent agent terminated the child, the child's task was cancelled, or the sub-agent's budget or step limit was exhausted - rather than because the model reached a stopping point. Distinct from <code>Session Stop</code>, which is the session or transport carrying the completion terminating. Not for use on an event that itself records a sub-agent stopping; on such an event this attribute records why that sub-agent stopped.",
+          "caption" : "Sub-Agent Stop"
+        },
+        "0" : {
+          "description" : "The completion ended without the producer being able to determine why, so the state of the operation at termination is not established.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The model reached the end of its turn: it completed its response naturally or emitted a configured stop sequence, and is not waiting on anything further.",
+          "caption" : "End of Turn"
+        },
+        "2" : {
+          "description" : "The completion was truncated by a token or length limit before the model finished, so the response is incomplete.",
+          "caption" : "Token Limit"
+        },
+        "4" : {
+          "description" : "The completion ended because the session or connection carrying it terminated - for example the caller cancelled, the client disconnected, or the transport closed - rather than because the model reached a stopping point. The session state at termination is therefore known, which distinguishes this from <code>Unknown</code> and lets a consumer decide whether the operation needs investigation or can simply be reclaimed.",
+          "caption" : "Session Stop"
+        },
+        "99" : {
+          "description" : "The stop reason is not mapped. See the <code>stop_reason</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "5" : {
+          "description" : "The completion was stopped by a safety, policy, or content moderation mechanism rather than by the model reaching a stopping point or by the caller. This includes a refusal raised by a safety classifier and a guardrail intervening on the request or the response.",
+          "caption" : "Content Filter"
+        }
+      },
+      "description" : "The normalized reason the model completion ended. Producers map their runtime's native value into this set. Populate on completion events; when the value is 'Other', set <code>stop_reason</code> to the event source's native label. Because completion behavior is bound to the configuration that produced it, a shift in this attribute's distribution is more meaningful when weighed against that configuration: <code>ai_model.version</code> for direct model invocations, and <code>ai_agent.version</code>, <code>ai_agent.charter</code>, and <code>ai_agent.instance_uid</code> for agent-mediated operations.",
+      "requirement" : "recommended",
+      "caption" : "Stop Reason ID",
+      "sibling" : "stop_reason",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "ai_status",
+  "description" : "Container for per-operation outcome scalars contributed by the <code>ai_operation</code> profile. Holds outcomes reported by the model or agent runtime, such as why a completion stopped or the result of a permission check, so they do not proliferate as discrete attributes at the event root. Additional outcome attributes may be added to this object in later versions.",
+  "extends" : "object",
+  "caption" : "AI Status",
+  "_links" : [ ]
+}

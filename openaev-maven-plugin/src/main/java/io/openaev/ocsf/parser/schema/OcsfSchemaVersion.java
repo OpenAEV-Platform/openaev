@@ -4,7 +4,8 @@ import lombok.Getter;
 
 public enum OcsfSchemaVersion {
   _1_8_0(OcsfSchemaVersionString.STRING_1_8_0),
-  _1_9_0(OcsfSchemaVersionString.STRING_1_9_0);
+  _1_9_0(OcsfSchemaVersionString.STRING_1_9_0),
+  _1_10_0(OcsfSchemaVersionString.STRING_1_10_0);
 
   @Getter private final String value;
 

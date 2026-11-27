@@ -1,0 +1,55 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the physical site, as defined by the reporting organization.",
+      "requirement" : "optional",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "floor" : {
+      "type" : "string_t",
+      "description" : "The floor or level within the building.",
+      "requirement" : "optional",
+      "caption" : "Floor",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the physical site, as defined by the reporting organization.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "building" : {
+      "type" : "string_t",
+      "description" : "The building within the physical site.",
+      "requirement" : "optional",
+      "caption" : "Building",
+      "type_name" : "String"
+    },
+    "site_zone" : {
+      "type" : "object_t",
+      "description" : "The site zone within the physical site where the activity occurred.",
+      "requirement" : "optional",
+      "caption" : "Site Zone",
+      "object_type" : "site_zone",
+      "object_name" : "Site Zone"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "physical_site",
+  "description" : "The Physical Site object describes a physical site, such as a campus, facility, or property, as defined by the reporting organization, and the location within it where the activity occurred: the building, the floor, and the site zone.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Physical Site",
+  "_links" : [ ]
+}
