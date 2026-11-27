@@ -352,6 +352,19 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     }
   }, [canOpenConfiguration, clearConfigurationQueryParam, location.search]);
 
+  // The combined selector above hands out a new `exercise` object on every store update (an inject
+  // status, team or article pushed by the stream): the refetches below depend on primitives that
+  // only move when the simulation or its inject set really changed.
+  const exerciseUpdatedAt = exercise.exercise_updated_at;
+  // Count the loaded injects list (fetchExerciseInjectsSimple), not
+  // `exercise.exercise_injects`: the GET /exercises/{id} SimulationDetails DTO
+  // does not carry an injects field, so that path always resolved to 0 after a
+  // reload (it only appeared to work right after a create when the redux entity
+  // was transiently patched). The injects list is what already feeds the asset
+  // counters below, so this keeps every hero counter on the same source.
+  const injectsCount = injects?.length ?? 0;
+  const enabledInjectsCount = injects?.filter((inject: Inject) => inject.inject_enabled).length ?? 0;
+
   useEffect(() => {
     const refreshHealthchecks = () => {
       searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -360,7 +373,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     // Step changes in the Logic tab touch none of the dependencies below: it signals them instead.
     const subscription = MESSAGING$.refreshHealthchecks.subscribe(refreshHealthchecks);
     return () => subscription.unsubscribe();
-  }, [exerciseId, exercise, workflowConfiguration]);
+  }, [exerciseId, exerciseUpdatedAt, injectsCount, enabledInjectsCount, workflowConfiguration]);
 
   // Expectation drift between the injector contract templates and the inject
   // content - recomputed when the simulation or its inject set changes.
@@ -378,7 +391,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     return () => {
       stale = true;
     };
-  }, [exerciseId, exercise, injects?.length]);
+  }, [exerciseId, exerciseUpdatedAt, injectsCount]);
 
   const onRealignExpectations = async () => {
     await realignExerciseExpectations(exerciseId);
@@ -410,12 +423,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // (media pressure, challenges) only appear when actually used - a tabletop
   // reads people-first, a technical simulation reads assets-first, and a
   // mixed one shows both.
-  // Count the loaded injects list (fetchExerciseInjectsSimple), not
-  // `exercise.exercise_injects`: the GET /exercises/{id} SimulationDetails DTO
-  // does not carry an injects field, so that path always resolved to 0 after a
-  // reload (it only appeared to work right after a create when the redux entity
-  // was transiently patched). The injects list is what already feeds the asset
-  // counters below, so this keeps every hero counter on the same source.
   const launchedBy = exercise.exercise_launched_by_user;
   const launchedByName = launchedBy?.user_name ?? launchedBy?.user_email;
   // The resolved user only comes with GET /exercises/{id}, while the bare id is kept fresh by the
@@ -428,7 +435,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     }
   }, [dispatch, exerciseId, launchedById, exercise.exercise_launched_by_user?.user_id]);
 
-  const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the
   // same reason as injects: the SimulationDetails DTO carries no
   // exercise_teams / exercise_articles relations.
