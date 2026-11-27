@@ -85,6 +85,20 @@ public interface InjectRepository
   @Query("SELECT i.id AS id, i.content AS content FROM Inject i WHERE i.id IN :ids")
   List<InjectContent> findContentsByIds(@Param("ids") Collection<String> ids);
 
+  /** An inject's content and the id of its injector contract, null when it has none. */
+  interface InjectContractRef {
+    ObjectNode getContent();
+
+    String getContractId();
+  }
+
+  /** The raw content of an injector contract. */
+  interface ContractContent {
+    String getId();
+
+    String getContent();
+  }
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();
@@ -149,6 +163,29 @@ public interface InjectRepository
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);
 
+  /**
+   * The content and contract id of every inject of a simulation, without loading the injects: an
+   * inject entity eagerly pulls its contract, status, execution traces, expectations and more.
+   */
+  @Query(
+      "SELECT i.content AS content, ic.compositeId.id AS contractId FROM Inject i"
+          + " LEFT JOIN i.injectorContract ic WHERE i.exercise.id = :exerciseId")
+  List<InjectContractRef> findContractRefsByExerciseId(
+      @Param("exerciseId") @NotNull String exerciseId);
+
+  /**
+   * The content of each distinct contract used by the injects of a simulation, once per contract.
+   * The contract is matched on its whole key: a contract id repeats across tenants.
+   */
+  @Query(
+      "SELECT ic.compositeId.id AS id, ic.content AS content FROM InjectorContract ic"
+          + " WHERE EXISTS (SELECT 1 FROM Inject i JOIN i.injectorContract c"
+          + " WHERE c.compositeId.id = ic.compositeId.id"
+          + " AND c.compositeId.tenantId = ic.compositeId.tenantId"
+          + " AND i.exercise.id = :exerciseId)")
+  List<ContractContent> findContractContentsByExerciseId(
+      @Param("exerciseId") @NotNull String exerciseId);
+
   Optional<Inject> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
 
   boolean existsByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
@@ -160,6 +197,23 @@ public interface InjectRepository
   boolean existsByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
 
   Set<Inject> findByScenarioId(@NotNull String scenarioId);
+
+  /** The scenario counterpart of {@link #findContractRefsByExerciseId(String)}. */
+  @Query(
+      "SELECT i.content AS content, ic.compositeId.id AS contractId FROM Inject i"
+          + " LEFT JOIN i.injectorContract ic WHERE i.scenario.id = :scenarioId")
+  List<InjectContractRef> findContractRefsByScenarioId(
+      @Param("scenarioId") @NotNull String scenarioId);
+
+  /** The scenario counterpart of {@link #findContractContentsByExerciseId(String)}. */
+  @Query(
+      "SELECT ic.compositeId.id AS id, ic.content AS content FROM InjectorContract ic"
+          + " WHERE EXISTS (SELECT 1 FROM Inject i JOIN i.injectorContract c"
+          + " WHERE c.compositeId.id = ic.compositeId.id"
+          + " AND c.compositeId.tenantId = ic.compositeId.tenantId"
+          + " AND i.scenario.id = :scenarioId)")
+  List<ContractContent> findContractContentsByScenarioId(
+      @Param("scenarioId") @NotNull String scenarioId);
 
   // -- INDEXING --
 

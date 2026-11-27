@@ -17,6 +17,8 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectRepository.ContractContent;
+import io.openaev.database.repository.InjectRepository.InjectContractRef;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
@@ -24,7 +26,6 @@ import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -81,37 +82,59 @@ public class ExpectationsDriftService {
   /** Computes the expectation drift report for all injects of a scenario. */
   public ExpectationsDriftOutput scenarioDrift(String scenarioId) {
     return computeDrift(
-        injectRepository.findByScenarioId(scenarioId),
+        injectRepository.findContractRefsByScenarioId(scenarioId),
+        injectRepository.findContractContentsByScenarioId(scenarioId),
         resolveScenario(scenarioId).isExpectationsDriftDismissed());
   }
 
   /** Computes the expectation drift report for all injects of a simulation. */
   public ExpectationsDriftOutput exerciseDrift(String exerciseId) {
     return computeDrift(
-        injectRepository.findByExerciseId(exerciseId),
+        injectRepository.findContractRefsByExerciseId(exerciseId),
+        injectRepository.findContractContentsByExerciseId(exerciseId),
         resolveExercise(exerciseId).isExpectationsDriftDismissed());
   }
 
   /** Computes the expectation drift report for a single inject (atomic testing). */
   public ExpectationsDriftOutput injectDrift(String injectId) {
     Inject inject = resolveInject(injectId);
-    return computeDrift(List.of(inject), inject.isExpectationsDriftDismissed());
+    return computeDrift(inject, inject.isExpectationsDriftDismissed());
   }
 
-  private ExpectationsDriftOutput computeDrift(Collection<Inject> injects, boolean dismissed) {
-    Map<String, List<String>> contractSignatureCache = new HashMap<>();
+  /**
+   * Whole-scope report from a light read of the injects (content and contract id only) and of their
+   * distinct contracts: loading the inject entities would pull their whole graph (status, execution
+   * traces, expectations...) for nothing.
+   */
+  private ExpectationsDriftOutput computeDrift(
+      List<InjectContractRef> injects, List<ContractContent> contracts, boolean dismissed) {
+    Map<String, ContractTemplate> templates = new HashMap<>();
+    for (ContractContent contract : contracts) {
+      templates.put(contract.getId(), template(contract.getContent()));
+    }
     int total = 0;
     int drifted = 0;
-    for (Inject inject : injects) {
-      if (!hasExpectationsContract(inject)) {
+    for (InjectContractRef inject : injects) {
+      ContractTemplate template =
+          inject.getContractId() == null ? null : templates.get(inject.getContractId());
+      if (template == null || !template.declaresExpectations()) {
         continue;
       }
       total++;
-      if (hasDrift(inject, contractSignatureCache)) {
+      if (hasDrift(inject.getContent(), template)) {
         drifted++;
       }
     }
     return new ExpectationsDriftOutput(drifted > 0, drifted, total, dismissed);
+  }
+
+  private ExpectationsDriftOutput computeDrift(Inject inject, boolean dismissed) {
+    ContractTemplate template = template(inject, new HashMap<>());
+    if (template == null || !template.declaresExpectations()) {
+      return new ExpectationsDriftOutput(false, 0, 0, dismissed);
+    }
+    boolean drifted = hasDrift(inject.getContent(), template);
+    return new ExpectationsDriftOutput(drifted, drifted ? 1 : 0, 1, dismissed);
   }
 
   // -- DISMISSAL --
@@ -126,7 +149,10 @@ public class ExpectationsDriftService {
     Scenario scenario = resolveScenario(scenarioId);
     scenario.setExpectationsDriftDismissed(dismissed);
     scenarioRepository.save(scenario);
-    return computeDrift(injectRepository.findByScenarioId(scenarioId), dismissed);
+    return computeDrift(
+        injectRepository.findContractRefsByScenarioId(scenarioId),
+        injectRepository.findContractContentsByScenarioId(scenarioId),
+        dismissed);
   }
 
   /** Dismisses (or restores) the drift warning of a simulation. Callers must be transactional. */
@@ -134,7 +160,10 @@ public class ExpectationsDriftService {
     Exercise exercise = resolveExercise(exerciseId);
     exercise.setExpectationsDriftDismissed(dismissed);
     exerciseRepository.save(exercise);
-    return computeDrift(injectRepository.findByExerciseId(exerciseId), dismissed);
+    return computeDrift(
+        injectRepository.findContractRefsByExerciseId(exerciseId),
+        injectRepository.findContractContentsByExerciseId(exerciseId),
+        dismissed);
   }
 
   /**
@@ -144,7 +173,7 @@ public class ExpectationsDriftService {
     Inject inject = resolveInject(injectId);
     inject.setExpectationsDriftDismissed(dismissed);
     injectRepository.save(inject);
-    return computeDrift(List.of(inject), dismissed);
+    return computeDrift(inject, dismissed);
   }
 
   /**
@@ -157,44 +186,75 @@ public class ExpectationsDriftService {
 
   /**
    * Cached variant for whole-scope walks: injects of a scenario or simulation massively share
-   * contracts, and the contract-side signatures only depend on the contract, so re-parsing the
-   * contract content per inject would be pure redundant work. The cache is scoped to one request:
-   * contract content cannot change mid-walk.
+   * contracts, and the contract template only depends on the contract, so re-parsing the contract
+   * content per inject would be pure redundant work. The cache is scoped to one request: contract
+   * content cannot change mid-walk.
    */
-  private boolean hasDrift(Inject inject, Map<String, List<String>> contractSignatureCache) {
-    InjectorContract contract = inject.getInjectorContract().orElse(null);
-    if (contract == null
-        || !injectorContractContentUtils.hasField(
-            contract, CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)) {
-      return false;
-    }
-    List<String> injectSignatures = injectExpectationSignatures(inject);
+  private boolean hasDrift(Inject inject, Map<String, ContractTemplate> templateCache) {
+    ContractTemplate template = template(inject, templateCache);
+    return template != null
+        && template.declaresExpectations()
+        && hasDrift(inject.getContent(), template);
+  }
+
+  private boolean hasDrift(ObjectNode injectContent, ContractTemplate template) {
+    List<String> injectSignatures = injectExpectationSignatures(injectContent);
     if (injectSignatures == null) {
       // No stored expectations field: the inject inherits the contract's predefined expectations
       // dynamically at execution time, so it always follows the current template.
       return false;
     }
-    List<String> contractSignatures =
-        contractSignatureCache.computeIfAbsent(
-            contract.getId(), id -> contractExpectationSignatures(contract));
-    return !contractSignatures.equals(injectSignatures);
+    return !template.signatures().equals(injectSignatures);
   }
 
-  private boolean hasExpectationsContract(Inject inject) {
+  /** The template of the inject's contract, null when the inject has no contract. */
+  private ContractTemplate template(Inject inject, Map<String, ContractTemplate> templateCache) {
     return inject
         .getInjectorContract()
         .map(
             contract ->
-                injectorContractContentUtils.hasField(
-                    contract, CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS))
-        .orElse(false);
+                templateCache.computeIfAbsent(
+                    contract.getId(), id -> template(contract.getContent())))
+        .orElse(null);
   }
 
-  private List<String> contractExpectationSignatures(InjectorContract contract) {
-    return injectorContractContentUtils.getPredefinedExpectationNodes(contract).stream()
-        .map(this::signature)
-        .sorted()
-        .toList();
+  private ContractTemplate template(String rawContent) {
+    JsonNode content = injectorContractContentUtils.readContent(rawContent);
+    return new ContractTemplate(
+        content,
+        injectorContractContentUtils
+            .fields(content)
+            .containsKey(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS));
+  }
+
+  /**
+   * A contract's content parsed once per walk. Its signatures are derived on first use only: most
+   * injects carry no stored expectations, and then the contract side is never compared.
+   */
+  private final class ContractTemplate {
+    private final JsonNode content;
+    private final boolean declaresExpectations;
+    private List<String> signatures;
+
+    private ContractTemplate(JsonNode content, boolean declaresExpectations) {
+      this.content = content;
+      this.declaresExpectations = declaresExpectations;
+    }
+
+    boolean declaresExpectations() {
+      return declaresExpectations;
+    }
+
+    List<String> signatures() {
+      if (signatures == null) {
+        signatures =
+            injectorContractContentUtils.getPredefinedExpectationNodes(content).stream()
+                .map(ExpectationsDriftService.this::signature)
+                .sorted()
+                .toList();
+      }
+      return signatures;
+    }
   }
 
   /**
@@ -203,8 +263,7 @@ public class ExpectationsDriftService {
    * explicit empty array yields an empty signature list: the user deliberately removed every
    * expectation, which counts as drift against a contract that declares predefined ones.
    */
-  private List<String> injectExpectationSignatures(Inject inject) {
-    ObjectNode content = inject.getContent();
+  private List<String> injectExpectationSignatures(ObjectNode content) {
     if (content == null) {
       return null;
     }
@@ -292,9 +351,9 @@ public class ExpectationsDriftService {
    * while the whole operation is tracked as a massive operation with aggregated progress events.
    */
   private ExpectationsRealignOutput realign(TxCtx ctx, List<Inject> injects) {
-    Map<String, List<String>> contractSignatureCache = new HashMap<>();
+    Map<String, ContractTemplate> templateCache = new HashMap<>();
     List<Inject> drifted =
-        injects.stream().filter(inject -> hasDrift(inject, contractSignatureCache)).toList();
+        injects.stream().filter(inject -> hasDrift(inject, templateCache)).toList();
     if (drifted.isEmpty()) {
       return new ExpectationsRealignOutput(0);
     }
