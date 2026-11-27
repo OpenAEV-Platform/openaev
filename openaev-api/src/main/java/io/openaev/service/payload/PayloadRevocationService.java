@@ -97,6 +97,15 @@ public class PayloadRevocationService {
                     tenantPayloads.getKey(), tenantPayloads.getValue()));
   }
 
+  /**
+   * Same answer as {@link #anyRevoked} for the injects of a simulation, without loading them: a
+   * disabled inject never runs, and a version counts as revoked in its own tenant.
+   */
+  @Transactional(readOnly = true)
+  public boolean anyRevokedInSimulation(String simulationId) {
+    return payloadRevocationRepository.existsForEnabledInjectOfSimulation(simulationId);
+  }
+
   // -- CATALOGUE --
 
   /**

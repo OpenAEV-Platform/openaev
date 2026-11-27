@@ -649,7 +649,16 @@ public class HealthCheckUtils {
 
   /** A revoked payload version fails the injects that run it. */
   public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
-    return payloadRevocationService.anyRevoked(injects)
+    return revocationChecks(payloadRevocationService.anyRevoked(injects));
+  }
+
+  /** A revoked payload version run by an enabled inject of the simulation fails it. */
+  public List<HealthCheck> runSimulationRevocationChecks(String simulationId) {
+    return revocationChecks(payloadRevocationService.anyRevokedInSimulation(simulationId));
+  }
+
+  private List<HealthCheck> revocationChecks(boolean anyRevoked) {
+    return anyRevoked
         ? List.of(
             new HealthCheck(
                 HealthCheck.Type.PAYLOAD,

@@ -1660,8 +1660,7 @@ public class ExerciseService {
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
-    healthChecks.addAll(
-        healthCheckUtils.runRevocationChecks(injectRepository.findByExerciseId(exerciseId)));
+    healthChecks.addAll(healthCheckUtils.runSimulationRevocationChecks(exerciseId));
 
     // Scope definition check
     workflowService
