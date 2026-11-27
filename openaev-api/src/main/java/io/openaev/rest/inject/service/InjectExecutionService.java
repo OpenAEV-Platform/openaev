@@ -10,6 +10,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.TransactionRollbackUtils;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.Map;
@@ -70,6 +71,12 @@ public class InjectExecutionService {
         processInjectExecutionWithAgent(inject, agent, input);
       }
     } catch (ElementNotFoundException e) {
+      // Recording the error is only worth it in a sound transaction. If the exception came out of
+      // another bean's transactional method, that boundary already marked this transaction
+      // rollback-only: the commit would fail anyway, so the caller gets the real error instead.
+      if (TransactionRollbackUtils.isCurrentTransactionRollbackOnly()) {
+        throw e;
+      }
       handleInjectExecutionError(inject, e);
     }
   }
@@ -111,6 +118,14 @@ public class InjectExecutionService {
           new ExecutionProcessingContext(inject, agent, input, valueTargetedAssetsMap);
       resolvedStructured = handler.processContext(executionContext).orElse(null);
     } catch (Exception e) {
+      // Best-effort only while the transaction is sound: a failure thrown out of another bean's
+      // transactional method already marked it rollback-only, so the status written below would
+      // be rolled back at commit with everything else. Let the caller see the failure instead.
+      if (TransactionRollbackUtils.isCurrentTransactionRollbackOnly()) {
+        throw e instanceof RuntimeException runtime
+            ? runtime
+            : new IllegalStateException(e.getMessage(), e);
+      }
       log.error(
           "Output post-processing failed for inject {}; recording execution status without derived findings",
           inject.getId(),

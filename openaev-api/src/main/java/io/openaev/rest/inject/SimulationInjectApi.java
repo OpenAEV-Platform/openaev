@@ -36,6 +36,7 @@ import io.openaev.service.BulkInjectService;
 import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.TransactionRollbackUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -396,6 +397,15 @@ public class SimulationInjectApi extends RestBehavior {
       return executor.directExecute(injection);
     } catch (Exception e) {
       log.warn(e.getMessage(), e);
+      // A failure thrown out of another bean's transactional method has already marked this
+      // request's transaction rollback-only: the failed status written here would be rolled back
+      // with the inject, and the caller would get an UnexpectedRollbackException at commit instead
+      // of the failure. Hand the failure itself back to the caller then; nothing is committed.
+      if (TransactionRollbackUtils.isCurrentTransactionRollbackOnly()) {
+        throw e instanceof RuntimeException runtime
+            ? runtime
+            : new IllegalStateException(e.getMessage(), e);
+      }
       return injectStatusService.failInjectStatus(savedInject, e.getMessage());
     }
   }

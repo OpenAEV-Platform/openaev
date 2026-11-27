@@ -167,49 +167,18 @@ final class HandledErrorRollbackRules {
               "ManagerCreator#createManager -> IntegrationFactory.sync",
               "rethrows as RuntimeException"),
 
-          // --- Known defects: the catch returns a success and the commit then fails. ---
+          // --- Fixed sites of the #8102 sweep (#8115): the catch stays, the commit no longer dies.
           entry(
               "StixApi#processBundle -> SecurityCoverageService.handleSecurityCoverageProcessing",
-              "known defect #8102, fix in progress on the inner boundary"),
-          entry(
-              "SimulationInjectApi#executeInject -> AssetGroupService.assetsFromAssetGroup",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "SimulationInjectApi#executeInject -> ConnectorInstanceService.hasStartedConnectorInstanceForInjector",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "SimulationInjectApi#executeInject -> InjectStatusService.initializeInjectStatus",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "SimulationInjectApi#executeInject -> InjectStatusService.saveAndStreamInject",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "SimulationInjectApi#executeInject -> ManagerCreator.createManager",
-              "known defect, reported by the #8102 sweep"),
+              "the catch (Exception) rethrows; BundleValidationError is checked and the inner"
+                  + " boundary no longer rolls back on it (#8104)"),
           entry(
               "BatchingInjectStatusService#processTenantCallbacks -> InjectRepository.updateUpdatedAt",
-              "known defect, reported by the #8102 sweep; queue ack semantics are the inject team's call"),
-          entry(
-              "InjectExecutionService#handleInjectExecutionCallback -> AssetGroupService.assetsFromAssetGroup",
-              "known defect, reported by the #8102 sweep"),
+              "a callback that poisons the tenant group's transaction only loses itself:"
+                  + " processTenantGroup replays the group one callback per transaction (#8115)"),
           entry(
               "InjectExecutionService#handleInjectExecutionCallback -> InjectRepository.updateUpdatedAt",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "ExecutorApi#getOpenAevAgentInstallerToken -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
-              "known defect, reported by the #8102 sweep; the documented 404 becomes a 500"),
-          entry(
-              "WorkflowService#deleteAllScenarioSteps -> StepService.deleteStepTemplate",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "WorkflowService#deleteAllScenarioSteps -> ConditionService.deleteAllConditionsByWorkflowId",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "PhishingTrackingService#captureCredentials -> FindingService.recordFindingsByInject",
-              "known defect, reported by the #8102 sweep; the victim's tracking write is lost with it"),
-          entry(
-              "XtmOneService#autoRegister -> TenantSettingsService.resolveSettingValue",
-              "known defect, reported by the #8102 sweep; contained by the caller's own catch"));
+              "rethrows when the transaction is already rollback-only (#8115)"));
 
   static final ArchRule HANDLED_ERRORS_THAT_DIE_AT_COMMIT_ARE_REVIEWED =
       classes()

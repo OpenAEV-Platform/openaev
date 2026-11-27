@@ -990,26 +990,16 @@ public class WorkflowService {
     if (template.isEmpty()) {
       return;
     }
+    // No per-step catch: a failure thrown out of StepService's or ConditionService's transactional
+    // methods marks this transaction rollback-only, so carrying on would still fail the whole reset
+    // at commit, with an UnexpectedRollbackException instead of the failure. The reset is all or
+    // nothing.
     for (Step step : stepService.findAllStepTemplateByWorkflow(template.get().getId())) {
-      try {
-        stepService.deleteStepTemplate(step.getId());
-      } catch (Exception e) {
-        log.warn(
-            "Failed to delete scenario step {} during autonomous reset: {}",
-            step.getId(),
-            e.getMessage());
-      }
+      stepService.deleteStepTemplate(step.getId());
     }
     // Sweep the conditions AFTER the steps: per-step cleanup only removed conditions left with no
     // step links and no children, so event/trigger trees survive it by construction.
-    try {
-      conditionService.deleteAllConditionsByWorkflowId(template.get().getId());
-    } catch (Exception e) {
-      log.warn(
-          "Failed to delete scenario {} workflow conditions during autonomous reset: {}",
-          scenarioId,
-          e.getMessage());
-    }
+    conditionService.deleteAllConditionsByWorkflowId(template.get().getId());
   }
 
   /**
