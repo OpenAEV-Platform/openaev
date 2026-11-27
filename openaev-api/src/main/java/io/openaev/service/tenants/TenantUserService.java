@@ -23,6 +23,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
@@ -168,6 +169,9 @@ public class TenantUserService implements DependenciesManager {
             .findOne(spec)
             .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
+    if (existing.isAdmin() && !currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can update a platform administrator");
+    }
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     userService.applyProfile(existing, input);
     applyOrganization(existing, input.organizationId(), tenantId);
@@ -210,6 +214,9 @@ public class TenantUserService implements DependenciesManager {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    if (user.isAdmin() && !currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can detach a platform administrator");
+    }
     // Before the membership row goes away, so the groups it granted go with it.
     userService.revokeTenantGroups(userId, List.of(tenantId));
     tenantRepository.removeUserFromTenant(userId, tenantId);
