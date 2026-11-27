@@ -172,7 +172,11 @@ public class InjectorContractContentUtils {
    * @return list of predefined expectation JSON nodes (never null)
    */
   public List<JsonNode> getPredefinedExpectationNodes(InjectorContract injectorContract) {
-    ObjectNode convertedContent = injectorContract.getConvertedContent();
+    return getPredefinedExpectationNodes(injectorContract.getConvertedContent());
+  }
+
+  /** The same nodes, read from an already parsed contract content. */
+  public List<JsonNode> getPredefinedExpectationNodes(JsonNode convertedContent) {
     if (convertedContent == null
         || !convertedContent.has(FIELDS)
         || !convertedContent.get(FIELDS).isArray()) {
@@ -319,24 +323,36 @@ public class InjectorContractContentUtils {
 
   /** The contract's fields by key, empty when its content cannot be read. */
   public Map<String, JsonNode> fields(InjectorContract injectorContract) {
+    return fields(injectorContract == null ? null : readContent(injectorContract.getContent()));
+  }
+
+  /** The fields by key of an already parsed contract content, empty when there is none. */
+  public Map<String, JsonNode> fields(JsonNode content) {
     Map<String, JsonNode> fields = new LinkedHashMap<>();
-    if (injectorContract == null || injectorContract.getContent() == null) {
+    if (content == null) {
       return fields;
     }
-    try {
-      mapper
-          .readTree(injectorContract.getContent())
-          .path(FIELDS)
-          .forEach(
-              field -> {
-                if (field.has(CONTRACT_ELEMENT_CONTENT_KEY)) {
-                  fields.put(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), field);
-                }
-              });
-    } catch (JsonProcessingException e) {
-      return new LinkedHashMap<>();
-    }
+    content
+        .path(FIELDS)
+        .forEach(
+            field -> {
+              if (field.has(CONTRACT_ELEMENT_CONTENT_KEY)) {
+                fields.put(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), field);
+              }
+            });
     return fields;
+  }
+
+  /** A raw contract content parsed, null when it is absent or cannot be read. */
+  public JsonNode readContent(String content) {
+    if (content == null) {
+      return null;
+    }
+    try {
+      return mapper.readTree(content);
+    } catch (JsonProcessingException e) {
+      return null;
+    }
   }
 
   /** The keys of the contract's fields of the given type, in contract order. */

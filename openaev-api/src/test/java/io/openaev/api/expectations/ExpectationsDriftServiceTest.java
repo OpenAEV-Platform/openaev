@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -24,14 +26,19 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectRepository.ContractContent;
+import io.openaev.database.repository.InjectRepository.InjectContractRef;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -141,9 +148,51 @@ class ExpectationsDriftServiceTest {
     return inject;
   }
 
+  /** The light read of an inject the drift report walks, built from the inject fixture. */
+  private record ContractRef(ObjectNode content, String contractId) implements InjectContractRef {
+    @Override
+    public ObjectNode getContent() {
+      return content;
+    }
+
+    @Override
+    public String getContractId() {
+      return contractId;
+    }
+  }
+
+  private record RawContract(String id, String content) implements ContractContent {
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public String getContent() {
+      return content;
+    }
+  }
+
+  /**
+   * Stubs both reads of the scenario injects: the entities the realignment walks, and the light
+   * read (inject content and contract id, distinct contracts) the drift report walks.
+   */
   private void stubScenarioInjects(Inject... injects) {
     Set<Inject> set = new LinkedHashSet<>(List.of(injects));
-    when(injectRepository.findByScenarioId(SCENARIO_ID)).thenReturn(set);
+    lenient().when(injectRepository.findByScenarioId(SCENARIO_ID)).thenReturn(set);
+    List<InjectContractRef> refs = new ArrayList<>();
+    Map<String, ContractContent> contracts = new LinkedHashMap<>();
+    for (Inject inject : injects) {
+      InjectorContract contract = inject.getInjectorContract().orElse(null);
+      refs.add(new ContractRef(inject.getContent(), contract == null ? null : contract.getId()));
+      if (contract != null) {
+        contracts.put(contract.getId(), new RawContract(contract.getId(), contract.getContent()));
+      }
+    }
+    lenient().when(injectRepository.findContractRefsByScenarioId(SCENARIO_ID)).thenReturn(refs);
+    lenient()
+        .when(injectRepository.findContractContentsByScenarioId(SCENARIO_ID))
+        .thenReturn(List.copyOf(contracts.values()));
     Scenario scenario = new Scenario();
     scenario.setId(SCENARIO_ID);
     lenient().when(scenarioRepository.findById(SCENARIO_ID)).thenReturn(Optional.of(scenario));
@@ -274,6 +323,55 @@ class ExpectationsDriftServiceTest {
 
     assertThat(output.driftDetected()).isFalse();
     assertThat(output.totalInjectCount()).isZero();
+  }
+
+  @Test
+  @DisplayName("Injects without a contract are excluded from the report")
+  void injectWithoutContractIsExcluded() {
+    InjectorContract contract =
+        contractWithExpectations(expectationNode("PREVENTION", false, 100, true));
+    Inject drifted = injectWith(contract, expectationNode("DETECTION", false, 100, true));
+    Inject contractless = injectWith(null, expectationNode("DETECTION", false, 100, true));
+    stubScenarioInjects(drifted, contractless);
+
+    ExpectationsDriftOutput output = service.scenarioDrift(SCENARIO_ID);
+
+    assertThat(output.driftedInjectCount()).isEqualTo(1);
+    assertThat(output.totalInjectCount()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("A contract shared by several injects is parsed once per report")
+  void sharedContractIsParsedOnce() {
+    InjectorContractContentUtils contentUtils =
+        spy(new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()));
+    service =
+        new ExpectationsDriftService(
+            injectRepository,
+            scenarioRepository,
+            exerciseRepository,
+            contentUtils,
+            bulkOperationMonitor,
+            chunkRunner,
+            MAPPER);
+    InjectorContract contract =
+        contractWithExpectations(
+            expectationNode("PREVENTION", false, 100, true),
+            expectationNode("DETECTION", false, 100, true));
+    stubScenarioInjects(
+        injectWith(contract, expectationNode("PREVENTION", false, 100, true)),
+        injectWith(
+            contract,
+            expectationNode("PREVENTION", false, 100, true),
+            expectationNode("DETECTION", false, 100, true)),
+        injectWith(contract, expectationNode("DETECTION", false, 100, true)));
+
+    ExpectationsDriftOutput output = service.scenarioDrift(SCENARIO_ID);
+
+    assertThat(output.driftedInjectCount()).isEqualTo(2);
+    assertThat(output.totalInjectCount()).isEqualTo(3);
+    verify(contentUtils, times(1)).readContent(anyString());
+    verify(contentUtils, times(1)).getPredefinedExpectationNodes(any(JsonNode.class));
   }
 
   @Test
