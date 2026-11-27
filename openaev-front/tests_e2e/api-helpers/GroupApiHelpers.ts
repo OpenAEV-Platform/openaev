@@ -1,6 +1,6 @@
 import { type APIRequestContext } from '@playwright/test';
 
-import { type Grant, type Group, type GroupGrantInput } from '../../src/utils/api-types';
+import {type GroupGrantInput, TenantGroupGrantOutput, TenantGroupOutput} from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
 
 interface GroupApiOutput {
@@ -46,14 +46,14 @@ class GroupApiHelpers {
   }
 
   /** Returns the created grant, to delete it once the test is done. */
-  async addGrant(groupName: string, input: GroupGrantInput): Promise<Grant> {
+  async addGrant(groupName: string, input: GroupGrantInput): Promise<TenantGroupGrantOutput> {
     const group = await this.findGroupByName(groupName);
     const uri = `${this.groupUri}/${group.group_id}/grants`;
     const response = await this.request.post(uri, { data: input });
     if (!response.ok()) {
       throw new Error(`Failed to add grant to group ${groupName} (POST ${uri}): ${response.status()} - ${await response.text()}`);
     }
-    const { group_grants: grants = [] } = (await response.json()) as Group;
+    const { group_grants: grants = [] } = (await response.json()) as TenantGroupOutput;
     const grant = grants.find(g => g.grant_resource === input.grant_resource && g.grant_name === input.grant_name);
     if (!grant) {
       throw new Error(`Grant ${input.grant_name} on ${input.grant_resource} missing from group ${groupName}`);
@@ -61,7 +61,7 @@ class GroupApiHelpers {
     return grant;
   }
 
-  async deleteGrant(grant: Grant): Promise<void> {
+  async deleteGrant(grant: TenantGroupGrantOutput): Promise<void> {
     await this.request.delete(`${this.groupUri}/${grant.grant_group}/grants/${grant.grant_id}`);
   }
 }

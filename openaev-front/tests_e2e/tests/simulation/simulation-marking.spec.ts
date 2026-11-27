@@ -1,6 +1,11 @@
 import { type APIRequestContext, expect } from '@playwright/test';
 
-import { type Exercise, type Grant, type InjectOutput } from '../../../src/utils/api-types';
+import {
+  type Exercise,
+  type InjectOutput,
+  TenantGroupGrantOutput,
+  TenantGroupOutput
+} from '../../../src/utils/api-types';
 import GroupApiHelpers from '../../api-helpers/GroupApiHelpers';
 import InjectApiHelpers from '../../api-helpers/InjectApiHelpers';
 import InjectorContractApiHelpers from '../../api-helpers/InjectorContractApiHelpers';
@@ -32,7 +37,7 @@ test.describe('Simulation - With asset marked', () => {
   let simulation: Exercise;
   let inject: InjectOutput;
   let contractId: string;
-  let launcherGrant: Grant;
+  let launcherGrant: TenantGroupGrantOutput;
 
   test.beforeAll(async ({ playwright, getMarkingDefinitionId }) => {
     adminRequest = await newRequestContextAs(playwright, 'admin');
