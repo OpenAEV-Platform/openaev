@@ -10,6 +10,7 @@ import * as Constants from '../constants/ActionTypes';
 import { DATA_FETCH_ERROR } from '../constants/ActionTypes';
 import { api } from '../network';
 import { store } from '../store';
+import { type ValidationErrorBag } from './api-types';
 import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
@@ -19,8 +20,9 @@ const cache = createIntlCache();
 
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
 
-const buildError = (error: AxiosError) => {
-  const children = (error as { errors?: { children?: Record<string, { errors?: unknown[] } | null> } }).errors?.children ?? {};
+// The interceptor of network.ts rejects with the response body: on a 400, the backend ValidationErrorBag
+const buildError = (error: ValidationErrorBag) => {
+  const children = error.errors?.children ?? {};
   return {
     ...Object.fromEntries(Object.entries(children).map(([field, child]) => [field, child?.errors?.[0]])),
     [FORM_ERROR]: error.message,
