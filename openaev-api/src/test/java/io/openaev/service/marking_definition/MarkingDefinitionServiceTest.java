@@ -1,14 +1,20 @@
 package io.openaev.service.marking_definition;
 
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_HIGHEST_ORDER;
+import static io.openaev.service.marking_definition.MarkingImportBatch.PARAM_ORDER;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.toInput;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,20 +35,35 @@ import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.import_report.ImportResultRow;
+import io.openaev.service.import_report.ImportRowReason;
+import io.openaev.service.import_report.ImportRowStatus;
+import io.openaev.service.import_report.RowImportResult;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -68,6 +89,10 @@ class MarkingDefinitionServiceTest {
   @Mock private MarkingScopeSupplier markingScopeSupplier;
   @Mock private JdbcTemplate jdbcTemplate;
   @Mock private TenantGroupService tenantGroupService;
+  @Mock private PreviewFeatureService previewFeatureService;
+
+  private static final Validator VALIDATOR =
+      Validation.buildDefaultValidatorFactory().getValidator();
 
   private MarkingDefinitionService service() {
     return new MarkingDefinitionService(
@@ -77,7 +102,21 @@ class MarkingDefinitionServiceTest {
         markingClearanceCacheManager,
         markingScopeSupplier,
         jdbcTemplate,
-        tenantGroupService);
+        tenantGroupService,
+        previewFeatureService,
+        VALIDATOR);
+  }
+
+  @BeforeEach
+  void savedMarkingsAreTheOnesGiven() {
+    lenient()
+        .when(repository.saveAll(ArgumentMatchers.<Iterable<MarkingDefinition>>any()))
+        .thenAnswer(
+            invocation -> {
+              List<MarkingDefinition> saved = new java.util.ArrayList<>();
+              invocation.<Iterable<MarkingDefinition>>getArgument(0).forEach(saved::add);
+              return saved;
+            });
   }
 
   @AfterEach
@@ -117,8 +156,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
@@ -136,14 +173,12 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
 
       // Assert
-      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(1);
     }
 
     @Test
@@ -156,17 +191,15 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       service().create(input, TENANT_ID, User.ADMIN_UUID);
-      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount(anyInt());
       TransactionSynchronizationManager.getSynchronizations()
           .forEach(TransactionSynchronization::afterCommit);
 
       // Assert
-      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(1);
     }
 
     @Test
@@ -178,15 +211,13 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act - simulate rollback: the transaction ends without afterCommit ever firing.
       service().create(input, TENANT_ID, User.ADMIN_UUID);
       TransactionSynchronizationManager.clearSynchronization();
 
       // Assert
-      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount(anyInt());
     }
 
     @Test
@@ -208,7 +239,7 @@ class MarkingDefinitionServiceTest {
       // Refused before the uniqueness lookup: the caller must not learn whether the name exists.
       verify(repository, never())
           .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
-      verify(repository, never()).save(any(MarkingDefinition.class));
+      verify(repository, never()).saveAll(any());
       verify(markingClearanceCacheManager, never()).evictAll();
     }
 
@@ -227,7 +258,7 @@ class MarkingDefinitionServiceTest {
       verify(repository, never()).findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any());
       verify(repository, never())
           .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
-      verify(repository, never()).save(any(MarkingDefinition.class));
+      verify(repository, never()).saveAll(any());
     }
 
     @Test
@@ -239,8 +270,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
       MarkingDefinition created = service().create(input, TENANT_ID, USER_ID);
@@ -532,8 +561,6 @@ class MarkingDefinitionServiceTest {
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
               input.type(), input.definition(), TENANT_ID, null))
           .thenReturn(false);
-      when(repository.save(any(MarkingDefinition.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -627,6 +654,226 @@ class MarkingDefinitionServiceTest {
 
       // Assert
       assertEquals(imported, updated.getStixId());
+    }
+  }
+
+  // -- EXPORT AND IMPORT --
+
+  // The rules of a row are tested on MarkingImportBatch. Here: the clearance the service hands the
+  // batch, and what it does with the result.
+
+  @Captor private ArgumentCaptor<Iterable<MarkingDefinition>> savedCaptor;
+
+  private MarkingDefinition marking(
+      String id, String type, String definition, int order, String color) {
+    MarkingDefinition marking = createMarkingDefinition(type, definition, order, color);
+    marking.setId(id);
+    marking.setTenant(new Tenant(TENANT_ID));
+    return marking;
+  }
+
+  // The seeded TLP scale of a tenant, as the caller's tenant holds it.
+  private final MarkingDefinition tlpClear = marking("clear", "TLP", "TLP:CLEAR", 1, "#ffffff");
+  private final MarkingDefinition tlpGreen = marking("green", "TLP", "TLP:GREEN", 2, "#4caf50");
+  private final MarkingDefinition tlpAmber = marking("amber", "TLP", "TLP:AMBER", 3, "#ffc107");
+  private final MarkingDefinition tlpRed = marking("red", "TLP", "TLP:RED", 4, "#ff0000");
+
+  private List<MarkingDefinition> tenantDefinitions = List.of();
+
+  private void tenantHas(MarkingDefinition... existing) {
+    tenantDefinitions = List.of(existing);
+    when(repository.findAllByTenantId(TENANT_ID)).thenReturn(tenantDefinitions);
+  }
+
+  // The repository answers the clearance specification with the definitions the caller holds.
+  private void callerHolds(String... ids) {
+    when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+        .thenReturn(ids.length == 0 ? MarkingCtx.none() : MarkingCtx.forMarkings(List.of(ids)));
+    Set<String> held = Set.of(ids);
+    lenient()
+        .when(repository.findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+        .thenAnswer(
+            invocation ->
+                tenantDefinitions.stream()
+                    .filter(definition -> held.contains(definition.getId()))
+                    .toList());
+  }
+
+  private static MarkingRow row(
+      int position, String type, String definition, String color, String order) {
+    return new MarkingRow(position, type, definition, color, order);
+  }
+
+  private RowImportResult importAs(String userId, MarkingRow... rows) {
+    return service().importAll(TENANT_ID, userId, List.of(rows));
+  }
+
+  private static ImportResultRow at(RowImportResult result, int position) {
+    return result.rows().get(position - 1);
+  }
+
+  private static void assertSkipped(
+      ImportResultRow row, ImportRowReason reason, Map<String, String> params) {
+    assertEquals(ImportRowStatus.SKIPPED, row.status());
+    assertEquals(reason, row.reason());
+    assertEquals(params, row.params());
+  }
+
+  @Nested
+  @DisplayName("exportAll")
+  class Export {
+
+    @Test
+    @DisplayName("given_input_should_listOneTenantSortedByTypeThenOrderWithoutPaging")
+    void given_input_should_listOneTenantSortedByTypeThenOrderWithoutPaging() {
+      // Arrange
+      when(repository.findAll(any(Specification.class), eq(Sort.by("type", "order"))))
+          .thenReturn(List.of(tlpClear, tlpGreen));
+
+      // Act
+      List<MarkingDefinition> exported =
+          service().exportAll(TENANT_ID, new SearchPaginationInput());
+
+      // Assert
+      assertEquals(List.of(tlpClear, tlpGreen), exported);
+      verify(repository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("importAll")
+  class Import {
+
+    @Test
+    @DisplayName("given_validRows_should_saveOneBatchThenGrantEvictAndCountOnce")
+    void given_validRows_should_saveOneBatchThenGrantEvictAndCountOnce() {
+      // Arrange
+      tenantHas(tlpClear);
+
+      // Act
+      RowImportResult result =
+          importAs(
+              User.ADMIN_UUID,
+              row(1, "PAP", "PAP:CLEAR", "#ffffff", "1"),
+              row(2, "PAP", "PAP:GREEN", "#4caf50", "2"));
+
+      // Assert
+      assertEquals(2, result.created());
+      verify(repository, times(1)).saveAll(savedCaptor.capture());
+      List<MarkingDefinition> saved = new java.util.ArrayList<>();
+      savedCaptor.getValue().forEach(saved::add);
+      assertEquals(
+          List.of("PAP:CLEAR", "PAP:GREEN"),
+          saved.stream().map(MarkingDefinition::getDefinition).toList());
+      verify(tenantGroupService, times(1)).grantToAutoNewMarkingGroups(anyCollection());
+      verify(markingClearanceCacheManager, times(1)).evictAll();
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount(2);
+      verify(repository, never()).save(any(MarkingDefinition.class));
+    }
+
+    @Test
+    @DisplayName("given_nothingToCreate_should_saveGrantAndEvictNothing")
+    void given_nothingToCreate_should_saveGrantAndEvictNothing() {
+      // Arrange
+      tenantHas(tlpAmber);
+      callerHolds("amber");
+
+      // Act
+      RowImportResult result = importAs(USER_ID, row(1, "TLP", "TLP:AMBER", "#ffc107", "3"));
+
+      // Assert
+      assertEquals(1, result.ignored());
+      verify(repository, never()).saveAll(any());
+      verifyNoInteractions(tenantGroupService, actionMetricCollector);
+      verify(markingClearanceCacheManager, never()).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_aCallerHoldingAmber_should_readItsClearanceOnceAndStopAtAmber")
+    void given_aCallerHoldingAmber_should_readItsClearanceOnceAndStopAtAmber() {
+      // Arrange
+      tenantHas(tlpClear, tlpGreen, tlpAmber, tlpRed);
+      callerHolds("clear", "green", "amber");
+
+      // Act
+      RowImportResult result =
+          importAs(
+              USER_ID,
+              row(1, "TLP", "TLP:CUSTOM3", "#ffffff", "3"),
+              row(2, "TLP", "TLP:CUSTOM4", "#ffffff", "4"));
+
+      // Assert
+      assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
+      assertSkipped(
+          at(result, 2),
+          ImportRowReason.INSUFFICIENT_ACCESS,
+          Map.of(PARAM_ORDER, "4", PARAM_HIGHEST_ORDER, "3"));
+      verify(markingClearanceCacheManager, times(1)).findClearance(USER_ID, TENANT_ID);
+    }
+
+    @Test
+    @DisplayName("given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance")
+    void given_theFirstAdmin_should_createEveryRowWithoutReadingAClearance() {
+      // Arrange
+      tenantHas(tlpClear, tlpRed);
+
+      // Act
+      RowImportResult result =
+          importAs(User.ADMIN_UUID, row(1, "TLP", "TLP:ABOVE", "#ffffff", "99"));
+
+      // Assert
+      assertEquals(1, result.created());
+      verify(markingClearanceCacheManager, never()).findClearance(any(), any());
+    }
+
+    @Test
+    @DisplayName("given_aCallerClearedForEveryDefinition_should_stopAtTheCurrentTopLikeCreate")
+    void given_aCallerClearedForEveryDefinition_should_stopAtTheCurrentTopLikeCreate() {
+      // Arrange - not the first admin: no level above the current top of the type (TLP: 4)
+      tenantHas(tlpClear, tlpGreen, tlpAmber, tlpRed);
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.all());
+      when(repository.findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+          .thenReturn(tenantDefinitions);
+
+      // Act
+      RowImportResult result =
+          importAs(
+              USER_ID,
+              row(1, "TLP", "TLP:CUSTOM4", "#ffffff", "4"),
+              row(2, "TLP", "TLP:CUSTOM5", "#ffffff", "5"));
+
+      // Assert
+      assertEquals(ImportRowStatus.CREATED, at(result, 1).status());
+      assertSkipped(
+          at(result, 2),
+          ImportRowReason.INSUFFICIENT_ACCESS,
+          Map.of(PARAM_ORDER, "5", PARAM_HIGHEST_ORDER, "4"));
+    }
+  }
+
+  @Nested
+  @DisplayName("import preconditions")
+  class ImportPreconditions {
+
+    @Test
+    @DisplayName("given_theMarkingFlagOff_should_throwNotFound")
+    void given_theMarkingFlagOff_should_throwNotFound() {
+      // Arrange
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(false);
+
+      // Act & Assert
+      assertThrows(ElementNotFoundException.class, () -> service().assertFeatureEnabled());
+    }
+
+    @Test
+    @DisplayName("given_theMarkingFlagOn_should_notThrow")
+    void given_theMarkingFlagOn_should_notThrow() {
+      // Arrange
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+
+      // Act & Assert
+      service().assertFeatureEnabled();
     }
   }
 }

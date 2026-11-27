@@ -2,9 +2,8 @@ package io.openaev.service.marking;
 
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.Collection;
-import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
 
@@ -33,24 +32,14 @@ public final class MarkingEscalationValidator {
   /**
    * @param clearance the caller's own clearance in the tenant being written to
    * @param requested the markings they are trying to grant
-   * @throws ForbiddenException naming the markings they do not hold
+   * @throws MarkingAboveClearanceException when one of the markings is not in their clearance
    */
   public static void assertCanAssignMarkings(
       MarkingCtx clearance, Collection<MarkingDefinition> requested) {
     Set<String> held = heldIds(clearance);
 
-    List<String> unheld =
-        requested.stream()
-            .filter(marking -> !held.contains(marking.getId()))
-            .map(MarkingDefinition::getDefinition)
-            .sorted()
-            .toList();
-
-    if (!unheld.isEmpty()) {
-      // Names rather than ids: the caller chose these in a UI that shows names, and an id would
-      // make a legitimate mistake unreadable.
-      throw new ForbiddenException(
-          "Cannot assign markings you do not hold: " + String.join(", ", unheld));
+    if (requested.stream().anyMatch(marking -> !held.contains(marking.getId()))) {
+      throw new MarkingAboveClearanceException();
     }
   }
 
@@ -71,17 +60,31 @@ public final class MarkingEscalationValidator {
    * @param held the definitions the caller's clearance covers in the tenant being written to
    * @param type the type of the definition being placed
    * @param order the order it is being placed at
-   * @throws ForbiddenException when the order is above the caller's clearance on the type
+   * @throws MarkingAboveClearanceException when the order is above the caller's clearance on the
+   *     type
    */
   public static void assertCanDefineMarking(
       Collection<MarkingDefinition> held, String type, int order) {
-    OptionalInt highestHeld =
-        held.stream()
-            .filter(definition -> type.equals(definition.getType()))
-            .mapToInt(MarkingDefinition::getOrder)
-            .max();
-    if (highestHeld.isEmpty() || order > highestHeld.getAsInt()) {
-      throw new ForbiddenException("Cannot define a marking above your own clearance");
+    if (!isWithinClearance(held, type, order)) {
+      throw new MarkingAboveClearanceException();
     }
+  }
+
+  /**
+   * The rule of {@link #assertCanDefineMarking} without the exception, for a caller that reports a
+   * refusal instead of failing: the order is at or below the highest order the caller holds on the
+   * type, and a caller holding none of the type is above it.
+   */
+  public static boolean isWithinClearance(
+      Collection<MarkingDefinition> held, String type, int order) {
+    return highestHeldOrder(held, type).stream().anyMatch(highest -> order <= highest);
+  }
+
+  /** The highest order held on the type, empty when none of it is held. */
+  public static OptionalInt highestHeldOrder(Collection<MarkingDefinition> held, String type) {
+    return held.stream()
+        .filter(definition -> type.equals(definition.getType()))
+        .mapToInt(MarkingDefinition::getOrder)
+        .max();
   }
 }

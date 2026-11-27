@@ -68,6 +68,7 @@ const ExportButton = <T extends object>({ totalElements, exportProps, exportCsvM
   if (
     exportProps.exportType === 'ENDPOINTS'
     || exportProps.exportType === 'INJECTOR_CONTRACTS'
+    || exportProps.exportType === 'MARKING_DEFINITIONS'
   ) {
     return exportBtn(true);
   }
