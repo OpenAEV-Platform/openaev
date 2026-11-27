@@ -5,13 +5,21 @@ import static org.assertj.core.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -22,6 +30,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.GroupFixtureWriter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
@@ -44,6 +53,9 @@ class UserServiceTest extends IntegrationTest {
   @Autowired private TenantComposer tenantComposer;
   @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private TokenRepository tokenRepository;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private TestUserHolder testUserHolder;
   @PersistenceContext private EntityManager entityManager;
 
@@ -343,6 +355,62 @@ class UserServiceTest extends IntegrationTest {
         .extracting(Group::getId)
         .doesNotContain(tenantGroup.getId())
         .contains(platformGroup.getId());
+  }
+
+  @Test
+  @DisplayName("given_platformUpdateDetachingTenant_should_removeUserFromThatTenantTeams")
+  void given_platformUpdateDetachingTenant_should_removeUserFromThatTenantTeams() {
+    // -- ARRANGE --
+    Tenant kept =
+        tenantComposer.forTenant(TenantFixture.getTenant("teams-detach-kept")).persist().get();
+    Tenant left =
+        tenantComposer.forTenant(TenantFixture.getTenant("teams-detach-left")).persist().get();
+    User created =
+        userService.createUser(
+            getUserInputWithTenants(
+                "teams-detach@test.invalid",
+                "Teams",
+                "Detach",
+                "secureP@ss1",
+                List.of(kept.getId(), left.getId())),
+            UserCreationScope.PLATFORM);
+    Team keptTeam = teamOfTenant("Kept team", kept, created);
+    Team leftTeam = teamOfTenant("Left team", left, created);
+    Exercise leftSimulation = ExerciseFixture.createDefaultCrisisExercise();
+    leftSimulation.setTenant(left);
+    leftSimulation.setTeams(new ArrayList<>(List.of(leftTeam)));
+    leftSimulation = exerciseRepository.save(leftSimulation);
+    exerciseTeamUserRepository.save(
+        ExerciseTeamUserFixture.createExerciseTeamUser(leftSimulation, leftTeam, created));
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ACT --
+    // The platform screen drops one of the two tenants.
+    userService.updateUser(
+        created.getId(),
+        getUserInputWithTenants(
+            "teams-detach@test.invalid", "Teams", "Detach", "secureP@ss1", List.of(kept.getId())));
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(teamRepository.findById(leftTeam.getId()).orElseThrow().getUsers())
+        .extracting(User::getId)
+        .doesNotContain(created.getId());
+    assertThat(
+            exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+                leftSimulation.getId(), leftTeam.getId(), created.getId()))
+        .isFalse();
+    assertThat(teamRepository.findById(keptTeam.getId()).orElseThrow().getUsers())
+        .extracting(User::getId)
+        .contains(created.getId());
+  }
+
+  private Team teamOfTenant(String name, Tenant tenant, User player) {
+    Team team = TeamFixture.getTeam(player, name, false);
+    team.setTenant(tenant);
+    return teamRepository.save(team);
   }
 
   private Group autoAssignGroup(String name, Tenant tenant) {

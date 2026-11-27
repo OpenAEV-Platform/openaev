@@ -665,6 +665,7 @@ class ExerciseServiceUnitTest {
 
       Team newTeam = new Team();
       newTeam.setId("team-3");
+      newTeam.setTenant(new Tenant("tenant-1"));
       newTeam.setUsers(List.of(newPlayer));
 
       Exercise exercise = new Exercise();
@@ -689,7 +690,8 @@ class ExerciseServiceUnitTest {
                     });
                 return result;
               });
-      when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
+      when(userRepository.findAllByIdInAndTenantId(List.of("user-1"), "tenant-1"))
+          .thenReturn(List.of(newPlayer));
       when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
               exerciseId, "team-3", "user-1"))
           .thenReturn(false);

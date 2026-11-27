@@ -54,6 +54,7 @@ import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -130,6 +131,7 @@ public class ExerciseApi extends RestBehavior {
   private final ScenarioService scenarioService;
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
+  private final TenantUserService tenantUserService;
   private final WorkflowService workflowService;
   private final WorkflowOwnerScope workflowOwnerScope;
   private final ExpectationsDriftService expectationsDriftService;
@@ -490,7 +492,9 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
     Team team = teamService.teamInScope(ctx, teamId);
-    Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
+    // Players of a team are members of the team's tenant: other ids are ignored.
+    List<User> teamUsers =
+        tenantUserService.findMembers(team.getTenant().getId(), input.getPlayersIds());
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);

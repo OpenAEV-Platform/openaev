@@ -13,16 +13,24 @@ import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -33,6 +41,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.stat.Statistics;
@@ -64,6 +73,9 @@ class TenantUserServiceTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private UserService userService;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private EntityManager entityManager;
 
   private Tenant tenant;
@@ -294,6 +306,35 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.clear();
       Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
       assertThat(reloaded.getUsers()).extracting(User::getId).doesNotContain(created.id());
+    }
+
+    @Test
+    @DisplayName("Given a detached user should leave the teams and audiences of that tenant")
+    void given_detachedUser_should_leaveTenantTeamsAndAudiences() {
+      // -- ARRANGE --
+      User user = persistedUserInTenant("Team", "Player", "team-player-detach@test.invalid");
+      Team team = teamRepository.save(TeamFixture.getTeam(user, "Detach team", false));
+      Exercise simulation = ExerciseFixture.createDefaultCrisisExercise();
+      simulation.setTeams(new ArrayList<>(List.of(team)));
+      simulation = exerciseRepository.save(simulation);
+      exerciseTeamUserRepository.save(
+          ExerciseTeamUserFixture.createExerciseTeamUser(simulation, team, user));
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      tenantUserService.detach(ctx(), user.getId());
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(teamRepository.findById(team.getId()).orElseThrow().getUsers())
+          .extracting(User::getId)
+          .doesNotContain(user.getId());
+      assertThat(
+              exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+                  simulation.getId(), team.getId(), user.getId()))
+          .isFalse();
     }
 
     @Test

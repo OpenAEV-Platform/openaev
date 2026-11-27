@@ -373,6 +373,8 @@ class TeamResponseCollectionsTenantScopeTest extends ProductionTablesIntegration
     String userId =
         inTenantScope(tenant, () -> userRepository.save(getUser("Team", "Player", email)).getId());
     seededUsers.add(userId);
+    // A player of a team is a member of the team's tenant; the link goes with the user.
+    jdbc.update("INSERT INTO users_tenants (user_id, tenant_id) VALUES (?, ?)", userId, tenant);
     link("users_teams", "team_id", teamId, "user_id", userId);
     return userId;
   }

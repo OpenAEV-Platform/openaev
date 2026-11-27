@@ -273,6 +273,8 @@ class TeamApiTest extends IntegrationTest {
     Team team = createTeamWithName("team-audience-sync");
     team.setUsers(new ArrayList<>(List.of(keptUser, removedUser)));
     team = this.teamRepository.save(team);
+    // Players of a team are members of the team's tenant.
+    this.tenantIsolationHelper.attachUserToTenant(keptUser.getId(), team.getTenant().getId());
     this.tenantIsolationHelper.grantCapabilitiesInTenant(
         team.getTenant().getId(),
         Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));

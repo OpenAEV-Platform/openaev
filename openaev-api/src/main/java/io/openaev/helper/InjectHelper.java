@@ -14,6 +14,7 @@ import io.openaev.database.specification.InjectSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.service.tenants.TenantUserService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,6 +54,7 @@ public class InjectHelper {
   private final InjectRepository injectRepository;
   private final ExecutionContextService executionContextService;
   private final TenantScopedTransaction tenantTx;
+  private final TenantUserService tenantUserService;
 
   /**
    * Retrieves the teams targeted by an inject.
@@ -81,29 +83,43 @@ public class InjectHelper {
 
   private Stream<Tuple2<User, String>> getUsersFromInjection(Injection injection) {
     if (injection instanceof Inject inject) {
-      List<Team> teams = getInjectTeams(inject);
-      // We get all the teams for this inject
-      // But those team can be used in other exercises with different players enabled
-      // So we need to focus on team players only enabled in the context of the current exercise
-      if (inject.isAtomicTesting()) {
-        return teams.stream()
-            .flatMap(team -> team.getUsers().stream().map(user -> Tuples.of(user, team.getName())));
-      }
-      return teams.stream()
-          .flatMap(
-              team ->
-                  team.getExerciseTeamUsers().stream()
-                      .filter(
-                          exerciseTeamUser ->
-                              exerciseTeamUser
-                                  .getExercise()
-                                  .getId()
-                                  .equals(injection.getExercise().getId()))
-                      .map(
-                          exerciseTeamUser ->
-                              Tuples.of(exerciseTeamUser.getUser(), team.getName())));
+      List<Tuple2<User, String>> players = teamPlayers(inject).toList();
+      // Only members of the inject's tenant are reached, whatever the teams hold.
+      Set<String> tenantMemberIds = tenantMemberIds(inject, players);
+      return players.stream().filter(player -> tenantMemberIds.contains(player.getT1().getId()));
     }
     throw new UnsupportedOperationException("Unsupported type of Injection");
+  }
+
+  private Set<String> tenantMemberIds(Inject inject, List<Tuple2<User, String>> players) {
+    List<String> playerIds =
+        players.stream().map(player -> player.getT1().getId()).distinct().toList();
+    return tenantUserService.findMembers(inject.getTenant().getId(), playerIds).stream()
+        .map(User::getId)
+        .collect(Collectors.toSet());
+  }
+
+  private Stream<Tuple2<User, String>> teamPlayers(Inject inject) {
+    List<Team> teams = getInjectTeams(inject);
+    // We get all the teams for this inject
+    // But those team can be used in other exercises with different players enabled
+    // So we need to focus on team players only enabled in the context of the current exercise
+    if (inject.isAtomicTesting()) {
+      return teams.stream()
+          .flatMap(team -> team.getUsers().stream().map(user -> Tuples.of(user, team.getName())));
+    }
+    return teams.stream()
+        .flatMap(
+            team ->
+                team.getExerciseTeamUsers().stream()
+                    .filter(
+                        exerciseTeamUser ->
+                            exerciseTeamUser
+                                .getExercise()
+                                .getId()
+                                .equals(inject.getExercise().getId()))
+                    .map(
+                        exerciseTeamUser -> Tuples.of(exerciseTeamUser.getUser(), team.getName())));
   }
 
   private List<ExecutionContext> usersFromInjection(Injection injection) {
