@@ -34,7 +34,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.injectors.manual.ManualContract;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.constants.CommonProperties;
@@ -522,35 +521,6 @@ class StixApiTest extends IntegrationTest {
       // -- ASSERT Injects --
       Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
       assertThat(injects).hasSize(4);
-    }
-
-    @Test
-    @DisplayName(
-        "With coverage_scenario_read_only_first at its default, a coverage builds and schedules"
-            + " exactly as before")
-    void defaultSettingKeepsTheBuildAndScheduleOfMain() throws Exception {
-      Instant before = Instant.now();
-      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
-
-      // Same schedule as main: recurrence from the coverage, first run two minutes after ingestion.
-      assertThat(createdScenario.getRecurrence()).asString().isEqualTo("P1D");
-      assertThat(createdScenario.getRecurrenceStart())
-          .isBetween(
-              before.plus(2, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS),
-              Instant.now().plus(2, ChronoUnit.MINUTES));
-      assertThat(createdScenario.getScheduledBy()).isNull();
-
-      // Same injects as main: the setting disables none of them. Main builds a technical inject
-      // enabled and a manual placeholder (no matching contract) disabled.
-      Set<Inject> injects = injectRepository.findByScenarioId(scenarioId);
-      assertThat(injects).hasSize(4);
-      String manual = ManualContract.MANUAL_DEFAULT;
-      for (Inject inject : injects) {
-        boolean placeholder =
-            inject.getInjectorContract().map(c -> manual.equals(c.getId())).orElse(false);
-        assertThat(inject.isEnabled()).isEqualTo(!placeholder);
-      }
     }
 
     @Test
@@ -1106,6 +1076,56 @@ class StixApiTest extends IntegrationTest {
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
       assertThat(injects).hasSize(1);
       assertEquals(injects.iterator().next().getTitle(), "[artifact-file-test2.txt] Placeholder");
+    }
+
+    @Test
+    @DisplayName(
+        "Should build nothing and acknowledge the work when the coverage is in an OpenCTI draft")
+    void shouldBuildNothingWhenSecurityCoverageIsInOpenCtiDraft() throws Exception {
+      // PREPARE
+      JsonNode draftEvent = stixSecurityCoverage.deepCopy();
+      ObjectNode internal = (ObjectNode) draftEvent.path("internal");
+      internal.put("draft_id", "8f1c1b52-0a3c-4c6f-9a55-2d0f3f1f7a10");
+      internal.put("trigger", "create");
+      long scenariosBefore = scenarioRepository.count();
+      long coveragesBefore = securityCoverageRepository.count();
+      long injectsBefore = injectRepository.count();
+
+      // EXECUTE
+      String response =
+          mvc.perform(processBundleRequest(mapper.writeValueAsString(draftEvent)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // VERIFY
+      JsonNode report = mapper.readTree(response);
+      assertThat(report.path("scenarioId").isNull() || report.path("scenarioId").isMissingNode())
+          .isTrue();
+      assertThat(report.path("importSummary").asText()).isEqualTo(StixApi.DRAFT_SKIPPED_MESSAGE);
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(scenarioRepository.count()).isEqualTo(scenariosBefore);
+      assertThat(securityCoverageRepository.count()).isEqualTo(coveragesBefore);
+      assertThat(injectRepository.count()).isEqualTo(injectsBefore);
+    }
+
+    @Test
+    @DisplayName("Should build the scenario when the draft id is blank (live graph)")
+    void shouldBuildScenarioWhenDraftIdIsBlank() throws Exception {
+      // PREPARE
+      JsonNode liveEvent = stixSecurityCoverage.deepCopy();
+      ObjectNode internal = (ObjectNode) liveEvent.path("internal");
+      internal.put("draft_id", "");
+      internal.put("trigger", "create");
+
+      // EXECUTE
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(liveEvent));
+
+      // VERIFY
+      assertThat(scenarioRepository.findById(scenarioId)).isPresent();
+      assertThat(injectRepository.findByScenarioId(scenarioId)).isNotEmpty();
     }
   }
 

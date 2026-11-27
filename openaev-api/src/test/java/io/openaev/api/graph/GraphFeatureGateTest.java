@@ -24,8 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The exploration graph preview feature ({@code EXPLORATION_GRAPH}) with its default, off: the
  * graph and asset link routes answer a 404 as if they did not exist. The XTM counterpart routes
- * (the cross-product pivots) are not behind the flag (Sam, 23 Nov 2026) and answer. The flag-on
- * side is {@link GraphFeatureOnTest}.
+ * have their own flag, {@code XTM_COUNTERPARTS} (Sam, 23 Nov 2026), also off by default: they
+ * answer a 404 too, so no call goes out to a connected product. The flag-on side is {@link
+ * GraphFeatureOnTest}.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
@@ -65,14 +66,15 @@ class GraphFeatureGateTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given the flag off, the XTM connections and reverse lookups still answer")
-  void given_flagOff_should_serveXtmCounterparts() throws Exception {
-    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf())).andExpect(status().isOk());
+  @DisplayName("given XTM_COUNTERPARTS off, the XTM connections and reverse lookups are not found")
+  void given_counterpartsFlagOff_should_refuseXtmCounterparts() throws Exception {
+    mvc.perform(get(CONNECTIONS, DEFAULT_TENANT_UUID).with(csrf()))
+        .andExpect(status().isNotFound());
     mvc.perform(
             post(LOCAL_ASSETS, DEFAULT_TENANT_UUID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"counterpart_keys\":[\"srv-01\"]}")
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotFound());
   }
 }

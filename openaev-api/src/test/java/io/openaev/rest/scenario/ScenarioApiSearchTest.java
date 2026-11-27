@@ -17,7 +17,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.scenario.form.GetScenariosInput;
@@ -26,6 +25,7 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.GroupFixtureWriter;
 import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
   @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioRepository scenarioRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
 
@@ -296,7 +296,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         User user = userRepository.findById(currentUser().getId()).get();
         Group group = new Group();
         group.setName("test");
-        group = groupRepository.save(group);
+        group = groupFixtureWriter.save(group);
         scenarioGranted.getGrants().addAll(group.getGrants());
         scenarioGranted = scenarioRepository.save(scenarioGranted);
 
@@ -313,7 +313,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
         group.setGrants(List.of(grantObserver, grantPlanner));
         group.setUsers(List.of(user));
-        groupRepository.save(group);
+        groupFixtureWriter.save(group);
         SCENARIO_IDS.add(scenarioGranted.getId());
 
         GetScenariosInput getScenariosInput = new GetScenariosInput();

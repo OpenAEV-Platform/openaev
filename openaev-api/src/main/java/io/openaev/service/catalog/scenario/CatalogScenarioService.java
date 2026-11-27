@@ -1,20 +1,23 @@
 package io.openaev.service.catalog.scenario;
 
+import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.ImportService;
 import io.openaev.service.catalog.CatalogOffer;
-import io.openaev.service.catalog.event.CatalogChangePublisher;
+import io.openaev.service.catalog.event.ContentChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
+import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import java.io.ByteArrayInputStream;
@@ -43,19 +46,22 @@ public class CatalogScenarioService {
       "The scenario runs a payload its release does not name";
 
   private final ScenarioService scenarioService;
+  private final InjectService injectService;
   private final ScenarioIdentityRepository scenarioIdentityRepository;
   private final ImportService importService;
   private final CatalogPayloadService catalogPayloadService;
   private final List<CatalogScenarioTypeInstall<?>> typeInstalls;
   private final OrganizationService organizationService;
-  private final CatalogChangePublisher changePublisher;
+  private final ContentChangePublisher changePublisher;
+  private final ScenarioRevisionService scenarioRevisionService;
 
   // -- CREATE --
 
   /**
    * Installs the payload versions the release names, then imports the package, whose payloads link
    * to these versions by external ID and content, and applies what the admin chose: targets for the
-   * injects, scope and limits for a chained scenario's workflow.
+   * injects, scope and limits for a chained scenario's workflow. The content installed is kept as
+   * its first revision.
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario install(
@@ -65,7 +71,7 @@ public class CatalogScenarioService {
       byte[] archive,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
       ScenarioInstallChoice choice,
-      CatalogHistory.Mode mode)
+      ContentChange.Mode mode)
       throws Exception {
     ScenarioIdentity identity = uninstalledIdentity(tenantId, released);
     Set<String> payloadIds = installPayloads(ctx, tenantId, payloadFiles, mode);
@@ -74,7 +80,8 @@ public class CatalogScenarioService {
     refuseOtherPayloads(typeInstall.payloadsRun(scenario), payloadIds);
     typeInstall.apply(scenario, choiceFor(typeInstall, choice));
     markInstalled(scenario, identity, tenantId, released);
-    changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
+    scenarioRevisionService.keepInstalled(scenario);
+    changePublisher.changed(scenario, ContentChange.Action.INSTALL, mode);
     return scenario;
   }
 
@@ -86,12 +93,35 @@ public class CatalogScenarioService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
-    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
+    return scenarioService.installedFromCatalog(tenantId).stream()
+        .filter(installed -> externalIds.contains(installed.getExternalId()))
         .collect(
             Collectors.toMap(
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
                 RawCatalogInstalledScenario::getScenarioId,
                 (first, other) -> first));
+  }
+
+  @Transactional(readOnly = true)
+  public Set<String> versionKeysInUse(String tenantId, String repository) {
+    List<RawCatalogInstalledScenario> installed =
+        scenarioService.installedFromCatalog(tenantId).stream()
+            .filter(scenario -> repository.equals(scenario.getRepository()))
+            .toList();
+    if (installed.isEmpty()) {
+      return Set.of();
+    }
+    Map<String, Set<String>> revisionVersions =
+        scenarioRevisionService.catalogVersions(
+            tenantId, installed.stream().map(RawCatalogInstalledScenario::getScenarioId).toList());
+    return installed.stream()
+        .flatMap(
+            scenario ->
+                Stream.concat(
+                        Stream.of(scenario.getVersion()),
+                        revisionVersions.getOrDefault(scenario.getScenarioId(), Set.of()).stream())
+                    .map(version -> CatalogManifest.key(scenario.getExternalId(), version)))
+        .collect(Collectors.toSet());
   }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */
@@ -131,7 +161,7 @@ public class CatalogScenarioService {
       TxCtx ctx,
       String tenantId,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      CatalogHistory.Mode mode) {
+      ContentChange.Mode mode) {
     return payloadFiles.entrySet().stream()
         .map(
             file ->
@@ -148,7 +178,16 @@ public class CatalogScenarioService {
     if (result.scenarioId() == null) {
       throw new BadRequestException("The package holds no scenario");
     }
-    return scenarioService.scenario(ctx, result.scenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, result.scenarioId());
+    keepPackageInjectIds(scenario, result.packageInjectIds());
+    return scenario;
+  }
+
+  // Every version of the package names an inject the same way: an update finds it by this ID.
+  private void keepPackageInjectIds(Scenario scenario, Map<String, String> packageInjectIds) {
+    injectService
+        .findByScenarioId(scenario.getId())
+        .forEach(inject -> inject.setCatalogId(packageInjectIds.get(inject.getId())));
   }
 
   // Each install takes the choice of its own type, checked by choiceFor.

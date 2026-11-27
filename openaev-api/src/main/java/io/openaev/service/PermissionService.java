@@ -267,28 +267,27 @@ public class PermissionService {
   }
 
   /**
-   * The user, as the request loaded it, with the roles of its groups of the ambient tenant read
-   * again when the request's scope does not hold that tenant (see {@link #callerInAmbientTenant}).
-   * For a response that describes the user in the ambient tenant: the capabilities and flags it
-   * serializes come from those roles. The user returned is the one given, in the request's
-   * persistence context, so what the response serializes of its other associations is unchanged.
+   * The user, as a response describes it in the ambient tenant, when the request's scope does not
+   * hold that tenant (see {@link #callerInAmbientTenant}): a view built by {@link
+   * CallerRightsInTenant#describeInAmbientTenant}, whose capabilities and flags come from the
+   * groups it holds there. The user given is left untouched, serializing the groups of the
+   * request's own scope; a caller that does not reassign the result describes that scope.
    *
    * @param user the user, as the request loaded it
    * @param ctx the request scope
    */
   public User withRolesInAmbientTenant(@NotNull final User user, final TxCtx ctx) {
     if (ambientRolesToLoad(user, ctx)) {
-      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+      return callerRightsInTenant.describeInAmbientTenant(user);
     }
     return user;
   }
 
   /**
-   * The user, as the transaction loaded it, with the roles of its groups of the ambient tenant read
-   * again, for a response that describes the user in that tenant. For an endpoint whose transaction
-   * has no tenant scope: a load there reads no role of a tenant. The roles are read when the
-   * ambient tenant is one of the user's memberships and the user is not an admin, whose flag is on
-   * its user row; the user returned is the one given.
+   * The user, as a response describes it in the ambient tenant, for an endpoint whose transaction
+   * has no tenant scope: a view built by {@link CallerRightsInTenant#describeInAmbientTenant}. The
+   * view is only built when the ambient tenant is one of the user's memberships and the user is not
+   * an admin, whose flag is on its user row; the user given is left untouched otherwise.
    *
    * @param user the user, as the transaction loaded it
    */
@@ -300,7 +299,7 @@ public class PermissionService {
     if (!user.isAdmin()
         && memberOfAmbientTenant
         && TransactionSynchronizationManager.isActualTransactionActive()) {
-      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+      return callerRightsInTenant.describeInAmbientTenant(user);
     }
     return user;
   }

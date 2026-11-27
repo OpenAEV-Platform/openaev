@@ -147,6 +147,11 @@ public class EndpointService implements AuditLoggedService {
   /** Builds an endpoint from its input and creates it under {@code tenantId}. */
   public Endpoint createEndpoint(
       @NotNull final EndpointInput input, @NotBlank final String tenantId) {
+    return createEndpoint(buildEndpoint(input, tenantId), tenantId);
+  }
+
+  public Endpoint buildEndpoint(
+      @NotNull final EndpointInput input, @NotBlank final String tenantId) {
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
@@ -158,7 +163,7 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setTags(
         iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     endpoint.setEoL(input.isEol());
-    return createEndpoint(endpoint, tenantId);
+    return endpoint;
   }
 
   /**
@@ -311,7 +316,7 @@ public class EndpointService implements AuditLoggedService {
         Endpoint.class);
   }
 
-  public Endpoint updateEndpoint(
+  public Endpoint buildUpdatedEndpoint(
       @NotBlank final String endpointId,
       @NotNull final EndpointInput input,
       @NotNull final String tenantId) {
@@ -323,7 +328,7 @@ public class EndpointService implements AuditLoggedService {
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(
         iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
-    return updateEndpoint(toUpdate);
+    return toUpdate;
   }
 
   // -- INSTALLATION AGENT --
@@ -511,6 +516,16 @@ public class EndpointService implements AuditLoggedService {
             String.format(
                 "A new version for the agent %s is available, his current version is %s and the new version is %s",
                 agent.getAsset().getName(), agent.getVersion(), version));
+      } else if (!AgentUtils.areSafeAgentScriptInputs(
+          endpoint.getPlatform().name(),
+          input.getInstallationDirectory(),
+          input.getServiceName())) {
+        // The installation directory or service name reported by the agent is not a plain path or
+        // name: it is never placed in a script, so no upgrade job is created. The value is not
+        // logged on purpose.
+        log.warn(
+            "Upgrade job not created for agent {}: invalid installation directory or service name",
+            agent.getId());
       } else {
         if (assetAgentJobRepository
             .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
@@ -904,7 +919,7 @@ public class EndpointService implements AuditLoggedService {
   public String generateServiceNameOrPrefix(
       String platform, String installationMode, String serviceNameOrPrefix) {
     if (serviceNameOrPrefix != null && !serviceNameOrPrefix.equals("")) {
-      return serviceNameOrPrefix;
+      return AgentUtils.requireSafeServiceName(serviceNameOrPrefix);
     }
     if (platform.equalsIgnoreCase(Endpoint.PLATFORM_TYPE.Windows.name())) {
       if (installationMode != null && installationMode.equals(SERVICE)) {
@@ -934,7 +949,7 @@ public class EndpointService implements AuditLoggedService {
   public String generateInstallationDir(
       String platform, String installationMode, String installationDir) {
     if (installationDir != null && !installationDir.equals("")) {
-      return installationDir;
+      return AgentUtils.requireSafeInstallationDir(platform, installationDir);
     }
     if (platform.equalsIgnoreCase(Endpoint.PLATFORM_TYPE.Windows.name())) {
       if (installationMode != null && installationMode.equals(SERVICE)) {

@@ -117,22 +117,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   @JsonProperty("injector_contract_custom")
   private Boolean custom = false;
 
-  /**
-   * True when running this contract only reads the target (a version read, a protocol negotiation,
-   * a permission listing) and changes nothing on it. Safe-mode scenarios run read-only injects
-   * only; any other inject waits for an approval.
-   */
-  @Column(name = "injector_contract_read_only")
-  @JsonProperty("injector_contract_read_only")
-  @Queryable(filterable = true)
-  private Boolean readOnly = false;
-
-  /** Read-only when the contract or its payload is marked read-only. */
-  @JsonIgnore
-  public boolean isReadOnlyEffective() {
-    return Boolean.TRUE.equals(readOnly) || (payload != null && payload.isReadOnly());
-  }
-
   @JsonProperty("injector_contract_custom")
   public boolean getCustomEffective() {
     return Boolean.TRUE.equals(custom);
@@ -518,6 +502,70 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   public String getInjectorType() {
     Injector first = getFirstInjector();
     return first != null ? first.getType() : null;
+  }
+
+  /**
+   * Text search only (#9876): the free-text search also matches the name of a linked attack pattern
+   * ("Credentials from Web Browsers"), not only its external id ("T1555.003") declared on {@link
+   * #attackPatterns}. Kept off the field so the attack pattern filter keeps matching the external
+   * id alone. Neither filterable nor sortable; the search query groups by contract and counts
+   * distinct contracts, so several matching attack patterns never duplicate a row.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.name")
+  public List<String> getAttackPatternNames() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getName)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  /**
+   * Text search only (#9905): the free-text search also matches the name of the parent technique of
+   * a linked attack pattern, so "Boot or Logon Autostart Execution" (T1547) finds a contract linked
+   * only to T1547.001, as the external id "T1547" already does. Kept off {@link #attackPatterns} so
+   * the attack pattern filter keeps matching the directly linked patterns alone. Neither filterable
+   * nor sortable; the search query groups by contract, so a contract linked to both a parent and
+   * its child is returned once.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.parent.name")
+  public List<String> getAttackPatternParentNames() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getParent)
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getName)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  /**
+   * Text search only (#9905): the free-text search also matches the external id of the parent
+   * technique of a linked attack pattern, so a parent id finds its sub-techniques' contracts
+   * without relying on the id format ("T1547" being a prefix of "T1547.001"). Same scope as {@link
+   * #getAttackPatternParentNames()}: neither filterable nor sortable.
+   */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "attackPatterns.parent.externalId")
+  public List<String> getAttackPatternParentExternalIds() {
+    return getAttackPatterns().stream()
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getParent)
+        .filter(Objects::nonNull)
+        .map(AttackPattern::getExternalId)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+  }
+
+  /** Text search only (#9876): the free-text search also matches the payload description. */
+  @JsonIgnore
+  @Queryable(searchable = true, path = "payload.description")
+  public String getPayloadDescription() {
+    return ofNullable(getPayload()).map(Payload::getDescription).orElse(null);
   }
 
   @JsonIgnore

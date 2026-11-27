@@ -33,6 +33,8 @@ const ErrorHandler = () => {
         MESSAGING$.notifyError(t('You are not a member of this tenant. Please contact your administrator to request access.'));
       } else if (error.status === 403 && error.message === 'WORKFLOW_NOT_EDITABLE') {
         MESSAGING$.notifyError(t('This simulation has been launched. Its logic map is read-only. Reset the simulation to edit it.'));
+      } else if (error.status === 403 && error.message === 'CANNOT_DEFINE_MARKING_ABOVE_CLEARANCE') {
+        MESSAGING$.notifyError(t('You cannot define a marking above your own clearance.'));
       } else if (error.status === 409) {
         // A 409 is not always a duplicate: several endpoints raise a CONFLICT with an explanatory
         // reason (e.g. a lifecycle guard). Surface that reason when the backend provides one and

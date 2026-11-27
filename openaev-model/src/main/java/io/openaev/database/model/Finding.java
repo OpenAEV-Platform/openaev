@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.utils.SensitiveValueMaskingUtils;
@@ -27,7 +26,7 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "findings")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 public class Finding implements TenantBase {
 
   // findings is on multi-tenancy v2 (#6420 / #6421 / #6442).
@@ -104,8 +103,7 @@ public class Finding implements TenantBase {
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  // The tenant here must be set automatically with the inject tenant when the finding is created by
-  // the inject
+  // Every creator sets the tenant explicitly: the inject's tenant for a finding the inject produces
   private Tenant tenant;
 
   // -- IDENTITY --

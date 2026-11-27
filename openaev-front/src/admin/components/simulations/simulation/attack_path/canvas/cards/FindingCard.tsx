@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData, displayFindingValue } from '../../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../../attack-path-logging-context';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
 
 interface Props {
@@ -26,6 +27,7 @@ const FINDING_LABEL_MAX_LENGTH = 16;
 const FindingCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
   const value = displayFindingValue(data.typeFindings, data.label);
   // Hard-truncate what is rendered on the card (no word-boundary trimming, so it always keeps
@@ -54,7 +56,7 @@ const FindingCard = ({ data, selected = false }: Props) => {
         ...(data.status
           ? [{
               label: t('Status'),
-              value: t(attackPathStatusLabel(data.status)),
+              value: t(attackPathStatusLabel(data.status, showsLogging)),
             }]
           : []),
       ]}

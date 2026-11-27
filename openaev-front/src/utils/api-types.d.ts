@@ -162,6 +162,8 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -179,6 +181,78 @@ export interface AgentTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+}
+
+export interface AggregatedFindingOutput {
+  /**
+   * Asset groups linked to assets
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /**
+   * Assets linked to the finding (any asset type, not only endpoints)
+   * @uniqueItems true
+   */
+  finding_assets: EndpointSimple[];
+  /**
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
+  finding_value: string;
 }
 
 export interface AiAttack {
@@ -322,6 +396,8 @@ export interface AiTargetInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  /** @uniqueItems true */
+  asset_markings?: string[];
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
@@ -355,6 +431,8 @@ export interface AiTargetTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -653,6 +731,8 @@ export interface AssetBulkUpdateInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_ids_to_ignore?: string[];
   asset_ids_to_process?: string[];
+  /** Sets the internet-facing flag of every selected asset; null leaves it unchanged */
+  asset_internet_facing?: boolean | null;
   /** Must belong to asset_category; requires asset_category */
   asset_subcategory?:
     | "SERVER"
@@ -842,6 +922,8 @@ export interface AssetGroupTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -891,24 +973,6 @@ export interface AssetLinkOutput {
     | "USES";
 }
 
-export interface AssetMarkingsOutput {
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * Markings currently carried by the asset
-   * @uniqueItems true
-   */
-  asset_markings?: string[];
-  /**
-   * Asset name
-   * @minLength 1
-   */
-  asset_name: string;
-}
-
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -956,6 +1020,11 @@ export interface AssetOutput {
    * @minLength 1
    */
   asset_id: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -1084,10 +1153,6 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
-}
-
-export interface AssetUpdateMarkingsInput {
-  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -1306,6 +1371,7 @@ export interface AttackPathExecutionDetailDTO {
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
+  loggingStatus?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
@@ -1346,6 +1412,7 @@ export interface AttackPathFindingPageDTO {
 
 export interface AttackPathFindingVerdictsDTO {
   detection?: string;
+  logging?: string;
   prevention?: string;
   vulnerability?: string;
 }
@@ -2282,6 +2349,8 @@ interface BaseInjectTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2388,7 +2457,6 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -2730,23 +2798,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogHistoryOutput {
-  catalog_history_action:
-    | "INSTALL"
-    | "UNINSTALL"
-    | "REVOKE"
-    | "LIFT_REVOCATION";
-  /** @format date-time */
-  catalog_history_created_at: string;
-  /** @minLength 1 */
-  catalog_history_id: string;
-  catalog_history_mode: "MANUAL" | "AUTO";
-  /** Who made the change; empty when the platform made it alone */
-  catalog_history_user?: string;
-  /** @minLength 1 */
-  catalog_history_version: string;
-}
-
 export interface CatalogInstallAllOutput {
   failed_external_ids?: string[];
   installed_ids?: string[];
@@ -2777,18 +2828,33 @@ export interface CatalogScenarioInstallInput {
 export interface CatalogScenarioOutput {
   catalog_scenario_author?: string;
   catalog_scenario_category?: string;
+  catalog_scenario_changelog?: string;
   catalog_scenario_description?: string;
   /** @minLength 1 */
   catalog_scenario_external_id: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
   catalog_scenario_installed_scenario_id?: string;
-  catalog_scenario_missing_requirements: string[];
+  catalog_scenario_main_focus?: string;
+  catalog_scenario_missing_requirements: CatalogScenarioRequirementOutput[];
   catalog_scenario_name?: string;
+  catalog_scenario_payloads: CatalogPayloadOutput[];
   catalog_scenario_platforms: string[];
   /** @format date-time */
   catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
   catalog_scenario_type: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioRequirementOutput {
+  requirement_integration_id?: string;
+  /** @minLength 1 */
+  requirement_label: string;
+  /** @minLength 1 */
+  requirement_name: string;
+  requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
 }
 
 export interface CatalogScenarioVersionOutput {
@@ -3170,7 +3236,6 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -3380,6 +3445,8 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
+  /** Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent when the engine does not report it */
+  connector_instance_image_digest?: string;
   /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
@@ -3418,6 +3485,8 @@ export interface ConnectorInstanceOutput {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Digest of the image the container runs (algo:hex), as last reported by the composer; absent when unknown */
+  connector_instance_image_digest?: string;
   /** Whether the container is in a reboot loop */
   connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
@@ -3441,6 +3510,7 @@ export interface ConnectorInstancePersisted {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  connector_instance_image_digest?: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];
@@ -3463,6 +3533,26 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export interface ContractOutputElement {
@@ -3636,10 +3726,6 @@ export interface CounterpartOutput {
   counterpart_product?: string;
   counterpart_status?: string;
   counterpart_url?: string;
-}
-
-export interface CoverageScenarioSettingsInput {
-  coverage_scenario_read_only_first: boolean;
 }
 
 export interface CreateConnectorInstanceInput {
@@ -4381,7 +4467,6 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5348,10 +5433,17 @@ export interface EndpointSimple {
    */
   asset_id: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
   asset_name: string;
+  /** Asset type discriminator (e.g. Endpoint, SecurityPlatform) */
+  asset_type?: string;
   /** OS platform when the asset is an endpoint */
   endpoint_platform?: string;
 }
@@ -5384,6 +5476,8 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -5417,15 +5511,19 @@ export interface EntitiesPaginationInput {
 
 export interface EsAsset {
   asset_category?: string;
+  asset_criticality?: string;
   asset_description?: string;
   asset_external_reference?: string;
   asset_hostname?: string;
+  asset_internet_facing?: boolean;
   /** @uniqueItems true */
   asset_ips?: string[];
   /** @uniqueItems true */
   asset_mac_addresses?: string[];
   asset_name?: string;
   asset_seen_ip?: string;
+  asset_subcategory?: string;
+  asset_url?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -6029,7 +6127,6 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6279,7 +6376,6 @@ export interface Exercise {
 export interface ExerciseBulkProcessingInput {
   exercise_ids_to_ignore?: string[];
   exercise_ids_to_process?: string[];
-  keep_findings?: boolean;
   search_pagination_input?: SearchPaginationInput;
 }
 
@@ -6493,7 +6589,6 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -6519,6 +6614,8 @@ export interface Filter {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -6553,7 +6650,14 @@ export interface FindingOccurrenceOutput {
 
 export interface FindingOutput {
   /**
-   * First time the finding was seen
+   * Asset groups targeted by the inject that produced the finding
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** Asset ids linked to the finding */
+  finding_assets?: string[];
+  /**
+   * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_first_seen?: string;
@@ -6563,7 +6667,7 @@ export interface FindingOutput {
    */
   finding_id: string;
   /**
-   * Last time the finding was seen
+   * Last time the finding was detected; the last write time when the detection time is unknown
    * @format date-time
    */
   finding_last_seen?: string;
@@ -6609,6 +6713,13 @@ export interface FindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
+   * When the finding row was last written. Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /** User ids linked to the finding */
+  finding_users?: string[];
+  /**
    * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
@@ -6636,16 +6747,19 @@ export interface FindingRetestOutput {
   retest_inject_id: string;
 }
 
-
-export interface FindingSimple {
-  /** Asset the finding was detected on, null when it is not on an asset */
-  finding_asset?: EndpointSimple;
-  /** @format date-time */
-  finding_first_seen: string;
-  /** @minLength 1 */
-  finding_id: string;
-  /** @format date-time */
-  finding_last_seen: string;
+export interface FindingSummaryOutput {
+  /**
+   * Number of distinct impacted assets across all occurrences
+   * @format int64
+   */
+  finding_assets_count?: number;
+  /**
+   * First time this finding was seen across all occurrences
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /** Representative finding id used to resolve the (type, value) group */
+  finding_id?: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -7059,6 +7173,31 @@ export interface ImportPostSummary {
   import_id: string;
 }
 
+export interface ImportReport {
+  import_columns: string[];
+  /** @format int32 */
+  import_created: number;
+  /** @format int32 */
+  import_ignored: number;
+  import_rows: ImportReportRow[];
+  /** @format int32 */
+  import_skipped: number;
+}
+
+export interface ImportReportRow {
+  import_row_params: Record<string, string>;
+  /** @format int32 */
+  import_row_position: number;
+  import_row_reason?:
+    | "MISSING_FIELD"
+    | "VALUE_TOO_LONG"
+    | "INVALID_VALUE"
+    | "CONFLICT"
+    | "INSUFFICIENT_ACCESS";
+  import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
+  import_row_values: Record<string, string>;
+}
+
 export interface ImportResult {
   missingActions?: MissingImportedAction[];
 }
@@ -7170,14 +7309,6 @@ export interface InjectAuthorisation {
   /** @format date-time */
   inject_authorisation_issued_at?: string;
   inject_id?: string;
-}
-
-export interface InjectBulkDeleteInput {
-  inject_ids_to_ignore?: string[];
-  inject_ids_to_process?: string[];
-  keep_findings?: boolean;
-  search_pagination_input?: SearchPaginationInput;
-  simulation_or_scenario_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -7838,6 +7969,15 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
+export interface InjectTargetsOutput {
+  /** @minLength 1 */
+  inject_id: string;
+  inject_target_kinds: ("ASSETS" | "ASSET_GROUPS" | "TEAMS" | "HOSTS")[];
+  inject_targeted?: boolean;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface InjectTeamsInput {
   inject_teams?: string[];
 }
@@ -7960,7 +8100,6 @@ export interface InjectorContract {
     | "kerberoastable_account"
     | "expectation_signature"
   )[];
-  injector_contract_read_only?: boolean;
   injector_contract_tags?: string[];
   /** @format date-time */
   injector_contract_updated_at: string;
@@ -8287,6 +8426,8 @@ export interface InstalledInjector {
 }
 
 export interface Internal {
+  draft_id?: string;
+  trigger?: string;
   /** @minLength 1 */
   work_id: string;
 }
@@ -8720,6 +8861,8 @@ export interface ManualTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8783,20 +8926,169 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkedEndpointInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
+  asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
+  /** @uniqueItems true */
+  asset_markings?: string[];
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "EMAIL_SECURITY"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
+  asset_tags?: string[];
+  asset_url?: string | null;
+  endpoint_agent_version?: string;
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
+  /** True if the endpoint is in an End of Life state */
+  endpoint_is_eol?: boolean;
+  endpoint_platform?:
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown";
+}
+
 export interface MarkingDefinitionInput {
   /**
    * @minLength 1
    * @pattern ^#[0-9a-fA-F]{6}$
    */
   marking_definition_color: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_definition: string;
   /**
    * @format int32
    * @min 0
    */
   marking_definition_order: number;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_type: string;
 }
 
@@ -8935,7 +9227,6 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -9041,6 +9332,7 @@ export interface NotificationTriggerInput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -9162,6 +9454,7 @@ export interface NotificationTriggerOutput {
     | "NEW_PAYLOAD_VERSION"
     | "REVOKED"
     | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
     | "INSTALLED_AUTOMATICALLY"
     | "RELEASE_RECEIVED"
     | "SYNC_BLOCKED"
@@ -9538,6 +9831,25 @@ export interface PageCatalogScenarioOutput {
 
 export interface PageConnectorInstanceLog {
   content?: ConnectorInstanceLog[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9992,6 +10304,25 @@ export interface PagePayload {
   totalPages?: number;
 }
 
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PagePhishingEmailTemplate {
   content?: PhishingEmailTemplate[];
   empty?: boolean;
@@ -10383,6 +10714,30 @@ export interface PayloadCommandBlock {
   command_content?: string;
   command_executor?: string;
   payload_cleanup_command?: string[];
+}
+
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export type PayloadCreateInput = BasePayloadCreateInput &
@@ -10818,6 +11173,17 @@ export interface PayloadUsagesOutput {
   payload_usages_hidden_count?: number;
 }
 
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
+}
+
 export interface PayloadVersionOutput {
   /**
    * The Threat Arsenal action of this version
@@ -11019,6 +11385,7 @@ export interface PlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -11234,6 +11601,8 @@ export interface PlayerTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11364,6 +11733,8 @@ export interface PropertySchemaDTO {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -11429,6 +11800,7 @@ export interface PublicPlatformSettings {
     | "LOGGING_EXPECTATION"
     | "CATALOG"
     | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -11603,6 +11975,94 @@ export interface RelatedEntityOutput {
   context?: string;
   id?: string;
   name?: string;
+}
+
+export interface RelatedFindingOutput {
+  /**
+   * Asset groups linked to assets
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /**
+   * Assets linked to the finding (any asset type, not only endpoints)
+   * @uniqueItems true
+   */
+  finding_assets: EndpointSimple[];
+  /**
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** Inject linked to finding */
+  finding_inject: InjectSimple;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
+  /** Scenario linked to inject */
+  finding_scenario?: ScenarioSimple;
+  /** Simulation linked to inject */
+  finding_simulation?: ExerciseSimple;
+  /**
+   * Teams linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_teams?: TargetSimple[];
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /**
+   * Players (persons) linked to the finding occurrence
+   * @uniqueItems true
+   */
+  finding_users?: TargetSimple[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
+  finding_value: string;
 }
 
 export interface Relationship {
@@ -11782,6 +12242,17 @@ export interface ResultDistribution {
   label: string;
   /** @format int32 */
   value: number;
+}
+
+export interface RevokedInjectOutput {
+  /** @minLength 1 */
+  inject_action_id: string;
+  /** @minLength 1 */
+  inject_action_name: string;
+  /** @minLength 1 */
+  inject_id: string;
+  /** @minLength 1 */
+  inject_title: string;
 }
 
 export interface RoleInput {
@@ -12117,16 +12588,56 @@ export interface ScenarioAndInjectorContractsInputs {
 }
 
 export interface ScenarioBulkProcessingInput {
-  keep_findings?: boolean;
   scenario_ids_to_ignore?: string[];
   scenario_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
+}
+
+export interface ScenarioCatalogStateOutput {
+  scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_revoked: boolean;
 }
 
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioChangeOutput {
+  scenario_change_applied?: JsonNode;
+  scenario_change_base?: JsonNode;
+  scenario_change_editable: boolean;
+  scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
+  scenario_change_field_key?: string;
+  scenario_change_field_kind?:
+    | "NAME"
+    | "DESCRIPTION"
+    | "SEVERITY"
+    | "CATEGORY"
+    | "TITLE"
+    | "CONTRACT"
+    | "DEPENDS_DURATION"
+    | "DEPENDS_ON"
+    | "ARGUMENT"
+    | "VARIABLE";
+  /** @minLength 1 */
+  scenario_change_id: string;
+  scenario_change_local?: JsonNode;
+  scenario_change_status:
+    | "TAKE_APPLIED"
+    | "KEEP_MINE"
+    | "CONFLICT"
+    | "ADDED"
+    | "REMOVED";
+  scenario_change_title?: string;
+}
+
+export interface ScenarioChangelogOutput {
+  /** @minLength 1 */
+  scenario_changelog: string;
+  /** @minLength 1 */
+  scenario_changelog_version: string;
 }
 
 export interface ScenarioIdsAndInjectorContractsInputs {
@@ -12161,6 +12672,12 @@ export interface ScenarioInput {
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
+}
+
+export interface ScenarioLaunchCheckOutput {
+  launch_check_injects: InjectTargetsOutput[];
+  launch_check_missing_requirements: CatalogScenarioRequirementOutput[];
+  launch_check_revoked_injects: RevokedInjectOutput[];
 }
 
 export interface ScenarioLaunchOutput {
@@ -12263,6 +12780,12 @@ export interface ScenarioOutput {
   scenario_workflow_id?: string;
 }
 
+export interface ScenarioPayloadVersionOutput {
+  payload_name?: string;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface ScenarioReachabilityAssertionInput {
   /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
   scenario_reachability_assertion?: boolean;
@@ -12274,6 +12797,19 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+}
+
+export interface ScenarioRevisionOutput {
+  /** @minLength 1 */
+  scenario_revision_catalog_version: string;
+  /** @format date-time */
+  scenario_revision_created_at: string;
+  /** @minLength 1 */
+  scenario_revision_id: string;
+  /** @format int32 */
+  scenario_revision_number: number;
+  scenario_revision_reason: "INSTALL" | "UPDATE" | "ROLLBACK";
+  scenario_revision_user?: string;
 }
 
 export interface ScenarioSimple {
@@ -12313,6 +12849,25 @@ export interface ScenarioTeamUserOutput {
   user_id?: string;
 }
 
+export interface ScenarioUpdateInput {
+  scenario_update_choices?: Record<
+    string,
+    "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
+  >;
+  scenario_update_edits?: Record<string, string>;
+  /** @minLength 1 */
+  scenario_update_from_version: string;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changelogs: ScenarioChangelogOutput[];
+  scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_from_version: string;
+  scenario_update_lost_dependencies: string[];
+  scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
+  scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
+}
+
 export interface ScenarioUpdateTagsInput {
   apply_tag_rule?: boolean;
   scenario_tags?: string[];
@@ -12320,6 +12875,23 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+export interface ScenarioVersionOutput {
+  /** @minLength 1 */
+  scenario_version: string;
+  scenario_version_changelog?: string;
+  scenario_version_current: boolean;
+  scenario_version_latest: boolean;
+  /** @format date-time */
+  scenario_version_published_at?: string;
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED" | "UNLISTED";
+}
+
+export interface ScenarioVersionsOutput {
+  /** @format int64 */
+  scenario_simulations_count: number;
+  scenario_versions: ScenarioVersionOutput[];
 }
 
 /** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
@@ -13565,6 +14137,8 @@ export interface TeamTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -14241,7 +14815,6 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   user_lastname: string;
   user_organization?: string;
-  user_pastel_colours?: boolean;
   /** @minLength 1 */
   user_theme: string;
 }
@@ -14420,8 +14993,6 @@ export interface User {
   user_lastname?: string;
   /** Organization ID of the user */
   user_organization?: string;
-  /** Pastel colours preference of the user: soft pastel chips when true (default), the standard colours shared by every XTM Platform module when false */
-  user_pastel_colours?: boolean;
   /** PGP key of the user */
   user_pgp_key?: string;
   /** Phone number of the user */

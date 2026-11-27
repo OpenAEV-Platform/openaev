@@ -3,9 +3,9 @@ package io.openaev.healthcheck.utils;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
 import static io.openaev.service.InjectExpectationUtils.isOnExpectedPlatform;
+import static io.openaev.utils.injector_contract.InjectorContractContentUtils.mandatoryFieldGroups;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
-import static java.util.stream.StreamSupport.stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +23,7 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.payload.PayloadRevocationService;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
@@ -57,6 +58,7 @@ public class HealthCheckUtils {
   private final ConditionService conditionService;
   private final PreviewFeatureService previewFeatureService;
   private final PayloadRevocationService payloadRevocationService;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   /**
    * Run all mail service checks for one inject
@@ -439,8 +441,7 @@ public class HealthCheckUtils {
       throw new RuntimeException("Error parsing injector contract content", e);
     }
 
-    ObjectNode contractContent = injectorContract.getConvertedContent();
-    if (contractContent == null) {
+    if (injectorContract.getConvertedContent() == null) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.INJECTOR_CONTRACT,
@@ -449,139 +450,30 @@ public class HealthCheckUtils {
               now()));
       return result;
     }
-    List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
-            .filter(this::isContractCredentialFieldEnabled)
-            .toList();
+    Map<String, JsonNode> contractFields = injectorContractContentUtils.fields(injectorContract);
+    contractFields.values().removeIf(field -> !isContractCredentialFieldEnabled(field));
 
-    for (JsonNode jsonField : contractFields) {
-
-      // If field is mandatory
-      if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
-          && !InjectModelHelper.isFieldSet(
-              allTeams,
-              teams,
-              assets,
-              assetGroups,
-              secretReferences,
-              jsonField,
-              content,
-              injectContractFields)) {
-        result.add(
-            HealthCheck.missingMandatoryField(
-                jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), now()));
-      }
-
-      // If field is mandatory group
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)) {
-        ArrayNode mandatoryGroups =
-            (ArrayNode) jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS);
-        if (!mandatoryGroups.isEmpty()) {
-          boolean atLeastOneSet = false;
-          for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-            Optional<JsonNode> groupField =
-                contractFields.stream()
-                    .filter(
-                        jsonNode ->
-                            mandatoryFieldKey
-                                .asText()
-                                .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                    .findFirst();
-            if (groupField.isPresent()
-                && InjectModelHelper.isFieldSet(
-                    allTeams,
-                    teams,
-                    assets,
-                    assetGroups,
-                    secretReferences,
-                    groupField.get(),
-                    content,
-                    injectContractFields)) {
-              atLeastOneSet = true;
-              break;
-            }
-          }
-          if (!atLeastOneSet) {
-            for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-              result.add(HealthCheck.missingMandatoryField(mandatoryFieldKey.asText(), now()));
-            }
-          }
-        }
-      }
-
-      // If field is mandatory conditional, if the conditional field is set, check if the current
-      // field is set
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS)) {
-        JsonNode fields = jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS);
-
-        if (fields.isArray()) {
-          for (JsonNode node : fields) {
-            if (!node.isNull()) {
-              String fieldKey = node.asText();
-
-              Optional<JsonNode> conditionalFieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              fieldKey.equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-
-              // If field not exists -> skip
-              if (conditionalFieldOpt.isEmpty()) {
-                continue;
-              }
-              if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES)) {
-                JsonNode conditionalValuesNode =
-                    jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
-
-                if (conditionalValuesNode.has(fieldKey)) {
-                  List<String> specificValuesNode =
-                      conditionalValuesNode.get(fieldKey).isArray()
-                          ? stream(conditionalValuesNode.get(fieldKey).spliterator(), false)
-                              .map(JsonNode::asText)
-                              .toList()
-                          : List.of(conditionalValuesNode.get(fieldKey).asText());
-
-                  List<String> actualValues =
-                      InjectModelHelper.getFieldValue(
-                          teams, assets, assetGroups, conditionalFieldOpt.get(), content);
-                  boolean conditionMet =
-                      actualValues.stream().anyMatch(specificValuesNode::contains);
-
-                  if (!conditionMet) {
-                    continue; // condition not met -> skip
-                  }
-                }
-              }
-              Optional<JsonNode> fieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              jsonField
-                                  .get(CONTRACT_ELEMENT_CONTENT_KEY)
-                                  .asText()
-                                  .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-              // If field not exists -> skip
-              if (fieldOpt.isEmpty()) {
-                continue;
-              }
-              if (!InjectModelHelper.isFieldSet(
-                  allTeams,
-                  teams,
-                  assets,
-                  assetGroups,
-                  secretReferences,
-                  fieldOpt.get(),
-                  content,
-                  injectContractFields)) {
-                result.add(
-                    HealthCheck.missingMandatoryField(
-                        fieldOpt.get().get(CONTRACT_ELEMENT_CONTENT_KEY).asText(), now()));
-              }
-            }
-          }
-        }
+    for (Set<String> group :
+        mandatoryFieldGroups(
+            contractFields,
+            field -> InjectModelHelper.getFieldValue(teams, assets, assetGroups, field, content))) {
+      boolean filled =
+          group.stream()
+              .map(contractFields::get)
+              .filter(Objects::nonNull)
+              .anyMatch(
+                  field ->
+                      InjectModelHelper.isFieldSet(
+                          allTeams,
+                          teams,
+                          assets,
+                          assetGroups,
+                          secretReferences,
+                          field,
+                          content,
+                          injectContractFields));
+      if (!filled) {
+        group.forEach(key -> result.add(HealthCheck.missingMandatoryField(key, now())));
       }
     }
 

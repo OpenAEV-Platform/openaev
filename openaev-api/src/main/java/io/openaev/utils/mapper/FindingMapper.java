@@ -71,7 +71,6 @@ public class FindingMapper {
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())
         .usersCount(counts.users())
-        .assetGroupsCount(counts.assetGroups())
         .build();
   }
 
@@ -131,5 +130,75 @@ public class FindingMapper {
           .build();
     }
     return null;
+  }
+
+  public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
+    Optional<Inject> inject = latestOccurrence(finding).map(FindingOccurrence::getInject);
+    Optional<Exercise> simulation = inject.map(Inject::getExercise);
+    return RelatedFindingOutput.builder()
+        .id(finding.getId())
+        .value(finding.getValueDisplay())
+        .type(finding.getType())
+        .updateDate(finding.getUpdateDate())
+        .firstSeen(firstSeenOf(finding))
+        .lastSeen(lastSeenOf(finding))
+        .assets(
+            finding.getAssets().stream()
+                .map(asset -> endpointMapper.toEndpointSimple(asset))
+                .collect(Collectors.toSet()))
+        .assetGroups(assetGroupsOf(finding))
+        .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
+        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
+        .scenario(
+            simulation
+                .map(Exercise::getScenario)
+                .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
+                .orElse(null))
+        // Teams and persons attached to this occurrence (e.g. phishing credential findings): the
+        // occurrence list needs them to show WHO was impacted, not only which machine.
+        .teams(
+            finding.getTeams().stream()
+                .map(
+                    team ->
+                        TargetSimple.builder()
+                            .id(team.getId())
+                            .name(team.getName())
+                            .type(TargetType.TEAMS)
+                            .build())
+                .collect(Collectors.toSet()))
+        .users(
+            finding.getUsers().stream()
+                .map(
+                    user ->
+                        TargetSimple.builder()
+                            .id(user.getId())
+                            .name(user.getNameOrEmail())
+                            .type(TargetType.PLAYERS)
+                            .build())
+                .collect(Collectors.toSet()))
+        .creationDate(finding.getCreationDate())
+        .build();
+  }
+
+  /**
+   * First detection of a finding row: its first seen, or its creation time when the detection time
+   * is unknown (rows written before first/last seen existed). Same rule as the summary aggregate.
+   */
+  public static Instant firstSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate());
+  }
+
+  /**
+   * Last detection of a finding row: its last seen, or its last write time when the detection time
+   * is unknown. Never the write time when a detection time exists: any write moves it.
+   */
+  public static Instant lastSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate());
+  }
+
+  private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {
+    return finding.getOccurrences().stream()
+        .filter(occurrence -> occurrence.getInject() != null)
+        .max(Comparator.comparing(FindingOccurrence::getDate));
   }
 }

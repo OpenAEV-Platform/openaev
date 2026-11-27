@@ -2,6 +2,8 @@ package io.openaev.context;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -342,11 +345,13 @@ public class TenantScopedTransaction {
    * touched: {@code ctx} must name exactly the tenants already in scope, so only the marking
    * dimension widens, and only for {@code work}.
    *
-   * <p>The one HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
+   * <p>The HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
    * relaunch, scenario launch) that must keep the targets the requester is not cleared for. It
    * joins the request's transaction rather than opening one, so it sees what the request already
-   * wrote. The persistence context is flushed and cleared on both sides of {@code work}: nothing
-   * loaded under one clearance is reused under the other, and the caller reloads what it needs.
+   * wrote. Work that only needs committed data reaches system clearance through {@link #executeNew}
+   * instead (ADR-025). The persistence context is flushed and cleared on both sides of {@code
+   * work}: nothing loaded under one clearance is reused under the other, and the caller reloads
+   * what it needs.
    *
    * <p>If {@code work} fails, the clearance is still restored when the transaction can run one more
    * statement. When it cannot (a failed statement aborted it), it can only roll back, and reads
@@ -413,6 +418,28 @@ public class TenantScopedTransaction {
     }
     entityManager.flush();
     return new CapturedScope(currentScope(), currentMarkingScope());
+  }
+
+  /**
+   * Refuses to go on unless the tenant scope of the CURRENT transaction holds every tenant of
+   * {@code tenantIds}. For a write that finds its rows through a scoped read: outside the scope the
+   * read returns nothing for a tenant, and the write then does nothing for it, without an error. An
+   * empty {@code tenantIds} is always covered. Reads the scope only: it changes nothing.
+   *
+   * @throws IllegalStateException when no transaction is active or the scope misses a tenant
+   */
+  public void requireScopeCovers(Collection<String> tenantIds) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.requireScopeCovers() has no scope to check: no transaction is"
+              + " active.");
+    }
+    Set<String> scoped = tenants(currentScope());
+    if (!scoped.containsAll(tenantIds)) {
+      throw new IllegalStateException(
+          "The transaction's tenant scope '%s' does not hold every tenant of %s"
+              .formatted(String.join(",", scoped), tenantIds));
+    }
   }
 
   /** The scopes of a transaction, put back by {@link #close()}. */
@@ -599,7 +626,10 @@ public class TenantScopedTransaction {
   }
 
   private static Set<String> tenants(String guc) {
-    return guc.isEmpty() ? Set.of() : Set.of(guc.split(","));
+    // A scope may list a tenant twice (TxCtx.forTenants accepts duplicates): Set.of would throw
+    return guc.isEmpty()
+        ? Set.of()
+        : Arrays.stream(guc.split(",")).collect(Collectors.toUnmodifiableSet());
   }
 
   private void setMarkingScope(String scope) {

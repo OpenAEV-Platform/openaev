@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -27,6 +28,8 @@ import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -35,12 +38,15 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -75,6 +81,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   /**
    * Scopes the test's own transaction, for the tests that query the repository directly instead of
@@ -85,6 +95,23 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
    */
   private void scopeToAmbientTenant() {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  private MarkingDefinition persistClearedMarking() {
+    MarkingDefinition marking =
+        markingDefinitionComposer
+            .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+            .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .persist()
+            .get();
+    // The caller sees a marked asset only through a group holding its marking.
+    Group group = TenantGroupFixture.getGroup("finding-markings-" + UUID.randomUUID());
+    group.setMarkings(new HashSet<>(Set.of(marking)));
+    group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+    tenantGroupComposer.forGroup(group).persist();
+    entityManager.flush();
+    markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+    return marking;
   }
 
   @BeforeEach
@@ -104,6 +131,8 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     endpointComposer.reset();
     assetGroupComposer.reset();
     injectorContractComposer.reset();
+    markingDefinitionComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Nested
@@ -1034,6 +1063,8 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
       Finding finding = FindingFixture.createDefaultTextFinding();
       finding.setLocation(persistAssetLocation(savedEndpoint));
+      MarkingDefinition marking = persistClearedMarking();
+      savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
               .forFinding(finding)
@@ -1059,7 +1090,18 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
-              jsonPath("$.content.[0].finding_asset.asset_id").value(savedEndpoint.getId()));
+              jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_assets.[0].asset_markings.[0]")
+                  .value(marking.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_inject.inject_id")
+                  .value(savedFinding.getInject().getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_simulation.exercise_id")
+                  .value(savedSimulation.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_scenario.scenario_id").value(savedScenario.getId()));
     }
 
     @Test
@@ -1126,6 +1168,70 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       performCallbackRequest(FINDING_URI + "/search", input)
           .andExpect(jsonPath("$.totalElements").value(1))
           .andExpect(jsonPath("$.content.[0].finding_value").value("8080"));
+    }
+
+    @Test
+    @DisplayName("An asset groups filter matches a finding of a dynamic group member (#9850)")
+    void given_assetGroupsFilterOnDynamicGroup_should_returnFindingsOfItsMembers()
+        throws Exception {
+      // Arrange: a group with no static asset whose filter matches the hostname of savedEndpoint.
+      String hostname = "dyn-finding-" + UUID.randomUUID();
+      savedEndpoint.setHostname(hostname);
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder()
+              .filters(
+                  List.of(
+                      Filters.Filter.builder()
+                          .key("asset_hostname")
+                          .operator(Filters.FilterOperator.contains)
+                          .values(List.of(hostname))
+                          .build()))
+              .build();
+      AssetGroup dynamicGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createAssetGroupWithDynamicFilter(
+                      "dynamic-" + UUID.randomUUID(), dynamicFilter))
+              .persist()
+              .get();
+      Finding finding =
+          findingComposer
+              .forFinding(createDefaultTextFindingWithRandomValue())
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      AssetGroup emptyGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createDefaultAssetGroup("empty-" + UUID.randomUUID()))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert: the dynamic group's member finding is returned, in list and distinct mode.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content.[0].finding_id").value(finding.getId()));
+      performCallbackRequest(
+              FINDING_URI + "/search?distinct=true", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1));
+      // A group with no member filters every finding out.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(emptyGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    private SearchPaginationInput assetGroupsInput(String assetGroupId) {
+      SearchPaginationInput input = new SearchPaginationInput();
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(
+          List.of(
+              buildFilter(
+                  "finding_asset_groups", Filters.FilterOperator.eq, List.of(assetGroupId))));
+      input.setFilterGroup(group);
+      return input;
     }
 
     @Test
@@ -1459,6 +1565,211 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "text_value"))
             .andExpect(jsonPath("$.totalElements").value(1));
       }
+    }
+
+    @Test
+    @DisplayName("The summary reads first/last seen, not the row's update time (#9822)")
+    void summaryAggregate_readsLastSeenNotUpdateDate() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+
+      // A migration rewrote the detected row late: its update time is not a detection.
+      Instant rewrittenAt = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), Instant.parse("2026-01-05T00:00:00Z"), rewrittenAt);
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      // A row without first/last seen falls back to its creation and update times.
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-02-02T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+
+      assertThat(seen.getOccurrences()).isEqualTo(2);
+      assertThat(seen.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("Get, search and summary expose detection times, not write time (#9846)")
+    void given_aWriteAfterTheLastDetection_should_exposeLastSeenOnGetSearchAndSummary()
+        throws Exception {
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // Last detection at T1, a later write of the row (status, asset link, migration) at T2.
+      Instant createdAt = Instant.parse("2026-01-05T00:00:00Z");
+      Instant firstSeen = Instant.parse("2026-01-01T00:00:00Z");
+      Instant lastSeenT1 = Instant.parse("2026-03-02T00:00:00Z");
+      Instant writtenT2 = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), createdAt, writtenT2);
+      setFindingSeen(detected.getId(), firstSeen, lastSeenT1);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(getBody, "$.finding_created_at")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_updated_at")).isEqualTo(writtenT2);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(JsonPath.<Integer>read(searchBody, "$.content.length()")).isEqualTo(1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_updated_at")).isEqualTo(writtenT2);
+
+      String summaryBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId() + "/summary").with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(summaryBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(summaryBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+    }
+
+    @Test
+    @DisplayName("Get and search fall back to creation and update times (#9846)")
+    void given_noDetectionTimes_should_fallBackToCreationAndUpdateTimes() throws Exception {
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Instant createdAt = Instant.parse("2026-02-01T00:00:00Z");
+      Instant updatedAt = Instant.parse("2026-02-02T00:00:00Z");
+      setFindingDates(legacy.getId(), createdAt, updatedAt);
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + legacy.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(updatedAt);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(updatedAt);
+    }
+
+    @Test
+    @DisplayName("Distinct search aggregates detection times across a group (#9846)")
+    void given_aGroupOfOccurrences_should_aggregateSeenWithFallback() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // The detected row was rewritten late (T2); the legacy row has no detection times.
+      setFindingDates(
+          detected.getId(),
+          Instant.parse("2026-01-05T00:00:00Z"),
+          Instant.parse("2026-11-24T22:28:00Z"));
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-04-01T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      Page<AggregatedFindingOutput> page =
+          findingDistinctSearchService.searchDistinctFindings(new SearchPaginationInput());
+
+      assertThat(page.getContent()).hasSize(1);
+      AggregatedFindingOutput group = page.getContent().getFirst();
+      // MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen, updateDate)), the rule
+      // of the summary aggregate: the legacy row's update time wins over the detected row's last
+      // seen, the detected row's late write does not count as a detection.
+      assertThat(group.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(group.getLastSeen()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
+      assertThat(group.getCreationDate()).isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
+      assertThat(group.getUpdateDate()).isEqualTo(Instant.parse("2026-11-24T22:28:00Z"));
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+      assertThat(seen.getFirstSeen()).isEqualTo(group.getFirstSeen());
+      assertThat(seen.getLastSeen()).isEqualTo(group.getLastSeen());
+    }
+
+    private Instant readInstant(String json, String path) {
+      return Instant.parse(JsonPath.<String>read(json, path));
+    }
+
+    private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_first_seen = CAST(:firstSeen AS timestamptz),"
+                  + " finding_last_seen = CAST(:lastSeen AS timestamptz) WHERE finding_id = :id")
+          .setParameter("firstSeen", firstSeen == null ? null : firstSeen.toString())
+          .setParameter("lastSeen", lastSeen == null ? null : lastSeen.toString())
+          .setParameter("id", findingId)
+          .executeUpdate();
     }
 
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {

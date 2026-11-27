@@ -385,6 +385,7 @@ openaev-front/src/components/common/chaining/
 ### Services & State
 
 - Services must be **stateless** — all state lives in `WorkflowState` (global/local) or the database.
+- Global state is updated before it propagates to the local states of dependent steps.
 - Queue interactions must go through `QueueChainingService` — never publish directly to RabbitMQ.
 - `QueueChainingServiceCallbackRegistrar` registers consumers at `@PostConstruct`. The `StepEventService` is the proxied bean to ensure `@Transactional` works on callbacks.
 - Condition evaluation logic lives in `ConditionUtils` (shared utility) — services delegate to it.
@@ -402,6 +403,7 @@ openaev-front/src/components/common/chaining/
 - Workflow status transitions: `TEMPLATE` → `RUN` → `END` (normal) or `STOP` (manual).
 - `WorkflowEndService` handles timeout expiration — it force-ends workflows, steps, delay queue entries, and injects.
 - Default timeout: 3600 seconds (`WorkflowService.DEFAULT_TIMEOUT_SECONDS`).
+- A new execution path checks for expired workflows and ended steps.
 
 ### Conditions
 
@@ -428,6 +430,7 @@ openaev-front/src/components/common/chaining/
 
 - `ScopeService` resolves valid assets by applying allowlist/denylist rules from `WorkflowScopeRule`.
 - Rules can target individual assets or asset groups.
+- Exclusions (denylist) apply after inclusions (allowlist).
 - `ScopeVariable` entities provide named variables for scope rules.
 
 ### Testing

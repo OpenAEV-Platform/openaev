@@ -806,6 +806,54 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertEquals(instanceDb.get().getStartedAt(), startTime);
         assertFalse(instanceDb.get().isInRebootLoop());
       }
+
+      @Test
+      @DisplayName(
+          "Given a health check with the image digest should store it, one without should keep it")
+      void givenHealthCheckWithImageDigest_should_storeItAndKeepItWhenAbsent() throws Exception {
+        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
+
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        persistComposerSettings(composerSettings);
+        String digest = "sha256:" + "a".repeat(64);
+
+        // A composer >= 3.261125.0 reports the digest of the image the workload runs
+        ConnectorInstanceHealthInput withDigest = new ConnectorInstanceHealthInput();
+        withDigest.setStartedAt(Instant.now());
+        withDigest.setRestartCount(1);
+        withDigest.setInRebootLoop(false);
+        withDigest.setImageDigest(digest);
+        putHealthCheck(instance.getId(), withDigest);
+        assertEquals(
+            digest, connectorInstanceRepository.findById(instance.getId()).get().getImageDigest());
+
+        // An older composer omits the field: the stored digest is kept
+        ConnectorInstanceHealthInput withoutDigest = new ConnectorInstanceHealthInput();
+        withoutDigest.setStartedAt(Instant.now());
+        withoutDigest.setRestartCount(2);
+        withoutDigest.setInRebootLoop(false);
+        putHealthCheck(instance.getId(), withoutDigest);
+        ConnectorInstancePersisted instanceDb =
+            connectorInstanceRepository.findById(instance.getId()).get();
+        assertEquals(digest, instanceDb.getImageDigest());
+        assertEquals(2, instanceDb.getRestartCount());
+      }
+
+      private void putHealthCheck(String instanceId, ConnectorInstanceHealthInput input)
+          throws Exception {
+        mvc.perform(
+                put(XTMCOMPOSER_URI
+                        + "/composer-id-test/connector-instances/"
+                        + instanceId
+                        + "/health-check")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+      }
     }
   }
 }

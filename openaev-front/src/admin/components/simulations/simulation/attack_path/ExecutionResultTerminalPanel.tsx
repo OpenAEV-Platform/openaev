@@ -17,7 +17,7 @@ import type { AttackPathExecutionDetailDTO, AttackPathSecurityPlatformDTO, Injec
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
-import { getStatusColor } from '../../../../../utils/statusUtils';
+import { computeInjectExpectationLabel, getStatusColor } from '../../../../../utils/statusUtils';
 import { tint } from '../../../../../utils/tint';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
@@ -137,7 +137,7 @@ const toDisplayStatus = (status?: string) => {
 
 const toPlatformRows = (
   list: AttackPathSecurityPlatformDTO[] | undefined,
-  bucket: 'prevention' | 'detection' | 'vulnerability',
+  bucket: 'prevention' | 'detection' | 'logging' | 'vulnerability',
 ): SecurityPlatformRow[] => {
   if (!list) {
     return [];
@@ -405,9 +405,11 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const platforms = getSecurityPlatforms(detail);
   const preventedBy = toPlatformRows(platforms, 'prevention');
   const detectedBy = toPlatformRows(platforms, 'detection');
+  const loggedBy = toPlatformRows(platforms, 'logging');
   const vulnerabilityBy = toPlatformRows(platforms, 'vulnerability');
   const showPrevention = preventedBy.length > 0 || Boolean(detail?.preventionStatus);
   const showDetection = detectedBy.length > 0 || Boolean(detail?.detectionStatus);
+  const showLogging = loggedBy.length > 0 || Boolean(detail?.loggingStatus);
   const showVulnerability = vulnerabilityBy.length > 0 || Boolean(detail?.vulnerabilityStatus);
   // Platform attribution is Enterprise-gated: the resolver returns nothing without an active licence,
   // which must never read as "no platform prevented this". Same treatment, minus the Enterprise
@@ -416,7 +418,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const attributionUnavailable = !isValidated;
 
   const renderExpectationRow = (
-    expectationType: 'prevention' | 'detection' | 'vulnerability',
+    expectationType: 'prevention' | 'detection' | 'logging' | 'vulnerability',
     heading: string,
     // Raw i18n key, translated once at render time (never pre-translated by the caller).
     emptyLabel: string,
@@ -431,11 +433,23 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     // Colour the verdict from actual platform rows when we have them, from the run's own
     // expectation status otherwise.
     const succeeded = platformRows.some(p => (p.status ?? '').toUpperCase() === 'SUCCESS');
+    // A successful detection or logging takes its attack-path verdict colour, from the platform rows
+    // or, without them, from the run's own status ("Detected", "Logged").
+    const statusSucceeded = hasStatus
+      && expectationStatus.toUpperCase() === computeInjectExpectationLabel('SUCCESS', expectationType)?.toUpperCase();
+    let successColor = theme.palette.success.main;
+    if (expectationType === 'detection') {
+      successColor = theme.palette.designSystem.alert.warning.primary;
+    } else if (expectationType === 'logging') {
+      successColor = theme.palette.designSystem.alert.alert.primary;
+    }
     let iconColor = theme.palette.error.main;
     if (hasRows) {
       if (succeeded) {
-        iconColor = expectationType === 'detection' ? theme.palette.warning.main : theme.palette.success.main;
+        iconColor = successColor;
       }
+    } else if (statusSucceeded) {
+      iconColor = successColor;
     } else if (hasStatus) {
       iconColor = getStatusColor(theme, expectationStatus);
     }
@@ -447,6 +461,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           summaryLabel = 'Prevented';
         } else if (expectationType === 'detection') {
           summaryLabel = 'Detected';
+        } else if (expectationType === 'logging') {
+          summaryLabel = 'Logged';
         } else {
           summaryLabel = 'Not vulnerable';
         }
@@ -782,6 +798,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 )}
                 {showPrevention && renderExpectationRow('prevention', t('Prevention'), 'Not Prevented', detail?.preventionStatus, preventedBy)}
                 {showDetection && renderExpectationRow('detection', t('Detection'), 'Not Detected', detail?.detectionStatus, detectedBy)}
+                {showLogging && renderExpectationRow('logging', t('Logging'), 'Not Logged', detail?.loggingStatus, loggedBy)}
                 {showVulnerability && renderExpectationRow('vulnerability', t('Vulnerability'), 'Not vulnerable', detail?.vulnerabilityStatus, vulnerabilityBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (

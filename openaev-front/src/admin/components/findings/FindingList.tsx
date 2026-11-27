@@ -16,10 +16,10 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type FindingSimple, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type FindingSimple, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
-import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
 
 interface Props {
@@ -35,15 +35,18 @@ interface Props {
 
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
-  finding_value: { width: '35%' },
-  finding_asset: { width: '24%' },
-  finding_first_seen: { width: '14%' },
-  finding_last_seen: { width: '14%' },
+  finding_value: { width: '27%' },
+  finding_assets: { width: '17%' },
+  finding_markings: { width: '12%' },
+  finding_asset_groups: { width: '15%' },
+  finding_created_at: { width: '14%' },
+  finding_updated_at: { width: '14%' },
 });
 
 const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const markingEnabled = isFeatureEnabled('MARKING');
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
@@ -169,6 +172,9 @@ const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenF
         />
       ),
     },
+    ...(markingEnabled
+        ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+        : []),
     {
       field: 'finding_first_seen',
       label: 'First seen',

@@ -188,6 +188,8 @@ class CredentialProbesPlatformTrustTest {
       GcpCredentialConnectivityCheck check =
           new GcpCredentialConnectivityCheck(factory(TlsTestSupport.trustingLocalhostCa()));
       ReflectionTestUtils.setField(check, "timeoutSeconds", 10);
+      // The TLS mock cloud listens on localhost: the on-premise opt-out is what lets the probe in.
+      ReflectionTestUtils.setField(check, "allowInternalEndpoints", true);
 
       // Act
       SecretConnectionResult result =

@@ -28,12 +28,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +78,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingLocationComposer findingLocationComposer;
   @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
@@ -629,6 +632,74 @@ class IndexingRegressionTest extends IntegrationTest {
 
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"asset", "inject", "exercise", "scenario", "finding"})
+    @DisplayName("Endpoint cursor is the date of the only row that changed after :from")
+    void given_oneChangedSource_should_returnItsDateAsCursor(String source) {
+      // Arrange
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer scenarioInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withFinding(findingWrapper);
+      InjectComposer.Composer simulationInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(endpointWrapper);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withInject(scenarioInject)
+              .persist()
+              .get();
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(simulationInject)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      String endpointId = endpointWrapper.get().getId();
+      Map<String, String> ids =
+          Map.of(
+              "asset", endpointId,
+              "inject", simulationInject.get().getId(),
+              "exercise", exercise.getId(),
+              "scenario", scenario.getId(),
+              "finding", findingWrapper.get().getId());
+      ids.forEach((table, id) -> setUpdatedAt(table, id, PAST));
+      setUpdatedAt("inject", scenarioInject.get().getId(), PAST);
+      Instant changedAt = FROM.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS);
+      setUpdatedAt(source, ids.get(source), changedAt);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsAsset> results = assetHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(endpointId))
+          .singleElement()
+          .extracting(EsAsset::getBase_updated_at)
+          .isEqualTo(changedAt);
+    }
+
+    private void setUpdatedAt(String entity, String id, Instant ts) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE %ss SET %s_updated_at = :ts WHERE %s_id = :id"
+                  .formatted(entity, entity, entity))
+          .setParameter("ts", ts)
+          .setParameter("id", id)
+          .executeUpdate();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1151,6 +1222,14 @@ class IndexingRegressionTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       EndpointComposer.Composer endpointTwo =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingLocationComposer.Composer locationEndpointOne =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointOne);
+      FindingLocationComposer.Composer locationEndpointTwo =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointTwo);
       // Both assets in the shared group, one asset in each of the others: the groups of the
       // finding are those of its assets, each listed once however many assets it holds
       AssetGroupComposer.Composer groupOwnOnly =
@@ -1169,8 +1248,7 @@ class IndexingRegressionTest extends IntegrationTest {
       FindingComposer.Composer findingWrapper =
           findingComposer
               .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(endpointOne)
-              .withEndpoint(endpointTwo);
+              .withLocation(locationEndpointOne);
       InjectComposer.Composer ownInject =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
@@ -1215,10 +1293,9 @@ class IndexingRegressionTest extends IntegrationTest {
       // contains, not containsExactly: a dynamic group seeded in the shared test database may also
       // match these endpoints; the side is a set, so each group is listed once
       assertThat(indexed.getBase_asset_groups_side())
-          .contains(
-              groupOwnOnly.get().getId(), groupShared.get().getId(), groupOtherOnly.get().getId());
+          .contains(groupOwnOnly.get().getId(), groupShared.get().getId());
       assertThat(indexed.getBase_endpoint_side())
-          .containsExactlyInAnyOrder(endpointOne.get().getId(), endpointTwo.get().getId());
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
       assertThat(indexed.getBase_inject_side())
           .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
       assertThat(indexed.getBase_simulation_side())
@@ -1228,13 +1305,8 @@ class IndexingRegressionTest extends IntegrationTest {
           .containsExactlyInAnyOrder(
               findingWrapper.get().getField(), FindingOccurrenceFixture.OTHER_FIELD);
       assertThat(indexed.getBase_dependencies())
-          .as("the own inject, its simulation and scenario, and the assets delete the finding")
-          .containsExactlyInAnyOrder(
-              ownInject.get().getId(),
-              ownSimulation.get().getId(),
-              scenario.getId(),
-              endpointOne.get().getId(),
-              endpointTwo.get().getId());
+          .as("the location assets delete the finding")
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
     }
 
     @Test
@@ -1250,6 +1322,14 @@ class IndexingRegressionTest extends IntegrationTest {
               EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
       EndpointComposer.Composer assetB =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint("asset B"));
+      FindingLocationComposer.Composer locationAssetA =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetA);
+      FindingLocationComposer.Composer locationAssetB =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetB);
       AssetGroupComposer.Composer g1 =
           assetGroupComposer
               .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G1 static"))
@@ -1272,7 +1352,7 @@ class IndexingRegressionTest extends IntegrationTest {
       FindingComposer.Composer findingWrapper =
           findingComposer
               .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(assetA);
+              .withLocation(locationAssetA);
       exerciseComposer
           .forExercise(ExerciseFixture.createDefaultExercise())
           .withInject(

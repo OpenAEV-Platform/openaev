@@ -45,6 +45,8 @@ export interface ConnectorItem {
   detailUrl?: string;
 }
 
+export const catalogConnectorUrl = (catalogConnectorId: string) => `/admin/integrations/catalog/${catalogConnectorId}`;
+
 export const fromCatalogConnector = (connector: CatalogConnectorOutput): ConnectorItem => ({
   id: connector.catalog_connector_id,
   title: connector.catalog_connector_title,
@@ -62,7 +64,7 @@ export const fromCatalogConnector = (connector: CatalogConnectorOutput): Connect
     : undefined,
   version: connector.catalog_connector_container_version,
   lastVerifiedAt: connector.catalog_connector_last_verified_date,
-  detailUrl: `/admin/integrations/catalog/${connector.catalog_connector_id}`,
+  detailUrl: catalogConnectorUrl(connector.catalog_connector_id),
 });
 
 export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR', 'EXECUTOR', 'SECRETS_PROVIDER'];

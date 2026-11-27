@@ -8,8 +8,10 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -58,11 +60,28 @@ public class CatalogListService {
         .toList();
   }
 
+  /** Every released version of one catalogue item, offered or not, newest first. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> versions(Class<T> type, String externalId) {
+    return newestFirst(catalogItemRepository.findAllVersions(type, externalId));
+  }
+
+  /** Every released version of these catalogue items, in no order. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> versions(Class<T> type, Collection<String> externalIds) {
+    return catalogItemRepository.findAllVersionsIn(type, externalIds);
+  }
+
   /** Every offered version of one catalogue item, newest first. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
-    return catalogItemRepository.findAllVersions(type, externalId).stream()
+    return newestFirst(catalogItemRepository.findAllVersions(type, externalId)).stream()
         .filter(CatalogListService::isOffered)
+        .toList();
+  }
+
+  private static <T extends CatalogItem> List<T> newestFirst(List<T> versions) {
+    return versions.stream()
         .sorted(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER).reversed())
         .toList();
   }
@@ -78,6 +97,13 @@ public class CatalogListService {
       throw new BadRequestException("This version is no longer offered");
     }
     return item;
+  }
+
+  /** One version of a catalogue item, whatever its status. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> Optional<T> version(
+      Class<T> type, String externalId, String version) {
+    return catalogItemRepository.findVersion(type, externalId, version);
   }
 
   // -- SEARCH --
@@ -112,13 +138,14 @@ public class CatalogListService {
         .filter(CatalogListService::isOffered)
         .collect(
             Collectors.toMap(
-                CatalogItem::getExternalId,
-                Function.identity(),
-                (a, b) ->
-                    SemanticVersion.ORDER.compare(a.getVersion(), b.getVersion()) >= 0 ? a : b))
+                CatalogItem::getExternalId, Function.identity(), CatalogListService::newer))
         .values()
         .stream()
         .sorted(Comparator.comparing(CatalogItem::getName, Comparator.nullsLast(String::compareTo)))
         .toList();
+  }
+
+  static <T extends CatalogItem> T newer(T a, T b) {
+    return SemanticVersion.ORDER.compare(a.getVersion(), b.getVersion()) >= 0 ? a : b;
   }
 }

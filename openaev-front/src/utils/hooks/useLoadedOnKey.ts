@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
  */
 const useLoadedOnKey = <T>(key: string | undefined, load: (key: string) => Promise<T>, empty: T) => {
   const [value, setValue] = useState<T>(empty);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!key);
 
   useEffect(() => {
     setValue(empty);

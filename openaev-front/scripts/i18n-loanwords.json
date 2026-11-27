@@ -154,6 +154,7 @@
     "Pipe",
     "Port",
     "Ports",
+    "Position",
     "Proxy",
     "Radial",
     "Regex",
@@ -190,7 +191,12 @@
     "Vision",
     "Website",
     "Workstation",
-    "{injects} in {scenarios}"
+    "{injects} in {scenarios}",
+    "Revision #{number}",
+    "Revision",
+    "Variable {key}",
+    "Argument {key}",
+    "Version: v{from} → v{to}"
   ],
   "es": [
     "{count} roles",
@@ -232,7 +238,8 @@
     "total",
     "Variables",
     "Vulnerable",
-    "Local"
+    "Local",
+    "Variable {key}"
   ],
   "fr": [
     "1 inject",
@@ -333,6 +340,7 @@
     "Phishing",
     "Port",
     "Ports",
+    "Position",
     "posture",
     "Proxy",
     "Question",
@@ -372,7 +380,9 @@
     "Version",
     "Vision",
     "~{count} injects",
-    "Local"
+    "Local",
+    "Variable {key}",
+    "Argument {key}"
   ],
   "it": [
     "1 inject",

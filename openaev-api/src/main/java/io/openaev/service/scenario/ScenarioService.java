@@ -180,8 +180,6 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
-  private final io.openaev.service.finding.FindingDetachService findingDetachService;
-
   // -- CREATE --
 
   /** Authored by whoever creates it, a person or a service account; no author at startup. */
@@ -826,30 +824,15 @@ public class ScenarioService {
     }
   }
 
+  /** Deletes a scenario found inside the request's tenant scope. */
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    deleteScenarioInScope(ctx, scenarioId, false);
-  }
-
-  /**
-   * Deletes a scenario found inside the request's tenant scope.
-   *
-   * @param keepFindings true keeps the findings its injects produced, detached from them; false
-   *     (the default) deletes them with the scenario
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteScenario(
-      @NotNull final TxCtx ctx, @NotBlank final String scenarioId, final boolean keepFindings) {
-    deleteScenarioInScope(ctx, scenarioId, keepFindings);
+    deleteScenarioInScope(ctx, scenarioId);
   }
 
   // Non-transactional body shared by both @Transactional entry points (no self-invocation).
-  private void deleteScenarioInScope(
-      final TxCtx ctx, final String scenarioId, final boolean keepFindings) {
+  private void deleteScenarioInScope(final TxCtx ctx, final String scenarioId) {
     existsInScope(ctx, scenarioId);
-    if (keepFindings) {
-      this.findingDetachService.detachFromScenarios(List.of(scenarioId));
-    }
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -941,9 +924,6 @@ public class ScenarioService {
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
               chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
-              if (input.isKeepFindings()) {
-                this.findingDetachService.detachFromScenarios(chunk);
-              }
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
@@ -956,11 +936,10 @@ public class ScenarioService {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
-  /** The scenarios of the tenant installed from these catalogue items. */
+  /** The scenarios of the tenant installed from the catalogue, with the version each runs. */
   @Transactional(readOnly = true)
-  public List<RawCatalogInstalledScenario> installedFromCatalog(
-      String tenantId, Collection<String> externalIds) {
-    return scenarioRepository.findInstalledFromCatalog(tenantId, externalIds);
+  public List<RawCatalogInstalledScenario> installedFromCatalog(String tenantId) {
+    return scenarioRepository.findInstalledFromCatalog(tenantId);
   }
 
   // -- EXPORT --

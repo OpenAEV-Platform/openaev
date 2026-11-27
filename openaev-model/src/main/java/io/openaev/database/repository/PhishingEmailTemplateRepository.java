@@ -16,7 +16,7 @@ public interface PhishingEmailTemplateRepository
         JpaSpecificationExecutor<PhishingEmailTemplate> {
 
   /**
-   * Tenant-filtered lookup by id (JPQL so {@code tenantFilter} applies; see
+   * Lookup by id through JPQL, so the statement inspector scopes it (see
    * ChannelRepository#findById).
    */
   @NotNull

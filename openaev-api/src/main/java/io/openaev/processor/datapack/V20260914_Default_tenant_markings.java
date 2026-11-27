@@ -8,6 +8,7 @@ import io.openaev.service.DataPackService;
 import io.openaev.service.TenantGroupService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -62,6 +63,6 @@ public class V20260914_Default_tenant_markings extends DataPack {
     markingDefinition.setStixId(MarkingDefinitionStixIds.generate(seed.type(), seed.definition()));
     markingDefinition.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
     tenantGroupService.grantToAutoNewMarkingGroups(
-        markingDefinitionRepository.save(markingDefinition));
+        List.of(markingDefinitionRepository.save(markingDefinition)));
   }
 }

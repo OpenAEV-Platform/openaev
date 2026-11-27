@@ -984,6 +984,114 @@
             }
         },
         {
+            "title": "OpenAEV Scenarios",
+            "slug": "openaev_scenarios",
+            "description": "Follow the releases of the OpenAEV scenarios repository: each new release of the chosen channel is downloaded and checked against its manifest before it reaches the platform.",
+            "short_description": "Follow the OpenAEV scenarios releases",
+            "use_cases": [
+                "Scenario collection"
+            ],
+            "verified": false,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/scenarios",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/collector-scenarios",
+            "container_type": "COLLECTOR",
+            "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAV4AAAFeCAYAAADNK3caAAAFb0lEQVR4nO3dwW0CQRAAQWORCGRDDBAeMUA2pIK/tuQHxqj3jq2KYF6tedzObY67y/0DgMzn6AEAZiO8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYhtRw9QO98Oo0fInfbX0SMA39h4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgNt11smct4cLXjJfV4B3ZeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0DMA4oJzPrwYgmPXuA3Nl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0DMWcgJrPk84qwnLXlvNl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ84DiQT7kB17FxgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ALHprpOt+VfnwHuw8QLEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxDbHHeX++ghWLfz7TB6hNxpfx09Aitm4wWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegNh29ADMawkXvma8rMZ4Nl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ84ACnjDrw4slPHp5BzZegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9AzFlIeMKazyPOetJySWy8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXIOYBBcP4kJ9Z2XgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyDmOhn/tuZfncMINl6AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFim+Puch89BPDT+XYYPULutL+OHiFj4wWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegNh29ADA6yzhwteMl9X+ysYLEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYsILEBNegJjwAsSEFyAmvAAx4QWICS9ATHgBYtvRAwCvc74dRo/AA2y8ADHhBYgJL0BMeAFiwgsQE16AmPACxIQXICa8ADHhBYgJL0BMeAFiwgsQ2xx3l/voIQBmYuMFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQEx4AWLCCxATXoCY8ALEhBcgJrwAMeEFiAkvQOwLAI0xYiukTKsAAAAASUVORK5CYII=",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ID": {
+                        "default": "openaev_scenarios",
+                        "description": "Collector unique identifier",
+                        "type": "string"
+                    },
+                    "COLLECTOR_NAME": {
+                        "default": "OpenAEV Scenarios",
+                        "description": "Collector display name",
+                        "type": "string"
+                    },
+                    "COLLECTOR_LOG_LEVEL": {
+                        "default": "info",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_PERIOD": {
+                        "default": "PT1H",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "SCENARIOS_REPOSITORY": {
+                        "default": "OpenAEV-Platform/scenarios",
+                        "description": "The GitHub repository whose releases are collected, as owner/name.",
+                        "type": "string"
+                    },
+                    "SCENARIOS_CHANNEL": {
+                        "default": "edge",
+                        "description": "The channel followed: edge gets every release, stable the recommended ones.",
+                        "enum": [
+                            "edge",
+                            "stable"
+                        ],
+                        "type": "string"
+                    },
+                    "SCENARIOS_GITHUB_API_URL": {
+                        "default": "https://api.github.com",
+                        "description": "The GitHub REST API the releases are read from, over HTTPS.",
+                        "format": "uri",
+                        "type": "string"
+                    },
+                    "SCENARIOS_GITHUB_TOKEN": {
+                        "description": "A fine-grained GitHub token, Contents: read on this repository only, needed while it is private.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SCENARIOS_DRY_RUN": {
+                        "default": true,
+                        "description": "Check each release and say what would be sent, sending nothing. Set to false to send it to the platform's catalogue, which needs a platform that receives catalogue releases.",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "Microsoft Sentinel",
             "slug": "openaev_microsoft_sentinel",
             "description": "Validate OpenAEV detection expectations against Microsoft Sentinel by collecting the incidents and alerts your cloud-native SIEM correlates in response to simulated attacks.",
@@ -1987,24 +2095,44 @@
                         "type": "string"
                     },
                     "NUCLEI_TEMPLATES_PARALLELISM": {
-                        "default": 5,
+                        "default": 2,
                         "description": "Maximum number of templates executed in parallel (Nuclei -c / -concurrency).",
                         "type": "integer"
                     },
                     "NUCLEI_HOSTS_PARALLELISM_PER_TEMPLATE": {
-                        "default": 5,
+                        "default": 2,
                         "description": "Maximum number of hosts analyzed in parallel per template (Nuclei -bs / -bulk-size).",
                         "type": "integer"
                     },
                     "NUCLEI_MAX_REQUESTS_PER_SECOND": {
-                        "default": 50,
+                        "default": 25,
                         "description": "Maximum number of requests sent per second (Nuclei -rl / -rate-limit).",
                         "type": "integer"
                     },
                     "NUCLEI_TIMEOUT": {
                         "default": 10,
-                        "description": "Time to wait in seconds before a request times out (Nuclei -timeout).",
+                        "description": "Time to wait in seconds before a single request times out (Nuclei -timeout). Per request only: it does not bound the whole scan, see NUCLEI_SCAN_TIMEOUT.",
                         "type": "integer"
+                    },
+                    "NUCLEI_SCAN_TIMEOUT": {
+                        "default": 540,
+                        "description": "Hard ceiling in seconds for a whole Nuclei scan. When exceeded, the scan process is terminated and the inject is reported as a timeout error. Keep it below the platform's inject execution threshold (inject.execution.threshold.minutes, default 10 minutes) so the injector reports the timeout before the platform marks the inject stale. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_TEMPLATE_UPDATE_TIMEOUT": {
+                        "default": 300,
+                        "description": "Hard ceiling in seconds for a Nuclei template refresh (nuclei -update-templates), at startup and on each periodic refresh. When exceeded, the refresh is terminated and the templates already on disk are used. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_MAX_CONCURRENT_SCANS": {
+                        "default": 5,
+                        "description": "Maximum number of Nuclei scans this injector runs at the same time; extra injects wait for a slot. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_DISABLE_INTERACTSH": {
+                        "default": false,
+                        "description": "Disable Nuclei's interactsh (out-of-band) interaction polling. Enable it in restricted networks where the public interactsh servers are unreachable (out-of-band findings are then skipped). Nuclei -ni / -no-interactsh.",
+                        "type": "boolean"
                     },
                     "NUCLEI_RETRIES": {
                         "default": 1,
@@ -2014,6 +2142,16 @@
                     "NUCLEI_MAX_HOST_ERROR": {
                         "default": 30,
                         "description": "Maximum number of errors for a host before it is skipped from the scan (Nuclei -mhe / -max-host-error).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_TEMPLATE_URL_ALLOWED_DOMAINS": {
+                        "default": "raw.githubusercontent.com",
+                        "description": "Comma-separated allowlist of domains a template_url inject field may be fetched from. A template URL whose host is not in this list is rejected before any download. Not a Nuclei flag.",
+                        "type": "string"
+                    },
+                    "NUCLEI_TEMPLATE_URL_MAX_BYTES": {
+                        "default": 2000000,
+                        "description": "Maximum size in bytes of a template fetched through a template_url inject field. A larger download is rejected. Not a Nuclei flag.",
                         "type": "integer"
                     },
                     "NUCLEI_RESPONSE_SIZE_READ": {

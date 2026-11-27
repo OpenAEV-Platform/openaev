@@ -142,6 +142,7 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
   @Autowired private UserRepository userRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private AttackPathAccessControl attackPathAccessControl;
+  @Autowired private PermissionService permissionService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private JdbcTemplate jdbc;
@@ -539,9 +540,14 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
     grants.add(id);
   }
 
-  private static PermissionService permissionsGrantingEverything() {
+  /** Grants every check, and reads the consumer's rights in its tenant as the real service does. */
+  private PermissionService permissionsGrantingEverything() {
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+    when(permissions.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
     return permissions;
   }
 
@@ -557,9 +563,9 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
       Disposable subscription) {}
 
   /**
-   * Subscribes the way a client does: the tenant and the principal are the ones of the subscribing
-   * thread. The default tenant is the fallback of a thread with no tenant, as for {@code
-   * /api/stream}.
+   * Subscribes the way a client does: the principal is the one of the subscribing thread, the
+   * tenant the one the stream API names, the default tenant for {@code /api/stream}. The thread
+   * carries no ambient tenant.
    */
   private Consumer subscribe(String name, String tenantId, User user) {
     List<JsonNode> received = new CopyOnWriteArrayList<>();
@@ -572,13 +578,13 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
                 null,
                 List.of()));
     TenantContext.clearCurrentTenant();
-    if (!Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
-      TenantContext.setCurrentTenant(tenantId);
-    }
+    assertFalse(
+        TenantContext.hasCurrentTenant(),
+        "The subscription starts with no ambient tenant: the stream API names the tenant");
     try {
       Disposable subscription =
           stream
-              .makeDataFlux(name + "-" + UUID.randomUUID())
+              .makeDataFlux(name + "-" + UUID.randomUUID(), tenantId)
               .subscribe(
                   sent -> {
                     @SuppressWarnings("unchecked")
@@ -701,7 +707,6 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
           "user_lastname",
           "user_lang",
           "user_theme",
-          "user_pastel_colours",
           "user_home_dashboard",
           "user_email",
           "user_phone",
@@ -1797,10 +1802,104 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
     }
   }
 
+  @Nested
+  @DisplayName("User attached to or detached from a tenant from the platform")
+  class TenantMembershipChangedFromThePlatform {
+
+    private static final String NEW_NAME = "Membership-written-by-the-platform";
+
+    private List<BaseEvent> updateFromThePlatformScopedTo(
+        String selectedTenant, User target, List<String> tenantIds) throws Exception {
+      UserInput input =
+          new UserInput(
+              target.getEmail(),
+              NEW_NAME,
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              tenantIds);
+      return writeAndStream(
+          target.getId(),
+          () ->
+              mvc.perform(
+                      json(
+                          put(PLATFORM_USER_URI + "/" + target.getId())
+                              .header(TENANT_HEADER, selectedTenant),
+                          input))
+                  .andExpect(status().is2xxSuccessful()));
+    }
+
+    private List<String> groupIdsInTheDatabase(String userId) {
+      return sorted(
+          jdbc.queryForList(
+              "SELECT group_id FROM users_groups WHERE user_id = ?", String.class, userId));
+    }
+
+    /** The groups of the user instance each event carries, the instance the stream serializes. */
+    private void assertEveryEventCarriesTheGroups(List<BaseEvent> events, List<String> expected) {
+      for (BaseEvent event : events) {
+        List<String> carried =
+            ((User) event.getInstance())
+                .getUnscopedGroups().stream().map(group -> group.getId()).toList();
+        assertEquals(sorted(expected), sorted(carried), event.getType() + " event groups");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "Attaching tenant B grants its auto-assign group: the event and the consumers of B carry it")
+    void given_attachToBWithAnAutoAssignGroup_should_sendTheGrantedGroupToTheConsumersOfB()
+        throws Exception {
+      // -- PREPARE --
+      User member = roleFreeUserInTeams(List.of(Tenant.DEFAULT_TENANT_UUID));
+      jdbc.update("UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupB);
+      Consumer ofB = consumerOfB();
+
+      // -- EXECUTE --
+      List<BaseEvent> events =
+          updateFromThePlatformScopedTo(
+              tenantB, member, List.of(Tenant.DEFAULT_TENANT_UUID, tenantB));
+
+      // -- ASSERT --
+      assertEquals(List.of(groupB), groupIdsInTheDatabase(member.getId()));
+      assertEquals(tenantB, events.getFirst().getTenantId());
+      assertEveryEventCarriesTheGroups(events, List.of(groupB));
+      assertDelivered(ofB, member, events, "user_firstname", NEW_NAME);
+      assertIds(ofB, "user_groups", List.of(groupB));
+      assertCapabilities(ofB, CAPABILITY_OF_B);
+    }
+
+    @Test
+    @DisplayName(
+        "Detaching tenant B revokes its group: the event and the consumers of B no longer carry it")
+    void given_detachFromB_should_sendTheConsumersOfBTheGroupsLeft() throws Exception {
+      // -- PREPARE --
+      Consumer ofB = consumerOfB();
+
+      // -- EXECUTE --
+      List<BaseEvent> events =
+          updateFromThePlatformScopedTo(
+              tenantB, player, List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- ASSERT --
+      assertEquals(sorted(groupA, groupPlatform), groupIdsInTheDatabase(player.getId()));
+      assertEquals(tenantB, events.getFirst().getTenantId());
+      assertEveryEventCarriesTheGroups(events, List.of(groupA, groupPlatform));
+      assertDelivered(ofB, events, "user_firstname", NEW_NAME);
+      assertIds(ofB, "user_groups", List.of(groupPlatform));
+      assertCapabilities(ofB, CAPABILITY_OF_PLATFORM);
+    }
+  }
+
   /** A user carries no marking: its events are not filtered. */
   private static StreamVisibilityService unfilteredMarkings() {
     StreamVisibilityService markings = mock(StreamVisibilityService.class);
-    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    when(markings.visibilityOrUnresolved(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
     return markings;
   }
 }

@@ -9,7 +9,7 @@ Rules are defined in dedicated instruction files — refer to them for the full 
 
 > Full rules: [security.instructions.md](security.instructions.md)
 
-Key checks: `@AccessControl` on every endpoint, native `@Query` with `WHERE tenant_id`, no `tenant_id` in responses, no hardcoded secrets, no raw error messages to clients.
+Key checks: `@AccessControl` on every endpoint, native `@Query` safe for tenant isolation (multi-tenancy rules 1–2), no `tenant_id` in responses, no hardcoded secrets, no raw error messages to clients.
 
 ## Performance
 
@@ -28,7 +28,7 @@ Key checks: layering (Controller → Service → Repository, never skip), JPA en
 > Full rules: [multi-tenancy.instructions.md](multi-tenancy.instructions.md)
 > Review skill: [review-multi-tenancy](../../.claude/skills/review-multi-tenancy/SKILL.md)
 
-Key checks: tenant-scoped entities extend `TenantBase` + `@Filter("tenantFilter")`, tenant resolved in API layer and passed as argument to services (services never call `TenantContext` directly), native `@Query` has `WHERE tenant_id`, no `tenant_id` in API responses (`@JsonIgnore`), unique constraints are composite `(field, tenant_id)`, background jobs set `TenantContext` + pass tenant as arg, caches include tenant key. **Dual-scope entities** (Settings, User, Role, Group): implement `DualScopeBase`, nullable `tenant_id`, repository extends `DualScopeRepository`, two services (`PlatformXxxService` / `TenantXxxService`), two APIs, no unscoped `findAll()`.
+Key checks: tenant-scoped entities extend `TenantBase` and declare no Hibernate `@Filter`, entrypoints reaching an active table carry a `TxCtx`, writes name their tenant explicitly, tenant resolved in API layer and passed as argument to services (services never call `TenantContext` directly), native `@Query`: `WHERE tenant_id` on a self-isolated table, a shape the inspector accepts elsewhere, no `tenant_id` in API responses (`@JsonIgnore`), unique constraints are composite `(field, tenant_id)`, background jobs write through `TenantScopedJobRunner` + pass tenant as arg, caches include tenant key. **Dual-scope entities** (Settings, User, Role, Group): implement `DualScopeBase`, nullable `tenant_id`, repository extends `DualScopeRepository`, two services (`PlatformXxxService` / `TenantXxxService`), two APIs, no unscoped `findAll()`.
 
 ## Test Quality
 
@@ -58,9 +58,18 @@ EE check: chaining EE-only endpoints/operations are explicitly marked with `@Acc
 
 Key checks: no `${{ }}` expression inside a `run:` script or a `github-script` `script:` (pass it through the step `env:` and read a quoted `"$VAR"`), secrets never written into script text, arguments built as bash arrays rather than pre-quoted strings passed between steps.
 
+## Documentation
+
+> Agent: `docs-reviewer`
+
+Key checks: a user-facing change (new endpoint, UI page, injector, collector or executor; changed default, field or workflow; new configuration parameter or CLI flag, new or changed environment variable) updates `docs/` in the same PR or links a follow-up doc issue. Refactors with no visible effect, tests, CI and dependency bumps need none.
+
 ## Review Style
 
 - Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`
 - Add `(blocking)` or `(non-blocking)` decoration
 - Be specific, actionable, explain the "why"
 - When flagging a rule violation, mention which instruction file defines the rule
+- Say what goes wrong for the user, with the concrete case ("a late report adds a second COMPLETE trace")
+- Point to existing code to follow (class or file) and ask whether the same fix is needed where the same pattern repeats
+- A few points per PR, most important first; phrase non-blocking points as questions ("Could we ...?")

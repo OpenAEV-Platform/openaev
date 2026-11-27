@@ -14,10 +14,12 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import io.openaev.aop.PlatformWrite;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Theme;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.SettingRepository;
 import jakarta.persistence.EntityManager;
@@ -250,6 +252,151 @@ final class PlatformRowWriters {
               "findAllByTenantIdIn",
               "findByTenantIdAndName"),
           ROLES_TENANT_ROW_WRITERS,
+          List.of());
+
+  /** The writers of {@code groups} that never touch a platform group, each with its reason. */
+  private static final List<TenantRowWriter> GROUPS_TENANT_ROW_WRITERS =
+      List.of(
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "createGroup",
+              List.of(String.class, io.openaev.api.groups.dto.TenantGroupCreateInput.class),
+              "saves the group built by createGroupInner, in the tenant it names: a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "createInternalGroupWithRole",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.api.groups.dto.TenantGroupCreateInput.class,
+                  List.class),
+              "saves the group built by createGroupInner, in the tenant it names: a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "createGroup",
+              List.of(String.class, String.class, String.class, List.class),
+              "builds the group in the tenant it names (setTenant): a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "createGroupInner",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.api.groups.dto.TenantGroupCreateInput.class),
+              "builds the group in the tenant it names (setTenant): a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateGroup",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.api.groups.dto.TenantGroupCreateInput.class),
+              "updates the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateGroupRoles",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.rest.group.form.GroupUpdateRolesInput.class),
+              "updates the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateInternalGroupWithRoles",
+              List.of(
+                  Group.class, io.openaev.api.groups.dto.TenantGroupCreateInput.class, List.class),
+              "saves the group it is given, already a tenant row: the caller holds it"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateGroupUsers",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.rest.group.form.GroupUpdateUsersInput.class),
+              "updates the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateGroupMarkings",
+              List.of(
+                  String.class,
+                  String.class,
+                  io.openaev.api.groups.dto.GroupUpdateMarkingsInput.class),
+              "updates the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "updateAutoNewMarking",
+              List.of(String.class, Group.class, Boolean.class),
+              "saves the group it is given, already a tenant row: the caller holds it"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "receiveEveryMarking",
+              List.of(Group.class, List.class),
+              "saves the group it is given, already a tenant row: the caller holds it"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "grantMissingMarkings",
+              List.of(Group.class, java.util.Collection.class),
+              "saves the group it is given, already a tenant row: the caller holds it"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "stopReceivingNewMarkings",
+              List.of(Group.class),
+              "saves the group it is given, already a tenant row: its one caller,"
+                  + " XtmPeerPrivilegeService.issueToken, passes the default tenant's peer group"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "delete",
+              List.of(String.class, String.class),
+              "deletes the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "addGrant",
+              List.of(String.class, String.class, io.openaev.rest.group.form.GroupGrantInput.class),
+              "saves the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantGroupService.class,
+              "removeGrant",
+              List.of(String.class, String.class, String.class),
+              "saves the group looked up by (id, tenantId) through findByIdAndTenantForWrite: a"
+                  + " tenant row"),
+          new TenantRowWriter(
+              io.openaev.opencti.connectors.service.LegacyOpenCTIConnectorMigration.class,
+              "deleteLegacyConnector",
+              List.of(String.class),
+              "deletes the legacy pre-multi-tenant connector group by its well-known id, which lives"
+                  + " in the default tenant (DEFAULT_TENANT_UUID), inside its own default-tenant"
+                  + " transaction: a tenant row"),
+          new TenantRowWriter(
+              io.openaev.processor.datapack.V20260330_Default_tenant_data.class,
+              "doProcess",
+              List.of(Tenant.class),
+              "builds the group in the tenant it processes (setTenant): a tenant row"),
+          new TenantRowWriter(
+              io.openaev.processor.datapack.V20261002_Default_group_markings.class,
+              "assignMarkingToGroup",
+              List.of(Tenant.class, String.class, String.class),
+              "updates the group looked up by (name, tenantId) through findByNameAndTenantId: a"
+                  + " tenant row"));
+
+  /**
+   * {@code groups} is dual-scope like {@code roles}: a platform group ({@code tenant_id IS NULL})
+   * is readable under any scope and written only inside a platform-write transaction. Every writer
+   * this rule can see is marked or listed as a writer of tenant groups only.
+   */
+  static final DualScopeTable GROUPS =
+      new DualScopeTable(
+          "groups",
+          Group.class,
+          GroupRepository.class,
+          writeStatementOn("groups", "Group"),
+          Set.of("save", "delete", "deleteById", "existsById", "findByNameAndTenantId"),
+          GROUPS_TENANT_ROW_WRITERS,
           List.of());
 
   /**

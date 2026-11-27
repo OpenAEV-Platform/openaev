@@ -28,6 +28,61 @@ public interface FindingRepository
   List<Finding> findAllByRetestInjectIdAndTenantId(
       @NotNull String retestInjectId, @NotNull String tenantId);
 
+  // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, displayed value) within a tenant) --
+  //
+  // Grouped on the displayed value like the distinct list, so the summary of a row counts the same
+  // occurrences as the row itself, and never tells two secrets displayed alike apart (ADR-017).
+
+  /**
+   * First/last seen and occurrence count for a (type, value) finding group. A single {@code
+   * Finding} row is one occurrence per inject, so the true "first seen" is the MIN of the group's
+   * first seen dates and "last seen" the MAX of the group's last seen dates - not the dates of an
+   * arbitrary representative row. A finding without first/last seen (written before they existed)
+   * falls back to its creation and update dates; the update date alone moves on any write to the
+   * row (a migration, an asset or status change), so it is never preferred to last seen.
+   */
+  @Query(
+      "SELECT MIN(COALESCE(f.firstSeen, f.creationDate)) AS firstSeen,"
+          + " MAX(COALESCE(f.lastSeen, f.updateDate)) AS lastSeen,"
+          + " COUNT(f) AS occurrences FROM Finding f"
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
+  FindingSeenAggregate findSeenAggregate(
+      @Param("type") ContractOutputType type,
+      @Param("displayValue") String displayValue,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT a.id) FROM Finding f JOIN f.assets a"
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
+  long countDistinctAssets(
+      @Param("type") ContractOutputType type,
+      @Param("displayValue") String displayValue,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT t.id) FROM Finding f JOIN f.teams t"
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
+  long countDistinctTeams(
+      @Param("type") ContractOutputType type,
+      @Param("displayValue") String displayValue,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT u.id) FROM Finding f JOIN f.users u"
+          + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
+  long countDistinctUsers(
+      @Param("type") ContractOutputType type,
+      @Param("displayValue") String displayValue,
+      @Param("tenantId") String tenantId);
+
+  /** Projection for {@link #findSeenAggregate}. */
+  interface FindingSeenAggregate {
+    Instant getFirstSeen();
+
+    Instant getLastSeen();
+
+    long getOccurrences();
+  }
 
   // For testing purposes only
   @Query(
@@ -38,10 +93,9 @@ public interface FindingRepository
   /**
    * An inject's findings, scoped explicitly to a tenant, with their assets fetch-joined. Used off
    * the request thread (the attack-path findings copy): the scope is a query predicate rather than
-   * the incidental uniqueness of the inject id (the ambient {@code @Filter tenantFilter} is not
-   * enabled there), and the fetch-join preloads {@code assets} so the copy's per-finding {@code
-   * getAssets()} does not trigger an N+1 read on a large run. {@code DISTINCT} collapses the join
-   * fan-out.
+   * the incidental uniqueness of the inject id, and the fetch-join preloads {@code assets} so the
+   * copy's per-finding {@code getAssets()} does not trigger an N+1 read on a large run. {@code
+   * DISTINCT} collapses the join fan-out.
    */
   @Query(
       "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
@@ -107,44 +161,6 @@ public interface FindingRepository
   int fillValueDisplay(
       @Param("findingId") String findingId, @Param("valueDisplay") String valueDisplay);
 
-  // -- KEEP ON DELETE (opt-in keep_findings on the delete endpoints) --
-  //
-  // By default deleting an inject, simulation or scenario deletes the findings its injects produced
-  // (finding_inject_id_fk is ON DELETE CASCADE). On request, these updates detach the findings
-  // first, so they survive: their occurrences keep the history (finding_occurrence_inject_id is ON
-  // DELETE SET NULL). finding_updated_at is bumped so the search index re-indexes them without the
-  // deleted inject, simulation or scenario in their dependencies. The session is cleared so an
-  // inject already loaded does not cascade-delete a finding it no longer owns.
-
-  /** Detaches the findings of the given injects. */
-  @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query(
-      value =
-          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
-              + " WHERE finding_inject_id IN (:injectIds)",
-      nativeQuery = true)
-  int detachFromInjects(@Param("injectIds") List<String> injectIds);
-
-  /** Detaches the findings of the injects of the given simulations. */
-  @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query(
-      value =
-          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
-              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
-              + " WHERE inject_exercise IN (:simulationIds))",
-      nativeQuery = true)
-  int detachFromSimulations(@Param("simulationIds") List<String> simulationIds);
-
-  /** Detaches the findings of the injects of the given scenarios. */
-  @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query(
-      value =
-          "UPDATE findings SET finding_inject_id = NULL, finding_updated_at = now()"
-              + " WHERE finding_inject_id IN (SELECT inject_id FROM injects"
-              + " WHERE inject_scenario IN (:scenarioIds))",
-      nativeQuery = true)
-  int detachFromScenarios(@Param("scenarioIds") List<String> scenarioIds);
-
   /** Projection for {@link #findWithoutValueDisplayAfter}. */
   interface FindingWithoutValueDisplay {
     String getId();
@@ -154,14 +170,25 @@ public interface FindingRepository
     String getValue();
   }
 
-  // One row PER FINDING: assets, and the injects, simulations, scenarios and fields of its
-  // occurrences, are aggregated. The previous per-(finding, asset) rows shared the same base_id, so
-  // multi-asset findings kept only one arbitrary asset in the search index (each bulk upsert
-  // overwrote the previous row) and the LIMIT applied to joined rows, not findings.
-  // Native: array_agg over the occurrences and assets. Read only, no side effect.
+  // One row PER FINDING: the injects, simulations, scenarios and fields of its occurrences are
+  // aggregated. The page CTE takes the batch off the cursor index first, so the joins and the
+  // GROUP BY only run on those findings: with the LIMIT after the GROUP BY, every batch of a
+  // re-feed from epoch joined and aggregated every finding after the cursor.
+  // Native: a CTE and array_agg. Read only, no side effect.
   @Query(
       value =
-          "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+          "WITH page AS ("
+              + "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + " f.finding_location_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
+              + "FROM findings f "
+              // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
+              // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
+              // resumes after its last id instead of skipping the rest of the group. A null id
+              // (first round, grace-window cap) re-serves the boundary group, idempotently.
+              + "WHERE (f.finding_updated_at > :from OR (f.finding_updated_at = :from"
+              + " AND (CAST(:fromId AS text) IS NULL OR f.finding_id > CAST(:fromId AS text)))) "
+              + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit) "
+              + "SELECT p.finding_id, p.finding_value, p.finding_value_display, p.finding_type,"
               + " array_agg(DISTINCT fo.finding_occurrence_field)"
               + " FILTER ( WHERE fo.finding_occurrence_field IS NOT NULL ) AS finding_fields,"
               + " array_agg(DISTINCT fo.finding_occurrence_inject_id)"
@@ -171,28 +198,18 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
-              + "FROM findings f "
-              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
+              + " p.finding_created_at, p.finding_updated_at, p.tenant_id "
+              + "FROM page p "
+              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = p.finding_id "
               + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
-              + "LEFT JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id "
-              // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
-              // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
-              // resumes after its last id instead of skipping the rest of the group. A null id
-              // (first round, grace-window cap) re-serves the boundary group, idempotently.
-              + "WHERE (f.finding_updated_at > :from OR (f.finding_updated_at = :from"
-              + " AND (CAST(:fromId AS text) IS NULL OR f.finding_id > CAST(:fromId AS text)))) "
-              // Every non-aggregated projected column, not just the id. Grouping on the id
-              // alone relies on PostgreSQL's functional-dependency rule, which only applies to
-              // BASE TABLES. Once findings is v2-active the tenant statement inspector rewrites
-              // "FROM findings f" into a derived table, the dependency can no longer be inferred,
-              // and this query stops being valid SQL: search indexing then fails outright instead
-              // of degrading. The array_agg(...) stay out, being aggregates.
-              + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + "LEFT JOIN finding_locations fl ON fl.finding_location_id = p.finding_location_id "
+              // Every non-aggregated projected column, not just the id: page is a CTE, not a base
+              // table, so PostgreSQL cannot infer that the other columns depend on the id.
+              + "GROUP BY p.finding_id, p.finding_value, p.finding_value_display, p.finding_type,"
               + " fl.finding_location_asset_id, fl.finding_location_user_id,"
-              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
-              + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
+              + " p.finding_created_at, p.finding_updated_at, p.tenant_id "
+              + "ORDER BY p.finding_updated_at, p.finding_id;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(
       @Param("from") Instant from, @Param("fromId") String fromId, @Param("limit") int limit);

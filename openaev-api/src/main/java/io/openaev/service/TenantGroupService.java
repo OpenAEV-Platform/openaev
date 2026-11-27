@@ -10,7 +10,6 @@ import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAss
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
@@ -171,12 +170,12 @@ public class TenantGroupService {
     return groupRepository.findByNameAndTenantId(name, tenantId);
   }
 
-  /** Find a tenant group by ID, scoped to the current tenant. */
+  /** Find a tenant group by ID among the tenants of the request's scope. */
   @Transactional(readOnly = true)
-  public Group findByIdInTenant(@NotBlank final String groupId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public Group findByIdInTenants(
+      @NotBlank final String groupId, @NotNull final Collection<String> tenantIds) {
     return groupRepository
-        .findByIdAndTenantId(groupId, tenantId)
+        .findByIdAndTenantIdIn(groupId, tenantIds)
         .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
   }
 
@@ -195,13 +194,13 @@ public class TenantGroupService {
     return group;
   }
 
-  /** Search tenant groups with pagination. */
+  /** Search the tenant groups of the request's scope with pagination. */
   @Transactional(readOnly = true)
-  public Page<Group> search(SearchPaginationInput searchPaginationInput) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public Page<Group> search(
+      SearchPaginationInput searchPaginationInput, @NotNull final Collection<String> tenantIds) {
     return io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA(
         (Specification<Group> spec, org.springframework.data.domain.Pageable pageable) ->
-            groupRepository.findAll(tenantScope(tenantId).and(spec), pageable),
+            groupRepository.findAll(tenantScope(tenantIds).and(spec), pageable),
         searchPaginationInput,
         Group.class);
   }
@@ -350,14 +349,6 @@ public class TenantGroupService {
     return saved;
   }
 
-  /** Gives a new marking to every group of its tenant that receives new markings. */
-  public void grantToAutoNewMarkingGroups(@NotNull final MarkingDefinition marking) {
-    String tenantId = marking.getTenant().getId();
-    groupRepository
-        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
-        .forEach(group -> grantMissingMarkings(group, List.of(marking)));
-  }
-
   /**
    * Takes a marking out of every group of its tenant that holds it, before the marking is deleted.
    * The {@code ON DELETE CASCADE} of {@code groups_markings} would drop the rows, but a group still
@@ -368,6 +359,20 @@ public class TenantGroupService {
     groupRepository
         .findAllByTenantIdAndMarkingsId(marking.getTenant().getId(), marking.getId())
         .forEach(group -> group.getMarkings().remove(marking));
+  }
+
+  /**
+   * Gives new markings of one tenant to every group of that tenant that receives new markings: one
+   * query for the groups, one grant per group.
+   */
+  public void grantToAutoNewMarkingGroups(@NotNull final Collection<MarkingDefinition> markings) {
+    if (markings.isEmpty()) {
+      return;
+    }
+    String tenantId = markings.iterator().next().getTenant().getId();
+    groupRepository
+        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
+        .forEach(group -> grantMissingMarkings(group, markings));
   }
 
   /** Makes the group receive every marking of its tenant, existing and future. */
@@ -447,7 +452,7 @@ public class TenantGroupService {
         markingClearanceCacheManager.findClearance(user.getId(), tenantId), markings);
   }
 
-  private void grantMissingMarkings(Group group, List<MarkingDefinition> markings) {
+  private void grantMissingMarkings(Group group, Collection<MarkingDefinition> markings) {
     if (!group.getMarkings().addAll(markings)) {
       return;
     }
@@ -461,7 +466,13 @@ public class TenantGroupService {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     List<String> members = group.getUsers().stream().map(User::getId).toList();
     publishAccessRevoked(tenantId, group.getGrants(), new LinkedHashSet<>(members));
-    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+    // User.groups is EAGER, so loading group.getUsers() above already pulled each member's own
+    // groups collection into this session, a second mapping of the same join table owned from the
+    // user side. Detaching each member drops it from this session's managed set without editing
+    // that collection, so nothing is flushed through it: there is no stale reference to the group
+    // once it is gone, and no rewrite of a membership set this delete never means to touch.
+    // Deleting the group removes the join rows it owns on its own side (Group.users).
+    group.getUsers().forEach(entityManager::detach);
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
     markingClearanceCacheManager.evictForUsers(members);

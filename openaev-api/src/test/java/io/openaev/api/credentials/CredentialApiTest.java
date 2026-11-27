@@ -22,6 +22,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -529,6 +530,10 @@ class CredentialApiTest extends IntegrationTest {
       String tenantId = tenant.getId();
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
       String credentialName = "cred-a-" + uniqueSuffix;
+      // The ambient tenant falls back to the default one: the secret and its reference must
+      // take the tenant of the request, with nothing ambient to stamp them.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       CredentialInput input =

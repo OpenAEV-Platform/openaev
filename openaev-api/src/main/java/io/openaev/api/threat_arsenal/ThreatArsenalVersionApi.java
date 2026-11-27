@@ -1,11 +1,11 @@
 package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
-import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.RequirePreviewFeature;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
+import io.openaev.api.threat_arsenal.dto.PayloadVersionChangeOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionIdOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionIdsInput;
@@ -20,6 +20,7 @@ import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +44,7 @@ public class ThreatArsenalVersionApi {
   // -- READ --
 
   @Operation(summary = "Versions of the action's payload installed in the tenant, newest first")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/{actionId}/versions",
-    TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions")
   @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#actionId",
@@ -57,14 +55,26 @@ public class ThreatArsenalVersionApi {
     return payloadVersionService.versions(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
   }
 
+  @Operation(summary = "What the action's payload version changed since the version just below")
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/changes")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadVersionChangeOutput> changes(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    return payloadVersionService
+        .changeFromPrevious(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId)
+        .map(PayloadVersionChangeMapper::toOutputs)
+        .orElse(List.of());
+  }
+
   @Operation(
       summary =
           "Scenario injects, atomic testings and chained scenario steps running the action that"
               + " the user can read, and how many others")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/{actionId}/usages",
-    TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages")
   @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#actionId",
@@ -76,10 +86,7 @@ public class ThreatArsenalVersionApi {
   }
 
   @Operation(summary = "The action listed for a payload version, for links that only know it")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/payloads/{payloadId}/action",
-    TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalActionIdOutput listedAction(
@@ -90,13 +97,13 @@ public class ThreatArsenalVersionApi {
             .getId());
   }
 
-  @Operation(summary = "Listed actions with injects on an older version")
+  @Operation(summary = "Listed actions with injects on an older version, with how many")
   @PostMapping(TENANT_THREAT_ARSENAL_URL + "/older-versions-in-use")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<String> olderVersionsInUse(
+  public Map<String, Long> olderVersionsInUse(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ThreatArsenalActionIdsInput input) {
-    return payloadVersionService.actionsWithOlderVersionsInUse(
+    return payloadVersionService.olderVersionUsages(
         TxCtxScopeUtils.requireOneTenantOfScope(ctx), input.actionIds());
   }
 

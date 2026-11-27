@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
 import {
@@ -37,20 +36,16 @@ const Index = () => {
   }));
   const onRenew = tokenId => dispatch(renewToken(tokenId));
   const onUpdate = (data) => {
-    const inputValues = R.pipe(
-      R.assoc(
-        'user_organization',
-        data.user_organization && data.user_organization.id
-          ? data.user_organization.id
-          : data.user_organization,
-      ),
-      R.assoc(
-        'user_country',
-        data.user_country && data.user_country.id
-          ? data.user_country.id
-          : data.user_country,
-      ),
-    )(data);
+    const inputValues = {
+      ...data,
+      user_organization: data.user_organization && data.user_organization.id
+        ? data.user_organization.id
+        : data.user_organization,
+
+      user_country: data.user_country && data.user_country.id
+        ? data.user_country.id
+        : data.user_country,
+    };
     return dispatch(updateMeProfile(inputValues));
   };
   const onUpdateInformation = data => dispatch(updateMeInformation(data));
@@ -69,13 +64,11 @@ const Index = () => {
     user_pgp_key: user.user_pgp_key,
     user_lang: user.user_lang,
     user_theme: user.user_theme,
-    // Unset reads as pastel, the OpenAEV default.
-    user_pastel_colours: user.user_pastel_colours ?? true,
     user_is_external: user.user_is_external,
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',
   };
-  const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
+  const userToken = tokens.length > 0 ? tokens[0] : undefined;
   return (
     <div style={{
       width: 900,

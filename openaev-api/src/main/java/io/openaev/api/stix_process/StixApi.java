@@ -38,6 +38,8 @@ public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
   public static final String TENANT_STIX_URI = TENANT_PREFIX + "/stix";
+  public static final String DRAFT_SKIPPED_MESSAGE =
+      "Coverage is in an OpenCTI draft: OpenAEV builds its scenario when the draft is validated";
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -66,6 +68,21 @@ public class StixApi extends RestBehavior {
     String stixBundle = ctiEvent.getEvent().getStixObjects();
 
     log.debug("STIX bundle received from OpenCTI (workId={}). bundle={}", workId, stixBundle);
+
+    // OpenAEV has no draft concept: a coverage that only exists in an unvalidated OpenCTI draft
+    // must not build, schedule or run anything. Draft validation writes the coverage to the live
+    // graph, which triggers the enrichment again without a draft id; the scenario is built then.
+    if (ctiEvent.getInternal().isInDraft()) {
+      log.info(
+          "STIX bundle from an OpenCTI draft skipped (workId={}, draftId={}, trigger={})",
+          workId,
+          ctiEvent.getInternal().getDraftId(),
+          ctiEvent.getInternal().getTrigger());
+      openCTIService.acknowledgeReceivedOfCoverage(
+          workId, "OpenAEV ready to process the operation", tenantId);
+      openCTIService.acknowledgeProcessedOfCoverage(workId, DRAFT_SKIPPED_MESSAGE, false, tenantId);
+      return ResponseEntity.ok(new BundleImportReport(null, DRAFT_SKIPPED_MESSAGE));
+    }
 
     try {
       openCTIService.acknowledgeReceivedOfCoverage(

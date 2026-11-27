@@ -1,0 +1,10 @@
+io/openaev/api/notification_trigger/**/*Test.java
+io/openaev/api/xtmone/**/*Test.java
+io/openaev/expectation/**/*Test.java
+io/openaev/injector_contract/**/*Test.java
+io/openaev/rest/channel/**/*Test.java
+io/openaev/rest/document/**/*Test.java
+io/openaev/rest/finding/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/finding/**/*Test.java
+io/openaev/service/inject/**/*Test.java

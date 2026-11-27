@@ -75,10 +75,13 @@ class InjectExpectationServiceTest {
   private Inject inject;
   private Agent agent;
 
+  private static final String TENANT_ID = "tenant-vulnerability-manager";
+
   @BeforeEach
   void setUp() {
     agent = AgentFixture.createDefaultAgentService();
     inject = InjectFixture.getDefaultInject();
+    inject.setTenant(new Tenant(TENANT_ID));
     inject.setExpectations(List.of(createVulnerabilityInjectExpectation(inject, agent)));
     injectExpectationService.mapper = mapper;
     ReflectionTestUtils.setField(injectExpectationService, "auditLogger", Optional.of(auditLogger));
@@ -357,6 +360,33 @@ class InjectExpectationServiceTest {
     InjectExpectationUpdateFromCollectorInput input = captureSingleVerdict();
     assertEquals(Boolean.FALSE, input.getIsSuccess());
     assertEquals(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, input.getCollectorId());
+  }
+
+  @Test
+  @DisplayName(
+      "Vulnerability manager verdicts stamp its last execution once per batch, not per expectation")
+  void given_vulnerabilityManagerVerdicts_should_stampLastExecutionOncePerBatch() {
+    BaseInjectExpectation exp1 = createVulnerabilityInjectExpectation(inject, agent);
+    BaseInjectExpectation exp2 = createVulnerabilityInjectExpectation(inject, agent);
+    inject.setExpectations(List.of(exp1, exp2));
+    mockExpectation(exp1);
+
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
+
+    verify(collectorService, times(1))
+        .updateLastExecution(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, TENANT_ID);
+  }
+
+  @Test
+  @DisplayName("No verdict written: the vulnerability manager last execution is not stamped")
+  void given_noVulnerabilityExpectation_should_notStampLastExecution() {
+    inject.setExpectations(List.of());
+
+    injectExpectationService.matchesVulnerabilityExpectations(
+        createContext(buildDefaultInput(null)), mapper.createObjectNode());
+
+    verify(collectorService, never()).updateLastExecution(any(), any());
   }
 
   @Test

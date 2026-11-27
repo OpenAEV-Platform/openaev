@@ -102,6 +102,7 @@ const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   QUEUING: 'yellow',
   DRAFT: 'blueGrey',
   DISABLED: 'blueGrey',
+  NOT_VISIBLE: 'blueGrey',
   // Expectation display labels (the per-type result labels resolve through their result)
   FAILED: 'red',
   ASSET_INACTIVE: 'red',

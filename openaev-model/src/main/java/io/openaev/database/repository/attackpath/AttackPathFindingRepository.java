@@ -109,7 +109,8 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingVerdictRow("
-          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, f.isFinding) "
+          + "f.type, f.value, e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus,"
+          + " f.isFinding) "
           + "FROM AttackPathFinding f "
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "JOIN AttackPathExecution e ON e.id = ef.executionId "
@@ -188,7 +189,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
           + "ef.findingId, ef.executionId, e.preventionStatus, e.detectionStatus,"
-          + " e.vulnerabilityStatus) "
+          + " e.vulnerabilityStatus, e.loggingStatus) "
           + "FROM AttackPathExecutionFinding ef "
           + "JOIN AttackPathFinding f ON f.id = ef.findingId "
           + "JOIN AttackPathExecution e ON e.id = ef.executionId "

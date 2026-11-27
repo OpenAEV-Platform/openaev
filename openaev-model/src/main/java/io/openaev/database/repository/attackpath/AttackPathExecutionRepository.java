@@ -32,8 +32,8 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
 
   /**
    * The single write path for expectation verdicts on the projection (#6647, spec 002, FR5). One
-   * statement per execution row, resolved by the row's own deterministic id, writing all three
-   * status columns together.
+   * statement per execution row, resolved by the row's own deterministic id, writing all the status
+   * columns together.
    *
    * <p>{@code e.rowVersion = :version} stamps the simulation's freshly bumped attack-path version
    * on every row touched, and that stamp is what makes a verdict reach the delta read: a verdict
@@ -58,16 +58,19 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "SET e.preventionStatus = :preventionStatus "
           + ", e.detectionStatus = :detectionStatus "
           + ", e.vulnerabilityStatus = :vulnerabilityStatus "
+          + ", e.loggingStatus = :loggingStatus "
           + ", e.rowVersion = :version "
           + "WHERE e.id =:id AND e.tenant.id = :tenantId "
           + "AND (coalesce(e.preventionStatus, '') <> coalesce(:preventionStatus, '') "
           + "OR coalesce(e.detectionStatus, '') <> coalesce(:detectionStatus, '') "
-          + "OR coalesce(e.vulnerabilityStatus, '') <> coalesce(:vulnerabilityStatus, ''))")
+          + "OR coalesce(e.vulnerabilityStatus, '') <> coalesce(:vulnerabilityStatus, '') "
+          + "OR coalesce(e.loggingStatus, '') <> coalesce(:loggingStatus, ''))")
   int updateExpectationStatusByExecutionId(
       @Param("id") String id,
       @Param("preventionStatus") String preventionStatus,
       @Param("detectionStatus") String detectionStatus,
       @Param("vulnerabilityStatus") String vulnerabilityStatus,
+      @Param("loggingStatus") String loggingStatus,
       @Param("tenantId") String tenantId,
       @Param("version") long version);
 
@@ -90,7 +93,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
           + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
@@ -105,7 +108,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
           + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.rowVersion > :since")
@@ -138,9 +141,13 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.targetKey, max(e.targetAssetId), max(e.targetHostname), max(e.targetIp), "
           + "max(e.targetPlatform), max(e.executedAt), "
           + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
-          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') then 1 else 0 end), "
+          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') "
+          + "and (e.loggingStatus is null or e.loggingStatus <> 'Logged') then 1 else 0 end), "
           + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
-          + "and e.detectionStatus = 'Detected' then 1 else 0 end)) "
+          + "and e.detectionStatus = 'Detected' then 1 else 0 end), "
+          + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
+          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') "
+          + "and e.loggingStatus = 'Logged' then 1 else 0 end)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId "
           + "AND e.targetKey IN :targetKeys GROUP BY e.targetKey")
   List<AttackPathEndpointGroupRow> findEndpointGroupsByTargetKeys(
@@ -193,7 +200,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
           + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.id IN :ids")
@@ -209,7 +216,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
           + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
@@ -231,7 +238,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
-          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
+          + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.loggingStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
           + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey "
@@ -287,21 +294,26 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   /**
    * Collapsed mode: one endpoint per {@code target_key}, with a representative of its frozen
    * display attributes ({@code max} per column, which is the constant value within one simulation)
-   * and its per-endpoint RED (neither prevented nor detected) and ORANGE (detected but not
-   * prevented) execution counts, which {@code collapsedColour} turns into the worst-case status. A
-   * {@code GROUP BY}, so the per-execution rows are never materialized; the tenant filter is added
-   * by the inspector. The {@code 'Prevented'} / {@code 'Detected'} literals below match {@code
-   * ExpectationType.PREVENTION.successLabel} / {@code ExpectationType.DETECTION.successLabel} (they
-   * are query-string literals, so they cannot reference the enum directly).
+   * and its per-endpoint RED (neither prevented, detected nor logged), ORANGE (detected but not
+   * prevented) and YELLOW (logged only) execution counts, which {@code collapsedColour} turns into
+   * the worst-case status. A {@code GROUP BY}, so the per-execution rows are never materialized;
+   * the tenant filter is added by the inspector. The {@code 'Prevented'} / {@code 'Detected'} /
+   * {@code 'Logged'} literals below match the {@code successLabel} of {@code ExpectationType}
+   * PREVENTION / DETECTION / LOGGING (they are query-string literals, so they cannot reference the
+   * enum directly).
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow("
           + "e.targetKey, max(e.targetAssetId), max(e.targetHostname), max(e.targetIp), "
           + "max(e.targetPlatform), max(e.executedAt), "
           + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
-          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') then 1 else 0 end), "
+          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') "
+          + "and (e.loggingStatus is null or e.loggingStatus <> 'Logged') then 1 else 0 end), "
           + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
-          + "and e.detectionStatus = 'Detected' then 1 else 0 end)) "
+          + "and e.detectionStatus = 'Detected' then 1 else 0 end), "
+          + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
+          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') "
+          + "and e.loggingStatus = 'Logged' then 1 else 0 end)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId GROUP BY e.targetKey")
   List<AttackPathEndpointGroupRow> findEndpointGroups(@Param("simulationId") String simulationId);
 

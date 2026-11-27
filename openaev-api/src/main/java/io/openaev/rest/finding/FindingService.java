@@ -1,7 +1,6 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,11 +44,11 @@ public class FindingService {
   private static final String HOST = "host";
 
   private final FindingRepository findingRepository;
+  private final FindingMapper findingMapper;
   private final FindingRecordingService findingRecordingService;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
-  private final AssetGroupMembershipResolver assetGroupMembershipResolver;
 
   // -- CRUD --
 

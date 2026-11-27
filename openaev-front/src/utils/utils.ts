@@ -1,13 +1,12 @@
-import * as R from 'ramda';
-
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
 import { type PlatformSettings } from './api-types';
 import { MESSAGING$ } from './Environment';
+import { isEmpty } from './object';
 
 export const export_max_size = 50000;
 
-export const isNotEmptyField = <T>(field: T | null | undefined): field is T => !R.isEmpty(field) && !R.isNil(field);
+export const isNotEmptyField = <T>(field: T | null | undefined): field is T => field != null && !isEmpty(field);
 export const isEmptyField = <T>(
   field: T | null | undefined,
 ): field is null | undefined => !isNotEmptyField(field);

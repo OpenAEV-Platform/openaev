@@ -121,6 +121,9 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Finding forceSaveFinding(Finding finding) {
     inDefaultScope();
+    if (finding.getTenant() == null) {
+      finding.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    }
     Finding saved = findingRepository.save(finding);
     if (saved.getInject() != null) {
       findingOccurrenceService.recordOccurrences(

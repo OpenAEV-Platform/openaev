@@ -101,6 +101,7 @@ class InjectServiceTest {
   @Mock private GrantRepository grantRepository;
   @Mock private InjectUtils injectUtils;
   @Mock private InjectStatusMapper injectStatusMapper;
+  @Mock private InjectVisibleStatusService injectVisibleStatusService;
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private InjectorContractService injectorContractService;
@@ -185,7 +186,8 @@ class InjectServiceTest {
             stepTargetingService,
             conditionService,
             previewFeatureService,
-            payloadRevocationService));
+            payloadRevocationService,
+            injectorContractContentUtils));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -199,7 +201,10 @@ class InjectServiceTest {
                 stepTargetingService,
                 conditionService,
                 previewFeatureService,
-                payloadRevocationService)));
+                payloadRevocationService,
+                injectorContractContentUtils),
+            mapper,
+            injectVisibleStatusService));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -1453,6 +1458,94 @@ class InjectServiceTest {
       // Assert
       verify(injectRepository).save(inject);
       assertEquals(inject, result);
+    }
+  }
+
+  /* ============================================================
+   * Asset group reference fields checked on write
+   * ============================================================ */
+  @Nested
+  @DisplayName("checkAssetGroupReferences")
+  class AssetGroupReferenceCheckTests {
+
+    private static final String TENANT_ID = "tenant-a";
+
+    private InjectorContract contractWithGroupReference(String cardinality) {
+      InjectorContract contract = new InjectorContract();
+      contract.setContent(
+          "{\"fields\":[{\"key\":\"target_group\",\"type\":\"asset-group-reference\","
+              + "\"cardinality\":\""
+              + cardinality
+              + "\"}]}");
+      return contract;
+    }
+
+    private AssetGroup group(String id) {
+      AssetGroup group = new AssetGroup();
+      group.setId(id);
+      return group;
+    }
+
+    @Test
+    @DisplayName("accepts a group of the inject's tenant")
+    void given_groupOfTheTenant_should_accept() {
+      ObjectNode content = mapper.createObjectNode().put("target_group", "group-1");
+      when(assetGroupService.assetGroups(List.of("group-1"), TENANT_ID))
+          .thenReturn(List.of(group("group-1")));
+
+      assertDoesNotThrow(
+          () ->
+              injectService.checkAssetGroupReferences(
+                  contractWithGroupReference("1"), content, TENANT_ID));
+    }
+
+    @Test
+    @DisplayName("refuses an unknown id with a 400 naming the field")
+    void given_unknownId_should_refuseNamingTheField() {
+      ObjectNode content = mapper.createObjectNode().put("target_group", "unknown");
+      when(assetGroupService.assetGroups(List.of("unknown"), TENANT_ID)).thenReturn(List.of());
+
+      BadRequestException error =
+          assertThrows(
+              BadRequestException.class,
+              () ->
+                  injectService.checkAssetGroupReferences(
+                      contractWithGroupReference("1"), content, TENANT_ID));
+      assertTrue(error.getMessage().contains("target_group"));
+      assertTrue(error.getMessage().contains("unknown"));
+    }
+
+    @Test
+    @DisplayName("refuses a group of another tenant like an unknown id")
+    void given_groupOfAnotherTenant_should_refuse() {
+      ObjectNode content = mapper.createObjectNode();
+      content.putArray("target_group").add("group-1").add("group-of-tenant-b");
+      // The tenant-scoped read leaves out the other tenant's group.
+      when(assetGroupService.assetGroups(List.of("group-1", "group-of-tenant-b"), TENANT_ID))
+          .thenReturn(List.of(group("group-1")));
+
+      BadRequestException error =
+          assertThrows(
+              BadRequestException.class,
+              () ->
+                  injectService.checkAssetGroupReferences(
+                      contractWithGroupReference("n"), content, TENANT_ID));
+      assertTrue(error.getMessage().contains("group-of-tenant-b"));
+      assertFalse(error.getMessage().contains("group-1,"));
+    }
+
+    @Test
+    @DisplayName("reads nothing when the field is empty or the contract has no such field")
+    void given_emptyFieldOrNoField_should_readNothing() {
+      ObjectNode content = mapper.createObjectNode();
+      content.putArray("target_group");
+
+      assertDoesNotThrow(
+          () ->
+              injectService.checkAssetGroupReferences(
+                  contractWithGroupReference("n"), content, TENANT_ID));
+      assertDoesNotThrow(() -> injectService.checkAssetGroupReferences(null, content, TENANT_ID));
+      verifyNoInteractions(assetGroupService);
     }
   }
 

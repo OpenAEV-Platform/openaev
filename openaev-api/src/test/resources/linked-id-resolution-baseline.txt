@@ -21,6 +21,7 @@
 # a link.
 
 io.openaev.api.asset.AssetMarkingsService#bulkReplaceAssetMarkings -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk request body, which are the rows whose markings are replaced, not linked rows
+io.openaev.api.notification_trigger.NotificationTriggerMapper#resolveRecipientGroups -> GroupRepository | other | 1 | reloads recipient group ids the trigger already linked before this update (grandfathered platform groups from before groups activated under this guard), never an id newly named in the request body
 io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler#fetch -> FindingRepository | other | 1 | indexing handler that loads the findings whose ids an endpoint search document stores, to build that document
 io.openaev.importer.V1_DataImporter#attackPatternsOf -> AttackPatternRepository | other | 1 | loads the attack patterns an imported payload names to hash its content and find an equal version, and writes nothing
 io.openaev.injectors.challenge.ChallengeExecutor#process -> ChallengeRepository | other | 1 | executor that loads the challenges stored in the content of the inject being executed to publish them
@@ -54,6 +55,7 @@ io.openaev.secrets.service.SecretValidationService#persistResults -> SecretRefer
 io.openaev.service.AssetGroupService#assetGroups -> AssetGroupRepository | link | 1 | service wrapper whose remaining callers link the asset groups named in a request body to the inject (InjectAssistantService, and InjectExecutionStep from the stored data of a chained step), and whose two readers are ScopeService and AssetGroupTargetSearchAdaptor
 io.openaev.service.AssetGroupService#assetGroupsOfAssets -> AssetGroupRepository | other | 1 | loads the asset groups that contain the stored assets of a finding, by the ids its membership read returned, to show them, and writes nothing
 io.openaev.service.AssetGroupService#bulkDeleteAssetGroups -> AssetGroupRepository | other | 1 | loads in chunks the asset groups named in the bulk delete body, which are the rows deleted, not linked rows
+io.openaev.service.AssetGroupService#memberAssetIds -> AssetGroupRepository | other | 1 | reads the static and dynamic members of the asset groups a findings search filter names, to rewrite the filter into finding asset ids, and writes nothing
 io.openaev.service.AssetService#assets -> AssetRepository | link | 1 | service wrapper whose remaining caller, InjectExecutionStep, links the assets named in the stored data of a chained step to the inject
 io.openaev.service.AssetService#bulkDeleteAssets -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk delete body, which are the rows deleted, not linked rows
 io.openaev.service.AssetService#bulkUpdateAssets -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk update body, which are the rows updated, not linked rows

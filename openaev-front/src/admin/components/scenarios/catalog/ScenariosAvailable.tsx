@@ -2,8 +2,10 @@ import { Button } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { fetchCatalogScenarioFacetCounts, installAllCatalogScenarios, searchCatalogScenarios } from '../../../../actions/catalog/scenario-catalog-actions';
+import { fetchScenarioVersions } from '../../../../actions/scenarios/scenario-update-actions';
 import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceCardMeta from '../../../../components/common/marketplace/card/MarketplaceCardMeta';
 import {
@@ -33,11 +35,15 @@ import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import useScenarioUpdatesAvailable from '../card/useScenarioUpdatesAvailable';
 import { scenarioCategoryLabel } from '../constants';
+import useScenarioLaunch from '../launch/useScenarioLaunch';
 import ScenariosHero from '../page/ScenariosHero';
 import { ScenarioTypeIcon } from '../scenario/ScenarioType';
+import ScenarioUpdateDialog from '../scenario/versions/ScenarioUpdateDialog';
+import { type ScenarioUpdateTarget, updateTarget } from '../scenario/versions/scenarioUpdateTargets';
 import CatalogScenarioAction from './CatalogScenarioAction';
-import { CATALOG_SCENARIO_INSTALLATION, installationLabel, INSTALLED, NOT_INSTALLED, scenarioUrl, UPDATE_AVAILABLE } from './catalogScenarioInstallation';
+import { CATALOG_SCENARIO_INSTALLATION, installationLabel, INSTALLED, NOT_INSTALLED, SCENARIOS_CATALOG_KEY, scenarioUrl, UPDATE_AVAILABLE } from './catalogScenarioInstallation';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import { CATALOG_SCENARIO_TYPES, catalogScenarioType, scenarioTypeOf } from './catalogScenarioType';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
@@ -78,26 +84,69 @@ const ScenariosAvailable = () => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
   const notifyInstalled = useNotifyInstalled();
-  const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const navigate = useNavigate();
+  const ability = useAbility();
+  const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
+  const { launch, launchDrawer } = useScenarioLaunch();
   const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog:view-mode');
   const [opened, setOpened] = useState<CatalogScenarioOutput | null>(null);
-  const [installing, setInstalling] = useState<CatalogScenarioOutput | null>(null);
+  const [installing, setInstalling] = useState<{
+    scenario: CatalogScenarioOutput;
+    thenLaunch: boolean;
+  } | null>(null);
   const catalog = useMarketplaceSearch<CatalogScenarioOutput>({
-    storageKey: 'scenarios-catalog',
+    storageKey: SCENARIOS_CATALOG_KEY,
     defaultSort: CATALOG_ITEM_DEFAULT_SORT,
     search: searchCatalogScenarios,
     fetchFacetCounts: fetchCatalogScenarioFacetCounts,
   });
   const { queryableHelpers, searchPaginationInput } = catalog;
-
-  const install = (scenario: CatalogScenarioOutput) => {
-    setOpened(null);
-    setInstalling(scenario);
+  const [updatesKey, setUpdatesKey] = useState(0);
+  const updates = useScenarioUpdatesAvailable(updatesKey);
+  const [updating, setUpdating] = useState<ScenarioUpdateTarget | null>(null);
+  const updateOf = (scenario: CatalogScenarioOutput) => {
+    const installedId = scenario.catalog_scenario_installed_scenario_id;
+    if (!canInstall || !installedId || !updates.has(installedId)) return undefined;
+    // The dialog names the version installed now: read from the scenario's versions.
+    return () => fetchScenarioVersions(installedId)
+      .then((versions) => {
+        const installed = versions.scenario_versions.find(version => version.scenario_version_current)?.scenario_version ?? '';
+        setOpened(null);
+        setUpdating(updateTarget(installedId, scenario.catalog_scenario_version, installed, t));
+      })
+      .catch(() => undefined);
   };
-  const markInstalled = (installed: CatalogScenarioOutput, scenarioId: string) => {
-    setInstalling(null);
-    notifyInstalled(installed.catalog_scenario_name ?? installed.catalog_scenario_external_id, installed.catalog_scenario_version, scenarioUrl(scenarioId));
+  const updated = () => {
+    const scenarioId = updating?.scenarioId;
+    setUpdating(null);
+    setUpdatesKey(key => key + 1);
     catalog.reload();
+    if (scenarioId) navigate(scenarioUrl(scenarioId));
+  };
+
+  const install = (scenario: CatalogScenarioOutput, thenLaunch = false) => {
+    setOpened(null);
+    setInstalling({
+      scenario,
+      thenLaunch,
+    });
+  };
+  // An installed scenario stays listed with its Open link; Install and launch goes on to its launch check.
+  const markInstalled = (installed: CatalogScenarioOutput, scenarioId: string) => {
+    const name = installed.catalog_scenario_name ?? installed.catalog_scenario_external_id;
+    setInstalling(null);
+    notifyInstalled(name, installed.catalog_scenario_version, scenarioUrl(scenarioId));
+    if (installing?.thenLaunch) {
+      catalog.reload();
+      launch({
+        scenarioId,
+        name,
+        type: catalogScenarioType(installed),
+      });
+    } else {
+      navigate(scenarioUrl(scenarioId));
+    }
   };
 
   const columns: MarketplaceColumn<CatalogScenarioOutput>[] = [
@@ -154,7 +203,7 @@ const ScenariosAvailable = () => {
   return (
     <>
       <MarketplaceBrowser
-        hero={<ScenariosHero />}
+        hero={<ScenariosHero updatesAvailable={updates.size} />}
         tabs={<MarketplaceCatalogTabs active="available" baseUrl={SCENARIO_BASE_URL} />}
         sidebar={(
           <MarketplaceFacetSidebar
@@ -205,7 +254,9 @@ const ScenariosAvailable = () => {
                     scenario={scenario}
                     canInstall={canInstall}
                     onInstall={() => install(scenario)}
+                    onLaunch={canLaunch ? () => install(scenario, true) : undefined}
                     onOpen={() => setOpened(scenario)}
+                    onUpdate={updateOf(scenario)}
                   />
                 )}
               />
@@ -220,7 +271,16 @@ const ScenariosAvailable = () => {
                 rowKey={scenario => scenario.catalog_scenario_external_id}
                 icon={scenario => <ScenarioTypeIcon type={catalogScenarioType(scenario)} />}
                 open={scenario => ({ onClick: () => setOpened(scenario) })}
-                action={scenario => <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => install(scenario)} size="sm" />}
+                action={scenario => (
+                  <CatalogScenarioAction
+                    scenario={scenario}
+                    canInstall={canInstall}
+                    onInstall={() => install(scenario)}
+                    onLaunch={canLaunch ? () => install(scenario, true) : undefined}
+                    onUpdate={updateOf(scenario)}
+                    size="sm"
+                  />
+                )}
               />
             )}
         <MarketplaceLoadMore {...catalog.loadMore} />
@@ -229,15 +289,19 @@ const ScenariosAvailable = () => {
         scenario={opened}
         canInstall={canInstall}
         onClose={() => setOpened(null)}
-        onInstall={install}
+        onInstall={scenario => install(scenario)}
+        onUpdate={opened ? updateOf(opened) : undefined}
       />
+      {updating && <ScenarioUpdateDialog target={updating} onClose={() => setUpdating(null)} onApplied={updated} />}
       {installing && (
         <CatalogScenarioInstallDrawer
-          scenario={installing}
+          scenario={installing.scenario}
+          thenLaunch={installing.thenLaunch}
           onClose={() => setInstalling(null)}
           onInstalled={markInstalled}
         />
       )}
+      {launchDrawer}
     </>
   );
 };

@@ -1,7 +1,8 @@
 package io.openaev.utils.fixtures.opencti;
 
+import static io.openaev.opencti.service.OpenCTIService.JWKS_FIELD_UNKNOWN_ERROR;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.opencti.client.response.fields.Location;
@@ -16,21 +17,6 @@ public class ResponseFixture {
     return r;
   }
 
-  public static Response getSchemaResponseWithJwks() {
-    Response r = new Response();
-    r.setStatus(HttpStatus.SC_OK);
-    QueryTypeFields.ResponsePayload payload = new QueryTypeFields.ResponsePayload();
-    QueryTypeFields.ResponsePayload.TypeContent tc =
-        new QueryTypeFields.ResponsePayload.TypeContent();
-    QueryTypeFields.ResponsePayload.TypeContent.FieldContent fc =
-        new QueryTypeFields.ResponsePayload.TypeContent.FieldContent();
-    fc.setName("jwks");
-    tc.setFields(List.of(fc));
-    payload.setTypeContent(tc);
-    r.setData(new ObjectMapper().valueToTree(payload));
-    return r;
-  }
-
   public static Response getErrorResponse() {
     Response r = new Response();
     r.setStatus(HttpStatus.SC_OK); // misleading ! It can absolutely happen.
@@ -41,6 +27,16 @@ public class ResponseFixture {
     loc.setColumn(1);
     loc.setLine(2);
     err.setLocations(List.of(loc));
+    r.setErrors(List.of(err));
+    return r;
+  }
+
+  /** What an OpenCTI 6.x without the jwks field answers (GraphQL validation error). */
+  public static Response getJwksFieldUnknownResponse() {
+    Response r = new Response();
+    r.setStatus(HttpStatus.SC_BAD_REQUEST);
+    Error err = new Error();
+    err.setMessage(JWKS_FIELD_UNKNOWN_ERROR + " on type \"Connector\".");
     r.setErrors(List.of(err));
     return r;
   }

@@ -21,6 +21,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
 import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
 import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
@@ -43,6 +44,7 @@ const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
+const ScenarioVersions = lazy(() => import('./versions/ScenarioVersions'));
 
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
@@ -61,6 +63,8 @@ const IndexScenarioComponent: FunctionComponent<{
   // Attack path only exists for workflow-backed (chained) scenarios, never
   // for time-based ones.
   const isChained = !!scenario.scenario_workflow_id;
+  // Only a time-based scenario installed from the catalogue takes its newer versions.
+  const installedVersion = isFeatureEnabled('CATALOG') && !isChained ? scenario.scenario_version : undefined;
   const graphEnabled = useExplorationGraph();
   // The AI cockpit (right-hand reasoning panel + read-only Scope/Logic) is live only while a run
   // is ACTIVE. A settled run unlocks Scope/Logic again; the overview itself always stays the
@@ -136,6 +140,7 @@ const IndexScenarioComponent: FunctionComponent<{
             isChained,
             graphEnabled,
             lessonsEnabled: scenario.scenario_lessons_enabled,
+            versionsEnabled: !!installedVersion,
             t,
           }).map(([suffix, label]) => {
             const path = `/admin/scenarios/${scenario.scenario_id}${suffix}`;
@@ -218,6 +223,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}
                 <Route path="execution" element={errorWrapper(ScenarioExecution)()} />
+                {installedVersion && <Route path="versions" element={errorWrapper(ScenarioVersions)()} />}
                 {/* Scenario-scoped custom dashboard, surfaced as the Statistics tab. */}
                 <Route path="statistics" element={errorWrapper(ScenarioStatistics)()} />
                 {/* The scenario's graph: its injects, their targets and the latest results. */}

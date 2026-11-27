@@ -2,7 +2,6 @@ import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } fr
 import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Avatar, Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
@@ -53,6 +52,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { ascendBy } from '../../../../utils/Sorting';
 import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
@@ -107,7 +107,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
-  const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
+  const sortByOrder = (items: KillChainPhase[]) => items.toSorted(ascendBy('phase_order'));
 
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
@@ -240,11 +240,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     };
   }, [scenarioId, areAnyExercisesInScenario]);
 
-  const lastAttackPatternIds = R.uniq(
+  const lastAttackPatternIds = [...new Set(
     (lastInjectResults ?? [])
       .filter(injectResult => !!injectResult.inject_attack_pattern)
       .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-  );
+  )];
   const hasMitreResults = !!lastInjectResults && lastAttackPatternIds.length > 0;
   const hasPosture = !!lastResults && lastResults.length > 0;
 

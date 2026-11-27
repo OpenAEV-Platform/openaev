@@ -1,5 +1,4 @@
 import { Stack } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -83,11 +82,11 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, s
   }, [isPlanMode, isActive, reloadResults]);
 
   const attackPatternIds = injectResults
-    ? R.uniq(
+    ? [...new Set(
         injectResults
           .filter(injectResult => !!injectResult.inject_attack_pattern)
           .flatMap(injectResult => injectResult.inject_attack_pattern) as unknown as string[],
-      )
+      )]
     : [];
   const hasMitreResults = !!injectResults && attackPatternIds.length > 0;
 

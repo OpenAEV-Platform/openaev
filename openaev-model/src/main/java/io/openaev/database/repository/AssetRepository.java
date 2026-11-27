@@ -22,10 +22,10 @@ public interface AssetRepository
     extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does NOT apply to a plain
-   * {@code findById} (primary-key loads bypass entity filters), so a user-supplied id could load
-   * another tenant's asset. Constraining on {@code tenant_id} keeps cross-tenant reads out - used
-   * when snapshotting a scope rule's asset display name.
+   * Tenant-scoped primary-key lookup. A plain {@code findById} carries no tenant predicate on a
+   * table outside {@code active-tables}, so a user-supplied id loads another tenant's asset.
+   * Constraining on {@code tenant_id} excludes cross-tenant reads. Used when snapshotting a scope
+   * rule's asset display name.
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
@@ -60,62 +60,43 @@ public interface AssetRepository
    */
   @Query(
       value =
-          "WITH changed_assets AS ("
-              + "SELECT a.asset_id FROM assets a WHERE a.asset_type <> '"
+          "WITH changes AS ("
+              + "SELECT a.asset_id, a.asset_updated_at AS changed_at FROM assets a WHERE a.asset_type <> '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' AND a.asset_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "UNION ALL "
+              + "SELECT ia.asset_id, i.inject_updated_at FROM injects_assets ia "
               + "JOIN injects i ON ia.inject_id = i.inject_id "
               + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type <> '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' WHERE i.inject_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "UNION ALL "
+              + "SELECT ia.asset_id, e.exercise_updated_at FROM injects_assets ia "
               + "JOIN injects i ON ia.inject_id = i.inject_id "
               + "JOIN exercises e ON i.inject_exercise = e.exercise_id "
               + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type <> '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' WHERE e.exercise_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "UNION ALL "
+              + "SELECT ia.asset_id, s.scenario_updated_at FROM injects_assets ia "
               + "JOIN injects i ON ia.inject_id = i.inject_id "
               + "JOIN scenarios s ON i.inject_scenario = s.scenario_id "
               + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type <> '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' WHERE s.scenario_updated_at > :from "
-              + "UNION "
-              + "SELECT fa.asset_id FROM findings_assets fa "
+              + "UNION ALL "
+              + "SELECT fa.asset_id, f.finding_updated_at FROM findings_assets fa "
               + "JOIN findings f ON fa.finding_id = f.finding_id "
               + "JOIN assets a ON fa.asset_id = a.asset_id AND a.asset_type <> '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' WHERE f.finding_updated_at > :from"
               + "), "
-              + "inj_maxes AS ("
-              + "SELECT ia.asset_id, max(i.inject_updated_at) AS max_inj, max(e.exercise_updated_at) AS max_ex, max(s.scenario_updated_at) AS max_sc "
-              + "FROM injects_assets ia "
-              + "JOIN injects i ON i.inject_id = ia.inject_id "
-              + "LEFT JOIN exercises e ON e.exercise_id = i.inject_exercise "
-              + "LEFT JOIN scenarios s ON s.scenario_id = i.inject_scenario "
-              + "WHERE ia.asset_id IN (SELECT asset_id FROM changed_assets) "
-              + "GROUP BY ia.asset_id"
-              + "), "
-              + "find_maxes AS ("
-              + "SELECT fa.asset_id, max(f.finding_updated_at) AS max_find "
-              + "FROM findings_assets fa JOIN findings f ON f.finding_id = fa.finding_id "
-              + "WHERE fa.asset_id IN (SELECT asset_id FROM changed_assets) "
-              + "GROUP BY fa.asset_id"
-              + "), "
               + "ranked_assets AS ("
-              + "SELECT ca.asset_id, GREATEST(a.asset_updated_at, im.max_inj, im.max_ex, im.max_sc, fm.max_find) AS asset_sort "
-              + "FROM changed_assets ca "
-              + "JOIN assets a ON a.asset_id = ca.asset_id "
-              + "LEFT JOIN inj_maxes im ON im.asset_id = ca.asset_id "
-              + "LEFT JOIN find_maxes fm ON fm.asset_id = ca.asset_id "
-              + "ORDER BY asset_sort ASC LIMIT :limit"
+              + "SELECT asset_id, max(changed_at) AS asset_sort FROM changes "
+              + "GROUP BY asset_id ORDER BY asset_sort ASC LIMIT :limit"
               + "), "
               + "findings_agg AS ("
-              + "SELECT fa.asset_id, array_agg(DISTINCT fa.finding_id) AS asset_findings "
+              + "SELECT fa.asset_id, array_agg(fa.finding_id) AS asset_findings "
               + "FROM findings_assets fa JOIN ranked_assets ra ON ra.asset_id = fa.asset_id GROUP BY fa.asset_id"
               + "), "
               + "tags_agg AS ("
@@ -130,6 +111,7 @@ public interface AssetRepository
               + "GROUP BY ia.asset_id"
               + ") "
               + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
+              + "a.asset_subcategory, a.asset_criticality, a.asset_internet_facing, a.asset_url, "
               + "a.asset_ips, a.asset_hostname, a.endpoint_platform, a.endpoint_arch, "
               + "a.asset_mac_addresses, a.asset_seen_ip, a.asset_created_at, a.asset_updated_at, "
               // Host-only flag: the column has DEFAULT FALSE, so non-host rows carry false in SQL
@@ -200,6 +182,14 @@ public interface AssetRepository
    */
   @Query("SELECT a.id, a.criticality, a.name, a.seenIp FROM Asset a WHERE a.id IN :ids")
   List<Object[]> findCriticalityNameAndSeenIpByIds(Set<String> ids);
+
+  /**
+   * The ids, among {@code ids}, of the assets the current transaction can read. JPQL (not native)
+   * so the tenant filter and the marking clearance of the reader both apply: an asset the reader is
+   * not cleared for is simply absent from the result, as from every other read of the table.
+   */
+  @Query("SELECT a.id FROM Asset a WHERE a.id IN :ids")
+  Set<String> findIdsByIdIn(@Param("ids") java.util.Collection<String> ids);
 
   /**
    * Name-based option search over EVERY asset type except security platforms (endpoints - agent

@@ -32,7 +32,6 @@ import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginati
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -81,11 +80,6 @@ const Endpoints = () => {
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const canManageMarkingAssignment = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
   const canBulkEditMarkings = markingEnabled && canManage && canManageMarkingAssignment;
-  // Resolved once for the whole page; the Markings column maps ids per row.
-  const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
-    assignableOnly: true,
-  });
 
   // Load executors once for the whole page; previously each row fetched its own.
   useDataLoader(() => {
@@ -316,11 +310,7 @@ const Endpoints = () => {
           // Not sortable: markings are stored as a text[] on the row, not a joinable column.
           isSortable: false,
           value: (endpoint: EndpointOutput) => (
-            <ItemMarkings
-              variant="list"
-              markingIds={endpoint.asset_markings ?? []}
-              definitions={markingDefinitions}
-            />
+            <ItemMarkings markingIds={endpoint.asset_markings} limit={1} />
           ),
         }]
       : []),

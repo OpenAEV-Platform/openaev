@@ -26,9 +26,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import XtmOnePivot from '../../../../components/xtm/XtmOnePivot';
-import OpenCrqPivot from '../../../../components/xtm/XtmOpenCrq';
-import OpenCtiPivot from '../../../../components/xtm/XtmPivot';
+import XtmCounterpartsEmblem from '../../../../components/xtm/XtmCounterpartsEmblem';
 import { useHelper } from '../../../../store';
 import {
   type EndpointOverviewOutput,
@@ -38,7 +36,6 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -105,13 +102,7 @@ const AssetDetail = () => {
     loadAsset();
   }, [loadAsset]);
 
-  // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
-  // it does today - mirrors the Endpoints list convention.
   const markingEnabled = isFeatureEnabled('MARKING');
-  const markingDefinitions = useMarkingDefinitions({
-    skip: !markingEnabled,
-    assignableOnly: true,
-  });
 
   // Resolve the linked person (identity assets) to a readable name.
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
@@ -221,14 +212,18 @@ const AssetDetail = () => {
         title={asset.asset_name}
         action={(
           <>
-            {/* Contract v3: the cross-product emblems come first, leftmost, before the page's own
-                actions; one icon-only emblem per counterpart product in the fixed order XTM One,
-                OpenCTI, OpenAEV, OpenCRQ (the page's own product skipped). An asset imported from
-                one of them is found from its source link first (rule 5); OpenCRQ keys its
-                supporting assets by hostname only. */}
-            {!isAiTarget && <XtmOnePivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
-            {!isAiTarget && <OpenCtiPivot kind="assets" objectKey={counterpartKey} sourceUrl={asset.asset_external_reference} />}
-            {!isAiTarget && <OpenCrqPivot kind="assets" objectKey={asset.asset_hostname} sourceUrl={asset.asset_external_reference} />}
+            {/* The single XTM One emblem comes first, leftmost, before the page's own actions; its
+                surface lists XTM One, OpenCTI and OpenCRQ. An asset imported from one of them is
+                found from its source link first (rule 5); OpenCRQ keys its supporting assets by
+                hostname only. */}
+            {!isAiTarget && (
+              <XtmCounterpartsEmblem
+                kind="assets"
+                objectKey={counterpartKey}
+                openCrqKey={asset.asset_hostname ?? null}
+                sourceUrl={asset.asset_external_reference}
+              />
+            )}
             <ExploreInGraphButton type="ASSET" entityId={id} />
             {/* Entity-scoped reports - self-hides without the reporting
                 access capability. */}
@@ -345,7 +340,7 @@ const AssetDetail = () => {
               </Field>
               {markingEnabled && (
                 <Field label={t('Markings')}>
-                  <ItemMarkings variant="list" markingIds={asset.asset_markings} definitions={markingDefinitions} />
+                  <ItemMarkings markingIds={asset.asset_markings} />
                 </Field>
               )}
             </InformationGrid>

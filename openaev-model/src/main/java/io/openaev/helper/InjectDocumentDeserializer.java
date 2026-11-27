@@ -34,12 +34,12 @@ import java.io.IOException;
  * <p>The returned link carries an id-only {@link Document} stub, never a database-resolved entity:
  * this deserializer runs once per element, so querying here would cost one database round trip per
  * attachment (an unbounded N+1 inside the queue transaction). Consumers must batch-resolve the
- * referenced documents afterwards - through a filtered JPQL query so Hibernate's {@code
- * tenantFilter} applies and a deleted or foreign-tenant document degrades to "no attachment"
- * instead of failing the step - as {@code InjectExecutionStep#getInjectFromDataStep} does. The
- * owning {@link io.openaev.database.model.Inject} cannot be known mid-deserialization either, so
- * the {@code inject} side is left null - consumers must re-parent the link (and prune {@code null}
- * elements) before persisting.
+ * referenced documents afterwards - through a tenant-scoped JPQL query so a deleted or
+ * foreign-tenant document degrades to "no attachment" rather than failing the step - as {@code
+ * InjectExecutionStep#getInjectFromDataStep} does. The owning {@link
+ * io.openaev.database.model.Inject} cannot be known mid-deserialization either, so the {@code
+ * inject} side is left null - consumers must re-parent the link (and prune {@code null} elements)
+ * before persisting.
  */
 public class InjectDocumentDeserializer extends JsonDeserializer<InjectDocument> {
 
