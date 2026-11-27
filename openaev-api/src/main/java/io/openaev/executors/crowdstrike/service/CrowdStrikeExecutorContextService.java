@@ -1,6 +1,5 @@
 package io.openaev.executors.crowdstrike.service;
 
-import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
@@ -9,15 +8,14 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.BatchExecutorContextService;
-import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.ImplantCommand;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -27,6 +25,8 @@ import org.springframework.stereotype.Service;
 public class CrowdStrikeExecutorContextService
     extends BatchExecutorContextService<CrowdStrikeAction> {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
+  private static final ImplantCommand IMPLANT_COMMAND =
+      new ImplantCommand(ImplantCommand.ArchSource.ENDPOINT, null);
 
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
@@ -56,16 +56,7 @@ public class CrowdStrikeExecutorContextService
 
     csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
 
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
+    Injector injector = ImplantCommand.injectorOf(inject);
 
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
@@ -113,43 +104,9 @@ public class CrowdStrikeExecutorContextService
     for (Agent agent : agents) {
       CrowdStrikeAction actionWindows = new CrowdStrikeAction();
       actionWindows.setScriptName(this.crowdStrikeExecutorConfig.getWindowsScriptName());
-      String implantLocation =
-          "$location="
-              + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
-      // x86_64 by default in the register because CS API doesn't provide the platform architecture
-      // (we update this when the download implant script is launched on the endpoint)
-      String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      // The default command to download the openaev implant and execute the attack is modified for
-      // CS
-      // - WINDOWS_ARCH: CS doesn't know the endpoint architecture so we include it to get the
-      // architecture before downloading the implant and we replace the default x86_64 put before
-      command =
-          WINDOWS_ARCH
-              + command.replace(
-                  Endpoint.PLATFORM_ARCH.x86_64.name(),
-                  ARCH_VARIABLE
-                      + "`"); // Specific for Windows to escape the ? right after in the URL
-      command =
-          replaceArgs(
-              platform,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
-              Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(
+              openAEVConfig, injector, inject, agent, Endpoint.PLATFORM_TYPE.Windows, token);
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
@@ -192,35 +149,7 @@ public class CrowdStrikeExecutorContextService
       Inject inject,
       Agent agent,
       String token) {
-    String implantLocation =
-        "location="
-            + ExecutorHelper.IMPLANT_LOCATION_UNIX
-            + ExecutorHelper.IMPLANT_BASE_NAME
-            + UUID.randomUUID()
-            + ";mkdir -p $location;filename=";
-    // x86_64 by default in the register because CS API doesn't provide the platform architecture
-    // (we update this when the download implant script is launched on the endpoint)
-    String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
-    String command = injector.getExecutorCommands().get(executorCommandKey);
-    // The default command to download the openaev implant and execute the attack is modified for CS
-    // - UNIX_ARCH: CS doesn't know the endpoint architecture so we include it to get the
-    // architecture before downloading the implant and we replace the default x86_64 put before
-    command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
-    command =
-        replaceArgs(
-            platform,
-            command,
-            inject.getId(),
-            agent.getId(),
-            inject.getTenant().getId(),
-            token,
-            openAEVConfig.getBaseUrlForAgent(),
-            Integer.toString(openAEVConfig.getLogsMaxSize()),
-            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-            Boolean.toString(openAEVConfig.isWithProxy()));
-    command =
-        command.replaceFirst(
-            "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
+    String command = IMPLANT_COMMAND.build(openAEVConfig, injector, inject, agent, platform, token);
     return Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8));
   }
 }

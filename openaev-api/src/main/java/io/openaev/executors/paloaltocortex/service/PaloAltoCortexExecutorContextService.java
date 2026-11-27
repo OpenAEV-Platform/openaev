@@ -1,6 +1,6 @@
 package io.openaev.executors.paloaltocortex.service;
 
-import static io.openaev.executors.ExecutorHelper.*;
+import static io.openaev.executors.ExecutorHelper.POWERSHELL_CMD;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
@@ -9,8 +9,8 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.BatchExecutorContextService;
-import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.ImplantCommand;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
@@ -19,7 +19,6 @@ import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -29,6 +28,8 @@ import org.springframework.stereotype.Service;
 public class PaloAltoCortexExecutorContextService
     extends BatchExecutorContextService<PaloAltoCortexAction> {
   public static final String SERVICE_NAME = PALOALTOCORTEX_EXECUTOR_NAME;
+  private static final ImplantCommand IMPLANT_COMMAND =
+      new ImplantCommand(ImplantCommand.ArchSource.ENDPOINT, PALOALTOCORTEX_EXECUTOR_NAME);
 
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorClient client;
@@ -62,16 +63,7 @@ public class PaloAltoCortexExecutorContextService
     paloAltoCortexAgents =
         executorService.manageWithoutPlatformAgents(paloAltoCortexAgents, injectStatus);
 
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
+    Injector injector = ImplantCommand.injectorOf(inject);
 
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     // Set implant script for each agent
@@ -131,47 +123,9 @@ public class PaloAltoCortexExecutorContextService
     for (Agent agent : agents) {
       PaloAltoCortexAction actionWindows = new PaloAltoCortexAction();
       actionWindows.setScriptId(this.config.getWindowsScriptUid());
-      String implantLocation =
-          "$location="
-              + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      // x86_64 by default in the register because CS API doesn't provide the platform architecture
-      // (we update this when the download implant script is launched on the endpoint)
-      String executorCommandKey =
-          PALOALTOCORTEX_EXECUTOR_NAME
-              + "."
-              + Endpoint.PLATFORM_TYPE.Windows.name()
-              + "."
-              + Endpoint.PLATFORM_ARCH.x86_64.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      // The default command to download the openaev implant and execute the attack is modified for
-      // Cortex
-      // - WINDOWS_ARCH: Cortex doesn't know the endpoint architecture so we include it to get the
-      // architecture before downloading the implant and we replace the default x86_64 put before
-      command =
-          WINDOWS_ARCH
-              + command.replace(
-                  Endpoint.PLATFORM_ARCH.x86_64.name(),
-                  ARCH_VARIABLE
-                      + "`"); // Specific for Windows to escape the ? right after in the URL
-      command =
-          replaceArgs(
-              Endpoint.PLATFORM_TYPE.Windows,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
-              Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(
+              openAEVConfig, injector, inject, agent, Endpoint.PLATFORM_TYPE.Windows, token);
       PaloAltoCortexCommandList commandWindows = new PaloAltoCortexCommandList();
       commandWindows.setCommands_list(
           List.of(
@@ -195,36 +149,8 @@ public class PaloAltoCortexExecutorContextService
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
       actionUnix.setScriptId(this.config.getUnixScriptUid());
-      String implantLocation =
-          "location="
-              + ExecutorHelper.IMPLANT_LOCATION_UNIX
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + ";mkdir -p $location;filename=";
-      // x86_64 by default in the register because CS API doesn't provide the platform architecture
-      // (we update this when the download implant script is launched on the endpoint)
-      String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      // The default command to download the openaev implant and execute the attack is modified for
-      // Cortex
-      // - UNIX_ARCH: Cortex doesn't know the endpoint architecture so we include it to get the
-      // architecture before downloading the implant and we replace the default x86_64 put before
-      command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
-      command =
-          replaceArgs(
-              platform,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(openAEVConfig, injector, inject, agent, platform, token);
       PaloAltoCortexCommand commandUnix = new PaloAltoCortexCommand();
       commandUnix.setCommand(Base64.getEncoder().encodeToString(command.getBytes()));
       actionUnix.setCommandUnix(commandUnix);
