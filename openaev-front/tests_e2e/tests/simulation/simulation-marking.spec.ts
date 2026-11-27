@@ -128,7 +128,7 @@ test.describe('Simulation - With asset marked', () => {
   for (const { persona, visibleAssets, invisibleAssets } of CLEARANCE_CASES) {
     const notTargetedAssets = visibleAssets.filter(key => !launcherAssets.includes(key));
 
-    test.describe(() => {
+    test.describe(`as ${persona}`, () => {
       let simulationPage: SimulationPage;
 
       test.use({ persona });
@@ -139,7 +139,7 @@ test.describe('Simulation - With asset marked', () => {
         await simulationPage.gotoInject(simulation.exercise_id, inject.inject_id);
       });
 
-      test(`${persona} should list only the inject targets its clearance covers`, async () => {
+      test(`should list only the inject targets its clearance covers`, async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(simulationPage.getAssetByName(assets[key].asset_name)).toBeVisible()));
@@ -148,7 +148,7 @@ test.describe('Simulation - With asset marked', () => {
           expect(simulationPage.getAssetByName(assets[key].asset_name)).toHaveCount(0, { timeout: 1_000 })));
       });
 
-      test(`${persona} should see which targets the launcher clearance left out`, async () => {
+      test(`should see which targets the launcher clearance left out`, async () => {
         // Arrange
         const greenAsset = simulationPage.getAssetByName(assets.green.asset_name);
         const notTargetedTrace = simulationPage.endpointTracesContainer.filter({ hasText: 'Asset not targeted' });
@@ -172,7 +172,7 @@ test.describe('Simulation - With asset marked', () => {
         }
       });
 
-      test(`${persona} should only get the execution traces of the assets it is cleared for`, async ({ playwright }) => {
+      test(`should only get the execution traces of the assets it is cleared for`, async ({ playwright }) => {
         // Known gap: GET /injects/execution-traces checks the inject, not the asset clearance, so a persona gets the
         // traces of an asset it cannot see. Only those personas fail; remove once the endpoint checks it.
         test.fail(invisibleAssets.length > 0, 'The execution traces endpoint does not check the asset marking clearance');

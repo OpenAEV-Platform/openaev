@@ -66,10 +66,10 @@ test.describe('Scenario - With asset marked', () => {
   });
 
   for (const { persona, visibleAssets, invisibleAssets } of CLEARANCE_CASES) {
-    test.describe(() => {
+    test.describe(`as ${persona}`, () => {
       test.use({ persona });
 
-      test(`${persona} should list the inject targets corresponding with the correct marking onto the scenario`, async () => {
+      test(`should list the inject targets corresponding with the correct marking onto the scenario`, async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(scenarioPage.getInjectTargetAsset(assets[key].asset_name)).toBeVisible()));
