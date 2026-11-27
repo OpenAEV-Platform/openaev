@@ -8,6 +8,7 @@ import io.openaev.database.model.AssetCriticality;
 import io.openaev.rest.asset.form.AssetInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
@@ -47,6 +48,11 @@ public class AiTargetInput extends AssetInput {
       types = {"string", "null"},
       description = "API token credential used to reach the target")
   private String aiTargetCredentialId;
+
+  @Null(message = "ai_target_token was removed: use ai_target_credential")
+  @JsonProperty("ai_target_token")
+  @Schema(hidden = true)
+  private String aiTargetToken;
 
   // Criticality lives on the base Asset entity; AI targets are Assets so they support it too.
   // Property name matches Asset.criticality for BeanUtils.copyProperties.
