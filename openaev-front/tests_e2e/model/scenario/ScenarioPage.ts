@@ -43,6 +43,11 @@ class ScenarioPage {
     this.injectForm = page.locator('form#injectForm');
   }
 
+  async gotoScenario(scenarioId: string) {
+    await this.page.goto(tenantUrl(`/admin/scenarios/${scenarioId}`));
+    await this.page.waitForLoadState('domcontentloaded');
+  }
+
   async gotoInjects(scenarioId: string) {
     await this.page.goto(tenantUrl(`/admin/scenarios/${scenarioId}/injects`));
     await expect(this.injectListSection).toBeVisible();

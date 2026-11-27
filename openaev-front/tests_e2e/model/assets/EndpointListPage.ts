@@ -1,6 +1,7 @@
 import { type Locator, type Page } from '@playwright/test';
 
 import MuiListHelpers from '../../utils/MuiListHelpers';
+import { tenantUrl } from '../../utils/url';
 
 class EndpointListPage {
   readonly page: Page;
@@ -11,7 +12,8 @@ class EndpointListPage {
     this.searchField = page.getByPlaceholder('Search these results...').first();
   }
 
-  async waitForLoad() {
+  async goto() {
+    await this.page.goto(tenantUrl('/admin/assets'));
     await this.page.waitForURL('**/admin/assets**');
   }
 

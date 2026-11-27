@@ -7,7 +7,6 @@ import EndpointListPage from '../../model/assets/EndpointListPage';
 import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
 import { type Persona } from '../../utils/personas';
-import { tenantUrl } from '../../utils/url';
 
 type AssetKey = 'green' | 'amber' | 'red';
 
@@ -63,8 +62,7 @@ test.describe('Assets - Listing', () => {
   test.beforeEach(async ({ page }) => {
     endpointListPage = new EndpointListPage(page);
     await disableAnimations(page);
-    await page.goto(tenantUrl('/admin/assets'));
-    await endpointListPage.waitForLoad();
+    await endpointListPage.goto();
 
     // The list is paginated: without the search, an asset off the first page would pass the absence check.
     await endpointListPage.search(suffix);

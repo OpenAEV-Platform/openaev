@@ -9,7 +9,6 @@ import ScenarioPage from '../../model/scenario/ScenarioPage';
 import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
 import { type Persona } from '../../utils/personas';
-import { tenantUrl } from '../../utils/url';
 
 type AssetKey = 'green' | 'amber' | 'red';
 
@@ -82,7 +81,6 @@ test.describe('Scenario - With asset marked', () => {
   test.beforeEach(async ({ page }) => {
     scenarioPage = new ScenarioPage(page);
     await disableAnimations(page);
-    await page.waitForLoadState('domcontentloaded');
     await scenarioPage.gotoInjects(scenario.scenario_id);
     await scenarioPage.openInject(inject.inject_title);
   });

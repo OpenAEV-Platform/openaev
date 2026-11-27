@@ -162,7 +162,6 @@ test.describe('Simulation - With asset marked', () => {
         simulationPage = new SimulationPage(page);
         await disableAnimations(page);
         await simulationPage.gotoInject(simulation.exercise_id, inject.inject_id);
-        await page.waitForLoadState('domcontentloaded');
       });
 
       test(`${persona} should list only the targeted assets cleared for the persona 'observer'`, async () => {
@@ -174,7 +173,7 @@ test.describe('Simulation - With asset marked', () => {
           expect(simulationPage.getAssetByName(assets[key].asset_name)).toHaveCount(0, { timeout: 1_000 })));
       });
 
-      test(`${persona} should see which targets the launcher clearance left out`, async ({ page }) => {
+      test(`${persona} should see which targets the launcher clearance left out`, async () => {
         // Arrange
         const greenAsset = simulationPage.getAssetByName(assets.green.asset_name);
         const notTargetedTrace = simulationPage.endpointTracesContainer.filter({ hasText: 'Asset not targeted' });
