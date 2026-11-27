@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Tenant;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -37,6 +38,9 @@ public interface TenantRepository
               + " ORDER BY t.tenant_name",
       nativeQuery = true)
   List<Tenant> findTenantsByUserId(@Param("userId") String userId);
+
+  /** Finds a tenant that is not soft-deleted. */
+  Optional<Tenant> findByIdAndDeletedAtIsNull(String id);
 
   /** Counts active (non-soft-deleted) tenants. */
   long countByDeletedAtIsNull();
