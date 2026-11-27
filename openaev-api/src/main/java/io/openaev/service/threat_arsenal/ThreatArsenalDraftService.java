@@ -161,17 +161,6 @@ public class ThreatArsenalDraftService {
     return result;
   }
 
-  // -- MINE --
-
-  /** The drafts the current user started or saved last, of new actions and existing ones. */
-  public List<PayloadDraftOutput> userDrafts() {
-    User user = userService.currentUserOrNull();
-    if (user == null) {
-      return List.of();
-    }
-    return payloadDraftService.findUserDrafts(user.getId()).stream().map(this::output).toList();
-  }
-
   // The action's payload version, if it can have drafts: a local payload, not a catalogue version
   // (read-only) nor a customized one (changed through its overrides).
   private Payload editableVersion(String actionId) {

@@ -11,12 +11,9 @@ import { generateFilterId } from '../../../components/common/queryable/filter/Fi
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../components/i18n';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
-import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
+import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import useApprovalDesignVariant from './approval/useApprovalDesignVariant';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
-import { THREAT_ARSENAL_MY_CHANGES_PATH, THREAT_ARSENAL_TO_REVIEW_PATH } from './threatArsenalDeepLink';
-import ThreatArsenalTabs from './ThreatArsenalTabs';
 import useThreatArsenalFacetCounts from './useThreatArsenalFacetCounts';
 
 type ApprovalTileStatus = 'PENDING' | 'REJECTED';
@@ -32,8 +29,6 @@ interface HeroProps extends StatsProps {
   /** A draft of a new action was saved, discarded or published from the Create form. */
   onDraftsChange?: () => void;
 }
-
-interface Props extends HeroProps { active: 'to-review' | 'my-changes' }
 
 // The list page reads its filters from the `query` parameter it writes itself (key "threat-arsenal"),
 // so a tile on another page opens the list already filtered.
@@ -71,15 +66,9 @@ const tileButtonStyle = {
  * offers, and the work waiting for approval. Each is a link to the tab (and filter) it counts; on the
  * Active list the approval tiles filter that list in place.
  */
-export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilterApproval }) => {
+const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilterApproval }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const ability = useAbility();
-  const variant = useApprovalDesignVariant();
-  const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
-  const canSubmit = !canApprove && ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const withTabs = variant === 'queue' && (canApprove || canSubmit);
-  const rejectedPath = canApprove ? `${THREAT_ARSENAL_TO_REVIEW_PATH}?view=rejected` : `${THREAT_ARSENAL_MY_CHANGES_PATH}?view=needs-changes`;
 
   // Counts over the whole arsenal, never the current page or filters.
   const allActions = useMemo(() => buildSearchPagination({}), []);
@@ -108,8 +97,6 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
           value: pendingCount,
           color: theme.palette.warning.main,
           icon: HourglassEmptyOutlined,
-          // With the queue, an approver's pending work is the To review tab.
-          to: withTabs && canApprove ? THREAT_ARSENAL_TO_REVIEW_PATH : undefined,
         },
         {
           status: 'REJECTED' as const,
@@ -117,12 +104,10 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
           value: rejectedCount,
           color: theme.palette.error.main,
           icon: DoNotDisturbOnOutlined,
-          // Approvers land on the Rejected view, authors on what needs their changes.
-          to: withTabs ? rejectedPath : undefined,
         },
       // Attention tiles show only when there is something to act on; Active and Not installed always show.
       ].filter(tile => tile.value > 0).map((tile) => {
-        if (!tile.to && onFilterApproval) {
+        if (onFilterApproval) {
           return (
             <button
               key={tile.status}
@@ -142,7 +127,7 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
             label={tile.label}
             value={tile.value}
             color={tile.color}
-            to={tile.to ?? filteredList(tile.status)}
+            to={filteredList(tile.status)}
           />
         );
       })}
@@ -170,22 +155,3 @@ export const ThreatArsenalHero: FunctionComponent<HeroProps> = ({ onFilterApprov
     />
   );
 };
-
-/** Header of the approval pages of the Threat Arsenal (To review, My changes): the Hero, then the tabs. */
-const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active, onCreate }) => {
-  const theme = useTheme();
-
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: theme.spacing(2),
-    }}
-    >
-      <ThreatArsenalHero onCreate={onCreate} />
-      <ThreatArsenalTabs active={active} />
-    </div>
-  );
-};
-
-export default ThreatArsenalPageHeader;

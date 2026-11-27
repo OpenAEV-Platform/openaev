@@ -556,11 +556,6 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
             .andExpect(status().isOk()));
   }
 
-  private String myDrafts(Authentication as) throws Exception {
-    return body(
-        mvc.perform(get(url("/my_drafts")).with(authentication(as))).andExpect(status().isOk()));
-  }
-
   private String publishNewActionDraft(Authentication as, String draftId, String name)
       throws Exception {
     return JsonPath.read(
@@ -914,40 +909,6 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(draftContent("echo hijack"))))
           .andExpect(status().isNotFound());
-    }
-  }
-
-  @Nested
-  @DisplayName("Finding my drafts")
-  class MyDrafts {
-
-    @Test
-    @DisplayName(
-        "given drafts of a new action and of an existing action saved by an author, should list"
-            + " both for that author only, with the action to open")
-    void given_authorDrafts_should_listOwnDraftsOnly() throws Exception {
-      // Arrange
-      String actionId = createAction(approver);
-      String actionDraft = createDraft(author, actionId, "echo mine");
-      String newActionDraft = createNewActionDraft(author, "Mine " + UUID.randomUUID());
-      String othersDraft = createNewActionDraft(approver, "Not mine " + UUID.randomUUID());
-
-      // Act
-      String mine = myDrafts(author);
-
-      // Assert
-      assertThat((List<String>) JsonPath.read(mine, "$[*].draft_id"))
-          .contains(actionDraft, newActionDraft)
-          .doesNotContain(othersDraft);
-      assertThat(
-              (List<String>)
-                  JsonPath.read(mine, "$[?(@.draft_id == '" + actionDraft + "')].draft_action_id"))
-          .containsExactly(actionId);
-      assertThat(
-              (List<Boolean>)
-                  JsonPath.read(
-                      mine, "$[?(@.draft_id == '" + newActionDraft + "')].draft_new_action"))
-          .containsExactly(true);
     }
   }
 

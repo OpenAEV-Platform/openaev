@@ -80,9 +80,9 @@ Users without *Approve content* do not see **Approve**, **Reject** or **Move to 
 
 ### Reviewing a version
 
-Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Last edited by*: who last saved the version, not its first author. The approval panel and the cards show that person and the date of that save; *Unknown* when nobody is recorded. These two tabs are built in: their filters can be changed while you look, not saved.
+What waits for a decision is on the **Active** tab of the Threat Arsenal. At the top of the page, the **Pending approval** and **Rejected** tiles count the versions in each status, shown only when there are some; click one to filter the Active list on that status, the same as the **Approval** filter. The approval panel of a version shows who last saved it, not its first author, and the date of that save; *Unknown* when nobody is recorded.
 
-To approve or reject, click **Review** on the Action, or open it and go to its *Versions* tab. The version waiting for approval shows:
+To approve or reject, open the Action and go to its *Versions* tab. The version waiting for approval shows:
 
 * who submitted it and when;
 * **what it changes**: every field that changed, the name and description included, line by line like a code diff: removed lines in red with "−", added lines in green with "+". A new version is compared with the approved version in use, and only its changed fields are shown: they are the changes that made it a new version. A **new Action** (no version approved yet) has nothing to compare with: everything it has (name, command, cleanup, arguments, prerequisites, platforms, attack patterns, expectations…) is shown as added, so the approver sees all they approve;
@@ -236,8 +236,7 @@ v1.0.0* on a version published from a draft. A card and a list row show a *Draft
 
 To find drafts, the **Status** filter of the Active tab has a *Draft* value that keeps the Actions with a draft and the
 drafts of new Actions; any other filter leaves the drafts of new Actions out, and the search
-finds them by name. **My changes** also lists the drafts you saved, new Actions included, in a *Drafts* group above the
-others. The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
+finds them by name. The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
 
 ## Delete an Action
 

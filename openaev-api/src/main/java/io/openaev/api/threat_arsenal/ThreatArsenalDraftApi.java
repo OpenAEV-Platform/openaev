@@ -37,7 +37,6 @@ public class ThreatArsenalDraftApi {
   private static final String DRAFT = DRAFTS + "/{draftId}";
   private static final String NEW_ACTION_DRAFTS = "/new_action_drafts";
   private static final String NEW_ACTION_DRAFT = NEW_ACTION_DRAFTS + "/{draftId}";
-  private static final String MY_DRAFTS = "/my_drafts";
 
   private final ThreatArsenalDraftService threatArsenalDraftService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -222,17 +221,5 @@ public class ThreatArsenalDraftApi {
       @NotBlank @PathVariable final String draftId,
       @Valid @RequestBody ThreatArsenalActionCreateInput input) {
     return threatArsenalDraftService.publishNewActionDraft(ctx, draftId, input);
-  }
-
-  // -- MY DRAFTS --
-
-  @Operation(
-      summary = "Drafts the current user started or saved last",
-      description = "Drafts of new actions and of existing actions, last changed first.")
-  @GetMapping({THREAT_ARSENAL_URL + MY_DRAFTS, TENANT_THREAT_ARSENAL_URL + MY_DRAFTS})
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PayloadDraftOutput> myDrafts(TxCtx ctx) {
-    return threatArsenalDraftService.userDrafts();
   }
 }

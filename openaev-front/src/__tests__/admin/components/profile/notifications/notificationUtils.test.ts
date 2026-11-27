@@ -30,7 +30,7 @@ describe('notificationUtils, payload approval', () => {
     expect(url).toBe('/admin/scenarios/scenario-1');
   });
 
-  it('given a pending-approval alert sent before triggers should still open the To review queue', () => {
+  it('given a pending-approval alert sent before triggers should open the action on the Active list', () => {
     // Arrange / Act
     const url = eventUrl({
       operation: 'APPROVAL_PENDING',
@@ -40,7 +40,7 @@ describe('notificationUtils, payload approval', () => {
     });
 
     // Assert
-    expect(url).toBe('/admin/threat-arsenal/to-review?action=contract-1');
+    expect(url).toBe('/admin/threat-arsenal?action=contract-1');
   });
 
   it('labels the payload approval operations', () => {

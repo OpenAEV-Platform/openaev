@@ -36,7 +36,7 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { DOMAIN_ICON_MAP } from '../../common/domains/DomainsIcons';
 import ThreatArsenalEmptyState from '../ThreatArsenalEmptyState';
-import { ThreatArsenalHero } from '../ThreatArsenalPageHeader';
+import { ThreatArsenalHero } from '../ThreatArsenalHero';
 import notifyPayloadInstalled from './notifyPayloadInstalled';
 import ThreatArsenalCatalogCard from './ThreatArsenalCatalogCard';
 import ThreatArsenalCatalogDrawer from './ThreatArsenalCatalogDrawer';
