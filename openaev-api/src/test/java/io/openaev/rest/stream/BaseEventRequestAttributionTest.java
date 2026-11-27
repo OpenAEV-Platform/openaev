@@ -29,11 +29,11 @@ class BaseEventRequestAttributionTest {
   private static final String AMBIENT_TENANT = "tenant-ambient";
 
   private final ObjectMapper mapper = ObjectMapperHelper.openAEVJsonMapper();
+  private final MockHttpServletRequest request = new MockHttpServletRequest();
 
   @BeforeEach
   void inARequestWhoseAmbientTenantIsNotTheWriteTenant() {
-    RequestContextHolder.setRequestAttributes(
-        new ServletRequestAttributes(new MockHttpServletRequest()));
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     TenantContext.setCurrentTenant(AMBIENT_TENANT);
   }
 
@@ -141,6 +141,16 @@ class BaseEventRequestAttributionTest {
 
       // Assert
       assertThat(event.getTenantId()).isEqualTo(AMBIENT_TENANT);
+    }
+
+    @Test
+    @DisplayName("given_requestWithoutSession_should_notCreateOne")
+    void given_requestWithoutSession_should_notCreateOne() {
+      // Act
+      new BaseEvent(DATA_UPDATE, savedUser(), mapper);
+
+      // Assert
+      assertThat(request.getSession(false)).isNull();
     }
   }
 }
