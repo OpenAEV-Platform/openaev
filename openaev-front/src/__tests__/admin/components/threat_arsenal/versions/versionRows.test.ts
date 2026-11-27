@@ -6,7 +6,6 @@ import { aVersion } from '../threatArsenalTestUtils';
 
 const catalogueVersion = (version: string): CatalogPayloadOutput => ({
   catalog_payload_external_id: 'mimikatz',
-  catalog_payload_platforms: [],
   catalog_payload_version: version,
 });
 

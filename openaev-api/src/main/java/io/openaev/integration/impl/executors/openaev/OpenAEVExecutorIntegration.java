@@ -29,11 +29,12 @@ public class OpenAEVExecutorIntegration extends Integration {
   public OpenAEVExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       AssetAgentJobRepository assetAgentJobRepository,
       ComponentRequestEngine componentRequestEngine,
       AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService,
       OpenAEVConfig openAEVConfig) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.agentServiceAccountPrivilegeService = agentServiceAccountPrivilegeService;
     this.openAEVConfig = openAEVConfig;

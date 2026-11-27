@@ -41,6 +41,10 @@ const usages = {
     usage_name: 'Old inject',
   })]),
 };
+const counts = {
+  'payload-v2': 2,
+  'payload-v1': 1,
+};
 
 describe('PayloadVersionsTab', () => {
   afterEach(() => {
@@ -51,7 +55,7 @@ describe('PayloadVersionsTab', () => {
 
   it('given the versions still loading should show no version', () => {
     // Act
-    renderInApp(<PayloadVersionsTab versions={null} usages={null} onMoved={vi.fn()} />);
+    renderInApp(<PayloadVersionsTab versions={null} counts={null} usages={{}} onOpen={vi.fn()} onMoved={vi.fn()} />);
 
     // Assert
     expect(screen.queryByRole('button')).toBeNull();
@@ -59,7 +63,7 @@ describe('PayloadVersionsTab', () => {
 
   it('given versions should count the injects of each and open the latest', () => {
     // Act
-    renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
+    renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} />);
 
     // Assert
     expect(screen.getByText('(2 injects)')).toBeTruthy();
@@ -76,7 +80,7 @@ describe('PayloadVersionsTab', () => {
 
   it('given a folded version clicked should show its injects', () => {
     // Arrange
-    renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
+    renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} />);
 
     // Act
     fireEvent.click(screen.getByText('v1'));
@@ -86,9 +90,24 @@ describe('PayloadVersionsTab', () => {
     expect(screen.getAllByRole('button')[1].getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('given versions should ask only for the usages of the open ones', () => {
+    // Arrange
+    const onOpen = vi.fn();
+    renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={{}} onOpen={onOpen} onMoved={vi.fn()} />);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onOpen).toHaveBeenCalledWith(latest);
+
+    // Act
+    fireEvent.click(screen.getByText('v1'));
+
+    // Assert
+    expect(onOpen).toHaveBeenCalledTimes(2);
+    expect(onOpen).toHaveBeenLastCalledWith(older);
+  });
+
   it('given the open version clicked should fold it', () => {
     // Arrange
-    renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
+    renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} />);
 
     // Act
     fireEvent.click(screen.getByText('v2'));
@@ -100,7 +119,7 @@ describe('PayloadVersionsTab', () => {
 
   it('given catalogue versions not installed should list them among the others, marked not installed', () => {
     // Act
-    renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} notInstalled={['3', '1.5']} />);
+    renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} notInstalled={['3', '1.5']} />);
 
     // Assert
     const versionLabels = screen.getAllByText(/^v\d/).map(label => label.textContent);
@@ -117,7 +136,7 @@ describe('PayloadVersionsTab', () => {
       // Arrange
       can.mockReturnValue(true);
       keep.mockResolvedValue({});
-      renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
+      renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} />);
       expect(await screen.findByText(OLDER)).toBeTruthy();
 
       // Act
@@ -138,7 +157,9 @@ describe('PayloadVersionsTab', () => {
             ...latest,
             payload_older_versions_kept: true,
           }, older]}
+          counts={counts}
           usages={usages}
+          onOpen={vi.fn()}
           onMoved={vi.fn()}
         />,
       );
@@ -154,7 +175,7 @@ describe('PayloadVersionsTab', () => {
 
     it('given no right to manage should only say how many', async () => {
       // Act
-      renderInApp(<PayloadVersionsTab versions={[latest, older]} usages={usages} onMoved={vi.fn()} />);
+      renderInApp(<PayloadVersionsTab versions={[latest, older]} counts={counts} usages={usages} onOpen={vi.fn()} onMoved={vi.fn()} />);
 
       // Assert
       expect(await screen.findByText(OLDER)).toBeTruthy();
@@ -166,10 +187,9 @@ describe('PayloadVersionsTab', () => {
       renderInApp(
         <PayloadVersionsTab
           versions={[latest, older]}
-          usages={{
-            'payload-v2': someUsages([aUsage()]),
-            'payload-v1': someUsages([]),
-          }}
+          counts={{ 'payload-v2': 1 }}
+          usages={usages}
+          onOpen={vi.fn()}
           onMoved={vi.fn()}
         />,
       );
@@ -191,7 +211,9 @@ describe('PayloadVersionsTab', () => {
             ...latest,
             payload_revoked: false,
           }, older]}
+          counts={counts}
           usages={usages}
+          onOpen={vi.fn()}
           onMoved={vi.fn()}
           focusMove
         />,
@@ -215,7 +237,9 @@ describe('PayloadVersionsTab', () => {
             ...latest,
             payload_revoked: false,
           }, older]}
+          counts={counts}
           usages={usages}
+          onOpen={vi.fn()}
           onMoved={vi.fn()}
           focusMove
           saved

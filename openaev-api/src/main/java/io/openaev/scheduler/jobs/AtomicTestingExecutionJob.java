@@ -5,7 +5,6 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionStatus;
@@ -100,18 +99,13 @@ public class AtomicTestingExecutionJob implements Job {
 
   private void relaunchInTenant(DueRelaunch due) {
     try {
-      // TenantContext feeds the Hibernate filter aspect on the joined @Transactional service.
-      TenantContext.setCurrentTenant(due.tenantId());
       // No Enterprise executor gate here: scheduled execution never re-gates at run time,
       // matching scenario scheduled execution.
-      tenantTx.execute(
-          TxCtx.forTenant(due.tenantId()),
-          () -> this.atomicTestingService.relaunch(due.injectId(), false));
+      TxCtx ctx = TxCtx.forTenant(due.tenantId());
+      tenantTx.execute(ctx, () -> this.atomicTestingService.relaunch(ctx, due.injectId(), false));
     } catch (Exception e) {
       log.error(
           "Failed to relaunch scheduled atomic testing {}: {}", due.injectId(), e.getMessage(), e);
-    } finally {
-      TenantContext.clearCurrentTenant();
     }
   }
 
@@ -144,7 +138,6 @@ public class AtomicTestingExecutionJob implements Job {
 
   private void clearRecurrencesInTenant(String tenantId, List<String> injectIds) {
     try {
-      TenantContext.setCurrentTenant(tenantId);
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> {
@@ -162,8 +155,6 @@ public class AtomicTestingExecutionJob implements Job {
     } catch (Exception e) {
       log.error(
           "Failed to clear outdated recurrences for tenant {}: {}", tenantId, e.getMessage(), e);
-    } finally {
-      TenantContext.clearCurrentTenant();
     }
   }
 

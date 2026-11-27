@@ -21,8 +21,6 @@ io.openaev.aop.AccessControlAspect#methodRBACVerification | AmbientTenantBridge.
 io.openaev.aop.AccessControlAspect#methodRBACVerification | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.api.chaining.InjectExecutionStep#getInjectFromDataStep | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
 io.openaev.api.payload.PayloadImportService#importPayload | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.config.OrchestratorRunTenantInterceptor#afterCompletion | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
 io.openaev.config.OrchestratorRunTenantInterceptor#afterConcurrentHandlingStarted | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
 io.openaev.config.OrchestratorRunTenantInterceptor#preHandle | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
@@ -106,28 +104,9 @@ io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.clearC
 io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.getCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
 io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.hasCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
 io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.setCurrentTenant | 2 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
-io.openaev.scheduler.jobs.AgentInactivityMonitorJob#markInactiveAgentsForTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.AgentInactivityMonitorJob#markInactiveAgentsForTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.AtomicTestingExecutionJob#clearRecurrencesInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.AtomicTestingExecutionJob#clearRecurrencesInTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.AtomicTestingExecutionJob#relaunchInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.AtomicTestingExecutionJob#relaunchInTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob#monitorTenantIntegrations | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob#monitorTenantIntegrations | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
-io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
-io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.QueueChainingJob#processDueEntries | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.QueueChainingJob#processDueEntries | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
-io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
-io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.scheduler.jobs.SecurityCoverageJob#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.scheduler.jobs.SecurityCoverageJob#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.search.FullTextSearchService#searchSpecification | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
-io.openaev.service.AtomicTestingService#findInject | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.InjectExpectationService#findAllByInjectId | TenantContext.getCurrentTenant | 1 | service method scopes the technical expectation lookup of an inject with the ambient tenant
 io.openaev.service.LogService#buildBaseAuditLog | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.MinioService#getTenantPath | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
@@ -154,8 +133,6 @@ io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | Tenant
 io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.catalog.event.CatalogAutoInstallListener#onReleaseApplied | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.service.chaining.ScopeSnapshotService#resolvePlayerSnapshot | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
-io.openaev.service.chaining.ScopeSnapshotService#resolveTeamSnapshot | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
 io.openaev.service.chaining.StepEventService#handleExternalUpdateEvent | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.chaining.StepEventService#handleExternalUpdateEvent | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.chaining.StepEventService#handleReadyStepEvent | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes

@@ -3,13 +3,13 @@ package io.openaev.notification.payload;
 import static io.openaev.database.model.NotificationTriggerEventType.PAYLOAD_REVOKED;
 import static io.openaev.database.model.NotificationTriggerEventType.REVOCATION_LIFTED;
 import static io.openaev.database.model.NotificationTriggerEventType.REVOKED;
+import static io.openaev.utils.fixtures.RawScenarioUsageCountFixture.scenarioUsages;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
@@ -21,9 +21,7 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.fixtures.PayloadFixture;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,19 +58,8 @@ class PayloadRevocationNotificationListenerTest {
   }
 
   private void usedByScenario(int injects) {
-    List<PayloadUsageOutput> usages =
-        IntStream.range(0, injects)
-            .mapToObj(
-                i ->
-                    new PayloadUsageOutput(
-                        PayloadUsageOutput.TYPE_INJECT,
-                        "inject-" + i,
-                        "Inject " + i,
-                        SCENARIO_ID,
-                        "Salt Typhoon"))
-            .toList();
     when(payloadVersionService.scenarioUsages(TENANT, List.of(payload)))
-        .thenReturn(Map.of(SCENARIO_ID, usages));
+        .thenReturn(List.of(scenarioUsages(SCENARIO_ID, "Salt Typhoon", injects)));
   }
 
   @Nested
@@ -111,7 +98,7 @@ class PayloadRevocationNotificationListenerTest {
     @DisplayName("A version revoked by an admin, run by no scenario, tells only its watchers")
     void given_revokedByAdminAndUnused_should_tellOnlyPayload() {
       // Arrange
-      when(payloadVersionService.scenarioUsages(TENANT, List.of(payload))).thenReturn(Map.of());
+      when(payloadVersionService.scenarioUsages(TENANT, List.of(payload))).thenReturn(List.of());
 
       // Act
       listener.onRevocationChanged(

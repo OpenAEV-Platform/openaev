@@ -17,6 +17,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Team;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
@@ -53,7 +54,10 @@ class CatalogScenarioTargetsTest {
   void setUp() {
     targets =
         new CatalogScenarioTargets(
-            new InjectorContractContentUtils(MAPPER), assetService, assetGroupService, teamService);
+            new InjectorContractContentUtils(MAPPER, new ExpectationPropertiesConfig()),
+            assetService,
+            assetGroupService,
+            teamService);
     asset = new Endpoint();
     asset.setId("asset");
     assetGroup = new AssetGroup();

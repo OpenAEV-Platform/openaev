@@ -34,7 +34,6 @@ public class ScenarioUpdateMapper {
         change.title(),
         change.status(),
         change.editable(),
-        change.base(),
         change.applied(),
         change.local());
   }
@@ -75,7 +74,9 @@ public class ScenarioUpdateMapper {
 
   public static ScenarioCatalogStateOutput toOutput(ScenarioCatalogState state) {
     return new ScenarioCatalogStateOutput(
-        state.revoked(), state.lastUpdate() == null ? null : toOutput(state.lastUpdate()));
+        state.revoked(),
+        state.newerVersion(),
+        state.lastUpdate() == null ? null : toOutput(state.lastUpdate()));
   }
 
   public static ScenarioRevisionOutput toOutput(NumberedRevision numbered) {

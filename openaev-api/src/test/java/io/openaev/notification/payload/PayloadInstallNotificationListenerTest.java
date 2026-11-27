@@ -1,6 +1,7 @@
 package io.openaev.notification.payload;
 
 import static io.openaev.database.model.NotificationTriggerEventType.NEW_PAYLOAD_VERSION;
+import static io.openaev.utils.fixtures.RawScenarioUsageCountFixture.scenarioUsages;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -8,7 +9,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
@@ -24,7 +24,6 @@ import io.openaev.service.catalog.event.ContentChanged;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.fixtures.PayloadFixture;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -84,16 +83,7 @@ class PayloadInstallNotificationListenerTest {
 
   private void runInSaltTyphoon() {
     when(payloadVersionService.scenarioUsages(TENANT, List.of(older)))
-        .thenReturn(
-            Map.of(
-                SCENARIO_ID,
-                List.of(
-                    new PayloadUsageOutput(
-                        PayloadUsageOutput.TYPE_INJECT,
-                        "inject-1",
-                        "Discover",
-                        SCENARIO_ID,
-                        "Salt Typhoon"))));
+        .thenReturn(List.of(scenarioUsages(SCENARIO_ID, "Salt Typhoon", 1)));
   }
 
   private void verifyScenarioTold() {
@@ -141,7 +131,7 @@ class PayloadInstallNotificationListenerTest {
   @DisplayName("A version installed by hand, run by no scenario yet, tells nothing")
   void given_manualInstallUnused_should_tellNothing() {
     // Arrange
-    when(payloadVersionService.scenarioUsages(TENANT, List.of(older))).thenReturn(Map.of());
+    when(payloadVersionService.scenarioUsages(TENANT, List.of(older))).thenReturn(List.of());
 
     // Act
     listener.onContentChanged(

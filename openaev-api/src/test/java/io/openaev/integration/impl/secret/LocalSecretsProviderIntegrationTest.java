@@ -99,7 +99,8 @@ public class LocalSecretsProviderIntegrationTest {
       factory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
-      List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
+      List<Integration> integrations =
+          factory.sync(factory.findRelatedInstances("test-tenant"), Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(integrations).hasSize(1);
@@ -114,7 +115,8 @@ public class LocalSecretsProviderIntegrationTest {
       // Arrange
       IntegrationFactory factory = getFactory();
       factory.initialise(Tenant.DEFAULT_TENANT_UUID);
-      List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
+      List<Integration> integrations =
+          factory.sync(factory.findRelatedInstances("test-tenant"), Tenant.DEFAULT_TENANT_UUID);
       Integration integration = integrations.getFirst();
 
       // Act

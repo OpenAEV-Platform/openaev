@@ -82,7 +82,7 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     EncryptionService encryptionService = null;
     if (instance instanceof ConnectorInstancePersisted) {
       encryptionService =
@@ -90,6 +90,6 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
               ((ConnectorInstancePersisted) instance).getCatalogConnector());
     }
     return new TestIntegration(
-        componentRequestEngine, instance, connectorInstanceService, encryptionService);
+        componentRequestEngine, instance, connectorInstanceService, encryptionService, tenantId);
   }
 }

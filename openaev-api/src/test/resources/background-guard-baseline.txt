@@ -135,7 +135,8 @@ io.openaev.telemetry.metric_collectors.ScopeMetricCollector  # touches-no-tenant
 io.openaev.telemetry.metric_collectors.UserMetricCollector  # touches-no-tenant-table: counts UserEvent (implements Base, no tenant column) via UserEventService#averageDailySuccessLogins
 
 # --- Collectors / XtmHub / XtmOne -----------------------------------------------------------------
-io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector  # delegates-to-ExpectationsExpirationManagerJob#run: only schedules the job; the scope is opened by TenantScopedTransaction.forEachTenant inside the job
+io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegration  # delegates-to-ExpectationsExpirationManagerService#computeExpectations: reads tenantId from invocation
+io.openaev.integration.impl.collectors.expiration_manager.ExpirationManagerIntegrationFactory  # delegates-to-ExpectationsExpirationManagerService#computeExpectations: reads tenantId from invocation
 io.openaev.xtmhub.XtmHubClient  # platform-global: HTTP client to the XTM Hub GraphQL API; @PostConstruct builds the endpoint URL only, no tenant DB access
 io.openaev.xtmhub.XtmHubConnectivityService  # platform-global: @PostConstruct performs an HTTP HEAD reachability check against the XTM Hub URL, no DB access
 io.openaev.xtmhub.collector.XtmHubCollector  # delegates-to-XtmHubService#refreshConnectivityAllTenants: reads tenant_xtmhub_registrations (TenantBase) under tenantTx.execute(TxCtx.allTenants()) and writes each row back per-tenant under tenantTx.forEachTenant

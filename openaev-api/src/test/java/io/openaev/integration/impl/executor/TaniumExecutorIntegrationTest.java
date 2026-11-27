@@ -147,7 +147,8 @@ public class TaniumExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -174,7 +175,8 @@ public class TaniumExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -226,7 +228,8 @@ public class TaniumExecutorIntegrationTest {
 
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
-    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    Integration integration =
+        integrationFactory.spawn(new ConnectorInstanceInMemory(), Tenant.DEFAULT_TENANT_UUID);
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
@@ -250,6 +253,7 @@ public class TaniumExecutorIntegrationTest {
                 new TaniumExecutorIntegration(
                     instance,
                     connectorInstanceService,
+                    Tenant.DEFAULT_TENANT_UUID,
                     endpointService,
                     agentService,
                     assetGroupService,
@@ -282,7 +286,7 @@ public class TaniumExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
@@ -309,7 +313,7 @@ public class TaniumExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     integration.initialise();
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);

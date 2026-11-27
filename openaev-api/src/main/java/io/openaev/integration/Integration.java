@@ -17,6 +17,7 @@ public abstract class Integration {
   private final ComponentRequestEngine componentRequestEngine;
   @Getter private ConnectorInstance connectorInstance;
   private final ConnectorInstanceService connectorInstanceService;
+  private final String tenantId;
 
   @Getter
   protected ConnectorInstance.CURRENT_STATUS_TYPE currentStatus =
@@ -27,15 +28,17 @@ public abstract class Integration {
   protected Integration(
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
-      ConnectorInstanceService connectorInstanceService) {
+      ConnectorInstanceService connectorInstanceService,
+      String tenantId) {
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstance = connectorInstance;
     this.connectorInstanceService = connectorInstanceService;
+    this.tenantId = tenantId;
   }
 
-  /** Returns the tenant ID from the underlying persisted connector instance. */
+  /** Returns the tenant ID from the underlying connector instance. */
   protected String getTenantId() {
-    return ((ConnectorInstancePersisted) connectorInstance).getTenant().getId();
+    return this.tenantId;
   }
 
   protected abstract void innerStart() throws Exception;

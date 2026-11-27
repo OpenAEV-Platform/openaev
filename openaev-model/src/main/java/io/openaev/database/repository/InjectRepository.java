@@ -6,8 +6,10 @@ import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
+import io.openaev.database.raw.RawActionUsageCount;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
+import io.openaev.database.raw.RawScenarioUsageCount;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -698,4 +700,40 @@ public interface InjectRepository
           + " AND i.injectorContract.compositeId.id = :injectorContractId AND i.exercise IS NULL")
   List<Inject> findAllOutsideSimulationsByTenantIdAndInjectorContractId(
       @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
+
+  /** The scenario injects, atomic testings and chained scenario steps running these actions. */
+  String USAGES_OF_ACTIONS =
+      "(SELECT i.inject_injector_contract AS action_id, i.inject_scenario AS scenario_id"
+          + " FROM injects i WHERE i.tenant_id = :tenantId"
+          + " AND i.inject_injector_contract IN (:actionIds) AND "
+          + OUTSIDE_SIMULATIONS
+          + " UNION ALL SELECT "
+          + StepRepository.STEP_CONTRACT_ID
+          + ", sc.scenario_id "
+          + StepRepository.SCENARIO_STEP_TEMPLATES
+          + " AND "
+          + StepRepository.STEP_CONTRACT_ID
+          + " IN (:actionIds)) u";
+
+  // Native: steps hold their action in their JSON data; a read.
+  @Query(
+      value =
+          "SELECT u.action_id AS actionId, COUNT(*) AS usageCount FROM "
+              + USAGES_OF_ACTIONS
+              + " GROUP BY u.action_id",
+      nativeQuery = true)
+  List<RawActionUsageCount> countUsagesByTenantIdAndActionIds(
+      @Param("tenantId") String tenantId, @Param("actionIds") Collection<String> actionIds);
+
+  // Native: steps hold their action in their JSON data; a read.
+  @Query(
+      value =
+          "SELECT us.scenario_id AS scenarioId, us.scenario_name AS scenarioName,"
+              + " COUNT(*) AS usageCount FROM "
+              + USAGES_OF_ACTIONS
+              + " JOIN scenarios us ON us.scenario_id = u.scenario_id AND us.tenant_id = :tenantId"
+              + " GROUP BY us.scenario_id, us.scenario_name",
+      nativeQuery = true)
+  List<RawScenarioUsageCount> countScenarioUsagesByTenantIdAndActionIds(
+      @Param("tenantId") String tenantId, @Param("actionIds") Collection<String> actionIds);
 }
