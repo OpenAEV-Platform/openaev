@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react';
 
 import { searchGroups } from '../../../../../../actions/Group';
-import type { Group, SearchPaginationInput } from '../../../../../../utils/api-types';
+import type { SearchPaginationInput, TenantGroupOutput } from '../../../../../../utils/api-types';
 
 const useTenantGroups = () => {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<TenantGroupOutput[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const setGroupList = useCallback((data: Group[]) => {
+  const setGroupList = useCallback((data: TenantGroupOutput[]) => {
     setGroups(data);
   }, []);
 
@@ -23,11 +23,11 @@ const useTenantGroups = () => {
     [],
   );
 
-  const addGroup = useCallback((group: Group) => {
+  const addGroup = useCallback((group: TenantGroupOutput) => {
     setGroups(prev => [group, ...prev]);
   }, []);
 
-  const updateGroupInList = useCallback((group: Group) => {
+  const updateGroupInList = useCallback((group: TenantGroupOutput) => {
     setGroups(prev =>
       prev.map(g => g.group_id === group.group_id ? group : g),
     );
