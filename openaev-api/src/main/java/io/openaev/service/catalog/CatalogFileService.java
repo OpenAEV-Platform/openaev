@@ -90,12 +90,13 @@ public class CatalogFileService {
     for (CatalogManifest.Item item : manifest.items()) {
       String key = CatalogManifest.key(item.externalId(), item.version());
       Optional<String> reason = check(item, archives);
+      if (reason.isEmpty()) {
+        reason = storeArchive(item.archive().sha256(), archives.get(item.archive().name()));
+      }
       if (reason.isPresent()) {
         log.warn("Catalogue item {} refused: {}", key, reason.get());
         refusals.put(key, reason.get());
-        continue;
       }
-      store(item.archive().sha256(), archives.get(item.archive().name()));
     }
     for (CatalogManifest.PayloadVersion version : manifest.payloadVersions()) {
       String key = CatalogManifest.key(version.openaevId(), version.version());
@@ -137,13 +138,36 @@ public class CatalogFileService {
     return file;
   }
 
-  // A storage failure stops the whole release, so the next send retries it.
+  // An archive already stored passed its checks when it was stored: it is not unpacked again.
+  private Optional<String> storeArchive(String sha256, byte[] archive) {
+    if (isStored(sha256)) {
+      return Optional.empty();
+    }
+    Optional<String> unsafe = CatalogArchiveChecks.unsafeReason(archive);
+    if (unsafe.isEmpty()) {
+      upload(sha256, archive);
+    }
+    return unsafe;
+  }
+
   private void store(String sha256, byte[] content) {
+    if (!isStored(sha256)) {
+      upload(sha256, content);
+    }
+  }
+
+  // A storage failure stops the whole release, so the next send retries it.
+  private boolean isStored(String sha256) {
     try {
-      String path = packagePath(sha256);
-      if (!fileService.existsInPlatform(path)) {
-        fileService.uploadInPlatform(path, new ByteArrayInputStream(content));
-      }
+      return fileService.existsInPlatform(packagePath(sha256));
+    } catch (Exception e) {
+      throw new IllegalStateException("A catalogue archive could not be stored", e);
+    }
+  }
+
+  private void upload(String sha256, byte[] content) {
+    try {
+      fileService.uploadInPlatform(packagePath(sha256), new ByteArrayInputStream(content));
     } catch (Exception e) {
       throw new IllegalStateException("A catalogue archive could not be stored", e);
     }
@@ -182,7 +206,7 @@ public class CatalogFileService {
     if (!CatalogArchiveChecks.sha256(archive).equalsIgnoreCase(item.archive().sha256())) {
       return Optional.of("Archive hash does not match the manifest");
     }
-    return CatalogArchiveChecks.unsafeReason(archive);
+    return Optional.empty();
   }
 
   private Optional<String> check(
