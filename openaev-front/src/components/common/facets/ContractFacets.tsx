@@ -8,7 +8,9 @@ import {
 } from '@mui/icons-material';
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../admin/components/findings/ContractOutputElementType';
+import { type Filter, type Option, type SearchPaginationInput } from '../../../utils/api-types';
+import FindingIcon from '../../FindingIcon';
 import { type FilterHelpers } from '../queryable/filter/FilterHelpers';
 import { generateFilterId } from '../queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../queryable/QueryableUtils';
@@ -295,3 +297,58 @@ export const buildStatusRows = ({
   checked: statusValues.includes(status.value),
   onToggle: () => toggle(status.value),
 }));
+
+const findingTypeFacetMeta = (t: (key: string) => string): {
+  value: string;
+  label: string;
+  icon: () => ReactElement;
+}[] => {
+  return CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
+    .map(type => ({
+      value: type,
+      label: t(ContractOutputElementType[type]),
+      icon: () => <FindingIcon findingType={type} />,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+};
+
+export const buildFindingTypeRows = ({
+  t,
+  statusValues,
+  statusCounts,
+  toggle,
+}: {
+  t: (key: string) => string;
+  statusValues: string[];
+  statusCounts: Record<string, number> | undefined;
+  toggle: (value: string) => void;
+}): FacetRow[] => findingTypeFacetMeta(t).map(findingType => ({
+  value: findingType.value,
+  label: findingType.label,
+  count: statusCounts ? statusCounts[findingType.value] ?? 0 : undefined,
+  icon: findingType.icon,
+  checked: statusValues.includes(findingType.value),
+  onToggle: () => toggle(findingType.value),
+}));
+
+// Rows are keyed on the option id, never on its label: two assets can share a name.
+export const buildAssetRows = ({
+  assetOptions,
+  selectedIds,
+  toggle,
+}: {
+  assetOptions: Option[];
+  selectedIds: string[];
+  toggle: (id: string) => void;
+}): FacetRow[] => assetOptions
+  .filter((option): option is Option & {
+    id: string;
+    label: string;
+  } => !!option.id && !!option.label)
+  .sort((assetA, assetB) => assetA.label.localeCompare(assetB.label))
+  .map(assetOption => ({
+    value: assetOption.id,
+    label: assetOption.label,
+    checked: selectedIds.includes(assetOption.id),
+    onToggle: () => toggle(assetOption.id),
+  }));

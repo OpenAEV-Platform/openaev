@@ -32,9 +32,47 @@ const useFacetFilterToggle = (searchPaginationInput: SearchPaginationInput, filt
     }
   }, [filterHelpers, filters]);
 
+  const setFilterValues = useCallback(
+    (key: string, values: string[]) => {
+      const existing = filters.find((f: Filter) => f.key === key);
+      if (values.length === 0) {
+        if (existing?.id) {
+          filterHelpers.handleRemoveFilterById(existing.id);
+        } else {
+          filterHelpers.handleRemoveFilterByKey(key);
+        }
+        return;
+      }
+      if (existing?.id) {
+        filterHelpers.handleUpdateValuesById(existing.id, values);
+        return;
+      }
+      filterHelpers.handleAddFilterWithEmptyValue({
+        id: generateFilterId(),
+        key,
+        operator: 'eq',
+        values,
+        mode: 'and',
+      });
+    },
+    [filterHelpers, filters],
+  );
+
+  const toggleValueWithCurrent = useCallback(
+    (key: string, current: string[], value: string) => {
+      const next = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      setFilterValues(key, next);
+    },
+    [setFilterValues],
+  );
+
   return {
     valuesOf,
     toggle,
+    toggleValueWithCurrent,
+    setFilterValues,
   };
 };
 
