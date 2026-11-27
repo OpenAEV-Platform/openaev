@@ -245,6 +245,30 @@ runs:
           initialize surefire:test@default-test jacoco:report@report \
           "${ARGS[@]}"
 
+    # A statement whose warning chain the write-attribution detector cannot read is a gap it cannot
+    # see through. The report is written next to the surefire reports at the end of the test JVM.
+    - name: Report write-attribution instrumentation failures (shard ${{ inputs.shard }})
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        SHARD: ${{ inputs.shard }}
+      run: |
+        REPORT=openaev-api/target/surefire-reports/writeattr-instrumentation-failures.txt
+        if [ ! -f "$REPORT" ]; then
+          echo "No write-attribution instrumentation report on this shard."
+          exit 0
+        fi
+        COUNT=$(sed -n '1s/.*failures: \([0-9][0-9]*\).*/\1/p' "$REPORT")
+        if [ "${COUNT:-0}" != "0" ]; then
+          echo "::warning title=Write-attribution detector::${COUNT} statement(s) the detector cannot read on shard ${SHARD}; see the job summary"
+          {
+            echo "### Write-attribution instrumentation failures (shard ${SHARD})"
+            echo '```'
+            cat "$REPORT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
     - name: Remove compiled OpenAEV artifacts before caching
       if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
       run: rm -rf ~/.m2/repository/io/openaev/
