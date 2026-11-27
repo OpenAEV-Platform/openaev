@@ -1,31 +1,64 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { fetchThreatArsenalUsages } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../../utils/api-types';
 
-/** The usages of each version, by payload id: null until all are loaded, loaded again when `reloadKey` changes. */
-const useUsagesByVersion = (versions: PayloadVersionOutput[] | null, reloadKey = 0) => {
-  const [usages, setUsages] = useState<Record<string, PayloadUsagesOutput> | null>(null);
-  const loadedIds = versions?.map(version => version.payload_id).join();
+type Usages = Record<string, PayloadUsagesOutput>;
+
+/**
+ * The usages of the versions asked for, by payload id, once each is loaded: a version is loaded once while asked for,
+ * dropped when no longer asked for, and all are loaded again when `reloadKey` changes.
+ */
+const useUsagesByVersion = (versions: PayloadVersionOutput[], reloadKey = 0) => {
+  const [loaded, setLoaded] = useState<{
+    reloadKey: number;
+    usages: Usages;
+  }>({
+    reloadKey,
+    usages: {},
+  });
+  const requested = useRef({
+    reloadKey,
+    ids: new Set<string>(),
+  });
+  const askedIds = versions.map(version => version.payload_id);
 
   useEffect(() => {
-    setUsages(null);
-    if (!versions) return undefined;
-    let cancelled = false;
-    Promise.all(versions.map(version => fetchThreatArsenalUsages(version.payload_action_id)
-      .then(({ data }: { data: PayloadUsagesOutput }) => data)
-      // The call already tells the user it failed: the version shows no usage instead of loading forever.
-      .catch((): PayloadUsagesOutput => ({ payload_usages: [] }))
-      .then(versionUsages => [version.payload_id, versionUsages] as const)))
-      .then((loaded) => {
-        if (!cancelled) setUsages(Object.fromEntries(loaded));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadedIds, reloadKey]);
+    if (requested.current.reloadKey !== reloadKey) {
+      requested.current = {
+        reloadKey,
+        ids: new Set(),
+      };
+    }
+    const { ids } = requested.current;
+    const dropped = [...ids].filter(id => !askedIds.includes(id));
+    if (dropped.length > 0) {
+      dropped.forEach(id => ids.delete(id));
+      setLoaded(previous => ({
+        ...previous,
+        usages: Object.fromEntries(Object.entries(previous.usages).filter(([id]) => !dropped.includes(id))),
+      }));
+    }
+    versions.filter(version => !ids.has(version.payload_id)).forEach((version) => {
+      ids.add(version.payload_id);
+      fetchThreatArsenalUsages(version.payload_action_id)
+        .then(({ data }: { data: PayloadUsagesOutput }) => data)
+        // The call already tells the user it failed: the version shows no usage instead of loading forever.
+        .catch((): PayloadUsagesOutput => ({ payload_usages: [] }))
+        .then((versionUsages) => {
+          if (!requested.current.ids.has(version.payload_id) || requested.current.reloadKey !== reloadKey) return;
+          setLoaded(previous => ({
+            reloadKey,
+            usages: {
+              ...(previous.reloadKey === reloadKey ? previous.usages : {}),
+              [version.payload_id]: versionUsages,
+            },
+          }));
+        });
+    });
+  }, [askedIds.join(), reloadKey]);
 
-  return usages;
+  return loaded.reloadKey === reloadKey ? loaded.usages : {};
 };
 
 export default useUsagesByVersion;
