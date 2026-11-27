@@ -412,6 +412,12 @@ ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.getUsers() |
 ExerciseLessonsApi.updateExerciseLessonsCategory -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
 ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.getUsers() | NOT ESTABLISHED | not written by any measured test response
 ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
+FindingApi.finding -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.findings -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.findingsByEndpoint -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.findingsByInject -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.findingsByScenario -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
+FindingApi.findingsBySimulation -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 InjectApi.getExecutablePayloadInject -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 InjectApi.inject -> Communication.getExercise() | NOT ESTABLISHED | not written by any measured test response
 InjectApi.inject -> Communication.users | NOT ESTABLISHED | not written by any measured test response

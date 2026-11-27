@@ -116,11 +116,7 @@ public class FindingHandler implements Handler<EsFinding> {
     // asset or the user of its location. Its injects, simulations and scenarios are sides:
     // deleting one leaves it in place.
     List<String> dependencies = new ArrayList<>();
-    Stream.of(
-            finding.getFinding_inject_id(),
-            finding.getFinding_simulation_id(),
-            finding.getFinding_scenario_id(),
-            finding.getFinding_location_asset_id())
+    Stream.of(finding.getFinding_location_user_id(), finding.getFinding_location_asset_id())
         .filter(StringUtils::hasText)
         .forEach(dependencies::add);
     esFinding.setBase_inject_side(orEmpty(finding.getInject_ids()));

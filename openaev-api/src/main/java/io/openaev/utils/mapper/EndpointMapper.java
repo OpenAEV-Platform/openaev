@@ -146,6 +146,7 @@ public class EndpointMapper {
     return EndpointSimple.builder()
         .id(asset.getId())
         .name(asset.getName())
+        .type(asset.getType())
         .category(asset.getCategory() != null ? asset.getCategory().name() : null)
         .platform(
             endpoint != null && endpoint.getPlatform() != null

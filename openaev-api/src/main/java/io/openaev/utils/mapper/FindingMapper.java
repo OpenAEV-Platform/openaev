@@ -8,14 +8,22 @@ import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
+import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TargetType;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
@@ -31,13 +39,46 @@ public class FindingMapper {
   private final AssetGroupService assetGroupService;
 
   /**
-   * The asset groups of a finding: the groups that contain at least one of its assets, statically
-   * or through their dynamic filter. Never the groups its inject targeted. The search index reads
-   * the same resolver, so the detail page and the "by asset group" widgets agree.
+   * The assets of a finding: the ones linked to it, else the asset of its location. A finding has
+   * one location, but the assets it is linked to are what the clients of the former output read.
    */
-  private Set<AssetGroupSimple> assetGroupsOf(Finding finding) {
-    List<String> assetIds = finding.getAssets().stream().map(Asset::getId).toList();
-    return assetGroupService.assetGroupsOfAssets(assetIds).stream()
+  private static List<Asset> assetsOf(Finding finding) {
+    if (!finding.getAssets().isEmpty()) {
+      return finding.getAssets();
+    }
+    return Optional.ofNullable(finding.getLocation())
+        .map(FindingLocation::getAsset)
+        .map(List::of)
+        .orElse(List.of());
+  }
+
+  /**
+   * The asset groups of each asset of the findings, resolved once for all of them: the groups that
+   * contain the asset, statically or through their dynamic filter. Never the groups an inject
+   * targeted.
+   */
+  private Map<String, List<AssetGroup>> assetGroupsByAssetId(Collection<Finding> findings) {
+    List<String> assetIds =
+        findings.stream()
+            .flatMap(finding -> assetsOf(finding).stream())
+            .map(Asset::getId)
+            .distinct()
+            .toList();
+    return assetGroupService.assetGroupsByAssetId(assetIds);
+  }
+
+  private Set<AssetGroupSimple> assetGroupsOf(
+      Finding finding, Map<String, List<AssetGroup>> assetGroupsByAssetId) {
+    return assetsOf(finding).stream()
+        .flatMap(asset -> assetGroupsByAssetId.getOrDefault(asset.getId(), List.of()).stream())
+        .collect(
+            Collectors.toMap(
+                AssetGroup::getId,
+                Function.identity(),
+                (first, second) -> first,
+                LinkedHashMap::new))
+        .values()
+        .stream()
         .map(assetGroupMapper::toAssetGroupSimple)
         .collect(Collectors.toSet());
   }
@@ -65,8 +106,8 @@ public class FindingMapper {
         .id(finding.getId())
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
+        .firstSeen(seen != null ? seen.getFirstSeen() : firstSeenOf(finding))
+        .lastSeen(seen != null ? seen.getLastSeen() : lastSeenOf(finding))
         .occurrences(seen != null ? seen.getOccurrences() : 1)
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())
@@ -80,19 +121,51 @@ public class FindingMapper {
    * cleartext, so a secret value never leaves the platform.
    */
   public FindingOutput toFindingOutput(Finding finding, long occurrencesCount) {
+    Optional<FindingOccurrence> occurrence = latestOccurrence(finding);
+    Optional<Inject> inject = occurrence.map(FindingOccurrence::getInject);
+    Optional<Exercise> simulation = inject.map(Inject::getExercise);
     return FindingOutput.builder()
         .id(finding.getId())
         .type(finding.getType())
         .value(finding.getValueDisplay())
+        .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .firstSeen(finding.getFirstSeen())
-        .lastSeen(finding.getLastSeen())
+        .injectId(inject.map(Inject::getId).orElse(null))
+        .creationDate(finding.getCreationDate())
+        .updateDate(finding.getUpdateDate())
+        .firstSeen(firstSeenOf(finding))
+        .lastSeen(lastSeenOf(finding))
+        .status(finding.getStatus())
+        .lastTested(finding.getLastTested())
+        .statusInjectId(finding.getStatusInjectId())
+        .retestInjectId(finding.getRetestInjectId())
+        .assets(assetsOf(finding).stream().map(Asset::getId).toList())
+        .teams(finding.getTeams().stream().map(Team::getId).toList())
+        .users(finding.getUsers().stream().map(User::getId).toList())
         .occurrencesCount(occurrencesCount)
         .location(toLocation(finding.getLocation()))
+        .field(occurrence.map(FindingOccurrence::getField).orElse(null))
+        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
+        .scenario(scenarioOf(simulation))
+        .assetGroups(assetGroupsOf(finding, assetGroupsByAssetId(List.of(finding))))
         .build();
   }
 
   public FindingSimple toFindingSimple(Finding finding) {
+    return toFindingSimple(finding, assetGroupsByAssetId(List.of(finding)));
+  }
+
+  /** A page of search rows, with the asset groups of all its findings resolved in one go. */
+  public Page<FindingSimple> toFindingSimplePage(Page<Finding> findings) {
+    Map<String, List<AssetGroup>> assetGroupsByAssetId =
+        assetGroupsByAssetId(findings.getContent());
+    return findings.map(finding -> toFindingSimple(finding, assetGroupsByAssetId));
+  }
+
+  private FindingSimple toFindingSimple(
+      Finding finding, Map<String, List<AssetGroup>> assetGroupsByAssetId) {
+    Optional<Inject> inject = latestOccurrence(finding).map(FindingOccurrence::getInject);
+    Optional<Exercise> simulation = inject.map(Inject::getExercise);
     return FindingSimple.builder()
         .id(finding.getId())
         .type(finding.getType())
@@ -102,9 +175,43 @@ public class FindingMapper {
                 .map(FindingLocation::getAsset)
                 .map(endpointMapper::toEndpointSimple)
                 .orElse(null))
-        .firstSeen(finding.getFirstSeen())
-        .lastSeen(finding.getLastSeen())
+        .firstSeen(firstSeenOf(finding))
+        .lastSeen(lastSeenOf(finding))
+        .creationDate(finding.getCreationDate())
+        .updateDate(finding.getUpdateDate())
+        .assets(
+            assetsOf(finding).stream()
+                .map(endpointMapper::toEndpointSimple)
+                .collect(Collectors.toSet()))
+        .assetGroups(assetGroupsOf(finding, assetGroupsByAssetId))
+        .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
+        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
+        .scenario(scenarioOf(simulation))
+        .teams(
+            finding.getTeams().stream()
+                .map(
+                    team ->
+                        TargetSimple.builder()
+                            .id(team.getId())
+                            .name(team.getName())
+                            .type(TargetType.TEAMS)
+                            .build())
+                .collect(Collectors.toSet()))
+        .users(
+            finding.getUsers().stream()
+                .map(
+                    user ->
+                        TargetSimple.builder()
+                            .id(user.getId())
+                            .name(user.getNameOrEmail())
+                            .type(TargetType.PLAYERS)
+                            .build())
+                .collect(Collectors.toSet()))
         .build();
+  }
+
+  private ScenarioSimple scenarioOf(Optional<Exercise> simulation) {
+    return simulation.map(Exercise::getScenario).map(scenarioMapper::toScenarioSimple).orElse(null);
   }
 
   private TargetSimple toLocation(FindingLocation location) {
@@ -130,5 +237,27 @@ public class FindingMapper {
           .build();
     }
     return null;
+  }
+
+  /**
+   * First detection of a finding row: its first seen, or its creation time when the detection time
+   * is unknown (rows written before first/last seen existed). Same rule as the summary aggregate.
+   */
+  public static Instant firstSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate());
+  }
+
+  /**
+   * Last detection of a finding row: its last seen, or its last write time when the detection time
+   * is unknown. Never the write time when a detection time exists: any write moves it.
+   */
+  public static Instant lastSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate());
+  }
+
+  private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {
+    return finding.getOccurrences().stream()
+        .filter(occurrence -> occurrence.getInject() != null)
+        .max(Comparator.comparing(FindingOccurrence::getDate));
   }
 }

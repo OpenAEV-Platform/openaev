@@ -1,5 +1,7 @@
 package io.openaev.rest.finding;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TxCtx;
@@ -11,6 +13,7 @@ import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingRetestInput;
 import io.openaev.rest.finding.form.FindingRetestOutput;
 import io.openaev.rest.finding.form.FindingSimple;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.finding.FindingOccurrenceService;
@@ -18,8 +21,11 @@ import io.openaev.service.finding.FindingRetestService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,16 +33,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-
 @RestController
 @RequiredArgsConstructor
 public class FindingApi extends RestBehavior {
 
   public static final String FINDING_URI = "/api/findings";
   public static final String TENANT_FINDING_URI = TENANT_PREFIX + "/findings";
+
+  private static final String DISTINCT_DEPRECATION =
+      "Deprecated and ignored: a finding is already one row per type, value and location.";
 
   private final FindingService findingService;
   private final FindingMapper findingMapper;
@@ -65,6 +70,21 @@ public class FindingApi extends RestBehavior {
             finding, this.findingOccurrenceService.countOccurrences(id)));
   }
 
+  @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
+  @Transactional
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.FINDING)
+  @Operation(
+      summary = "Get the group-wide summary of a finding",
+      description = "Deprecated: read the finding and its occurrences instead.",
+      deprecated = true)
+  public ResponseEntity<FindingSummaryOutput> findingSummary(
+      TxCtx ctx, @PathVariable @NotNull final String id) {
+    return ResponseEntity.ok(this.findingService.findingSummary(id));
+  }
+
   // -- SEARCH --
 
   @LogExecutionTime
@@ -72,7 +92,11 @@ public class FindingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
   public Page<FindingSimple> findings(
-      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
     return search(Specification.unrestricted(), searchPaginationInput);
   }
 
@@ -89,7 +113,10 @@ public class FindingApi extends RestBehavior {
   public Page<FindingSimple> findingsByInject(
       TxCtx ctx,
       @PathVariable @NotNull final String injectId,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
     injectService.existsInScope(ctx, injectId);
     return search(FindingSpecification.findFindingsForInject(injectId), searchPaginationInput);
   }
@@ -107,7 +134,10 @@ public class FindingApi extends RestBehavior {
   public Page<FindingSimple> findingsBySimulation(
       TxCtx ctx,
       @PathVariable @NotNull final String simulationId,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
     return search(
         FindingSpecification.findFindingsForSimulation(simulationId), searchPaginationInput);
   }
@@ -125,7 +155,10 @@ public class FindingApi extends RestBehavior {
   public Page<FindingSimple> findingsByScenario(
       TxCtx ctx,
       @PathVariable @NotNull final String scenarioId,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
     return search(FindingSpecification.findFindingsForScenario(scenarioId), searchPaginationInput);
   }
 
@@ -142,15 +175,17 @@ public class FindingApi extends RestBehavior {
   public Page<FindingSimple> findingsByEndpoint(
       TxCtx ctx,
       @PathVariable @NotNull final String endpointId,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
     return search(FindingSpecification.findFindingsForEndpoint(endpointId), searchPaginationInput);
   }
 
   private Page<FindingSimple> search(
       Specification<Finding> scope, SearchPaginationInput searchPaginationInput) {
-    return this.findingService
-        .searchFindings(scope, searchPaginationInput)
-        .map(findingMapper::toFindingSimple);
+    return this.findingMapper.toFindingSimplePage(
+        this.findingService.searchFindings(scope, searchPaginationInput));
   }
 
   // -- LIFECYCLE --

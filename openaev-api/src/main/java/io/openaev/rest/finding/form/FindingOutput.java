@@ -6,7 +6,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.FindingStatus;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
+import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -124,4 +127,27 @@ public class FindingOutput {
   @Schema(description = "Asset or player the finding was detected on, absent when unknown")
   @JsonProperty("finding_location")
   private TargetSimple location;
+
+  // -- Deprecated: the fields the output carried before a finding became one row per (type, value,
+  // location), kept so the API clients that read them keep working.
+
+  @Schema(
+      deprecated = true,
+      description = "Deprecated: contract output field of the latest occurrence")
+  @JsonProperty("finding_field")
+  private String field;
+
+  @Schema(deprecated = true, description = "Deprecated: simulation of the latest occurrence")
+  @JsonProperty("finding_simulation")
+  private ExerciseSimple simulation;
+
+  @Schema(deprecated = true, description = "Deprecated: scenario of the latest occurrence")
+  @JsonProperty("finding_scenario")
+  private ScenarioSimple scenario;
+
+  @Schema(
+      deprecated = true,
+      description = "Deprecated: asset groups that contain an asset of the finding")
+  @JsonProperty("finding_asset_groups")
+  private Set<AssetGroupSimple> assetGroups;
 }

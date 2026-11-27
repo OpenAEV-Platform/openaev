@@ -650,6 +650,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.atomic_testing.AtomicTestingApi#findAllAtomicTestings",
           "io.openaev.rest.exercise.ExerciseApi#assetGroupsByIds",
           "io.openaev.rest.finding.FindingApi#finding",
+          "io.openaev.rest.finding.FindingApi#findingSummary",
           "io.openaev.rest.finding.FindingApi#findings",
           "io.openaev.rest.finding.FindingApi#findingsByEndpoint",
           "io.openaev.rest.finding.FindingApi#findingsByInject",

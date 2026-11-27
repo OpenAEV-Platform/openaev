@@ -1693,6 +1693,82 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(updatedAt);
     }
 
+    @Test
+    @DisplayName("Search rows keep the deprecated fields API clients read, distinct flag included")
+    void given_aFinding_should_keepTheDeprecatedFieldsOnSearchRows() throws Exception {
+      // Arrange
+      Finding finding =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String body =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(JsonPath.<Integer>read(body, "$.content.length()")).isEqualTo(1);
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_assets[0].asset_id"))
+          .isEqualTo(savedEndpoint.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_assets[0].asset_type"))
+          .isEqualTo(savedEndpoint.getType());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_asset_groups[0].asset_group_id"))
+          .isEqualTo(savedAssetGroup.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_inject.inject_id"))
+          .isEqualTo(finding.getInject().getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_simulation.exercise_id"))
+          .isEqualTo(savedSimulation.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_scenario.scenario_id"))
+          .isEqualTo(savedScenario.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_created_at")).isNotBlank();
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_updated_at")).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("Get keeps the lifecycle fields and the deprecated links of the former output")
+    void given_aFinding_should_keepTheLifecycleAndDeprecatedFieldsOnGet() throws Exception {
+      // Arrange
+      Finding finding =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String body =
+          mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(JsonPath.<String>read(body, "$.finding_status")).isEqualTo("OPEN");
+      assertThat(JsonPath.<String>read(body, "$.finding_inject_id"))
+          .isEqualTo(finding.getInject().getId());
+      assertThat(JsonPath.<List<String>>read(body, "$.finding_assets"))
+          .containsExactly(savedEndpoint.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_simulation.exercise_id"))
+          .isEqualTo(savedSimulation.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_scenario.scenario_id"))
+          .isEqualTo(savedScenario.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_asset_groups[0].asset_group_id"))
+          .isEqualTo(savedAssetGroup.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_updated_at")).isNotBlank();
+    }
+
     private Instant readInstant(String json, String path) {
       return Instant.parse(JsonPath.<String>read(json, path));
     }

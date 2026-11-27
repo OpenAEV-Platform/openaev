@@ -355,6 +355,30 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
   }
 
   /**
+   * The asset groups of each given asset, static and dynamic. One membership resolution and one
+   * group read for all the assets, so a page of findings does not resolve them once per row.
+   */
+  @Transactional(readOnly = true)
+  public Map<String, List<AssetGroup>> assetGroupsByAssetId(
+      @NotNull final Collection<String> assetIds) {
+    Map<String, Set<String>> groupIdsByAssetId = membershipsOfAssets(assetIds);
+    Set<String> groupIds =
+        groupIdsByAssetId.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
+    if (groupIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, AssetGroup> groupsById =
+        fromIterable(this.assetGroupRepository.findAllById(groupIds)).stream()
+            .collect(Collectors.toMap(AssetGroup::getId, group -> group));
+    Map<String, List<AssetGroup>> groupsByAssetId = new HashMap<>();
+    groupIdsByAssetId.forEach(
+        (assetId, ids) ->
+            groupsByAssetId.put(
+                assetId, ids.stream().map(groupsById::get).filter(Objects::nonNull).toList()));
+    return groupsByAssetId;
+  }
+
+  /**
    * Static membership from {@code asset_groups_assets}, dynamic membership from each dynamic
    * group's filter, constrained to the given ids and to the group's tenant. One query per dynamic
    * group and chunk of ids, whatever the number of assets, so an indexing batch never resolves the
