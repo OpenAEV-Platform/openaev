@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * <p>The metadata rows carry no tenant: like their news feed item, they belong to a single user.
  */
 @Component
-public class V6_20261120100000000__Add_news_feed_item_metadata_and_available_types
+public class V6_20261127100000000__Add_news_feed_item_metadata_and_available_types
     extends BaseJavaMigration {
 
   @Override
