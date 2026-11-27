@@ -52,7 +52,8 @@ const NewsFeedToastManager: FunctionComponent = () => {
   const { surface, card } = useNewsFeedToastStyles();
   const enabled = isFeatureEnabled('XTM_HUB_NEWS_FEED');
   const [toasts, setToasts] = useState<NewsFeedToastData[]>([]);
-  // The unread items that arrive after "Dismiss all" were already dismissed by the user.
+  // The unread items that arrive after "Dismiss all" were already dismissed by the user. The guard lives per mount
+  // and only covers the unread search made at that mount.
   const dismissedAll = useRef(false);
 
   useEffect(() => {
@@ -66,8 +67,8 @@ const NewsFeedToastManager: FunctionComponent = () => {
     // page means it is not).
     searchMyNewsFeedItems(UNREAD_SEARCH, false)
       .then(({ data }) => {
-        // Not redundant: the backend can sort on the read state but not filter on it, so when there are fewer than
-        // MAX_UNREAD_TOASTS unread items, read items fill the rest of the page.
+        // The backend can sort on the read state but not filter on it, so read items fill the page when fewer than
+        // MAX_UNREAD_TOASTS items are unread.
         const unreadItems: NewsFeedToastData[] = data.content.filter((item: NewsFeedItemOutput) => !item.news_feed_item_is_read);
         if (active && !dismissedAll.current && unreadItems.length > 0) {
           setToasts(previous => addNewToasts(previous, unreadItems));
