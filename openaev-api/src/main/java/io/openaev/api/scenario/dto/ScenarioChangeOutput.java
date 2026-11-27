@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 
 /**
  * A field of a scenario an update or a rollback changes, or a whole element when it has no field
- * kind, with its value in the installed version, in the content applied and in the scenario now.
+ * kind, with its value in the content applied and in the scenario now.
  */
 public record ScenarioChangeOutput(
     @JsonProperty("scenario_change_id") @NotBlank String id,
@@ -20,6 +20,5 @@ public record ScenarioChangeOutput(
     @JsonProperty("scenario_change_title") String title,
     @JsonProperty("scenario_change_status") @NotNull ScenarioMerge.Status status,
     @JsonProperty("scenario_change_editable") @NotNull boolean editable,
-    @JsonProperty("scenario_change_base") JsonNode base,
     @JsonProperty("scenario_change_applied") JsonNode applied,
     @JsonProperty("scenario_change_local") JsonNode local) {}

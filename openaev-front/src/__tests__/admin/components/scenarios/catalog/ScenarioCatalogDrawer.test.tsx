@@ -178,12 +178,10 @@ describe('ScenarioCatalogDrawer', () => {
             catalog_payload_external_id: 'nmap-scan',
             catalog_payload_version: '1.0',
             catalog_payload_name: 'Nmap scan',
-            catalog_payload_platforms: [],
           },
           {
             catalog_payload_external_id: 'unnamed',
             catalog_payload_version: '2.1',
-            catalog_payload_platforms: [],
           },
         ],
       });

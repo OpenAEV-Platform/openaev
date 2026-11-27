@@ -190,18 +190,19 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ target, onClose, onApp
         }}
         >
           <Text variant="content-caption" className="text-default-secondary">{target.keptCaption}</Text>
-          <pre style={{
-            margin: 0,
-            padding: theme.spacing(1, 1.5),
-            border: '1px solid var(--border-elevation-subtle-soft)',
-            borderRadius: 'var(--radius-sm)',
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'var(--font-content-code), monospace',
-            fontSize: 'var(--text-content-code)',
-          }}
+          <Text
+            variant="content-code"
+            as="pre"
+            style={{
+              margin: 0,
+              padding: theme.spacing(1, 1.5),
+              border: '1px solid var(--border-elevation-subtle-soft)',
+              borderRadius: 'var(--radius-sm)',
+              whiteSpace: 'pre-wrap',
+            }}
           >
             {value || t('(empty)')}
-          </pre>
+          </Text>
         </div>
       )}
     </div>
