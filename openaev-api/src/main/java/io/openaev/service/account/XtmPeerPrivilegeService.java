@@ -135,7 +135,7 @@ public class XtmPeerPrivilegeService extends AbstractPrivilegeService {
 
     Optional<User> existing = userService.findByEmailIgnoreCase(peerEmail);
     if (existing.isEmpty()) {
-      User user = userService.createInternalUser(peerEmail, name, null, false, token);
+      User user = userService.createInternalUser(peerEmail, name, null, token);
       joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), DEFAULT_TENANT_UUID);
       userService.saveUser(user);

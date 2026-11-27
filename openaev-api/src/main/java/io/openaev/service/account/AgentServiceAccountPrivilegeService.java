@@ -85,7 +85,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       // No user exists — create one
       User user =
           userService.createInternalUser(
-              email, SERVICE_FIRSTNAME, null, false, UUID.randomUUID().toString());
+              email, SERVICE_FIRSTNAME, null, UUID.randomUUID().toString());
       joinGroupAsNewAccount(user, group);
       tenantUserService.attachToTenant(user.getId(), tenantId);
       userService.saveUser(user);

@@ -49,6 +49,12 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
 - Never assign platform-only capabilities to tenant roles or vice versa
 - **Dual-scope entities** (Settings, User, Role, Group): `PlatformXxxApi` must require platform-admin capabilities; `TenantXxxApi` must require tenant-scoped capabilities — never share `@AccessControl` between the two
 
+## Admin Flag (`user_admin`)
+
+- `User.admin` bypasses every RBAC check and is reserved to the root user (`User.ADMIN_UUID`)
+- Only `InitAdminCommandLineRunner` sets it, and it clears it on every other user at startup
+- Never call `setAdmin(true)` or write `user_admin = true` anywhere else, whatever the code path: grant a role holding `BYPASS`, or add the user to an admin group, instead
+
 ## Never Do
 
 - Never hardcode secrets, API keys, or credentials

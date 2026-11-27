@@ -6,8 +6,11 @@ import static io.openaev.database.model.User.ADMIN_UUID;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.SessionManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -21,12 +24,15 @@ import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserService;
 import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -35,6 +41,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -56,10 +63,19 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
 
   @Autowired private TenantScopedTransaction tenantTx;
 
+  @Autowired private UserComposer userComposer;
+
+  @MockitoSpyBean private SessionManager sessionManager;
+
   @PersistenceContext private EntityManager entityManager;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String configuredAdminToken;
+
+  @BeforeEach
+  void resetComposers() {
+    userComposer.reset();
+  }
 
   @DisplayName("Test if admin user is created")
   @Test
@@ -213,5 +229,29 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
         .hasSize(1);
     assertThat(adminTokens.getFirst().getId()).isEqualTo(renewedAdminToken.getId());
     assertThat(adminTokens.getFirst().getValue()).isEqualTo(this.configuredAdminToken);
+  }
+
+  @DisplayName(
+      "At bootstrap, only the root user keeps the admin flag, in the database and sessions")
+  @Test
+  @Transactional
+  void given_otherUserWithAdminFlag_should_removeItAtBootstrap() throws Exception {
+    // Arrange
+    User legacyAdmin = UserFixture.getUserWithDefaultEmail();
+    legacyAdmin.setAdmin(true);
+    String legacyAdminId = userComposer.forUser(legacyAdmin).persist().get().getId();
+    this.entityManager.flush();
+
+    // Act
+    this.initAdminCommandLineRunner.run();
+    this.entityManager.flush();
+    this.entityManager.clear();
+
+    // Assert
+    assertThat(this.userRepository.findById(legacyAdminId).orElseThrow().isAdmin()).isFalse();
+    assertThat(this.userRepository.findById(ADMIN_UUID).orElseThrow().isAdmin()).isTrue();
+    verify(this.sessionManager)
+        .refreshUserSessions(
+            argThat(user -> legacyAdminId.equals(user.getId()) && !user.isAdmin()));
   }
 }

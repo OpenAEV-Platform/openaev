@@ -7,6 +7,7 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.config.SessionManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Token;
@@ -17,6 +18,7 @@ import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -45,18 +47,21 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final TenantUserService tenantUserService;
   private final AdminPrivilegeService adminPrivilegeService;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final SessionManager sessionManager;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
       @NotNull final TenantUserService tenantUserService,
       @NotNull final AdminPrivilegeService adminPrivilegeService,
-      @NotNull final TenantScopedTransaction tenantScopedTransaction) {
+      @NotNull final TenantScopedTransaction tenantScopedTransaction,
+      @NotNull final SessionManager sessionManager) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantUserService = tenantUserService;
     this.adminPrivilegeService = adminPrivilegeService;
     this.tenantScopedTransaction = tenantScopedTransaction;
+    this.sessionManager = sessionManager;
   }
 
   @Override
@@ -70,6 +75,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
+    revokeAdminFlagOfOtherUsers();
 
     // Handle admin token
     Optional<Token> adminToken =
@@ -120,8 +126,27 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     if (hasText(this.adminPassword)) {
       user.setPassword(encodedPassword());
     }
+    user.setAdmin(true);
 
     return this.userRepository.save(user);
+  }
+
+  /**
+   * The admin flag bypasses RBAC: only the root user may hold it. The sessions of the users who
+   * lose it are rewritten too, since they survive a restart and still carry the admin authority.
+   */
+  private void revokeAdminFlagOfOtherUsers() {
+    List<User> others = this.userRepository.findAllByAdminTrueAndIdNot(ADMIN_UUID);
+    if (others.isEmpty()) {
+      return;
+    }
+    others.forEach(user -> user.setAdmin(false));
+    this.userRepository.saveAll(others);
+    others.forEach(this.sessionManager::refreshUserSessions);
+    log.warn(
+        "Admin flag removed from {} user(s) other than the root user: {}",
+        others.size(),
+        others.stream().map(User::getId).toList());
   }
 
   // -- TOKEN --

@@ -158,7 +158,6 @@ class UserServiceTest extends IntegrationTest {
             "internal-auto-assign@test.invalid",
             "Internal",
             "Account",
-            false,
             UUID.randomUUID().toString());
 
     // -- ASSERT --

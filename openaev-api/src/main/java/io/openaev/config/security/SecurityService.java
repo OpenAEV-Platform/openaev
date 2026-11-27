@@ -80,7 +80,7 @@ public class SecurityService {
       if (optionalUser.isEmpty()) {
         User user =
             this.userService.createInternalUser(
-                email, firstName, lastName, false, UUID.randomUUID().toString());
+                email, firstName, lastName, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
         return mapGroupsAttachTenantAndSave(
