@@ -6,9 +6,10 @@ import InjectorContractApiHelpers from '../../api-helpers/InjectorContractApiHel
 import ScenarioApiHelpers from '../../api-helpers/ScenarioApiHelpers';
 import { test } from '../../fixtures';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
+import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
-import disableAnimations from '../../utils/disableAnimations';
 import { type Persona } from '../../utils/personas';
+import { tenantUrl } from '../../utils/url';
 
 type AssetKey = 'green' | 'amber' | 'red';
 
@@ -41,6 +42,7 @@ test.describe('Scenario - With asset marked', () => {
   // depend on who reads it. Playwright reruns these hooks in a new worker after a failure.
   let adminRequest: APIRequestContext;
   let assets: Record<AssetKey, Endpoint>;
+  let scenarioPage: ScenarioPage;
   let scenario: Scenario;
   let inject: InjectOutput;
   let contractId: string;
@@ -77,6 +79,14 @@ test.describe('Scenario - With asset marked', () => {
     });
   });
 
+  test.beforeEach(async ({ page }) => {
+    scenarioPage = new ScenarioPage(page);
+    await disableAnimations(page);
+    await page.waitForLoadState('domcontentloaded');
+    await scenarioPage.gotoInjects(scenario.scenario_id);
+    await scenarioPage.openInject(inject.inject_title);
+  });
+
   test.afterAll(async () => {
     if (!adminRequest) {
       return;
@@ -99,15 +109,7 @@ test.describe('Scenario - With asset marked', () => {
     test.describe(() => {
       test.use({ persona });
 
-      test(`${persona} should list the inject targets corresponding with the correct marking onto the scenario`, async ({ page }) => {
-        // Arrange
-        const scenarioPage = new ScenarioPage(page);
-        await disableAnimations(page);
-
-        // Act
-        await scenarioPage.gotoInjects(scenario.scenario_id);
-        await scenarioPage.openInject(inject.inject_title);
-
+      test(`${persona} should list the inject targets corresponding with the correct marking onto the scenario`, async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(scenarioPage.getInjectTargetAsset(assets[key].asset_name)).toBeVisible()));

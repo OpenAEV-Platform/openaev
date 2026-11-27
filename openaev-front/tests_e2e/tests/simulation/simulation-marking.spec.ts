@@ -8,8 +8,8 @@ import InjectorContractApiHelpers from '../../api-helpers/InjectorContractApiHel
 import SimulationApiHelpers from '../../api-helpers/SimulationApiHelpers';
 import { test } from '../../fixtures';
 import SimulationPage from '../../model/simulation/SimulationPage';
+import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
-import disableAnimations from '../../utils/disableAnimations';
 import { type Persona, PERSONAS } from '../../utils/personas';
 
 type AssetKey = 'green' | 'amber' | 'red';
@@ -154,16 +154,18 @@ test.describe('Simulation - With asset marked', () => {
 
   for (const { persona, visibleAssets, invisibleAssets, notTargetedAssets } of CASES) {
     test.describe(() => {
+      let simulationPage: SimulationPage;
+
       test.use({ persona });
 
-      test(`${persona} should list only the targeted assets cleared for the persona 'observer'`, async ({ page }) => {
-        // Arrange
-        const simulationPage = new SimulationPage(page);
+      test.beforeEach(async ({ page }) => {
+        simulationPage = new SimulationPage(page);
         await disableAnimations(page);
-
-        // Act
         await simulationPage.gotoInject(simulation.exercise_id, inject.inject_id);
+        await page.waitForLoadState('domcontentloaded');
+      });
 
+      test(`${persona} should list only the targeted assets cleared for the persona 'observer'`, async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(simulationPage.getAssetByName(assets[key].asset_name)).toBeVisible()));
@@ -174,13 +176,8 @@ test.describe('Simulation - With asset marked', () => {
 
       test(`${persona} should see which targets the launcher clearance left out`, async ({ page }) => {
         // Arrange
-        const simulationPage = new SimulationPage(page);
         const greenAsset = simulationPage.getAssetByName(assets.green.asset_name);
         const notTargetedTrace = simulationPage.endpointTracesContainer.filter({ hasText: 'Asset not targeted' });
-        await disableAnimations(page);
-
-        // Act
-        await simulationPage.gotoInject(simulation.exercise_id, inject.inject_id);
 
         // Assert
         // Cleared for the launcher: the green asset carries no "Asset not targeted" trace (nor any trace of its own

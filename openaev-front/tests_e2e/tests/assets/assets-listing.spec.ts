@@ -4,8 +4,8 @@ import { type Endpoint } from '../../../src/utils/api-types';
 import EndpointsApiHelpers from '../../api-helpers/EndpointsApiHelpers';
 import { test } from '../../fixtures';
 import EndpointListPage from '../../model/assets/EndpointListPage';
+import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
-import disableAnimations from '../../utils/disableAnimations';
 import { type Persona } from '../../utils/personas';
 import { tenantUrl } from '../../utils/url';
 
@@ -40,6 +40,7 @@ test.describe('Assets - Listing', () => {
   // depend on who reads it. Playwright reruns these hooks in a new worker after a failure.
   let adminRequest: APIRequestContext;
   let assets: Record<AssetKey, Endpoint>;
+  let endpointListPage: EndpointListPage;
   // Shared by the three asset names: searching it brings all of them to the first page of the list.
   const suffix = `${Date.now()}-${Math.random()}`;
 
@@ -59,6 +60,16 @@ test.describe('Assets - Listing', () => {
     };
   });
 
+  test.beforeEach(async ({ page }) => {
+    endpointListPage = new EndpointListPage(page);
+    await disableAnimations(page);
+    await page.goto(tenantUrl('/admin/assets'));
+    await endpointListPage.waitForLoad();
+
+    // The list is paginated: without the search, an asset off the first page would pass the absence check.
+    await endpointListPage.search(suffix);
+  });
+
   test.afterAll(async () => {
     if (!adminRequest) {
       return;
@@ -74,17 +85,7 @@ test.describe('Assets - Listing', () => {
     test.describe(`as ${persona}`, () => {
       test.use({ persona });
 
-      test('should list assets corresponding with the correct marking', async ({ page }) => {
-        // Arrange
-        const endpointListPage = new EndpointListPage(page);
-        await disableAnimations(page);
-
-        // Act
-        await page.goto(tenantUrl('/admin/assets'));
-        await endpointListPage.waitForLoad();
-        // The list is paginated: without the search, an asset off the first page would pass the absence check.
-        await endpointListPage.search(suffix);
-
+      test('should list assets corresponding with the correct marking', async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(endpointListPage.getEndpointByName(assets[key].asset_name)).toBeVisible()));
