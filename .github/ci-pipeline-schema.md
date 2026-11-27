@@ -126,7 +126,6 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov and without the Java migrations, against the latest report of `main`; on a failure, posts a `Backend Coverage` check that explains it (not on fork PRs) and fails, unless the PR description has a `Coverage exempt: <why>` line. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
-| 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
 ---
@@ -150,11 +149,6 @@ the advisory list in the gate makes it blocking.
 **Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
 merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
 coverage rules that pass or fail run in our own `coverage-backend-gate` job.
-
-**The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
-`api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
-shard is red. Those runs report rather than gate: the job carries `continue-on-error`, so its red
-stays out of the run conclusion and does not page the on-call.
 
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.

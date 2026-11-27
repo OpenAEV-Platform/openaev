@@ -51,7 +51,7 @@ class DebugModeOffE2ETest extends IntegrationTest {
   @DisplayName("datasource is not proxied and no debug beans exist")
   void noDebugFootprintByDefault() {
     if (detectorInstrumentingSuite()) {
-      // An opt-in suite-wide detector (fail-closed or write-attribution) proxies every datasource;
+      // A suite-wide detector (fail-closed or write-attribution) proxies every datasource;
       // that is test instrumentation, not a debug footprint. The debug guarantee still holds: no
       // debug SQL-logging listener rides on that proxy.
       if (dataSource instanceof ProxyDataSource proxy) {

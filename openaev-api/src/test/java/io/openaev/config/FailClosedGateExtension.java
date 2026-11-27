@@ -27,10 +27,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * WS1 fail-closed gate. Auto-registered for every test (JUnit extension autodetection), active only
- * under {@code -Dopenaev.failclosed.detector=on} - so normal CI is untouched and only an opt-in run
- * pays the cost. It records each test's fail-closed reads (via {@link FailClosedDetectorListener},
- * wired suite-wide by {@link FailClosedDetectorContextCustomizerFactory}) and fails the test if a
- * NEW one originates from production code.
+ * under {@code -Dopenaev.failclosed.detector=on}, which every API shard of the pull request CI
+ * passes (.github/actions/api-tests/action.yml); a local run without it pays nothing. It records
+ * each test's fail-closed reads (via {@link FailClosedDetectorListener}, wired suite-wide by {@link
+ * FailClosedDetectorContextCustomizerFactory}) and fails the test if a NEW one originates from
+ * production code.
  *
  * <p>Waiving is a baseline diff, per-test so it is shard-safe. A read whose nearest caller is test
  * or fixture code is auto-waived (a test choosing not to scope is never a production bug). A read
@@ -46,9 +47,9 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * #SHADOW_MODE_PROPERTY} arms a mode, the per-test assertion goes inert: the gate accumulates the
  * signatures and writes them to {@value #SHADOW_REPORT_FILE} next to the surefire reports, each
  * marked {@value #NEW_PREFIX} or {@value #KNOWN_PREFIX} against <em>that mode's own</em> stored
- * list ({@code failclosed-shadow-prod.txt}, {@code failclosed-shadow-all.txt}). The CI summary
- * fails the shadow verdict on a new one, so the number a shadow run reports is "signatures new
- * since the list was last curated" and is comparable from one night to the next.
+ * list ({@code failclosed-shadow-prod.txt}, {@code failclosed-shadow-all.txt}), so the number a
+ * shadow run reports is "signatures new since the last curation of the list". No CI job arms a
+ * shadow mode: a run sets the property by hand and reads the report itself.
  *
  * <p>The three lists stay separate on purpose. {@code failclosed-baseline.txt} is the normal
  * pipeline's reference and carries the curated per-signature reasons; a mode list says only which
@@ -72,8 +73,7 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
 
   /**
    * System property carrying the armed shadow mode. Absent or blank means the normal pipeline,
-   * where the gate asserts per test exactly as it always did. Set by the CI shadow runs ({@code
-   * .github/actions/api-tests/action.yml}), pinned by {@link FailClosedShadowSummaryMarkerTest}.
+   * where the gate asserts per test. Set by hand on a run that measures a mode.
    */
   static final String SHADOW_MODE_PROPERTY = "openaev.failclosed.shadow-mode";
 
@@ -81,18 +81,16 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
   static final Set<String> SHADOW_MODES = Set.of("shadow-prod", "shadow-all");
 
   /**
-   * Per-JVM shadow report, read by the CI shadow summary next to the surefire reports. It is the
-   * only channel that reaches CI under a shadow mode: the per-test assertion no longer fires, so
-   * nothing lands in the surefire report text, and the listener's {@code [FAILCLOSED]} markers go
-   * to the fork's stdout, which surefire does not relay. Same rule as the write-side gate's
-   * reports.
+   * Per-JVM shadow report, written next to the surefire reports. It is the only channel a shadow
+   * run has: the per-test assertion does not fire, so nothing lands in the surefire report text,
+   * and the listener's {@code [FAILCLOSED]} markers go to the fork's stdout, which surefire does
+   * not relay. Same rule as the write-side gate's reports.
    */
   static final String SHADOW_REPORT_FILE = "failclosed-shadow.txt";
 
   /**
-   * Line prefix of a signature absent from the armed mode's list. The CI summary counts these lines
-   * and fails the shadow verdict on a non-zero count, so the prefix is a contract; pinned by {@link
-   * FailClosedShadowSummaryMarkerTest}.
+   * Line prefix of a signature absent from the armed mode's list. A reader of the report counts
+   * these lines to find the signatures new to the mode.
    */
   static final String NEW_PREFIX = "new ";
 
@@ -283,11 +281,10 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
   }
 
   /**
-   * Writes this JVM's observed signatures next to the surefire reports, where the CI shadow summary
-   * reads them. Written even when empty: a missing file means the gate never ran, which the summary
-   * reports as a broken instrument rather than as a pass. Best effort, never throws; a shard sees
-   * only its own classes, so the summary states the count per shard and a mode's list is curated
-   * from every shard together.
+   * Writes this JVM's observed signatures next to the surefire reports. Written even when empty: a
+   * missing file means the gate never ran, which is a broken instrument rather than a pass. Best
+   * effort, never throws; a shard sees only its own classes, so the count is per shard and a mode's
+   * list is curated from every shard together.
    */
   static void writeShadowReport() {
     try {

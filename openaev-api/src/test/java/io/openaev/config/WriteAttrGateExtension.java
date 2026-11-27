@@ -28,10 +28,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 /**
  * Write-attribution gate (G1), the write-side twin of {@link FailClosedGateExtension}.
  * Auto-registered for every test (JUnit extension autodetection), active only under {@code
- * -Dopenaev.writeattr.detector=on} - so normal CI is untouched and only an opt-in run pays the
- * cost. It records each test's wrong-tenant writes (via {@link WriteAttrDetectorListener}, wired
- * suite-wide by {@link WriteAttrDetectorContextCustomizerFactory}) and fails the test if a NEW one
- * originates from a production entry point.
+ * -Dopenaev.writeattr.detector=on}, which every API shard of the pull request CI passes
+ * (.github/actions/api-tests/action.yml); a local run without it pays nothing. It records each
+ * test's wrong-tenant writes (via {@link WriteAttrDetectorListener}, wired suite-wide by {@link
+ * WriteAttrDetectorContextCustomizerFactory}) and fails the test if a NEW one originates from a
+ * production entry point.
  *
  * <p>Waiving is a baseline diff, per-test so it is shard-safe. A signature is {@code table} + the
  * written tenant's relation to the scope + the outermost production entry frame. A write with no
@@ -42,10 +43,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *
  * <p>Stale waivers are reported: a baseline line never produced across the run is printed with a
  * {@code [WRITEATTR-STALE]} marker at JVM shutdown, and the produced and not-produced counts are
- * written to {@value #WAIVER_REPORT_FILE} next to the surefire reports for the CI shadow summary.
- * The console marker reaches a single-JVM run's log only: in a sharded run, surefire no longer
- * relays the fork's stdout when the hook runs, so the file is the channel that reaches CI. Either
- * way a shard sees only its own classes, so a line stale in one shard may be produced in another.
+ * written to {@value #WAIVER_REPORT_FILE} next to the surefire reports. The console marker reaches
+ * a single-JVM run's log only: in a sharded run, surefire does not relay the fork's stdout when the
+ * hook runs, so the file is the channel a reader of the reports directory gets. Either way a shard
+ * sees only its own classes, so a line stale in one shard may be produced in another.
  *
  * <p>Three kinds of entry frame reach the key. A production frame captured when the write was asked
  * for, or read off the stack of a synchronous write. An {@code unattributed(<test>)} key for a
@@ -60,19 +61,13 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
       "on".equals(System.getProperty("openaev.writeattr.detector"));
   private static final String BASELINE_RESOURCE = "/writeattr-baseline.txt";
 
-  /** Per-JVM waiver report, read by the CI shadow summary next to the surefire reports. */
+  /** Per-JVM waiver report, written next to the surefire reports. */
   static final String WAIVER_REPORT_FILE = "writeattr-waivers.txt";
 
-  /**
-   * Opening line of the gate's failure message. The CI shadow summary ({@code
-   * .github/actions/api-tests/action.yml}) locates the block of offending signatures in the
-   * surefire report by grepping for this exact text; a wording change here without updating that
-   * script makes the summary print "No wrong-tenant production write" while the gate is failing.
-   * {@link WriteAttrSummaryMarkerTest} pins that the two stay in sync.
-   */
+  /** Opening line of the gate's failure message. */
   static final String FAILURE_MARKER = "Write-attribution: production code wrote";
 
-  /** Closing line of the failure message; the same script uses it as the block's end marker. */
+  /** Closing line of the failure message. */
   static final String ATTRIBUTE_MARKER = "Attribute the write";
 
   private static final Set<String> WAIVED = loadBaseline();
@@ -80,15 +75,10 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   private static volatile List<String> lastKeyed = List.of();
   private static final AtomicBoolean STALE_HOOK_REGISTERED = new AtomicBoolean(false);
 
-  /** Per-JVM empty-scope report, read by the CI shadow summary next to the surefire reports. */
+  /** Per-JVM empty-scope report, written next to the surefire reports. */
   static final String EMPTY_SCOPE_REPORT_FILE = "writeattr-emptyscope.txt";
 
-  /**
-   * Header line of {@value #EMPTY_SCOPE_REPORT_FILE}. The shadow summary reads it back verbatim (it
-   * does not hardcode this text, only the file name), so a wording change here needs no matching
-   * change there; only the file name itself ({@link #EMPTY_SCOPE_REPORT_FILE}) is pinned, by {@link
-   * WriteAttrSummaryMarkerTest}.
-   */
+  /** Header line of {@value #EMPTY_SCOPE_REPORT_FILE}. */
   static final String EMPTY_SCOPE_HEADER = "write-attribution empty-scope violations";
 
   /**
@@ -100,9 +90,8 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   private static final Set<String> EMPTY_SCOPE = ConcurrentHashMap.newKeySet();
 
   /**
-   * Per-JVM instrumentation-failure report, read by the CI shadow summary next to the surefire
-   * reports. A statement whose warning chain could not be read is a gap the detector cannot see
-   * through, not a passing signal.
+   * Per-JVM instrumentation-failure report, written next to the surefire reports. A statement whose
+   * warning chain could not be read is a gap the detector cannot see through, not a passing signal.
    */
   static final String INSTRUMENTATION_FAILURE_REPORT_FILE =
       "writeattr-instrumentation-failures.txt";
@@ -261,10 +250,9 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
 
   /**
    * Writes which baseline lines this JVM produced and which it did not next to the surefire
-   * reports, where the CI shadow summary reads. The console markers above never reach that summary:
-   * surefire keeps the fork's stdout out of its report files. Best effort, never throws; a shard
-   * sees only its own classes, so the summary states the count per shard, and a line is stale only
-   * when no shard produced it.
+   * reports. The console markers above do not reach those reports: surefire leaves the fork's
+   * stdout out of its report files. Best effort, never throws; a shard sees only its own classes,
+   * so the count is per shard, and a line is stale only when no shard produced it.
    */
   static void writeWaiverReport() {
     try {
@@ -304,9 +292,9 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   }
 
   /**
-   * Writes the distinct empty-scope signatures this JVM recorded next to the surefire reports, for
-   * the CI shadow summary. Never a pass/fail signal: a shard sees only its own classes, so the
-   * count is per shard, same limit as {@link #writeWaiverReport()}. Best effort, never throws.
+   * Writes the distinct empty-scope signatures this JVM recorded next to the surefire reports.
+   * Never a pass/fail signal: a shard sees only its own classes, so the count is per shard, same
+   * limit as {@link #writeWaiverReport()}. Best effort, never throws.
    */
   static void writeEmptyScopeReport() {
     try {
@@ -338,10 +326,9 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   }
 
   /**
-   * Writes the statements whose warning chain could not be read next to the surefire reports, for
-   * the CI shadow summary. Never a pass/fail signal on its own, same rule as {@link
-   * #writeEmptyScopeReport()}: a broken instrument must stay visible without turning the job red.
-   * Best effort, never throws.
+   * Writes the statements whose warning chain could not be read next to the surefire reports. Never
+   * a pass/fail signal on its own, same rule as {@link #writeEmptyScopeReport()}: a broken
+   * instrument must stay visible without turning the job red. Best effort, never throws.
    */
   static void writeInstrumentationFailureReport() {
     try {
