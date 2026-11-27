@@ -2,8 +2,6 @@ package io.openaev.api.marking_definition;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
@@ -16,7 +14,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
-import io.openaev.service.marking_definition.MarkingDefinitionStixService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +43,6 @@ public class MarkingDefinitionApi extends RestBehavior {
       TENANT_PREFIX + "/marking_definitions";
 
   private final MarkingDefinitionService service;
-  private final MarkingDefinitionStixService stixService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final UserService userService;
 
@@ -88,37 +84,6 @@ public class MarkingDefinitionApi extends RestBehavior {
   public Page<MarkingDefinitionOutput> search(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return service.search(ctx, searchPaginationInput).map(MarkingDefinitionMapper::toOutput);
-  }
-
-  // -- STIX (OpenCTI format) --
-
-  @LogExecutionTime
-  @GetMapping("/stix")
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Export marking definitions in OpenCTI's STIX 2.1 format",
-      description =
-          "A STIX 2.1 bundle of marking-definition objects, each with the STIX id OpenCTI gives"
-              + " the marking and OpenCTI's order and color.")
-  public ObjectNode exportStix(TxCtx ctx) {
-    return stixService.exportBundle(ctx);
-  }
-
-  @PostMapping("/stix")
-  @Transactional
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Import marking definitions from OpenCTI's STIX 2.1 format",
-      description =
-          "Creates the marking-definition objects of a STIX bundle the tenant does not have,"
-              + " keeping their STIX id. Nothing is overwritten: each object is reported CREATED,"
-              + " EXISTING (same STIX id), CONFLICT (same type and definition, another id) or"
-              + " INVALID.")
-  public List<MarkingDefinitionStixService.ImportLine> importStix(
-      TxCtx ctx, @RequestBody JsonNode stix) {
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return stixService.importStix(stix, tenantId, userService.currentUser().getId());
   }
 
   // -- CREATE --
