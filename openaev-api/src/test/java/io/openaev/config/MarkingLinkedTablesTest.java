@@ -452,11 +452,14 @@ class MarkingLinkedTablesTest {
           new MarkingDimension(
               fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
       assertEquals(
-          "(t.execution_agent_id IS NULL OR EXISTS (SELECT 1 FROM agents mkp0_agents"
+          "((t.execution_agent_id IS NULL OR EXISTS (SELECT 1 FROM agents mkp0_agents"
               + " WHERE mkp0_agents.agent_id = t.execution_agent_id"
               + " AND (mkp0_agents.agent_asset IS NULL OR EXISTS (SELECT 1 FROM assets mkp1_assets"
               + " WHERE mkp1_assets.asset_id = mkp0_agents.agent_asset"
-              + " AND is_marking_set_allowed(mkp1_assets.marking_ids)))))",
+              + " AND is_marking_set_allowed(mkp1_assets.marking_ids)))))"
+              + " AND NOT EXISTS (SELECT 1 FROM assets mka0_assets"
+              + " WHERE mka0_assets.asset_id = ANY(t.execution_context_identifiers)"
+              + " AND NOT is_marking_set_allowed(mka0_assets.marking_ids)))",
           registry.readPredicate("execution_traces", "t"));
     }
 
