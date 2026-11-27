@@ -28,12 +28,12 @@ import org.springframework.transaction.annotation.Transactional;
  * session connection; the test transaction ({@code @Transactional}) rolls them back.
  */
 @Transactional
-@DisplayName("Migration V6_20261126110000000: record the scheduler of the OpenCTI scenarios")
+@DisplayName("Migration V6_20261127110000000: record the scheduler of the OpenCTI scenarios")
 class RecordOpenctiScenariosSchedulerMigrationTest extends IntegrationTest {
 
   private static final String RECURRENCE = "P1D";
 
-  @Autowired private V6_20261126110000000__Record_opencti_scenarios_scheduler migration;
+  @Autowired private V6_20261127110000000__Record_opencti_scenarios_scheduler migration;
   @Autowired private UserRepository userRepository;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;

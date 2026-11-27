@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * scheduled by hand keeps its scheduler.
  */
 @Component
-public class V6_20261126110000000__Record_opencti_scenarios_scheduler extends BaseJavaMigration {
+public class V6_20261127110000000__Record_opencti_scenarios_scheduler extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
