@@ -2,6 +2,8 @@ package io.openaev.rest.xtm_auth;
 
 import io.jsonwebtoken.security.Jwks;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.jwks.JwkOutput;
+import io.openaev.api.jwks.JwksOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.xtm_auth.XtmAuthKeyService;
