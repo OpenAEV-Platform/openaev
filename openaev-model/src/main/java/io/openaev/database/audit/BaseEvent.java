@@ -7,14 +7,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.MarkedEntity;
 import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
@@ -58,6 +63,13 @@ public class BaseEvent implements Cloneable {
   @JsonIgnore private final String permissionResourceId;
 
   @JsonIgnore private final ResourceType permissionResourceType;
+
+  /**
+   * The markings a {@link MarkedEntity} carried before this update changed them, null for any other
+   * event. Read when the event is built: consumers run after commit, when the entity may have been
+   * written again.
+   */
+  @JsonIgnore private final Set<String> markingIdsBeforeChange;
 
   private static final String WRITE_TENANT_ATTRIBUTE = BaseEvent.class.getName() + ".writeTenant";
 
@@ -119,6 +131,8 @@ public class BaseEvent implements Cloneable {
     this.tenantId = writeTenantId != null ? writeTenantId : TenantContext.getCurrentTenant();
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
+    this.markingIdsBeforeChange =
+        ModelBaseListener.DATA_UPDATE.equals(type) ? markingsChangedFrom(data) : null;
     Class<?> baseClass = data.getClass();
 
     /*
@@ -180,6 +194,23 @@ public class BaseEvent implements Cloneable {
     if (streamSchema != null) {
       this.schema = streamSchema;
     }
+  }
+
+  /** The markings the row was loaded or last written with, when this write changed them. */
+  private static Set<String> markingsChangedFrom(Base data) {
+    if (!(data instanceof MarkedEntity marked) || marked.getLoadedMarkingIds() == null) {
+      return null;
+    }
+    Set<String> before = markingSet(marked.getLoadedMarkingIds());
+    return before.equals(markingSet(marked.getMarkingIds())) ? null : before;
+  }
+
+  private static Set<String> markingSet(String[] markingIds) {
+    return markingIds == null
+        ? Set.of()
+        : Arrays.stream(markingIds)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toUnmodifiableSet());
   }
 
   /**

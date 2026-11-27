@@ -27,3 +27,4 @@ durable content promoted to `docs/docs/development/`.
 | Folder | Feature | Decision |
 | --- | --- | --- |
 | [`marking/`](./marking/) | Marking-based access control (STIX TLP/PAP) for assets | [ADR-009](../adr/ADR-009-marking-based-access-control.md) — Proposed |
+| [`streaming/`](./streaming/) | Live screens refreshed from change signals ("ping events") instead of streamed entity content | — (ADR to follow #8737) |

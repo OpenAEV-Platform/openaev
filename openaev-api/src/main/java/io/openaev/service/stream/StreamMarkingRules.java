@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openaev.config.MarkedTable;
 import io.openaev.config.MarkedTables;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.MarkedEntity;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -138,8 +139,23 @@ public class StreamMarkingRules {
     for (Class<?> entity : entities) {
       String table = tableOf(entity);
       if (table != null && markedTables.get(table) != null) {
+        requireMarkedEntity(entity, markedTables.get(table));
         entitiesByTable.computeIfAbsent(table, t -> new ArrayList<>()).add(entity);
       }
+    }
+  }
+
+  /**
+   * An entity of a table with its own markings must expose the markings it was loaded with, or a
+   * reader who gains or loses sight of a row through a marking change would not be told.
+   */
+  private static void requireMarkedEntity(Class<?> entity, MarkedTable marked) {
+    if (marked.markingColumn() != null && !MarkedEntity.class.isAssignableFrom(entity)) {
+      throw new IllegalStateException(
+          entity.getSimpleName()
+              + " is mapped to the marked table "
+              + marked.table()
+              + " and must implement MarkedEntity");
     }
   }
 

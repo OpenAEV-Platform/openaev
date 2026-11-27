@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static io.openaev.database.audit.ModelBaseListener.DATA_PERSIST;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -13,6 +14,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.cache.MarkingClearanceChangedEvent;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -52,6 +54,7 @@ public class StreamService {
   public static final String EVENT_TYPE_PING = "ping";
   public static final String EVENT_TYPE_BULK_OPERATION = "bulk-operation";
   public static final String EVENT_TYPE_ATTACK_PATH_VERSION = "attack-path-version";
+  public static final String EVENT_TYPE_CLEARANCE_CHANGED = "clearance-changed";
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
 
   // Mutated from several threads: SSE connect (request thread), disconnect (reactor
@@ -283,6 +286,33 @@ public class StreamService {
     this.mapper = mapper;
   }
 
+  /**
+   * Sends the event with only the entity's id: a deletion the consumer may not see the content of.
+   */
+  private void sendIdOnly(FluxSink<Object> flux, BaseEvent event) {
+    try {
+      String propertyId = event.getAttributeId();
+      if (propertyId == null || propertyId.isBlank()) {
+        log.warn(
+            "Class {} can't be streamed without an identifier",
+            event.getInstance().getClass().getSimpleName());
+        return;
+      }
+      ObjectNode idNode = mapper.createObjectNode();
+      idNode.set(propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+      sendStreamEvent(flux, event, idNode);
+    } catch (Exception e) {
+      String simpleName = event.getInstance().getClass().getSimpleName();
+      log.warn(String.format("Class %s can't be streamed", simpleName), e);
+    }
+  }
+
+  private static BaseEvent withType(BaseEvent event, String type) {
+    BaseEvent copy = event.clone();
+    copy.setType(type);
+    return copy;
+  }
+
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event) {
     // Serialize the instance now for lazy session decoupling
     sendStreamEvent(flux, event, mapper.valueToTree(event.getInstance()));
@@ -406,45 +436,38 @@ public class StreamService {
       if (!hasReadPermission(consumer, user, event)) {
         // A consumer that cannot read the entity gets nothing: even an id-only tombstone
         // discloses the id, schema and timing of an unreadable mutation.
-        if (!isGrantManagedRootDeletion(event)) {
-          return;
-        }
-        try {
-          String propertyId = event.getAttributeId();
-          if (propertyId == null || propertyId.isBlank()) {
-            log.warn(
-                "Class {} can't be streamed without an identifier",
-                event.getInstance().getClass().getSimpleName());
-            return;
-          }
-          ObjectNode deleteNode = mapper.createObjectNode();
-          deleteNode.set(
-              propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-          sendStreamEvent(fluxSink, event.clone(), deleteNode);
-        } catch (Exception e) {
-          String simpleName = event.getInstance().getClass().getSimpleName();
-          log.warn(String.format("Class %s can't be streamed", simpleName), e);
+        if (isGrantManagedRootDeletion(event)) {
+          sendIdOnly(fluxSink, event.clone());
         }
       } else {
         MarkingCtx clearance =
             visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
-        if (!visibility.visibleUnder(clearance)) {
-          // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
-          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+        boolean visible = visibility.visibleUnder(clearance);
+        boolean visibleBefore = visibility.wasVisibleUnder(clearance);
+        if (!visible) {
+          // Above the consumer's clearance: like a READ denial, nothing is sent, since the id and
+          // timing of a hidden row are already a disclosure. A consumer who saw it before its
+          // markings changed already knows the id: it gets a deletion, which drops it from screen.
+          if (visibleBefore) {
+            sendIdOnly(fluxSink, withType(event, DATA_DELETE));
+          }
           return;
         }
-        if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+        // Hidden from this consumer until its markings changed: for it, the row is new.
+        BaseEvent delivered = visibleBefore ? event : withType(event, DATA_PERSIST);
+        if (delivered.getInstance().getResourceType() == ResourceType.NOTIFIER
             && !permissionService.hasCapabilityPermission(
                 user, ResourceType.NOTIFIER, Action.READ)) {
-          ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+          ObjectNode instanceData = mapper.valueToTree(delivered.getInstance());
           instanceData.putNull("notifier_configuration");
-          sendStreamEvent(fluxSink, event.clone(), instanceData);
-        } else if (event.getInstance() instanceof User streamedUser) {
-          sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
+          sendStreamEvent(fluxSink, delivered.clone(), instanceData);
+        } else if (delivered.getInstance() instanceof User streamedUser) {
+          sendStreamEvent(
+              fluxSink, delivered.clone(), userInTenantOf(consumer, delivered, streamedUser));
         } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
-          sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
+          sendStreamEvent(fluxSink, delivered.clone(), visibility.payloadFor(clearance));
         } else {
-          sendStreamEvent(fluxSink, event);
+          sendStreamEvent(fluxSink, delivered);
         }
       }
     } finally {
@@ -631,6 +654,27 @@ public class StreamService {
             }
           } finally {
             TenantContext.clearCurrentTenant();
+          }
+        });
+  }
+
+  /**
+   * Tells the users whose marking clearance changed to re-read what they display: no row changed,
+   * so no entity event says it, while the API already filters with the new clearance. The payload
+   * is empty: it names no marking and no other user. After commit, so that the re-read sees the new
+   * clearance; also outside a transaction (a data pack's eviction).
+   */
+  @Async("streamExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void listenClearanceChange(MarkingClearanceChangedEvent event) {
+    ServerSentEvent<Map<String, Object>> message =
+        ServerSentEvent.<Map<String, Object>>builder(Map.of())
+            .event(EVENT_TYPE_CLEARANCE_CHANGED)
+            .build();
+    consumers.forEach(
+        (key, consumer) -> {
+          if (event.concerns(consumer.principal().getId())) {
+            consumer.fluxSink().next(message);
           }
         });
   }

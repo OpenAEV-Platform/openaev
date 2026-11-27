@@ -1,6 +1,7 @@
 package io.openaev.database.audit;
 
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static io.openaev.database.audit.ModelBaseListener.DATA_PERSIST;
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,6 +10,7 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.AssetFixture;
@@ -16,6 +18,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -108,6 +111,53 @@ class BaseEventTest {
 
       // Assert
       assertThat(event.getInstanceData().toString()).doesNotContain("endpoints");
+    }
+  }
+
+  @Nested
+  @DisplayName("A marked entity's update carries the markings it changed")
+  class MarkingChanges {
+
+    private Endpoint markedEndpoint(String[] loaded, String... current) {
+      Endpoint endpoint = EndpointFixture.createEndpoint();
+      endpoint.setLoadedMarkingIds(loaded);
+      endpoint.setMarkingIds(current);
+      return endpoint;
+    }
+
+    @Test
+    @DisplayName("An update that changed the markings carries the previous ones")
+    void given_markingsChangedByAnUpdate_should_carryThePreviousOnes() {
+      // Act
+      BaseEvent event =
+          eventFor(DATA_UPDATE, markedEndpoint(new String[] {"tlp-green"}, "tlp-red"));
+
+      // Assert
+      assertThat(event.getMarkingIdsBeforeChange()).containsExactly("tlp-green");
+    }
+
+    @Test
+    @DisplayName("An update that kept the same markings, in any order, carries none")
+    void given_sameMarkingsInAnotherOrder_should_carryNone() {
+      // Act
+      BaseEvent event =
+          eventFor(
+              DATA_UPDATE,
+              markedEndpoint(new String[] {"tlp-green", "pap-red"}, "pap-red", "tlp-green"));
+
+      // Assert
+      assertThat(event.getMarkingIdsBeforeChange()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DATA_PERSIST, DATA_DELETE})
+    @DisplayName("A creation or a deletion carries none")
+    void given_otherEvent_should_carryNone(String eventType) {
+      // Act
+      BaseEvent event = eventFor(eventType, markedEndpoint(new String[] {"tlp-green"}, "tlp-red"));
+
+      // Assert
+      assertThat(event.getMarkingIdsBeforeChange()).isNull();
     }
   }
 

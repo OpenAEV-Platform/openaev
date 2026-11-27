@@ -53,7 +53,7 @@ import org.hibernate.annotations.UuidGenerator;
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
 @DiscriminatorValue(AssetType.Values.ASSET_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Asset implements TenantBase {
+public class Asset implements TenantBase, MarkedEntity {
 
   // assets is on multi-tenancy v2 (#6438 / #6422).
   //
@@ -280,6 +280,9 @@ public class Asset implements TenantBase {
   @Column(name = "marking_ids", columnDefinition = "text[]")
   @JsonProperty("asset_markings")
   private String[] markingIds;
+
+  /** See {@link MarkedEntity#getLoadedMarkingIds()}. */
+  @JsonIgnore @Transient private String[] loadedMarkingIds;
 
   public void setHostname(String hostname) {
     // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale

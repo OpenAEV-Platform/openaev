@@ -12,7 +12,7 @@ import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByNameAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
-import { fetchAssignableMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
+import { getAssignableMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationsByNameAsOption } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioAsOption, searchScenarioCategoryAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios/scenario-simulation-action';
@@ -23,7 +23,7 @@ import { searchPlayersAsOption } from '../../../../actions/users/User';
 import { humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
-import { type AssetOptionOutput, type InjectorContract, type MarkingDefinitionOutput } from '../../../../utils/api-types';
+import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
 import { markingOption } from '../../../../utils/markings';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
@@ -218,9 +218,9 @@ const useSearchOptions = () => {
       case 'asset_markings':
         // The definitions are few (nine seeded TLP/PAP levels per tenant): matched here rather than
         // through a search endpoint.
-        fetchAssignableMarkingDefinitions().then((response: { data?: MarkingDefinitionOutput[] }) => {
+        getAssignableMarkingDefinitions({}).then((definitions) => {
           const searchText = search.toLowerCase();
-          setOptions((response?.data ?? [])
+          setOptions(definitions
             .map(markingOption)
             .filter(option => option.label.toLowerCase().includes(searchText)));
         });

@@ -13,6 +13,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -92,6 +93,7 @@ public class MarkingClearanceCacheManager {
   private final MarkingScopeResolver resolver;
   private final CacheManager cacheManager;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final ApplicationEventPublisher eventPublisher;
 
   /**
    * Returns the clearance the user holds in the tenant (cached). Only the first admin holds every
@@ -168,18 +170,26 @@ public class MarkingClearanceCacheManager {
    * the same reason {@link TenantMembershipCacheManager#evictForUser} does it this way.
    */
   public void evictForUser(String userId) {
-    Cache cache = cacheManager.getCache(MARKING_CLEARANCE_CACHE);
-    if (cache == null) {
-      return;
-    }
-    for (String tenantId : tenantMembershipCacheManager.findTenantIdsByUserId(userId)) {
-      cache.evict(userId + ":" + tenantId);
-    }
+    evictForUsers(List.of(userId));
   }
 
-  /** Convenience for the group paths, where a single change touches every member at once. */
+  /**
+   * Convenience for the group paths, where a single change touches every member at once. Tells the
+   * stream, so that the users re-read what they display ({@link MarkingClearanceChangedEvent}).
+   */
   public void evictForUsers(Collection<String> userIds) {
-    userIds.forEach(this::evictForUser);
+    if (userIds.isEmpty()) {
+      return;
+    }
+    Cache cache = cacheManager.getCache(MARKING_CLEARANCE_CACHE);
+    if (cache != null) {
+      for (String userId : userIds) {
+        for (String tenantId : tenantMembershipCacheManager.findTenantIdsByUserId(userId)) {
+          cache.evict(userId + ":" + tenantId);
+        }
+      }
+    }
+    eventPublisher.publishEvent(MarkingClearanceChangedEvent.of(Set.copyOf(userIds)));
   }
 
   /**
@@ -193,6 +203,6 @@ public class MarkingClearanceCacheManager {
    */
   @CacheEvict(value = MARKING_CLEARANCE_CACHE, allEntries = true)
   public void evictAll() {
-    // eviction only
+    eventPublisher.publishEvent(MarkingClearanceChangedEvent.everyone());
   }
 }

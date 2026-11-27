@@ -6,6 +6,7 @@ interface GroupApiOutput {
   group_id: string;
   group_name: string;
   group_users: string[];
+  group_markings: string[];
 }
 
 class GroupApiHelpers {
@@ -41,6 +42,14 @@ class GroupApiHelpers {
     const response = await this.request.put(`${this.groupUri}/${group.group_id}/users`, { data: { group_users: [...group.group_users, userId] } });
     if (!response.ok()) {
       throw new Error(`Failed to add user to group ${groupName}: ${response.status()} - ${await response.text()}`);
+    }
+  }
+
+  /** Replaces the markings the group grants its members, which sets their clearance. */
+  async updateGroupMarkings(groupId: string, markingIds: string[]): Promise<void> {
+    const response = await this.request.put(`${this.groupUri}/${groupId}/markings`, { data: { group_markings: markingIds } });
+    if (!response.ok()) {
+      throw new Error(`Failed to update the markings of group ${groupId}: ${response.status()} - ${await response.text()}`);
     }
   }
 }

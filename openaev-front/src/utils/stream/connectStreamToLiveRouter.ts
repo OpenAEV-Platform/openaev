@@ -1,5 +1,5 @@
 import { type LiveRouter } from '../query/liveRouter';
-import { onBulkOperationEnd, onConnectionOpen, onEntityChange } from './streamClient';
+import { onBulkOperationEnd, onClearanceChange, onConnectionOpen, onEntityChange } from './streamClient';
 
 /**
  * Feeds the platform stream into the live router: the only place that knows where changes come from.
@@ -14,6 +14,9 @@ const connectStreamToLiveRouter = (router: LiveRouter): (() => void) => {
     // queries loaded while the stream was connecting, or during an outage. Queries still fetching
     // refetch once their fetch settles.
     onConnectionOpen(() => router.invalidateAllLive()),
+    // The server already filters with the new clearance: what was read with the previous one is
+    // dropped, as when rights shrink, whichever way the clearance changed.
+    onClearanceChange(() => router.resetAll()),
   ];
   return () => unsubscribes.forEach(unsubscribe => unsubscribe());
 };

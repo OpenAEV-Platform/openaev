@@ -12,13 +12,16 @@ import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.User;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -42,12 +45,13 @@ class MarkingClearanceCacheManagerTest {
   @Mock private JdbcTemplate jdbcTemplate;
   @Mock private CacheManager cacheManager;
   @Mock private TenantMembershipCacheManager tenantMembershipCacheManager;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private final MarkingScopeResolver resolver = new MarkingScopeResolver();
 
   private MarkingClearanceCacheManager manager() {
     return new MarkingClearanceCacheManager(
-        jdbcTemplate, resolver, cacheManager, tenantMembershipCacheManager);
+        jdbcTemplate, resolver, cacheManager, tenantMembershipCacheManager, eventPublisher);
   }
 
   @Nested
@@ -159,6 +163,40 @@ class MarkingClearanceCacheManagerTest {
 
       // -- ACT & ASSERT --
       assertEquals(MarkingCtx.none(), manager().findClearance(USER, TENANT));
+    }
+  }
+
+  @Nested
+  @DisplayName("eviction")
+  class Eviction {
+
+    @Test
+    @DisplayName("given users whose clearance changed, should evict them and tell the stream")
+    void given_users_should_evictThemInEveryTenantAndPublishTheChange() {
+      // -- ARRANGE --
+      Cache cache = mock(Cache.class);
+      when(cacheManager.getCache(MarkingClearanceCacheManager.MARKING_CLEARANCE_CACHE))
+          .thenReturn(cache);
+      when(tenantMembershipCacheManager.findTenantIdsByUserId(USER))
+          .thenReturn(List.of(TENANT, "tenant-2"));
+
+      // -- ACT --
+      manager().evictForUsers(List.of(USER));
+
+      // -- ASSERT --
+      verify(cache).evict(USER + ":" + TENANT);
+      verify(cache).evict(USER + ":tenant-2");
+      verify(eventPublisher).publishEvent(MarkingClearanceChangedEvent.of(Set.of(USER)));
+    }
+
+    @Test
+    @DisplayName("given every clearance evicted, should tell the stream every user is concerned")
+    void given_evictAll_should_publishTheChangeForEveryone() {
+      // -- ACT --
+      manager().evictAll();
+
+      // -- ASSERT --
+      verify(eventPublisher).publishEvent(MarkingClearanceChangedEvent.everyone());
     }
   }
 }

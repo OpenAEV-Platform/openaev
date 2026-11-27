@@ -51,10 +51,10 @@ public class StreamVisibilityService {
     }
     ObjectNode payload = mapper.valueToTree(event.getInstance());
     Map<String, Set<String>> referenced =
-        new StreamVisibility(rules, rule, payload, Map.of()).referencedIds();
+        new StreamVisibility(rules, rule, payload, Map.of(), null).referencedIds();
     Map<String, Map<String, Set<String>>> markings =
         referenced.isEmpty() || tenantId == null ? Map.of() : read(referenced, tenantId);
-    return new StreamVisibility(rules, rule, payload, markings);
+    return new StreamVisibility(rules, rule, payload, markings, event.getMarkingIdsBeforeChange());
   }
 
   private Map<String, Map<String, Set<String>>> read(

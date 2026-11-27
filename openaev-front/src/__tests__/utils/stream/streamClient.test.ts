@@ -660,6 +660,21 @@ describe('streamClient', () => {
     });
   });
 
+  describe('onClearanceChange', () => {
+    it('given_aClearanceChangedEvent_should_emitOncePerEvent', () => {
+      // Arrange
+      const handler = vi.fn();
+      client.onClearanceChange(handler);
+      client.startStream();
+
+      // Act
+      FakeEventSource.last.emit('clearance-changed', {});
+
+      // Assert
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('subscribeStreamEvent', () => {
     it('given_severalSubscribersOfAType_should_attachOneDispatcherAndReattachItOnReconnection', () => {
       // Arrange

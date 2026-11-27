@@ -1,5 +1,6 @@
 package io.openaev.api.asset;
 
+import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
@@ -15,7 +16,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Group;
@@ -31,7 +34,10 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +46,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
  * ground truth of what actually reached the column.
  */
 @Transactional
+@RecordApplicationEvents
 @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS, Capability.MANAGE_MARKING_ASSIGNMENT})
 @DisplayName("Asset markings API")
 class AssetMarkingsApiTest extends IntegrationTest {
@@ -72,6 +81,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
+  @Autowired private ApplicationEvents applicationEvents;
   @PersistenceContext private EntityManager entityManager;
 
   private JdbcTemplate jdbc;
@@ -168,6 +178,76 @@ class AssetMarkingsApiTest extends IntegrationTest {
     void given_unknownMarking_should_notFound() throws Exception {
       // -- ACT / ASSERT --
       assignMarkings(List.of("does-not-exist")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given markings replaced, should stream the update with the markings the asset had before")
+    void given_replacedMarkings_should_streamTheMarkingsBefore() throws Exception {
+      // -- ARRANGE --
+      markStored(green);
+
+      // -- ACT --
+      assignMarkings(List.of(yellow.getId())).andExpect(status().is2xxSuccessful());
+      entityManager.flush();
+
+      // -- ASSERT --
+      assertEquals(List.of(Set.of(green.getId())), streamedMarkingsBefore());
+    }
+
+    @Test
+    @DisplayName(
+        "given markings changed without the markings API, should stream the markings before too")
+    void given_markingsChangedOutsideTheApi_should_streamTheMarkingsBefore() {
+      // -- ARRANGE --
+      markStored(green);
+
+      // -- ACT --
+      clearedFor(green, yellow);
+      entityManager
+          .find(Endpoint.class, asset.getId())
+          .setMarkingIds(new String[] {yellow.getId()});
+      entityManager.flush();
+
+      // -- ASSERT --
+      assertEquals(List.of(Set.of(green.getId())), streamedMarkingsBefore());
+    }
+
+    private void markStored(MarkingDefinition marking) {
+      entityManager.flush();
+      jdbc.update(
+          "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
+          (Object) new String[] {marking.getId()},
+          asset.getId());
+      entityManager.clear();
+    }
+
+    /**
+     * Gives the test transaction a clearance, as the transaction aspect does on an HTTP request:
+     * the test's default scope sets the tenant only, so a marked asset read here would be filtered
+     * out.
+     */
+    private void clearedFor(MarkingDefinition... markings) {
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_markings', :markings, true)")
+          .setParameter(
+              "markings",
+              MarkingCtx.forMarkings(Arrays.stream(markings).map(MarkingDefinition::getId).toList())
+                  .toGuc())
+          .getSingleResult();
+    }
+
+    /**
+     * The previous markings the asset's update events carry. Only the first of the duplicate events
+     * (#9717: the listener is declared on Asset and Endpoint) sees the change.
+     */
+    private List<Set<String>> streamedMarkingsBefore() {
+      return applicationEvents.stream(BaseEvent.class)
+          .filter(event -> DATA_UPDATE.equals(event.getType()))
+          .filter(event -> asset.getId().equals(event.getInstance().getId()))
+          .map(BaseEvent::getMarkingIdsBeforeChange)
+          .filter(Objects::nonNull)
+          .toList();
     }
   }
 
