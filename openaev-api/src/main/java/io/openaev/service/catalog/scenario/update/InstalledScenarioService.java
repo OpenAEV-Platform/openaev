@@ -1,5 +1,7 @@
 package io.openaev.service.catalog.scenario.update;
 
+import static java.util.stream.Collectors.toMap;
+
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogScenario;
@@ -9,10 +11,13 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogRevocations;
+import io.openaev.service.catalog.scenario.CatalogScenarioType;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.catalog.SemanticVersion;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +67,14 @@ public class InstalledScenarioService {
     if (installed.isEmpty()) {
       return Map.of();
     }
-    CatalogRevocations revocations = revocations(installed);
+    List<CatalogScenario> versions =
+        catalogListService.versions(
+            CatalogScenario.class,
+            installed.stream().map(RawCatalogInstalledScenario::getExternalId).toList());
+    CatalogRevocations revocations = CatalogRevocations.of(versions);
+    Map<String, CatalogScenario> latest =
+        CatalogListService.latestVersions(versions).stream()
+            .collect(toMap(CatalogScenario::getExternalId, Function.identity()));
     Map<String, NumberedRevision> lastUpdates =
         scenarioRevisionService.lastUpdates(
             tenantId, installed.stream().map(RawCatalogInstalledScenario::getScenarioId).toList());
@@ -72,16 +84,18 @@ public class InstalledScenarioService {
           scenario.getScenarioId(),
           new ScenarioCatalogState(
               revocations.revokes(scenario.getExternalId(), scenario.getVersion()),
+              newerVersion(scenario, latest.get(scenario.getExternalId())),
               lastUpdates.get(scenario.getScenarioId())));
     }
     return states;
   }
 
-  private CatalogRevocations revocations(List<RawCatalogInstalledScenario> installed) {
-    return CatalogRevocations.of(
-        catalogListService.versions(
-            CatalogScenario.class,
-            installed.stream().map(RawCatalogInstalledScenario::getExternalId).toList()));
+  private static String newerVersion(RawCatalogInstalledScenario scenario, CatalogScenario latest) {
+    return latest != null
+            && CatalogScenarioType.of(latest.getScenarioType()).updatable()
+            && SemanticVersion.ORDER.compare(latest.getVersion(), scenario.getVersion()) > 0
+        ? latest.getVersion()
+        : null;
   }
 
   private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {

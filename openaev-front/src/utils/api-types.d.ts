@@ -12620,6 +12620,7 @@ export interface ScenarioBulkProcessingInput {
 
 export interface ScenarioCatalogStateOutput {
   scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_newer_version?: string;
   scenario_catalog_state_revoked: boolean;
 }
 
