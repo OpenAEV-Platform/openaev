@@ -708,14 +708,22 @@ public class EndpointService implements AuditLoggedService {
     Endpoint endpoint = (Endpoint) agent.getAsset();
     // Capture significant state before mutation
     Map<String, Object> before = endpoint.significantState(objectMapper);
+    Instant lastSeenBefore = endpoint.getLastSeen();
 
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    updateEndpoint(endpoint);
+
+    Map<String, Object> after = endpoint.significantState(objectMapper);
+    // A heartbeat that changes nothing on the endpoint leaves asset_updated_at alone: moving it
+    // would rewrite the asset row, restream it and re-index it every few minutes per agent. The
+    // agent's own changes (last seen, status) are flushed with the transaction.
+    if (!before.equals(after) || !Objects.equals(lastSeenBefore, endpoint.getLastSeen())) {
+      updateEndpoint(endpoint);
+    }
 
     // Suppress audit logging for heartbeat-only updates (no significant endpoint change)
-    suppressAuditIfUnchanged(before, endpoint.significantState(objectMapper));
+    suppressAuditIfUnchanged(before, after);
 
     return agent;
   }
