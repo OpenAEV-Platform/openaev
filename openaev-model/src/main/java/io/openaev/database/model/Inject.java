@@ -664,7 +664,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_contract_domains")
   @Queryable(
       filterable = true,
-      paths = {"injectorContract.domains.id"},
+      path = "injectorContract.domains.id",
       dynamicValues = true,
       clazz = String[].class)
   private Set<Domain> getDomains() {

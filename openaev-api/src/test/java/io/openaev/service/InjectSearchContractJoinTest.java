@@ -12,21 +12,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.Map;
 import java.util.Set;
@@ -84,6 +89,7 @@ class InjectSearchContractJoinTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @BeforeEach
   void setUp() {
@@ -91,6 +97,7 @@ class InjectSearchContractJoinTest extends IntegrationTest {
     injectorContractComposer.reset();
     endpointComposer.reset();
     scenarioComposer.reset();
+    domainComposer.reset();
   }
 
   private InjectComposer.Composer injectWithContractOnTwoAssets() throws Exception {
@@ -194,6 +201,57 @@ class InjectSearchContractJoinTest extends IntegrationTest {
           .node("[0].inject_injector_contract.injector_contract_platforms")
           .isArray()
           .containsExactlyInAnyOrder("Linux", "Windows");
+    }
+  }
+
+  @Nested
+  @DisplayName("Atomic testing list, filtering by domains")
+  class AtomicTestingDomainFilter {
+    private Inject atomicTestingInDomain(Domain domain) throws Exception {
+      InjectorContract contract =
+          InjectorContractFixture.createInjectorContract(CONTRACT_LABELS, CONTRACT_CONTENT);
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withInjectorContract(
+              injectorContractComposer
+                  .forInjectorContract(contract)
+                  .withDomain(domainComposer.forDomain(domain)))
+          .persist()
+          .get();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "Given atomic testings in two domains, should return only the one of the filtered domain")
+    void given_atomicTestingsInTwoDomains_should_returnOnlyTheFilteredDomain() throws Exception {
+      // Arrange
+      Domain testDomainA = DomainFixture.getDomainWithNameAndColour("a-domain", "#009933");
+      Domain testDomainB = DomainFixture.getDomainWithNameAndColour("b-domain", "#389CFF");
+      Inject expected = atomicTestingInDomain(testDomainA);
+      atomicTestingInDomain(testDomainB);
+      entityManager.flush();
+      entityManager.clear();
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "inject_contract_domains", testDomainA.getId(), Filters.FilterOperator.contains);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(TENANT_ATOMIC_TESTING_URI + "/search", Tenant.DEFAULT_TENANT_UUID)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("totalElements").isEqualTo(1);
+      assertThatJson(response).node("content[0].inject_id").isEqualTo(expected.getId());
     }
   }
 }
