@@ -60,7 +60,8 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate, renderT
 
   const handleOpen = () => setOpen(true);
   // Opened from Create (no draft given): a draft saved meanwhile is kept, but the next Create starts
-  // a new action instead of overwriting it. It is found again in My changes.
+  // a new action instead of overwriting it. It is found again in the Active list (Drafts of new
+  // actions), shared with everyone, and in My changes.
   const handleClose = () => {
     setOpen(false);
     if (!draft) {

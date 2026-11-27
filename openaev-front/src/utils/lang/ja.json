@@ -5141,6 +5141,7 @@
   "Draft discarded": "ドラフトを破棄しました",
   "Editing": "編集中",
   "Drafts": "ドラフト",
+  "Drafts of new actions": "新しいアクションのドラフト",
   "Rejected versions": "却下されたバージョン",
   "v{version} · Rejected": "v{version} · 却下",
   "New draft from a version": "バージョンから新しいドラフト",

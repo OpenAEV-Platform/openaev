@@ -5,6 +5,7 @@ import { useLocation, useSearchParams } from 'react-router';
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import { fetchThreatArsenalAction, fetchThreatArsenalActionIdOfPayload } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import { fetchNewActionDrafts } from '../../../actions/threat_arsenals/threatArsenal-draft-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
@@ -16,16 +17,19 @@ import PaginationComponentV2 from '../../../components/common/queryable/paginati
 import { clearQueryableStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
-import { type AttackPattern, type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../utils/api-types';
+import { type AttackPattern, type PayloadDraftOutput, type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { DRAFT_STATUS_VALUE } from './approval/approvalStatusUtils';
 import { type ResolvedRunSelection, resolveRunSelection, runTestSearchInput } from './bulk/runTestVersions';
 import ThreatArsenalRunBlockedDialog from './bulk/ThreatArsenalRunBlockedDialog';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalRunVersionDialog from './bulk/ThreatArsenalRunVersionDialog';
 import { type CustomView, viewStorageKey } from './customViews';
+import { newActionDraftCount, shownNewActionDrafts } from './drafts/newActionDraftFilters';
+import NewActionDrafts from './drafts/NewActionDrafts';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
 import ThreatArsenalCustomViewControls from './ThreatArsenalCustomViewControls';
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
@@ -160,6 +164,30 @@ const ThreatArsenalInstalled = ({ tabs, view }: Props) => {
   };
   const { selection } = installed;
   const selectionCount = selection.numberOfSelectedElements;
+  // Drafts of new actions are shared: listed for everyone, above the actions, under the same search
+  // and filters (a filter they cannot match hides them); the Draft row of the Status filter counts them.
+  const [newActionDrafts, setNewActionDrafts] = useState<PayloadDraftOutput[]>([]);
+  const loadNewActionDrafts = () => fetchNewActionDrafts()
+    .then((response: { data: PayloadDraftOutput[] }) => setNewActionDrafts(response.data))
+    .catch(() => setNewActionDrafts([]));
+  useEffect(() => {
+    loadNewActionDrafts();
+  }, []);
+  const shownDrafts = shownNewActionDrafts(newActionDrafts, installed.searchPaginationInput);
+  const draftsInCount = newActionDraftCount(newActionDrafts, installed.searchPaginationInput);
+  const facetCounts = installed.facetCounts && draftsInCount > 0
+    ? {
+        ...installed.facetCounts,
+        statuses: {
+          ...installed.facetCounts.statuses,
+          [DRAFT_STATUS_VALUE]: (installed.facetCounts.statuses?.[DRAFT_STATUS_VALUE] ?? 0) + draftsInCount,
+        },
+      }
+    : installed.facetCounts;
+  const onDraftPublished = (action: ThreatArsenalAction) => {
+    installed.prependActions([action]);
+    loadNewActionDrafts();
+  };
 
   const items: ThreatArsenalItemsProps = {
     actions: installed.threatArsenalActions,
@@ -229,12 +257,12 @@ const ThreatArsenalInstalled = ({ tabs, view }: Props) => {
             />
           </>
         )}
-        hero={<ThreatArsenalHero onFilterApproval={filterApproval} onCreate={action => installed.prependActions([action])} />}
+        hero={<ThreatArsenalHero onFilterApproval={filterApproval} onCreate={onDraftPublished} onDraftsChange={loadNewActionDrafts} />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={installed.iconBarOrderedDomains}
             authorOptions={installed.authorOptions}
-            facetCounts={installed.facetCounts}
+            facetCounts={facetCounts}
             searchPaginationInput={installed.searchPaginationInput}
             filterHelpers={installed.queryableHelpers.filterHelpers}
           />
@@ -286,6 +314,7 @@ const ThreatArsenalInstalled = ({ tabs, view }: Props) => {
           />
         )}
       >
+        <NewActionDrafts drafts={shownDrafts} onCreate={onDraftPublished} onDraftsChange={loadNewActionDrafts} />
         {viewMode === 'grid'
           ? <ThreatArsenalCardGrid {...items} selectedActionId={openedAction?.injector_contract_id} />
           : <ThreatArsenalList {...items} sortHelpers={installed.queryableHelpers.sortHelpers} />}

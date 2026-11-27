@@ -17,6 +17,9 @@ export const publishThreatArsenalDraft = (actionId: string, draftId: string, inp
 // Drafts of new actions: no action and no version until published.
 const newActionDraftsUri = '/api/threat_arsenals/new_action_drafts';
 
+// Shared: everyone who can read the Threat Arsenal lists them (the Active list shows them).
+export const fetchNewActionDrafts = () => simpleCall(newActionDraftsUri);
+
 export const createNewActionDraft = (input: PayloadDraftInput) => simplePostCall(newActionDraftsUri, input);
 
 export const saveNewActionDraft = (draftId: string, input: PayloadDraftInput) => simplePutCall(`${newActionDraftsUri}/${draftId}`, input);

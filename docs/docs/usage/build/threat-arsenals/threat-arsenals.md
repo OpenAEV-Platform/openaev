@@ -237,7 +237,9 @@ Above the form, **What this draft changes** compares the saved draft with the ve
 a new version.
 
 A **new Action** can be saved as a draft too: **Save draft** in the Create form keeps it without creating the Action. It
-has no version and nothing can use it until you publish it, which creates version 1.0.0.
+has no version and nothing can use it until you publish it, which creates version 1.0.0. Drafts are shared: the Active
+tab lists the drafts of new Actions in a *Drafts of new actions* group above the Actions, for everyone who can read the
+Threat Arsenal, with who saved them last. Users who can create Actions open one to change, publish or discard it.
 
 The **Versions** tab lists the drafts above the versions, with who saved them last. Each version offers **Duplicate to
 draft** (**Fix in a draft** for a rejected version): the version stays as it is, and the draft starts with its content.
@@ -245,9 +247,10 @@ The **History** tab records when a draft is started from a version, discarded, p
 v1.0.2*, *Published from a draft*), or when a rejected version is fixed and sent again; the Versions tab shows *from
 v1.0.0* on a version published from a draft. A card and a list row show a *Draft* chip while the Action has a draft.
 
-To find drafts, **My changes** lists the drafts you saved, new Actions included, in a *Drafts* group above the others,
-and the **Status** filter of the Active tab has a *Draft* value that keeps the Actions with a draft (a custom view can
-keep it). The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
+To find drafts, the **Status** filter of the Active tab has a *Draft* value that keeps the Actions with a draft and the
+drafts of new Actions (a custom view can keep it); any other filter leaves the drafts of new Actions out, and the search
+finds them by name. **My changes** also lists the drafts you saved, new Actions included, in a *Drafts* group above the
+others. The **Approval** filter offers *Pending approval*, *Approved* and *Rejected*.
 
 ## Delete an Action
 

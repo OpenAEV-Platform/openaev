@@ -5141,6 +5141,7 @@
   "Draft discarded": "草稿已丢弃",
   "Editing": "正在编辑",
   "Drafts": "草稿",
+  "Drafts of new actions": "新操作的草稿",
   "Rejected versions": "已拒绝的版本",
   "v{version} · Rejected": "v{version} · 已拒绝",
   "New draft from a version": "基于版本新建草稿",
