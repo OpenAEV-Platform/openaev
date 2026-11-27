@@ -229,83 +229,102 @@ public class ImapService extends ExternalServiceBase {
     return new RecordedCommunication(saved.getId(), exerciseId);
   }
 
-  private void parseMessages(Message[] messages, Boolean isSent) throws Exception {
+  /**
+   * Processes each fetched message on its own: one message that cannot be read or stored must not
+   * abort the batch. The per-folder read cursor is written by {@link #synchronizeBox} only after
+   * this method returns, so an abort here re-fetches the same message on every tick and wedges
+   * every message behind it.
+   */
+  private void parseMessages(Message[] messages, Boolean isSent) {
     for (Message message : messages) {
-      MimeMessage mimeMessage = (MimeMessage) message;
-      String messageID = mimeMessage.getMessageID();
-      String content = getTextFromMessage(message);
-      String contentHtml = getHtmlFromMessage(message);
-      Optional<ResolvedInject> resolved = injectResolver(content, contentHtml);
-      if (resolved.isPresent()) {
-        String injectId = resolved.get().injectId();
-        String tenantId = resolved.get().tenantId();
-        TxCtx tenantScope = TxCtx.forTenant(tenantId);
-        boolean messageAlreadyAvailable =
+      try {
+        parseMessage(message, isSent);
+      } catch (Exception e) {
+        log.error("Could not process an inbound message, skipping it", e);
+      }
+    }
+  }
+
+  private void parseMessage(Message message, Boolean isSent) throws Exception {
+    MimeMessage mimeMessage = (MimeMessage) message;
+    String messageID = mimeMessage.getMessageID();
+    String content = getTextFromMessage(message);
+    String contentHtml = getHtmlFromMessage(message);
+    Optional<ResolvedInject> resolved = injectResolver(content, contentHtml);
+    if (resolved.isPresent()) {
+      String injectId = resolved.get().injectId();
+      String tenantId = resolved.get().tenantId();
+      TxCtx tenantScope = TxCtx.forTenant(tenantId);
+      boolean messageAlreadyAvailable =
+          tenantScopedTransaction.execute(
+              tenantScope,
+              () ->
+                  communicationRepository.existsByIdentifierAndInjectTenantId(messageID, tenantId));
+      if (!messageAlreadyAvailable) {
+        List<String> participants = computeParticipants(message);
+        List<User> users =
+            tenantScopedTransaction.execute(
+                tenantScope,
+                () -> userRepository.findAllByEmailInIgnoreCaseAndTenantId(participants, tenantId));
+        if (!users.isEmpty()) {
+          String subject = message.getSubject();
+          String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
+          String to = String.valueOf(Arrays.stream(message.getAllRecipients()).toList());
+          // Save messaging
+          Communication communication = new Communication();
+          // Both dates are nullable by the JavaMail contract (a server that exposes only
+          // INTERNALDATE, a draft); the field keeps its own now() default, which is what the NOT
+          // NULL column needs, instead of a toInstant() on null.
+          Date receivedDate = message.getReceivedDate();
+          if (receivedDate != null) {
+            communication.setReceivedAt(receivedDate.toInstant());
+          }
+          Date sentDate = message.getSentDate();
+          if (sentDate != null) {
+            communication.setSentAt(sentDate.toInstant());
+          }
+          communication.setSubject(subject);
+          communication.setContent(content);
+          communication.setContentHtml(contentHtml);
+          communication.setIdentifier(messageID);
+          communication.setUsers(users);
+          communication.setAnimation(isSent);
+          communication.setFrom(from);
+          communication.setTo(to);
+          try {
+            RecordedCommunication recorded =
+                tenantScopedTransaction.execute(
+                    tenantScope, () -> recordCommunication(injectId, communication));
+            // Upload attachments in communication
+            final MimeMessageParser mimeParser = new MimeMessageParser(mimeMessage).parse();
+            final List<DataSource> attachmentList = mimeParser.getAttachmentList();
+            final List<String> uploads = new ArrayList<>();
+            String exerciseId = recorded.exerciseId();
+            for (DataSource dataSource : attachmentList) {
+              final String fileName = dataSource.getName();
+              String path =
+                  exerciseId != null
+                      ? "/" + exerciseId + "/communications/" + recorded.communicationId()
+                      : "/communications/" + recorded.communicationId();
+              // Explicit tenant: this job sets no ambient TenantContext, so the object is written
+              // under the inject's own tenant path.
+              String uploadName =
+                  fileService.uploadStream(tenantId, path, fileName, dataSource.getInputStream());
+              uploads.add(uploadName);
+            }
+            // Add attachment in the communication
             tenantScopedTransaction.execute(
                 tenantScope,
                 () ->
-                    communicationRepository.existsByIdentifierAndInjectTenantId(
-                        messageID, tenantId));
-        if (!messageAlreadyAvailable) {
-          List<String> participants = computeParticipants(message);
-          List<User> users =
-              tenantScopedTransaction.execute(
-                  tenantScope,
-                  () ->
-                      userRepository.findAllByEmailInIgnoreCaseAndTenantId(participants, tenantId));
-          if (!users.isEmpty()) {
-            String subject = message.getSubject();
-            String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
-            String to = String.valueOf(Arrays.stream(message.getAllRecipients()).toList());
-            Date receivedDate = message.getReceivedDate();
-            Date sentDate = message.getSentDate();
-            // Save messaging
-            Communication communication = new Communication();
-            communication.setReceivedAt(receivedDate.toInstant());
-            communication.setSentAt(sentDate.toInstant());
-            communication.setSubject(subject);
-            communication.setContent(content);
-            communication.setContentHtml(contentHtml);
-            communication.setIdentifier(messageID);
-            communication.setUsers(users);
-            communication.setAnimation(isSent);
-            communication.setFrom(from);
-            communication.setTo(to);
-            try {
-              RecordedCommunication recorded =
-                  tenantScopedTransaction.execute(
-                      tenantScope, () -> recordCommunication(injectId, communication));
-              // Upload attachments in communication
-              final MimeMessageParser mimeParser = new MimeMessageParser(mimeMessage).parse();
-              final List<DataSource> attachmentList = mimeParser.getAttachmentList();
-              final List<String> uploads = new ArrayList<>();
-              String exerciseId = recorded.exerciseId();
-              for (DataSource dataSource : attachmentList) {
-                final String fileName = dataSource.getName();
-                String path =
-                    exerciseId != null
-                        ? "/" + exerciseId + "/communications/" + recorded.communicationId()
-                        : "/communications/" + recorded.communicationId();
-                // Explicit tenant: this job sets no ambient TenantContext, so the object is written
-                // under the inject's own tenant path.
-                String uploadName =
-                    fileService.uploadStream(tenantId, path, fileName, dataSource.getInputStream());
-                uploads.add(uploadName);
-              }
-              // Add attachment in the communication
-              tenantScopedTransaction.execute(
-                  tenantScope,
-                  () ->
-                      communicationRepository
-                          .findById(recorded.communicationId())
-                          .ifPresent(
-                              comm -> {
-                                comm.setAttachments(uploads.toArray(String[]::new));
-                                communicationRepository.save(comm);
-                              }));
-            } catch (Exception e) {
-              log.error(e.getMessage(), e);
-            }
+                    communicationRepository
+                        .findById(recorded.communicationId())
+                        .ifPresent(
+                            comm -> {
+                              comm.setAttachments(uploads.toArray(String[]::new));
+                              communicationRepository.save(comm);
+                            }));
+          } catch (Exception e) {
+            log.error(e.getMessage(), e);
           }
         }
       }
@@ -359,39 +378,64 @@ public class ImapService extends ExternalServiceBase {
   }
 
   private void syncFolders() throws Exception {
-    try {
-      // Sync sent
-      tryToSynchronizeFolderFromBox(sentFolder, true);
-      // Sync received
-      for (String listeningFolder : inboxFolders) {
-        tryToSynchronizeFolderFromBox(listeningFolder, false);
-      }
-    } catch (MessagingException e) {
-      log.warn("Connection failure: {}", e.getMessage(), e);
-      // Retry logic or rethrow the exception
-      retrySyncFolders();
+    // Sync sent
+    tryToSynchronizeFolderFromBox(sentFolder, true);
+    // Sync received
+    for (String listeningFolder : inboxFolders) {
+      tryToSynchronizeFolderFromBox(listeningFolder, false);
     }
   }
 
+  /**
+   * Retries {@link #syncFolders} up to three times, two seconds apart, and drops the store after
+   * the last failure so the next tick builds a new one from scratch.
+   *
+   * <p>The retry loop has to own the {@link MessagingException}: when {@code syncFolders} caught it
+   * and called this method instead, no call here could ever fail, so the first connection failure
+   * recursed between the two methods until the scheduler thread died with a {@link
+   * StackOverflowError}, without a single retry and without ever closing the store.
+   */
   private void retrySyncFolders() throws Exception {
-    for (int i = 0; i < 3; i++) {
+    MessagingException lastFailure = null;
+    for (int attempt = 0; attempt < 3; attempt++) {
       try {
         syncFolders();
-        break;
+        return;
       } catch (MessagingException e) {
-        log.warn("Retrying connection... {}", e.getMessage(), e);
-        Thread.sleep(2000);
-        if (i == 2 && imapStore != null && imapStore.isConnected()) {
-          imapStore.close();
+        lastFailure = e;
+        log.warn("Retrying connection... ({}/3) {}", attempt + 1, e.getMessage(), e);
+        if (attempt < 2) {
+          Thread.sleep(2000);
         }
       }
     }
+    // A closed store cannot be reconnected; nulling it makes the next tick build a fresh one.
+    if (imapStore != null) {
+      try {
+        if (imapStore.isConnected()) {
+          imapStore.close();
+        }
+      } catch (MessagingException e) {
+        log.warn("Could not close the IMAP store: {}", e.getMessage(), e);
+      }
+      imapStore = null;
+    }
+    throw lastFailure;
   }
 
   // Sync folders every 10 sec
   @Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() throws Exception {
     if (enabled) {
+      if (imapStore == null) {
+        // init() logs the failure that left it null; retry the store creation on this tick
+        try {
+          initStore();
+        } catch (Exception e) {
+          log.warn("Could not create the IMAP store: {}", e.getMessage(), e);
+          return;
+        }
+      }
       if (!imapStore.isConnected()) {
         try {
           imapStore.connect(host, port, username, password);
@@ -402,7 +446,12 @@ public class ImapService extends ExternalServiceBase {
           return;
         }
       }
-      syncFolders();
+      try {
+        retrySyncFolders();
+      } catch (MessagingException e) {
+        log.warn("IMAP folder sync failed after retries: {}", e.getMessage(), e);
+        this.saveServiceState(IMAP_SETTINGS_KEY, false);
+      }
     }
   }
 
