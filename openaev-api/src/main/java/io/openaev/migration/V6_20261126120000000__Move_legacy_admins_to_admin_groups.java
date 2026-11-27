@@ -21,9 +21,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * Moves the users other than the root user who hold the admin flag, a hidden RBAC bypass, to the
- * platform Administrators group and to the Admin group of each of their tenants, then clears their
- * flag. A tenant whose Admin group is missing or does not grant {@code BYPASS} is skipped and
- * logged.
+ * platform Administrators group and to the Admin group of each of their tenants. A tenant whose
+ * Admin group is missing or does not grant {@code BYPASS} is skipped and logged.
+ *
+ * <p>The flag itself is cleared by {@code InitAdminCommandLineRunner} right after Flyway, in the
+ * same startup: it also rewrites the live sessions of those users, which still carry the admin
+ * authority, and a migration has no access to them.
  *
  * <p>The platform group is created when missing: the bootstrap creates it after Flyway, so an
  * instance upgraded from a version older than 2.260623.0 has never had it.
@@ -57,11 +60,7 @@ public class V6_20261126120000000__Move_legacy_admins_to_admin_groups extends Ba
         }
       }
     }
-    update(
-        connection,
-        "UPDATE users SET user_admin = false WHERE user_admin AND user_id <> ?",
-        ADMIN_UUID);
-    log.info("Admin flag replaced by admin group memberships for users {}", legacyAdmins);
+    log.info("Admin group memberships given to the legacy admin users {}", legacyAdmins);
   }
 
   private static void ensurePlatformAdminGroup(Connection connection) throws SQLException {

@@ -6,8 +6,11 @@ import static io.openaev.database.model.User.ADMIN_UUID;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.SessionManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -38,6 +41,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -60,6 +64,8 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
 
   @Autowired private UserComposer userComposer;
+
+  @MockitoSpyBean private SessionManager sessionManager;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -225,7 +231,8 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     assertThat(adminTokens.getFirst().getValue()).isEqualTo(this.configuredAdminToken);
   }
 
-  @DisplayName("At bootstrap, only the root user keeps the admin flag")
+  @DisplayName(
+      "At bootstrap, only the root user keeps the admin flag, in the database and sessions")
   @Test
   @Transactional
   void given_otherUserWithAdminFlag_should_removeItAtBootstrap() throws Exception {
@@ -243,5 +250,8 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // Assert
     assertThat(this.userRepository.findById(legacyAdminId).orElseThrow().isAdmin()).isFalse();
     assertThat(this.userRepository.findById(ADMIN_UUID).orElseThrow().isAdmin()).isTrue();
+    verify(this.sessionManager)
+        .refreshUserSessions(
+            argThat(user -> legacyAdminId.equals(user.getId()) && !user.isAdmin()));
   }
 }

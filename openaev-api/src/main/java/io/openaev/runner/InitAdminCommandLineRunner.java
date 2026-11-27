@@ -7,6 +7,7 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.config.SessionManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Token;
@@ -46,18 +47,21 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final TenantUserService tenantUserService;
   private final AdminPrivilegeService adminPrivilegeService;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final SessionManager sessionManager;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
       @NotNull final TenantUserService tenantUserService,
       @NotNull final AdminPrivilegeService adminPrivilegeService,
-      @NotNull final TenantScopedTransaction tenantScopedTransaction) {
+      @NotNull final TenantScopedTransaction tenantScopedTransaction,
+      @NotNull final SessionManager sessionManager) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantUserService = tenantUserService;
     this.adminPrivilegeService = adminPrivilegeService;
     this.tenantScopedTransaction = tenantScopedTransaction;
+    this.sessionManager = sessionManager;
   }
 
   @Override
@@ -127,7 +131,10 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     return this.userRepository.save(user);
   }
 
-  /** The admin flag bypasses RBAC: only the root user may hold it. */
+  /**
+   * The admin flag bypasses RBAC: only the root user may hold it. The sessions of the users who
+   * lose it are rewritten too, since they survive a restart and still carry the admin authority.
+   */
   private void revokeAdminFlagOfOtherUsers() {
     List<User> others = this.userRepository.findAllByAdminTrueAndIdNot(ADMIN_UUID);
     if (others.isEmpty()) {
@@ -135,6 +142,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     }
     others.forEach(user -> user.setAdmin(false));
     this.userRepository.saveAll(others);
+    others.forEach(this.sessionManager::refreshUserSessions);
     log.warn(
         "Admin flag removed from {} user(s) other than the root user: {}",
         others.size(),
