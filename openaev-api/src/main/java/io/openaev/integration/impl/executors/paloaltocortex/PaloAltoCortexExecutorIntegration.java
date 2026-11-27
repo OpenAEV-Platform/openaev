@@ -71,6 +71,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
   public PaloAltoCortexExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -83,7 +84,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
       HttpClientFactory httpClientFactory,
       OpenAEVConfig openAEVConfig,
       TenantScopedTransaction tenantTx) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;

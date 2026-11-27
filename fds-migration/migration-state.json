@@ -617,8 +617,7 @@
         "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogCard.tsx",
         "openaev-front/src/admin/components/scenarios/targets/InjectTargetsList.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
-        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateSummary.tsx"
+        "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx"
       ]
     },
     {

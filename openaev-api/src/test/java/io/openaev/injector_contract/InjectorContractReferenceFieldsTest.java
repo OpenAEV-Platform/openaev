@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.List;
@@ -19,7 +20,8 @@ import org.junit.jupiter.api.Test;
 class InjectorContractReferenceFieldsTest {
 
   private final ObjectMapper mapper = new ObjectMapper();
-  private final InjectorContractContentUtils utils = new InjectorContractContentUtils(mapper);
+  private final InjectorContractContentUtils utils =
+      new InjectorContractContentUtils(mapper, new ExpectationPropertiesConfig());
 
   private InjectorContract contract() {
     InjectorContract contract = new InjectorContract();

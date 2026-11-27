@@ -14,7 +14,7 @@ public record AttackPathSecurityPlatformDTO(
     String
         platformType, // EDR | XDR | SIEM (SecurityPlatform.SECURITY_PLATFORM_TYPE), null if unknown
     String platformName,
-    String bucket, // "prevention" | "detection"
+    String bucket, // PREVENTION | DETECTION | LOGGING | VULNERABILITY
     String status, // SUCCESS | FAILED | PARTIAL | PENDING | UNKNOWN
     String detectedAt, // ISO instant, the expectation result date
     String resultLabel, // snapshot label as produced by the collector/expectation result

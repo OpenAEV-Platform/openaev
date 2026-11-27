@@ -1,4 +1,4 @@
-import { Button, Chip, Drawer, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@filigran/design-system';
+import { Alert, Button, Chip, Drawer, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@filigran/design-system';
 import { PlayArrowOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
@@ -24,11 +24,14 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ overline, title, vers
   const { t } = useFormatter();
   const theme = useTheme();
   const [submitting, setSubmitting] = useState(false);
+  // Why the submit failed, said in the drawer: a message behind its overlay is never seen.
+  const [failure, setFailure] = useState<string | null>(null);
 
   const submit = () => {
     setSubmitting(true);
+    setFailure(null);
     onSubmit()
-      .catch(() => undefined)
+      .catch((error: { message?: string }) => setFailure(error?.message || t('Something went wrong. Please refresh the page or try again later.')))
       .finally(() => setSubmitting(false));
   };
 
@@ -49,6 +52,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ overline, title, vers
           }}
           >
             {children}
+            {failure && <Alert elevation={1} severity="error" title={failure} />}
           </div>
           <DrawerFooter>
             <Button type="button" priority="secondary" disabled={submitting} onClick={onClose}>{t('Cancel')}</Button>

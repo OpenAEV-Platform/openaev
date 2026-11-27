@@ -86,7 +86,7 @@ const Validations = () => {
     expectations => expectations.filter(
       n => tags.length === 0
         || tags.map(tag => tag.id).some(
-          filter => R.includes(filter, n.inject_expectation_inject?.inject_tags),
+          filter => n.inject_expectation_inject?.inject_tags.includes(filter),
         ),
     ),
     expectations => expectations.filter(n => filterByKeyword(n)),

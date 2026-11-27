@@ -22,6 +22,7 @@ import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ScenarioCard from './card/ScenarioCard';
+import useScenarioCatalogStates from './card/useScenarioCatalogStates';
 import ScenariosList from './list/ScenariosList';
 import ScenariosHeaderActions from './page/ScenariosHeaderActions';
 import ScenariosHero from './page/ScenariosHero';
@@ -86,6 +87,8 @@ const Scenarios = () => {
   const isChecked = (scenario: ScenarioRow) => (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
     || scenario.scenario_id in (selectedElements || {});
 
+  const catalogStates = useScenarioCatalogStates(viewMode === 'grid' ? scenarios.filter(scenario => scenario.scenario_version).map(scenario => scenario.scenario_id) : []);
+
   const removeScenarios = (ids: string[]) => {
     setScenarios(prev => prev.filter(s => !ids.includes(s.scenario_id)));
     queryableHelpers.paginationHelpers.handleChangeTotalElements(Math.max(0, totalElements - ids.length));
@@ -149,7 +152,13 @@ const Scenarios = () => {
               loading={loadingFirstPage}
               emptyState={emptyState}
               renderItem={scenario => (
-                <ScenarioCard key={scenario.scenario_id} scenario={scenario} onDelete={id => removeScenarios([id])} />
+                <ScenarioCard
+                  key={scenario.scenario_id}
+                  scenario={scenario}
+                  newerVersion={catalogStates[scenario.scenario_id]?.scenario_catalog_state_newer_version}
+                  catalogState={catalogStates[scenario.scenario_id]}
+                  onDelete={id => removeScenarios([id])}
+                />
               )}
             />
           )

@@ -138,13 +138,14 @@ public class CatalogListService {
         .filter(CatalogListService::isOffered)
         .collect(
             Collectors.toMap(
-                CatalogItem::getExternalId,
-                Function.identity(),
-                (a, b) ->
-                    SemanticVersion.ORDER.compare(a.getVersion(), b.getVersion()) >= 0 ? a : b))
+                CatalogItem::getExternalId, Function.identity(), CatalogListService::newer))
         .values()
         .stream()
         .sorted(Comparator.comparing(CatalogItem::getName, Comparator.nullsLast(String::compareTo)))
         .toList();
+  }
+
+  static <T extends CatalogItem> T newer(T a, T b) {
+    return SemanticVersion.ORDER.compare(a.getVersion(), b.getVersion()) >= 0 ? a : b;
   }
 }

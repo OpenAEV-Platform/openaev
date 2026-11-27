@@ -34,6 +34,7 @@ public class PhishingInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       PhishingContract phishingContract,
       InjectorContext injectorContext,
       EmailService emailService,
@@ -41,7 +42,7 @@ public class PhishingInjectorIntegration extends IntegrationInMemory {
       PhishingTrackingService phishingTrackingService,
       PhishingLandingPageRepository landingPageRepository,
       PhishingEmailTemplateRepository emailTemplateRepository) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.phishingContract = phishingContract;
     this.injectorContext = injectorContext;
     this.emailService = emailService;

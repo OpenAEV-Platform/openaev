@@ -96,7 +96,7 @@ aikido: "🔍 Aikido Image Scan\ntimeout 25 min · Aikido gate, high/critical\ni
 tests: "TESTS" {
 class: lane
 at: "🧪 API Tests\nCore 8 · Nightly 16 cells\ntimeout 30 min · fail-fast: false" {class: test}
-e2e: "🧪 E2E Tests (Playwright)\nCore 10 · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
+e2e: "🧪 E2E Tests (Playwright)\nCore 6 PR / 10 main · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
 atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API schema" {class: test}
 }
 }
@@ -210,7 +210,7 @@ row4 -> row5: {style.opacity: 0}
 row5 -> row6: {style.opacity: 0}
 }
 
-matrix: "CORE vs NIGHTLY — THE ONLY TWO DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 10 cells, standard image only, chrome/amd64 + chromium/arm64\nsharded arsenals / multitenant / remaining, plus 4 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells" {
+matrix: "CORE vs NIGHTLY — THE ONLY TWO DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs, 10 on main, standard image only\nmostly Chromium, a few shards on Firefox and WebKit (no WebKit on arm64)\nsharded arsenals / external integrations / remaining, plus infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells" {
 style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
 }
 

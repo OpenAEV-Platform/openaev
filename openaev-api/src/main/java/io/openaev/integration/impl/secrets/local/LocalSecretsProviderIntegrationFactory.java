@@ -77,11 +77,12 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new LocalSecretsProviderIntegration(
         instance,
         connectorInstanceService,
         componentRequestEngine,
+        tenantId,
         secretService,
         secretReferenceService,
         secretHandlerResolver);

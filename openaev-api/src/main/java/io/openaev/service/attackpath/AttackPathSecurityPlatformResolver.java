@@ -31,6 +31,7 @@ public class AttackPathSecurityPlatformResolver {
   private static final String UNKNOWN = "UNKNOWN";
   private static final String PREVENTION = BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name();
   private static final String DETECTION = BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.name();
+  private static final String LOGGING = BaseInjectExpectation.EXPECTATION_TYPE.LOGGING.name();
 
   private static final String VULNERABILITY =
       BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.name();
@@ -51,6 +52,7 @@ public class AttackPathSecurityPlatformResolver {
         executionCollectorRepository.findByExecutionIdAndTenantId(executionId, tenantId);
     Map<String, AttackPathSecurityPlatformDTO> prevention = new LinkedHashMap<>();
     Map<String, AttackPathSecurityPlatformDTO> detection = new LinkedHashMap<>();
+    Map<String, AttackPathSecurityPlatformDTO> logging = new LinkedHashMap<>();
     Map<String, AttackPathSecurityPlatformDTO> vulnerability = new LinkedHashMap<>();
     for (AttackPathExecutionCollector row : rows) {
       String bucket = expectationBucket(row.getExpectationType());
@@ -62,6 +64,8 @@ public class AttackPathSecurityPlatformResolver {
         putPreferSpecificType(prevention, dto);
       } else if (DETECTION.equals(bucket)) {
         putPreferSpecificType(detection, dto);
+      } else if (LOGGING.equals(bucket)) {
+        putPreferSpecificType(logging, dto);
       } else {
         putPreferSpecificType(vulnerability, dto);
       }
@@ -111,6 +115,7 @@ public class AttackPathSecurityPlatformResolver {
     List<AttackPathSecurityPlatformDTO> out = new ArrayList<>();
     out.addAll(prevention.values());
     out.addAll(detection.values());
+    out.addAll(logging.values());
     out.addAll(vulnerability.values());
     return out;
   }
@@ -171,6 +176,7 @@ public class AttackPathSecurityPlatformResolver {
     return switch (expectationType) {
       case "PREVENTION" -> PREVENTION;
       case "DETECTION" -> DETECTION;
+      case "LOGGING" -> LOGGING;
       case "VULNERABILITY" -> VULNERABILITY;
       default -> null;
     };

@@ -263,14 +263,8 @@ public final class FilterUtilsJpa {
       case not_ends_with ->
           (paths, texts) -> notEndWithTexts((Expression<String>) paths, cb, texts, type);
       case ends_with -> (paths, texts) -> endWithTexts((Expression<String>) paths, cb, texts, type);
-      case empty ->
-          isNumericType(type)
-              ? (paths, texts) -> emptyNumbers((Expression<? extends Number>) paths, cb)
-              : (paths, texts) -> empty((Expression<String>) paths, cb, type);
-      case not_empty ->
-          isNumericType(type)
-              ? (paths, texts) -> notEmptyNumbers((Expression<? extends Number>) paths, cb)
-              : (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
+      case empty -> (paths, texts) -> empty((Expression<String>) paths, cb, type);
+      case not_empty -> (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
       case gt ->
           isNumericType(type)
               ? (paths, texts) ->
@@ -540,14 +534,6 @@ public final class FilterUtilsJpa {
     }
 
     return cb.notEqual(paths, parseNumericValue(text, type));
-  }
-
-  private static Predicate emptyNumbers(Expression<? extends Number> paths, CriteriaBuilder cb) {
-    return cb.isNull(paths);
-  }
-
-  private static Predicate notEmptyNumbers(Expression<? extends Number> paths, CriteriaBuilder cb) {
-    return cb.isNotNull(paths);
   }
 
   static boolean isNumericType(Class<?> type) {

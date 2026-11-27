@@ -4,7 +4,7 @@ import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { useHelper } from '../../../../../../../store';
-import type { Exercise, Grant, GroupGrantInput } from '../../../../../../../utils/api-types';
+import type { Exercise, GroupGrantInput, TenantGroupGrantOutput } from '../../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../../utils/hooks';
 import { type TableConfig } from '../ui/TableData';
 
@@ -38,7 +38,7 @@ const useSimulationGrant = ({ groupId, onGrantChange }: SimulationGrantsProps) =
   const getGrantIds = (exercise: Exercise) => {
     const grants = group?.group_grants ?? [];
     const findGrantId = (name: string) =>
-      grants.find((g: Grant) => g.grant_resource === exercise.exercise_id && g.grant_name === name)?.grant_id ?? null;
+      grants.find((g: TenantGroupGrantOutput) => g.grant_resource === exercise.exercise_id && g.grant_name === name)?.grant_id ?? null;
 
     return {
       observerId: findGrantId('OBSERVER'),

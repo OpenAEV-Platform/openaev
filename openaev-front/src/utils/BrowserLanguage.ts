@@ -22,9 +22,9 @@ const detectedLocale = R.pipe(
   (source: object) => pick(source as Record<string, unknown>, browserLanguagePropertyKeys), // Get only language properties
   Object.values, // Get values of the properties
   (values: unknown[]) => values.flat(Infinity), // flatten all arrays
-  (values: unknown[]) => values.filter(value => !R.isNil(value)), // Remove undefined values
+  (values: unknown[]) => values.filter(value => value != null), // Remove null and undefined values
   (languages: string[]) => languages.map((x: string) => x.substring(0, 2)),
-  (languages: string[]) => languages.find((x: string) => R.includes(x, supportedLanguages)), // Returns first language matched in languages
+  (languages: string[]) => languages.find((x: string) => supportedLanguages.includes(x)), // Returns first language matched in languages
 );
 
 export default detectedLocale(window.navigator) || DEFAULT_LANG; // If no locale is detected, fallback to 'en'

@@ -30,12 +30,13 @@ public class EmailInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance instance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       EmailContract emailContract,
       InjectorContext injectorContext,
       EmailService emailService,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService) {
-    super(componentRequestEngine, instance, connectorInstanceService);
+    super(componentRequestEngine, instance, connectorInstanceService, tenantId);
     this.emailContract = emailContract;
     this.injectorContext = injectorContext;
     this.emailService = emailService;

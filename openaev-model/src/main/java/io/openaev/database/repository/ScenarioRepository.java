@@ -439,10 +439,20 @@ public interface ScenarioRepository
 
   boolean existsByCatalogIdentityId(String identityId);
 
-  @Query(
-      "SELECT i.repository AS repository, i.externalId AS externalId, s.id AS scenarioId"
-          + " FROM Scenario s JOIN s.catalogIdentity i"
-          + " WHERE s.tenant.id = :tenantId AND i.externalId IN :externalIds")
-  List<RawCatalogInstalledScenario> findInstalledFromCatalog(
+  String INSTALLED_FROM_CATALOG =
+      "SELECT i.repository AS repository, i.externalId AS externalId,"
+          + " s.catalogVersion AS version, s.id AS scenarioId"
+          + " FROM Scenario s JOIN s.catalogIdentity i WHERE s.tenant.id = :tenantId";
+
+  @Query(INSTALLED_FROM_CATALOG + " AND i.externalId IN :externalIds")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalogByTenantIdAndExternalIdIn(
       @Param("tenantId") String tenantId, @Param("externalIds") Collection<String> externalIds);
+
+  @Query(INSTALLED_FROM_CATALOG + " AND i.repository = :repository")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalogByTenantIdAndRepository(
+      @Param("tenantId") String tenantId, @Param("repository") String repository);
+
+  @Query(INSTALLED_FROM_CATALOG + " AND s.id IN :scenarioIds")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalogByTenantIdAndIdIn(
+      @Param("tenantId") String tenantId, @Param("scenarioIds") Collection<String> scenarioIds);
 }

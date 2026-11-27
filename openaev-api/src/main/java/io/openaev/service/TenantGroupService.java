@@ -349,14 +349,6 @@ public class TenantGroupService {
     return saved;
   }
 
-  /** Gives a new marking to every group of its tenant that receives new markings. */
-  public void grantToAutoNewMarkingGroups(@NotNull final MarkingDefinition marking) {
-    String tenantId = marking.getTenant().getId();
-    groupRepository
-        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
-        .forEach(group -> grantMissingMarkings(group, List.of(marking)));
-  }
-
   /**
    * Takes a marking out of every group of its tenant that holds it, before the marking is deleted.
    * The {@code ON DELETE CASCADE} of {@code groups_markings} would drop the rows, but a group still
@@ -367,6 +359,20 @@ public class TenantGroupService {
     groupRepository
         .findAllByTenantIdAndMarkingsId(marking.getTenant().getId(), marking.getId())
         .forEach(group -> group.getMarkings().remove(marking));
+  }
+
+  /**
+   * Gives new markings of one tenant to every group of that tenant that receives new markings: one
+   * query for the groups, one grant per group.
+   */
+  public void grantToAutoNewMarkingGroups(@NotNull final Collection<MarkingDefinition> markings) {
+    if (markings.isEmpty()) {
+      return;
+    }
+    String tenantId = markings.iterator().next().getTenant().getId();
+    groupRepository
+        .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
+        .forEach(group -> grantMissingMarkings(group, markings));
   }
 
   /** Makes the group receive every marking of its tenant, existing and future. */
@@ -446,7 +452,7 @@ public class TenantGroupService {
         markingClearanceCacheManager.findClearance(user.getId(), tenantId), markings);
   }
 
-  private void grantMissingMarkings(Group group, List<MarkingDefinition> markings) {
+  private void grantMissingMarkings(Group group, Collection<MarkingDefinition> markings) {
     if (!group.getMarkings().addAll(markings)) {
       return;
     }

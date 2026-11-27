@@ -178,6 +178,7 @@ public class AssetService {
         && input.getSubcategory() == null
         && input.getUrl() == null
         && input.getCriticality() == null
+        && input.getInternetFacing() == null
         && CollectionUtils.isEmpty(input.getTagIdsToAdd())) {
       throw new BadRequestException("Nothing to update: give at least one attribute");
     }
@@ -233,6 +234,9 @@ public class AssetService {
     }
     if (input.getCriticality() != null) {
       asset.setCriticality(input.getCriticality());
+    }
+    if (input.getInternetFacing() != null) {
+      asset.setInternetFacing(input.getInternetFacing());
     }
     if (!tagsToAdd.isEmpty()) {
       Set<Tag> tags = asset.getTags() == null ? new HashSet<>() : new HashSet<>(asset.getTags());

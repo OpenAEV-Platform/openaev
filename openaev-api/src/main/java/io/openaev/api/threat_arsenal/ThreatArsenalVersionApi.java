@@ -1,10 +1,10 @@
 package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
-import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.RequirePreviewFeature;
+import io.openaev.api.threat_arsenal.dto.PayloadUsageCountOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadUsagesOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionChangeOutput;
 import io.openaev.api.threat_arsenal.dto.PayloadVersionOutput;
@@ -45,10 +45,7 @@ public class ThreatArsenalVersionApi {
   // -- READ --
 
   @Operation(summary = "Versions of the action's payload installed in the tenant, newest first")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/{actionId}/versions",
-    TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions")
   @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#actionId",
@@ -78,10 +75,7 @@ public class ThreatArsenalVersionApi {
       summary =
           "Scenario injects, atomic testings and chained scenario steps running the action that"
               + " the user can read, and how many others")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/{actionId}/usages",
-    TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/usages")
   @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#actionId",
@@ -92,11 +86,22 @@ public class ThreatArsenalVersionApi {
     return payloadVersionService.usages(TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
   }
 
+  @Operation(
+      summary = "How many usages each version of the action's payload has; unused ones left out")
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/usage-counts")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  public List<PayloadUsageCountOutput> usageCounts(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    return payloadVersionService.usageCounts(
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx), actionId);
+  }
+
   @Operation(summary = "The action listed for a payload version, for links that only know it")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/payloads/{payloadId}/action",
-    TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action"
-  })
+  @GetMapping(TENANT_THREAT_ARSENAL_URL + "/payloads/{payloadId}/action")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalActionIdOutput listedAction(

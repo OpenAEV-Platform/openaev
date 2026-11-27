@@ -233,8 +233,8 @@ class QueueChainingJobTest extends IntegrationTest {
   class TenantThreadLocalAfterAPass {
 
     @Test
-    @DisplayName("A failed pass leaves no tenant behind on the thread")
-    void given_failedPassOnAnotherTenant_should_leaveNoTenantOnTheThread() throws Exception {
+    @DisplayName("A failed pass on another tenant sets no tenant on the thread")
+    void given_failedPassOnAnotherTenant_should_setNoTenantOnTheThread() throws Exception {
       // Arrange
       Tenant otherTenant = persistTenant();
       persistDueEntryOf(otherTenant);
@@ -246,13 +246,13 @@ class QueueChainingJobTest extends IntegrationTest {
       // Act
       assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
 
-      // Assert: the tenant of the failed pass is not left on the thread
+      // Assert
       assertThat(TenantContext.hasCurrentTenant()).isFalse();
     }
 
     @Test
-    @DisplayName("A failed pass restores the tenant the thread carried before it")
-    void given_tenantOnTheThreadBeforeAFailedPass_should_restoreIt() throws Exception {
+    @DisplayName("A failed pass leaves the tenant the thread carried before it untouched")
+    void given_tenantOnTheThreadBeforeAFailedPass_should_leaveItUntouched() throws Exception {
       // Arrange
       Tenant otherTenant = persistTenant();
       persistDueEntryOf(otherTenant);
@@ -281,12 +281,12 @@ class QueueChainingJobTest extends IntegrationTest {
           persistDueDelayQueueEntry(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
               .getWorkflowRun()
               .getId();
-      Map<String, String> tenantOfRun = new HashMap<>();
+      Map<String, Boolean> ambientTenantSetForRun = new HashMap<>();
       Map<String, String> scopeOfRun = new HashMap<>();
       doAnswer(
               invocation -> {
                 Workflow run = invocation.getArgument(1);
-                tenantOfRun.put(run.getId(), TenantContext.getCurrentTenant());
+                ambientTenantSetForRun.put(run.getId(), TenantContext.hasCurrentTenant());
                 scopeOfRun.put(
                     run.getId(),
                     (String)
@@ -304,10 +304,10 @@ class QueueChainingJobTest extends IntegrationTest {
       // Act
       job.execute(null);
 
-      // Assert
-      assertThat(tenantOfRun)
-          .containsEntry(otherRunId, otherTenant.getId())
-          .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);
+      // Assert: each entry reads in its owner's scope, and the pass sets no ambient tenant
+      assertThat(ambientTenantSetForRun)
+          .containsEntry(otherRunId, false)
+          .containsEntry(defaultRunId, false);
       assertThat(scopeOfRun)
           .containsEntry(otherRunId, otherTenant.getId())
           .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);

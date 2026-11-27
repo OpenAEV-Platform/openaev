@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { simplePostCall } = vi.hoisted(() => ({ simplePostCall: vi.fn((_uri?: string, _data?: unknown) => Promise.resolve({ data: { simulation_id: 'simulation-id' } })) }));
+const { simplePostCall } = vi.hoisted(() => ({ simplePostCall: vi.fn((_uri?: string, _data?: unknown, _config?: unknown, _notifyError?: boolean) => Promise.resolve({ data: { simulation_id: 'simulation-id' } })) }));
 vi.mock('../../../utils/Action', async importOriginal => ({
   ...(await importOriginal<Record<string, unknown>>()),
   simplePostCall,
@@ -21,7 +21,7 @@ describe('launchScenario', () => {
     const output = await launchScenario('scenario-id', targets);
 
     // Assert
-    expect(simplePostCall).toHaveBeenCalledWith('/api/scenarios/scenario-id/exercise/running', targets);
+    expect(simplePostCall).toHaveBeenCalledWith('/api/scenarios/scenario-id/exercise/running', targets, undefined, true);
     expect(output).toEqual({ simulation_id: 'simulation-id' });
   });
 
@@ -30,6 +30,6 @@ describe('launchScenario', () => {
     await launchScenario('scenario-id');
 
     // Assert
-    expect(simplePostCall).toHaveBeenCalledWith('/api/scenarios/scenario-id/exercise/running', undefined);
+    expect(simplePostCall).toHaveBeenCalledWith('/api/scenarios/scenario-id/exercise/running', undefined, undefined, true);
   });
 });

@@ -91,7 +91,7 @@ public class PhishingInjectorIntegrationFactory extends BuiltinIntegrationFactor
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -101,6 +101,7 @@ public class PhishingInjectorIntegrationFactory extends BuiltinIntegrationFactor
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         phishingContract,
         injectorContext,
         emailService,

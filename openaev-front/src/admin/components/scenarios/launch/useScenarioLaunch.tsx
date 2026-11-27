@@ -14,7 +14,8 @@ const useScenarioLaunch = (onLaunched?: () => void, sharedCheck?: LaunchCheckSta
   const openLaunchedSimulation = useOpenLaunchedSimulation();
   const [checking, setChecking] = useState<LaunchTarget | null>(null);
 
-  const launchWith = (scenario: LaunchTarget) => (targets: ScenarioTargets) => launchScenario(scenario.scenarioId, toTargetsInput(targets))
+  // The drawer shows a failed launch: no error toast too.
+  const launchWith = (scenario: LaunchTarget) => (targets: ScenarioTargets) => launchScenario(scenario.scenarioId, toTargetsInput(targets), false)
     .then(({ simulation_id }) => {
       onLaunched?.();
       openLaunchedSimulation(simulation_id, scenario.type);

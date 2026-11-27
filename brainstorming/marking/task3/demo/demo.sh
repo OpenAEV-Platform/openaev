@@ -217,8 +217,8 @@ sees() { curl -s -o /dev/null -w '%{http_code}' "${member[@]}" \
   "${OPENAEV_URL}/api/tenants/${TENANT}/endpoints/${ASSET_ID}"; }
 
 mark_asset() { curl -s -o /dev/null -w '%{http_code}' "${admin[@]}" -X PUT \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/${ASSET_ID}/markings" \
-  -d "{\"asset_markings\":[$1]}"; }
+  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/markings/bulk" \
+  -d "{\"asset_ids_to_process\":[\"${ASSET_ID}\"],\"marking_ids\":[$1]}"; }
 
 # ---- UI checkpoint 2 -------------------------------------------------------
 pause <<EOF
@@ -302,11 +302,11 @@ curl -s -o /dev/null "${admin[@]}" -X PUT \
   "${OPENAEV_URL}/api/tenants/${TENANT}/groups/${GROUP_ID}/markings" \
   -d "{\"group_markings\":[\"${M_GREEN}\"]}"
 curl -s -o /dev/null "${admin[@]}" -X PUT \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/${ASSET_ID}/markings" \
-  -d '{"asset_markings":[]}'
+  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/markings/bulk" \
+  -d "{\"asset_ids_to_process\":[\"${ASSET_ID}\"],\"marking_ids\":[]}"
 escalation="$(curl -s -o /dev/null -w '%{http_code}' "${member[@]}" -X PUT \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/${ASSET_ID}/markings" \
-  -d "{\"asset_markings\":[\"${M_RED}\"]}")"
+  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/markings/bulk" \
+  -d "{\"asset_ids_to_process\":[\"${ASSET_ID}\"],\"marking_ids\":[\"${M_RED}\"]}")"
 check "$escalation" "403" "assigning TLP:RED with only a GREEN clearance is refused"
 # ---- UI checkpoint ----------------------------------------------------------
 pause <<EOF
@@ -328,8 +328,8 @@ EOF
 
 say "3.5 Guard: the caller cannot lock themselves out"
 selfmark="$(curl -s -o /dev/null -w '%{http_code}' "${member[@]}" -X PUT \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/${ASSET_ID}/markings" \
-  -d "{\"asset_markings\":[\"${M_GREEN}\"]}")"
+  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/markings/bulk" \
+  -d "{\"asset_ids_to_process\":[\"${ASSET_ID}\"],\"marking_ids\":[\"${M_GREEN}\"]}")"
 check "$selfmark" "200" "assigning a marking inside your own clearance succeeds"
 check "$(sees)" "200" "the asset you just marked is still visible to you"
 # ---- UI checkpoint ----------------------------------------------------------

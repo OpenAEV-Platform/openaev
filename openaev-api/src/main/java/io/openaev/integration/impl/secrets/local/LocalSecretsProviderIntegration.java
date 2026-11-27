@@ -26,10 +26,11 @@ public class LocalSecretsProviderIntegration extends IntegrationInMemory {
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
       ComponentRequestEngine componentRequestEngine,
+      String tenantId,
       SecretService secretService,
       SecretReferenceService secretReferenceService,
       SecretHandlerResolver secretHandlerResolver) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
     this.secretHandlerResolver = secretHandlerResolver;

@@ -7,7 +7,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -89,20 +88,7 @@ public class AtomicTestingService {
 
   // -- CRUD --
 
-  /**
-   * Loads an atomic testing for work with no request scope (background relaunch): kept on the v1
-   * ambient tenant, set by the caller before entering a per-tenant transaction.
-   */
-  private Inject findInject(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    return (tenantId != null)
-        ? injectRepository
-            .findByIdAndTenantId(injectId, tenantId)
-            .orElseThrow(ElementNotFoundException::new)
-        : injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-  }
-
-  /** Loads an atomic testing inside the request's tenant scope. Throws if not found there. */
+  /** Loads an atomic testing inside the tenant scope of {@code ctx}. Throws if not found there. */
   private Inject findInject(TxCtx ctx, String injectId) {
     return injectService.inject(ctx, injectId);
   }
@@ -317,8 +303,8 @@ public class AtomicTestingService {
    * executor gate.
    */
   @Transactional
-  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
-    findInject(id);
+  public InjectResultOverviewOutput relaunch(TxCtx ctx, String id, boolean checkLaunchable) {
+    findInject(ctx, id);
     // Relaunching an atomic testing is considered as creating a new one: InjectService moves the
     // grants of the current atomic testing to the new id before it deletes the old inject, whose
     // delete would otherwise take them (#8921).

@@ -69,6 +69,7 @@ public class MdeExecutorIntegration extends Integration {
   public MdeExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -81,7 +82,7 @@ public class MdeExecutorIntegration extends Integration {
       HttpClientFactory httpClientFactory,
       OpenAEVConfig openAEVConfig,
       TenantScopedTransaction tenantTx) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
     this.agentService = agentService;

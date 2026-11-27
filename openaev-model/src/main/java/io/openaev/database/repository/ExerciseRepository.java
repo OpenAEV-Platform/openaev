@@ -29,8 +29,6 @@ public interface ExerciseRepository
 
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
-
   /** The simulations among the given ids that belong to the given tenant. */
   @NotNull
   List<Exercise> findAllByIdInAndTenantId(

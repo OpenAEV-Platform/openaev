@@ -2070,7 +2070,7 @@ public class InjectService {
         if (operationId == null && page.getTotalElements() > 0) {
           operationId =
               bulkOperationMonitor.start(
-                  "create", "injects", (int) page.getTotalElements() * scenarios.size());
+                  ctx, "create", "injects", (int) page.getTotalElements() * scenarios.size());
         }
         List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
         if (!injectInputs.isEmpty()) {

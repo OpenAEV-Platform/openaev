@@ -282,6 +282,48 @@ class ScopeRuleIdLookupTenantTest extends ProductionTablesIntegrationTest {
   }
 
   @Nested
+  @DisplayName("Valid players of a workflow")
+  class ValidPlayers {
+
+    @Test
+    @DisplayName(
+        "given no ambient tenant when a rule names a player of the workflow tenant then the player"
+            + " is in scope")
+    void given_noAmbientTenant_should_resolveThePlayerInTheWorkflowTenant() {
+      // Arrange
+      String player = saveUser("ScopeRulePlayer", tenantA).getId();
+      String workflow = seedWorkflowOfTenantA(allowPlayer(player));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      List<User> players = scopeService.getValidPlayers(workflow);
+
+      // Assert
+      assertThat(players).extracting(User::getId).containsExactly(player);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope holding both tenants when a rule of a workflow of A names a player of B then"
+            + " nobody is in scope")
+    void given_ruleNamingAPlayerOfAnotherTenant_should_resolveNobody() {
+      // Arrange
+      String foreignPlayer = saveUser("ScopeRuleForeignPlayer", tenantB).getId();
+      String workflow = seedWorkflowOfTenantA(allowPlayer(foreignPlayer));
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(List.of(tenantA, tenantB)));
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      List<User> players = scopeService.getValidPlayers(workflow);
+
+      // Assert
+      assertThat(players).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("Scope of an autonomous run")
   class RunScope {
 

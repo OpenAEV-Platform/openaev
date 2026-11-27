@@ -1,5 +1,6 @@
 package io.openaev.service.catalog.scenario;
 
+import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
@@ -98,6 +99,26 @@ public class CatalogScenarioService {
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
                 RawCatalogInstalledScenario::getScenarioId,
                 (first, other) -> first));
+  }
+
+  @Transactional(readOnly = true)
+  public Set<String> versionKeysInUse(String tenantId, String repository) {
+    List<RawCatalogInstalledScenario> installed =
+        scenarioService.installedFromCatalog(tenantId, repository);
+    if (installed.isEmpty()) {
+      return Set.of();
+    }
+    Map<String, Set<String>> revisionVersions =
+        scenarioRevisionService.catalogVersions(
+            tenantId, installed.stream().map(RawCatalogInstalledScenario::getScenarioId).toList());
+    return installed.stream()
+        .flatMap(
+            scenario ->
+                Stream.concat(
+                        Stream.of(scenario.getVersion()),
+                        revisionVersions.getOrDefault(scenario.getScenarioId(), Set.of()).stream())
+                    .map(version -> CatalogManifest.key(scenario.getExternalId(), version)))
+        .collect(Collectors.toSet());
   }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */

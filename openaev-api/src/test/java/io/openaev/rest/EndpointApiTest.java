@@ -1761,6 +1761,88 @@ class EndpointApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("POST /api/endpoints/search - empty / not_empty on a Boolean column")
+  @WithMockUser(isAdmin = true)
+  class BooleanEmptyFilter {
+
+    private static final String PREFIX = "internet-facing-empty-";
+
+    private Endpoint persistEndpoint(String name, Boolean internetFacing) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setInternetFacing(internetFacing);
+      return endpointRepository.save(endpoint);
+    }
+
+    private SearchPaginationInput input(Filters.FilterOperator operator) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("asset_internet_facing");
+      filter.setOperator(operator);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>());
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+      return PaginationFixture.getDefault()
+          .size(100)
+          .textSearch(PREFIX)
+          .filterGroup(filterGroup)
+          .build();
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal")
+    void given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal()
+        throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactly(unset.getId())
+          .doesNotContain(exposed.getId(), internal.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse")
+    void given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse() throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.not_empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(exposed.getId(), internal.getId())
+          .doesNotContain(unset.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(2);
+    }
+  }
+
+  @Nested
   @DisplayName("DELETE /api/assets - bulk delete")
   class BulkDeleteAssets {
 

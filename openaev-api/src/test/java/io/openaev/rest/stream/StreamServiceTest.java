@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -91,6 +92,12 @@ public class StreamServiceTest {
 
   @BeforeEach
   public void setup() throws Exception {
+    // The consumer's rights are read in its tenant, as the real service enters it.
+    when(permissionService.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                new AmbientTenantBridge()
+                    .callInTenant(invocation.getArgument(0), invocation.getArgument(1)));
     // Marking filtering is opt-in per test: by default every reader sees everything.
     when(streamClearanceService.clearanceFor(any(), any())).thenReturn(MarkingCtx.all());
     when(streamVisibilityService.visibilityOrUnresolved(any(), any()))
@@ -685,6 +692,37 @@ public class StreamServiceTest {
     verify(sink, never()).next(any());
   }
 
+  @Test
+  public void given_bulkOperationWithNoTenant_should_reachEveryTenantStreamOfItsLauncher()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+    FluxSink<Object> sinkOfTenantB =
+        registerConsumerOfTenant("launcher-session-b", OTHER_TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA).next(any());
+    verify(sinkOfTenantB).next(any());
+    verify(mockSink).next(any());
+  }
+
+  @Test
+  public void given_bulkOperationWithNoTenant_when_consumerIsNotOwner_should_notReceiveIt()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, OTHER_USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA, never()).next(any());
+    verify(mockSink, never()).next(any());
+  }
+
   private static BulkOperation bulkOperation(String tenantId, String userId) {
     return new BulkOperation(
         "bulk-operation-id",
@@ -1120,7 +1158,13 @@ public class StreamServiceTest {
     // Arrange: a non-admin consumer whose only right is READ on this simulation — the case that
     // proves the gate consults grants instead of falling back to "admins only".
     FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
-    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(true);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID))
+        .thenAnswer(
+            invocation -> {
+              // The check reads the grants of the consumer's tenant, not the default tenant.
+              assertEquals(TENANT_ID, TenantContext.getCurrentTenant());
+              return true;
+            });
 
     // Act
     streamService.listenAttackPathVersion(

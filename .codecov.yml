@@ -4,6 +4,10 @@ codecov:
     # when every shard passes.
     after_n_builds: 3
 
+# Java migrations stay out of every figure, as in the coverage-backend-gate CI job (jacoco_lines.py).
+ignore:
+  - "openaev-api/src/main/java/io/openaev/migration/**"
+
 coverage:
   # The backend coverage rules run in the coverage-backend-gate CI job, with the same thresholds.
   # Every status here is informational: it stays green, and a backend status below its target

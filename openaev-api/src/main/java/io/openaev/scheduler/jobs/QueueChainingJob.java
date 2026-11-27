@@ -1,6 +1,5 @@
 package io.openaev.scheduler.jobs;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
@@ -39,22 +38,6 @@ public class QueueChainingJob implements Job {
   /** Periodically processes the next eligible step from the delay queue. */
   @Override
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // Quartz pools its threads, so the next job on this one would inherit whatever tenant the loop
-    // below sets per entry. Restored in a finally: a processing failure escapes the loop.
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    try {
-      processDueEntries();
-    } finally {
-      if (previousTenant == null) {
-        TenantContext.clearCurrentTenant();
-      } else {
-        TenantContext.setCurrentTenant(previousTenant);
-      }
-    }
-  }
-
-  private void processDueEntries() {
     // Pop and process inside the same transaction so that if processing fails, the DELETE is
     // rolled back and the entry is not lost. The transaction is opened through the tenant-aware
     // primitive rather than a raw TransactionTemplate, which is what background jobs are required
@@ -76,9 +59,8 @@ public class QueueChainingJob implements Job {
 
           for (StepDelayQueue stepDelayQueue : stepsDelayQueue) {
             // popNextPerWorkflowRun spans workflow runs and therefore tenants, while this job runs
-            // in ONE transaction so a processing failure rolls the DELETE back. Both scopes are
-            // moved per entry instead: the v2 GUC for the reads the inspector rewrites, and the v1
-            // thread-local for the tenant TenantBaseListener stamps on a write.
+            // in ONE transaction so a processing failure rolls the DELETE back. The scope moves per
+            // entry to the entry's tenant, for the reads the inspector rewrites.
             //
             // Without this the whole transaction has no scope, and createReadySteps reaches
             // ScopeService.getValidAssets -> assetService.assets(ids) on the activated assets
@@ -97,7 +79,6 @@ public class QueueChainingJob implements Job {
               //
               // Processed anyway rather than skipped: dropping a queued step would be the same
               // silent loss this scoping exists to prevent.
-              TenantContext.clearCurrentTenant();
               tenantTx.setScopeOnCurrentTransaction(TxCtx.missing());
               log.warn(
                   "[Chaining] Delayed step {} has no simulation or scenario tenant, so it is"
@@ -105,7 +86,6 @@ public class QueueChainingJob implements Job {
                       + " back empty.",
                   stepDelayQueue.getId());
             } else {
-              TenantContext.setCurrentTenant(tenantId);
               tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
             }
 
@@ -149,7 +129,6 @@ public class QueueChainingJob implements Job {
           }
         });
     for (Map.Entry<Workflow, String> run : toEvaluate) {
-      TenantContext.setCurrentTenant(run.getValue());
       stepEventService.evaluateAfterCommit(run.getKey(), run.getValue(), "a delayed step");
     }
   }

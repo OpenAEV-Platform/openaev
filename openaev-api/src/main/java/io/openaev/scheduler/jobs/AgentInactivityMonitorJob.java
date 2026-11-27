@@ -6,7 +6,6 @@ import static io.openaev.database.model.Agent.ACTIVE_THRESHOLD_MILLIS;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AgentStatus;
@@ -45,22 +44,16 @@ public class AgentInactivityMonitorJob implements Job {
   }
 
   private void markInactiveAgentsForTenant(String tenantId) {
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      Instant threshold = Instant.now().minus(ACTIVE_THRESHOLD_MILLIS, ChronoUnit.MILLIS);
-      List<Agent> newlyInactiveAgents =
-          agentRepository.findStaleAgentsByTenantIdAndStatus(
-              tenantId, threshold, AgentStatus.ACTIVE);
-      if (newlyInactiveAgents.isEmpty()) {
-        return;
-      }
-
-      newlyInactiveAgents.forEach(agent -> agent.setStatus(AgentStatus.INACTIVE));
-      agentRepository.saveAll(newlyInactiveAgents);
-      newlyInactiveAgents.forEach(this::logCoverageGap);
-    } finally {
-      TenantContext.clearCurrentTenant();
+    Instant threshold = Instant.now().minus(ACTIVE_THRESHOLD_MILLIS, ChronoUnit.MILLIS);
+    List<Agent> newlyInactiveAgents =
+        agentRepository.findStaleAgentsByTenantIdAndStatus(tenantId, threshold, AgentStatus.ACTIVE);
+    if (newlyInactiveAgents.isEmpty()) {
+      return;
     }
+
+    newlyInactiveAgents.forEach(agent -> agent.setStatus(AgentStatus.INACTIVE));
+    agentRepository.saveAll(newlyInactiveAgents);
+    newlyInactiveAgents.forEach(this::logCoverageGap);
   }
 
   private void logCoverageGap(Agent agent) {

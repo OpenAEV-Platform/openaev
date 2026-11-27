@@ -112,8 +112,8 @@ public class ScenarioInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope (bulkTestInjects reads Inject#getInjector()/getFirstInjector() per inject).
+      // The TxCtx parameter sets the tenant scope (bulkTestInjects reads Inject#getInjector()/
+      // getFirstInjector() per inject) and the tenant of the bulk operation it reports.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
@@ -137,6 +137,6 @@ public class ScenarioInjectTestApi extends RestBehavior {
 
     // Services calls
     // Bulk test
-    return injectTestStatusService.bulkTestInjects(filterSpecifications);
+    return injectTestStatusService.bulkTestInjects(ctx, filterSpecifications);
   }
 }

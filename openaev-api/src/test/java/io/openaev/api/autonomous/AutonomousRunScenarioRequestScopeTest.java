@@ -29,14 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code AutonomousRunService#restart}, {@code #promoteToRealRun} and {@code #convertToManual} read
- * the run's scenario with {@code scenarioService.scenario(scenarioId)} - the ambient-tenant
- * overload - although each is reached from an {@code AutonomousRunApi} endpoint that already takes
- * a {@code TxCtx}. The run itself resolves fine ({@code autonomous_runs} is tenant-active, so the
- * v2 scope finds it), but the scenario lookup falls back to {@link TenantContext#getCurrentTenant}
- * only, which the non-prefixed route leaves on the default tenant. A caller naming a member tenant
- * through {@code X-Tenant-Ids} - the orchestrator's own route - therefore gets a 404 on a run whose
- * scenario lives in that member tenant, even though the run itself was just resolved in that exact
- * scope one line above.
+ * the run's scenario in the scope of the {@code AutonomousRunApi} endpoint's {@code TxCtx}. A
+ * caller naming a member tenant through {@code X-Tenant-Ids}, the orchestrator's own route, reads
+ * the scenario of a run of that tenant, while the ambient tenant of the non-prefixed route is the
+ * default one.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

@@ -41,6 +41,7 @@ const REVOKED = {
   inject_id: 'dump',
   inject_title: 'Credential dump',
   inject_action_id: 'dump-action',
+  inject_action_name: 'Dump credentials',
 };
 
 const renderDrawer = (check: ScenarioLaunchCheckOutput, healthchecks: HealthCheck[] = [], onLaunch = vi.fn().mockResolvedValue(undefined)) => {

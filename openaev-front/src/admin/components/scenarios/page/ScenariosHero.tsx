@@ -10,7 +10,7 @@ import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ImportFromHubButton from '../../common/ImportFromHubButton';
-import { NOT_INSTALLED, searchCatalogScenariosIn, UPDATE_AVAILABLE } from '../catalog/catalogScenarioInstallation';
+import { availableUrlIn, NOT_INSTALLED, searchCatalogScenariosIn, UPDATE_AVAILABLE } from '../catalog/catalogScenarioInstallation';
 import ScenarioCreation from '../ScenarioCreation';
 
 const AVAILABLE_URL = '/admin/scenarios/available';
@@ -33,7 +33,7 @@ const ScenariosHero: FunctionComponent = () => {
     id: 'updates',
     label: t('Updates available'),
     icon: 'refresh-cw',
-    to: AVAILABLE_URL,
+    to: availableUrlIn(UPDATE_AVAILABLE),
   });
 
   return (

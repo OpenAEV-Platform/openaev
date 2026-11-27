@@ -134,10 +134,11 @@ With the MDE executor, register your endpoints in OpenAEV and enable execution o
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new MdeExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         endpointService,
         agentService,
         assetGroupService,

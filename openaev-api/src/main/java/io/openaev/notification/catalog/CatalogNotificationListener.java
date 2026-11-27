@@ -2,6 +2,7 @@ package io.openaev.notification.catalog;
 
 import static io.openaev.database.model.NotificationTriggerEventType.INSTALLED_AUTOMATICALLY;
 import static io.openaev.database.model.NotificationTriggerEventType.RELEASE_RECEIVED;
+import static io.openaev.database.model.NotificationTriggerEventType.REVOKED;
 import static io.openaev.database.model.NotificationTriggerEventType.SYNC_BLOCKED;
 import static io.openaev.notification.content.ContentNotification.count;
 
@@ -22,7 +23,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -44,12 +45,7 @@ public class CatalogNotificationListener {
     contentNotifier.send(
         event.tenantId(),
         () -> {
-          List<ContentNotification> notifications = new ArrayList<>();
-          List<String> news = news(event);
-          if (!news.isEmpty()) {
-            notifications.add(
-                release(event.release(), RELEASE_RECEIVED, ": " + String.join("; ", news)));
-          }
+          List<ContentNotification> notifications = news(event);
           if (!event.refused().isEmpty()) {
             notifications.add(syncBlocked(event));
           }
@@ -86,16 +82,14 @@ public class CatalogNotificationListener {
   // -- RELEASE RECEIVED --
 
   // The first release fills the whole catalogue: nothing in it is news.
-  private List<String> news(CatalogReleaseApplied event) {
-    List<String> news = new ArrayList<>();
+  private List<ContentNotification> news(CatalogReleaseApplied event) {
+    List<ContentNotification> notifications = new ArrayList<>();
     if (event.firstSync()) {
-      return news;
+      return notifications;
     }
-    Set<String> installed =
-        catalogScenarioService
-            .installedScenarioIds(
-                event.tenantId(), event.added().stream().map(AddedVersion::externalId).toList())
-            .keySet();
+    Map<String, String> installed =
+        catalogScenarioService.installedScenarioIds(
+            event.tenantId(), event.added().stream().map(AddedVersion::externalId).toList());
     List<String> newScenarios = new ArrayList<>();
     List<String> updates = new ArrayList<>();
     int newActions = 0;
@@ -106,8 +100,15 @@ public class CatalogNotificationListener {
               .orElseThrow();
       boolean isNew = versions.stream().anyMatch(AddedVersion::isNew);
       boolean scenario = latest.type() == ContentType.SCENARIO;
-      if (scenario
-          && installed.contains(CatalogOffer.key(latest.repository(), latest.externalId()))) {
+      String scenarioId =
+          scenario
+              ? installed.get(CatalogOffer.key(latest.repository(), latest.externalId()))
+              : null;
+      if (latest.revoked()) {
+        if (scenarioId != null) {
+          notifications.add(revoked(scenarioId, latest.name()));
+        }
+      } else if (scenarioId != null) {
         updates.add(latest.name() + " v" + latest.version());
       } else if (scenario && isNew) {
         newScenarios.add(latest.name());
@@ -115,12 +116,24 @@ public class CatalogNotificationListener {
         newActions++;
       }
     }
+    List<String> news = new ArrayList<>();
     listed(news, newScenarios, "new scenario", "");
     listed(news, updates, "installed scenario", " with an update available");
     if (newActions > 0) {
       news.add(count(newActions, "new action"));
     }
-    return news;
+    if (!news.isEmpty()) {
+      notifications.add(release(event.release(), RELEASE_RECEIVED, ": " + String.join("; ", news)));
+    }
+    return notifications;
+  }
+
+  private static ContentNotification revoked(String scenarioId, String name) {
+    return new ContentNotification(
+        NotificationResourceCatalog.SCENARIO,
+        scenarioId,
+        REVOKED,
+        "[scenario] " + name + " revoked by Filigran");
   }
 
   private static Collection<List<AddedVersion>> byContent(List<AddedVersion> added) {

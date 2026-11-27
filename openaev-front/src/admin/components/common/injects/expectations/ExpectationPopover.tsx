@@ -44,9 +44,12 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpirationTime = (expirationTime: number): number => {
-    if (expirationTime !== null && expirationTime !== undefined) {
+    // when injectId is non null: this means that the inject is already created
+    // and expectations were already set (update path); use recorded values
+    if (injectId && expirationTime !== null && expirationTime !== undefined) {
       return expirationTime;
     }
+    // otherwise this means that the inject is being created and we should use defaults
     return defaultExpirationTime;
   };
 
