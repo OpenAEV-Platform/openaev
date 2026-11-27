@@ -1,22 +1,32 @@
 import { describe, expect, it } from 'vitest';
 
-import docsUrl from '../../utils/docsUrl';
+import docsUrl, { docsBase, docsLinkKeys } from '../../utils/docsUrl';
 
 describe('docsUrl', () => {
-  it('should build the URL of the page and anchor of a key', () => {
+  describe.each(docsLinkKeys)('for the key %s', (key) => {
     // Act
-    const url = docsUrl('teams');
+    const url = docsUrl(key);
+    const path = url.split('#')[0];
 
-    // Assert
-    expect(url).toBe('https://docs.openaev.io/latest/usage/build/people/#teams');
-  });
+    it('should build a valid URL', () => {
+      expect(URL.canParse(url)).toBe(true);
+    });
 
-  it('should return the documentation root for the home key', () => {
-    // Act
-    const url = docsUrl('home');
+    it('should start with the documentation base', () => {
+      expect(url.startsWith(docsBase)).toBe(true);
+    });
 
-    // Assert
-    expect(url).toBe('https://docs.openaev.io/latest/');
+    it('should not have a query string', () => {
+      expect(url).not.toContain('?');
+    });
+
+    it('should not have an empty path segment', () => {
+      expect(new URL(url).pathname).not.toContain('//');
+    });
+
+    it('should end its path with a slash', () => {
+      expect(path.endsWith('/')).toBe(true);
+    });
   });
 
   it('should only accept the keys of docs/links.json', () => {

@@ -67,7 +67,7 @@ To create a new Action, follow these steps:
 
     ![Commands tab of the Action creation form](assets/threat-arsenal-command-view.png)
 
-4. In the **Output** tab, add [output parsers](output-parsers.md) to process the raw output of the execution, and
+4. <a id="output-parsers"></a><a id="output-parser"></a>In the **Output** tab, add [output parsers](output-parsers.md) to process the raw output of the execution, and
     specify whether to generate [Findings](../../run-and-evaluate/findings/findings.md) from that output. This step is
     optional.
 

@@ -52,7 +52,7 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The eight real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
@@ -62,7 +62,6 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Tenant shadow verdict** | API Tests | Nightly only; collects the shadow shards' pass or fail into one table |
 | **Pipeline Gate** | 22 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
@@ -104,19 +103,14 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 
 | Job | `timeout-minutes` | Purpose |
 |-----|-------------------|---------|
-| 🔢 **ADR Numbering** | 5 min | A pull request must not add an ADR number main already has |
 | 🔎 **Migrations Guard** | 3 min | New DB migrations must be strictly appended after the last release tag |
-| 🔎 **OCSF Parser Generation Stability** | 3 min | Regenerated OCSF parser must leave no git diff |
 | 🔨 **Backend Compile** | 10 min | `mvn compile`; uploads `backend-compiled` and `api-build-output` |
 | 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
 | 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
 | 🔍 **Spotless Check** | 10 min | Java formatting |
-| 🔎 **BOM Override Guard** | 15 min | Spring Boot BOM overrides tracked by Renovate and still effective. Advisory in the Gate |
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
-| 🎨 **FDS Conformity** | 5 min | Design-system token bridge and migrated zones stay conformant |
-| 🎨 **FDS MUI Regression** | 5 min | Pull requests only: no MUI component re-enters where the design system replaces it |
-| 📖 **Docs Check** | 10 min | `docs/run.py test`, then `docs/run.py --offline check --force`, the check developers run: a strict build with the engine mike deploys with and the checks of `docs/hooks/checks.py`, so every page and image is in the built site and its search index, every link between docs pages and every key of `docs/links.json` resolves to a page and anchor. Git plugins on in Nightly only |
-| 🔎 **Docs URLs Guard** | 3 min | No `docs.openaev.io` URL in tracked code or config outside `docs/`, Markdown, `.github/`, the comments of `application.properties`, `DocsLinks.java` and the tests that hold the URLs they expect: the app opens the docs by key of `docs/links.json` |
+| 📖 **Docs Check** | 10 min | `docs/run.py test`, then `docs/run.py --offline check --force`, the check developers run: a strict build with the engine mike deploys with and the checks of `docs/hooks/checks.py`, so every page and image is in the built site and its search index, every link between docs pages and every key of `docs/links.json` resolves to a page and anchor. Nightly adds `--git-plugins`, and the job is advisory in the Gate there. Restores the pip cache, which only `main` writes and Nightly bypasses |
+| 🔎 **Docs URLs Guard** | 3 min | No docs URL, path or anchor concatenated onto a docs link, or import of `links.json` in tracked code or config outside the documentation sources, `.github/`, Markdown outside source trees, the comments of `application.properties`, `DocsLinks.java` and `DocsLinksTest`: the app opens the docs by key of `docs/links.json`. On a pull request or a merge queue group, every link removed from that map since the target branch must be in its `retired` list |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, are listed in the job summary and do not fail the job. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
@@ -153,7 +147,9 @@ It `needs:` these 22 jobs:
 
 **Advisory jobs.** `bom-override-guard` shows ⚠️ in the gate when it fails,
 and never fails it. A new check starts there so a false positive cannot block a merge; taking it out of
-the advisory list in the gate makes it blocking.
+the advisory list in the gate makes it blocking. `docs-check` is advisory only when the caller sets
+`docs-git-plugins` (Nightly): git-committers then calls the GitHub API for every page, and a hiccup
+there must not turn the Nightly gate red. It blocks everywhere else.
 
 **Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
 merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
@@ -203,7 +199,7 @@ to the release. The downside is that an Aikido outage blocks merges until it end
 | | Core CI | Nightly CI |
 |-|---------|------------|
 | Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | 50 on pull requests, 52 on push and tags | 150 |
+| Total expanded jobs | 51 on pull requests, 55 on push and tags | 152 |
 
 ### API Tests matrix
 
@@ -223,25 +219,25 @@ server it starts, with `search_engine`. Each value maps to a service of
 
 |                 | Core CI | Nightly CI             |
 |-----------------|---------|------------------------|
-| Elasticsearch 8 | 15 shards + `remaining` | 15 shards + `remaining`, ×3: standard, `shadow-prod`, `shadow-all` |
-| Elasticsearch 9 | ✗ | 15 shards + `remaining`, ×2: standard, `shadow-prod` |
-| OpenSearch      | ✗ | 15 shards + `remaining` |
-| **Total cells** | **16** | **96**                 |
+| Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
+| Elasticsearch 9 | ✗ | 7 shards + `remaining` |
+| OpenSearch      | ✗ | 7 shards + `remaining` |
+| **Total cells** | **8** | **24**                 |
 
 ### E2E Tests matrix
 
 | | Core CI                                          | Nightly CI                                             |
 |-|--------------------------------------------------|--------------------------------------------------------|
-| Images | standard only: amd64 on pull requests, amd64 + arm64 on push | standard + ubi9, amd64 + arm64                         |
+| Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
 | Browsers | mostly chromium/chrome, plus firefox and webkit  | chrome, chromium, webkit, firefox, edge                |
 | Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
-| Sharding | `arsenals`, `external-integrations`, `remaining` catch-all | unsharded full suites                                  |
-| Infra tests | 3 cells on pull requests, 5 on push, mixed browsers | 8 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **6 on pull requests, 10 on push**               | **27**                                                 |
+| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
+| Infra tests | 3 cells on PRs, 5 on main, mixed browsers        | 7 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **6 on PRs, 10 on main**                         | **25**                                                 |
 
 `ubi9` and `edge` are nightly-only: they exercise the same JAR and engine as the core cells.
 Core CI keeps most shards on Chromium and moves a few to Firefox and WebKit instead of
-running every browser: pull requests run one shard on each of them, push runs two on
+running every browser: pull requests run one shard on each of them, main runs two on
 Firefox and one on WebKit, on other shards than pull requests. The `remaining` catch-all
 stays on Chromium on amd64, the only engine that collects E2E coverage, and WebKit stays
 off arm64, where it runs about twice as slow. `artifact_suffix` must stay unique per cell — the report artifact is named

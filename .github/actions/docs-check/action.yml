@@ -10,7 +10,8 @@ description: >
   The git-committers and git-revision-date-localized plugins only fill in contributors and dates,
   and git-committers calls the GitHub API for every page, so they stay off unless git-plugins is
   'true'. They need the full git history and a token.
-  Blocking in the Pipeline Gate: the single docs check of the pipeline.
+  Blocking in the Pipeline Gate: the single docs check of the pipeline. Advisory when built with the
+  git plugins (Nightly), where a GitHub API hiccup in git-committers would otherwise turn the gate red.
 
 inputs:
   no-cache:
@@ -60,10 +61,16 @@ runs:
         key: docs-pip-${{ runner.os }}-${{ hashFiles('docs/requirements.txt', 'docs/.python-version') }}
 
     # --force: the fingerprint that skips an unchanged build is for local runs. --offline: the
-    # environment is already installed by the step above.
+    # environment is already installed by the step above. --git-plugins turns on the git plugins,
+    # whatever DOCS_GIT_PLUGINS the environment holds.
     - name: Build and check the documentation
       shell: bash
       env:
-        DOCS_GIT_PLUGINS: ${{ inputs.git-plugins }}
+        GIT_PLUGINS: ${{ inputs.git-plugins }}
         MKDOCS_GIT_COMMITTERS_APIKEY: ${{ inputs.github-token }}
-      run: python docs/run.py --offline check --force
+      run: |
+        ARGS=(--offline check --force)
+        if [ "$GIT_PLUGINS" = "true" ]; then
+          ARGS+=(--git-plugins)
+        fi
+        python docs/run.py "${ARGS[@]}"

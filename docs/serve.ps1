@@ -1,55 +1,64 @@
-# Serves the docs at http://localhost:8000. run.py sets up docs\.venv with the pinned requirements first.
-# Set $env:DOCS_GIT_PLUGINS = "false" to skip the GitHub API calls of the git plugins.
+# Serves the docs at http://localhost:8000 and rebuilds them on every change. Options go to
+# `properdocs serve`. Set $env:DOCS_GIT_PLUGINS = "false" to skip the GitHub API calls of the git plugins.
 #
-# Python, the same rule as the backend build and `yarn check-docs-links`: $env:OPENAEV_DOCS_PYTHON
-# when set, which must then be usable, otherwise the first usable of py -3, python3, python,
-# python3.20 ... python3.<minimum>. Usable: it runs, has the venv and ensurepip modules, and is at
-# least the version of .python-version.
+# This script only starts a Python: $env:OPENAEV_DOCS_PYTHON when set, otherwise the first of
+# py -3, python3 and python that answers --version, which skips the Microsoft Store stub. docs\run.py
+# then checks it and, when it is too old or has no venv module, finds a newer one itself
+# (docs\README.md, "Which Python runs the docs toolchain").
 $ErrorActionPreference = "Stop"
-$minimum = [version]((Get-Content "$PSScriptRoot\.python-version" -Raw).Trim())
-$probe = "import sys, venv, ensurepip; print('%d.%d' % sys.version_info[:2])"
 
-# The version of a usable interpreter, or $null.
-function Get-PythonVersion([string]$Command, [string[]]$Arguments) {
-    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) { return $null }
-    try { $output = & $Command @Arguments -c $probe 2>$null | Out-String } catch { return $null }
-    if ($LASTEXITCODE -ne 0 -or $output -notmatch '^\s*(\d+)\.(\d+)\s*$') { return $null }
-    $version = [version]"$($Matches[1]).$($Matches[2])"
-    if ($version -lt $minimum) { return $null }
-    return $version
-}
-
-# Write-Error stops the script under ErrorActionPreference Stop before any exit code: print instead.
-function Stop-WithSetupError([string]$Message) {
-    [Console]::Error.WriteLine($Message)
-    exit 4
+# True when the command runs and prints its version within 10 s, without the variables that
+# redirect the imports of Python.
+function Test-Python([string]$Command, [string[]]$Arguments) {
+    $found = Get-Command $Command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $found) { return $false }
+    try {
+        $info = New-Object System.Diagnostics.ProcessStartInfo
+        $info.FileName = $found.Source
+        $info.Arguments = (@($Arguments) + "--version") -join " "
+        $info.UseShellExecute = $false
+        $info.RedirectStandardOutput = $true
+        $info.RedirectStandardError = $true
+        foreach ($name in "PYTHONPATH", "PYTHONHOME", "PYTHONSAFEPATH") { $info.EnvironmentVariables.Remove($name) }
+        $process = [System.Diagnostics.Process]::Start($info)
+        # Read both streams before waiting, so a full pipe never blocks the child.
+        $output = $process.StandardOutput.ReadToEndAsync()
+        $errors = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(10000)) {
+            $process.Kill()
+            return $false
+        }
+        return $process.ExitCode -eq 0 -and "$($output.Result)$($errors.Result)" -match "Python \d"
+    } catch {
+        return $false
+    }
 }
 
 if ($env:OPENAEV_DOCS_PYTHON) {
-    if ($null -eq (Get-PythonVersion $env:OPENAEV_DOCS_PYTHON @())) {
-        Stop-WithSetupError "OPENAEV_DOCS_PYTHON=$env:OPENAEV_DOCS_PYTHON is not a Python $minimum or later with the venv module."
-    }
     $command = $env:OPENAEV_DOCS_PYTHON
+    if (($command -match "[\\/]") -and -not [System.IO.Path]::IsPathRooted($command)) {
+        # Relative to the current folder, which run.py does not keep.
+        $command = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $command))
+        $env:OPENAEV_DOCS_PYTHON = $command
+    }
     $arguments = @()
 } else {
-    $candidates = @(@{ Command = "py"; Arguments = @("-3") }, @{ Command = "python3"; Arguments = @() },
-        @{ Command = "python"; Arguments = @() })
-    for ($n = 20; $n -ge $minimum.Minor; $n--) {
-        $candidates += @{ Command = "python$($minimum.Major).$n"; Arguments = @() }
-    }
     $command = $null
-    foreach ($candidate in $candidates) {
-        if ($null -ne (Get-PythonVersion $candidate.Command $candidate.Arguments)) {
+    foreach ($candidate in @(@{ Command = "py"; Arguments = @("-3") }, @{ Command = "python3"; Arguments = @() },
+            @{ Command = "python"; Arguments = @() })) {
+        if (Test-Python $candidate.Command $candidate.Arguments) {
             $command = $candidate.Command
             $arguments = $candidate.Arguments
             break
         }
     }
     if ($null -eq $command) {
-        Stop-WithSetupError ("No Python $minimum or later with the venv module found (py -3, python3, python, " +
-            "python3.N). Install one, or set OPENAEV_DOCS_PYTHON.")
+        # Write-Error stops the script under ErrorActionPreference Stop before any exit code: print instead.
+        $minimum = (Get-Content "$PSScriptRoot\.python-version" -Raw).Trim()
+        [Console]::Error.WriteLine("No Python found (py -3, python3, python). Install Python $minimum or later, " +
+            "or set OPENAEV_DOCS_PYTHON.")
+        exit 4
     }
 }
-Write-Host "Docs: using $command $($arguments -join ' ')"
 & $command @arguments "$PSScriptRoot\run.py" serve @args
 exit $LASTEXITCODE

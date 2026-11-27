@@ -54,43 +54,28 @@ corepack enable
 
 ## Documentation check
 
-The backend build and `yarn check-docs-links` build the documentation to check that every
-documentation link of the application, listed in `docs/links.json`, points to an existing page and
-section. They need Python with its `venv` module, at least the version in `docs/.python-version`
-(3.11): on first use, they create a virtual environment in `docs/.venv` and install the pinned
-documentation dependencies in it.
+The backend build and `yarn check-docs-links` run the [documentation check](build-from-source.md#documentation-check),
+which needs Python, at least the version in `docs/.python-version`, with its `venv` module.
 
-Ubuntu 24.04 ships Python 3.12. Install the `venv` module, which Ubuntu packages apart (without it, the
-checks skip `python3` and try the `python3.N` installed next to it):
+On Ubuntu 24.04, `python3` is recent enough, but Ubuntu packages its `venv` module apart. Install it:
 
 ```bash
 sudo apt-get install python3 python3-venv
 ```
 
-The `python3` of Ubuntu 22.04 is 3.10, which is too old. Install a newer Python next to it, for example
-from the deadsnakes PPA, with its `venv` module:
+The `python3` of Ubuntu 22.04 is 3.10, which is too old. Install Python 3.11 next to it, from the Ubuntu
+repositories (`jammy-updates`), with its `venv` module. The check finds `python3.11` on its own:
 
 ```bash
-sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt-get install python3.11 python3.11-venv
 ```
 
-Verify the installation, which must report the version in `docs/.python-version` (3.11) or later:
+Verify that the Python imports its `venv` module (use `python3.11` instead of `python3` on Ubuntu 22.04):
 
 ```bash
 python3 --version
+python3 -c "import venv, ensurepip"
 ```
-
-On Ubuntu 22.04 with deadsnakes, check `python3.11 --version` instead.
-
-The checks use the first usable Python among `python3` and `python`, then `python3.N` from the newest
-version down: a Python is usable when it runs, has its `venv` module and is recent enough, so one without
-`venv` is skipped and the next one is tried. To choose one, set the `OPENAEV_DOCS_PYTHON` environment
-variable to its path, or pass `-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never
-replaced by another one: when it is not usable, the check names it.
-
-Without a usable Python, the backend build prints a warning and goes on without the check, while
-`yarn check-docs-links` fails. Add `-Dopenaev.docs.check.skip=true` to the Maven command to skip the check.
 
 ## What's next?
 

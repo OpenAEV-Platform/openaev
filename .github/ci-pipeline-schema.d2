@@ -54,7 +54,7 @@ style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                     
 }
 }
 
-pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore 50 jobs (52 on push)        Nightly 150 jobs" {
+pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore 51 jobs (55 on push)        Nightly 152 jobs" {
 style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                                                                               ; border-radius: 8; font-size: 24; bold: true}
 }
 
@@ -68,7 +68,6 @@ style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 4                     
 
 preflight: "PRE-FLIGHT" {
 class: lane
-adr: "🔢 ADR Numbering\ntimeout 5 min\nno ADR number main already has" {class: preflight}
 mg: "🔎 Migrations Guard\ntimeout 3 min\nnew migrations must be appended\nafter the last release tag" {class: preflight}
 ocsf: "🔎 OCSF Parser Generation Stability\ntimeout 3 min\nregenerated OCSF parser\nmust leave no git diff" {class: preflight}
 }
@@ -85,10 +84,8 @@ class: lane
 sc: "🔍 Spotless Check\ntimeout 10 min · Java format" {class: quality}
 fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + dependency-cruiser + knip + Vitest" {class: quality}
 bom: "🔎 BOM Override Guard\ntimeout 15 min · Spring Boot BOM overrides\nadvisory in the Gate" {class: quality}
-fds: "🎨 FDS Conformity\ntimeout 5 min · design-system conformity" {class: quality}
-fdsmui: "🎨 FDS MUI Regression\ntimeout 5 min · pull requests only" {class: quality}
-dl: "📖 Docs Check\ntimeout 10 min · docs/run.py test, then check:\nstrict build, built site, links between pages, docs/links.json\nNightly: git plugins on\nblocking in the Gate" {class: quality}
-dug: "🔎 Docs URLs Guard\ntimeout 3 min · no docs.openaev.io URL in code\noutside docs/links.json" {class: quality}
+dl: "📖 Docs Check\ntimeout 10 min · docs/run.py test, then check:\nstrict build, built site, links between pages, docs/links.json\nNightly: git plugins on, advisory in the Gate\nblocking in the Gate otherwise" {class: quality}
+dug: "🔎 Docs URLs Guard\ntimeout 3 min · no docs URL in code\noutside docs/links.json\nremoved links must be retired" {class: quality}
 }
 
 docker: "DOCKER" {
@@ -100,8 +97,8 @@ aikido: "🔍 Aikido Image Scan\ntimeout 25 min · Aikido gate, high/critical\ni
 
 tests: "TESTS" {
 class: lane
-at: "🧪 API Tests\nCore 16 · Nightly 96 cells\ntimeout 30 min · fail-fast: false" {class: test}
-e2e: "🧪 E2E Tests (Playwright)\nCore 6 PR / 10 push · Nightly 27 cells\ntimeout 45 min · fail-fast: false" {class: test}
+at: "🧪 API Tests\nCore 8 · Nightly 16 cells\ntimeout 30 min · fail-fast: false" {class: test}
+e2e: "🧪 E2E Tests (Playwright)\nCore 6 PR / 10 main · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
 atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API schema" {class: test}
 }
 }
@@ -138,7 +135,7 @@ style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                     
 }
 
 wave0 -> gate: "19 of the 22" {class: needs}
-gated -> gate: "the other 2" {class: needs}
+gated -> gate: "the other 3" {class: needs}
 
 retry: "🔄 Auto-Retry Failed CI\n\nseparate workflow, on workflow_run: completed\nconclusion == failure  AND  run_attempt == 1\n→ POST rerun-failed-jobs on the same run\n\nLoops back to ② as attempt 2 — exactly once" {
 style: {fill: "#EDE7F6"; stroke: "#4527A0"; stroke-width: 3                                                                                                                                                                        ; stroke-dash: 3; border-radius: 8; font-size: 21}
@@ -167,7 +164,7 @@ row1: "" {
 direction: right
 style: {fill: transparent                                                                                                                                                                                                                                                    ; stroke: transparent}
 a: "upstream\njob" {class: swatch}
-b: "needs:  —  a real dependency declared in the YAML\nThe consumer will not start until the whole upstream job has finished,\nartifact gzip / validate / upload included: ~2.5 min it never reads.\nOnly eight jobs in this entire pipeline declare needs:" {shape: text ; class: note}
+b: "needs:  —  a real dependency declared in the YAML\nThe consumer will not start until the whole upstream job has finished,\nartifact gzip / validate / upload included: ~2.5 min it never reads.\nOnly six edges in this entire pipeline are true needs:" {shape: text ; class: note}
 a -> b {class: needs}
 }
 
@@ -215,7 +212,7 @@ row4 -> row5: {style.opacity: 0}
 row5 -> row6: {style.opacity: 0}
 }
 
-matrix: "CORE vs NIGHTLY — THE ONLY FOUR DIFFERENCES\n\nAPI TESTS\nCore: 16 cells — 15 balanced shards + a 'remaining' catch-all, Elasticsearch 8\nNightly: 96 cells — the same 16 on Elasticsearch 8 (x3), Elasticsearch 9 (x2)\nand OpenSearch, including the multi-tenancy shadow runs\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs, 10 on push, standard image only\nmostly Chromium, a few shards on Firefox and WebKit (no WebKit on arm64)\nsharded arsenals / external integrations / remaining, plus 3 or 5 infra cells\nNightly: 27 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 8 infra cells\n\nCACHES\nCore: reads the Maven, Yarn, Playwright, buildx and pip caches\nNightly: bypasses them all, for reads and writes\n\nDOCS CHECK\nCore: builds without the git plugins, no GitHub API call per page\nNightly: builds with them, as the deployed site does" {
+matrix: "CORE vs NIGHTLY — THE ONLY FOUR DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 6 cells on PRs, 10 on main, standard image only\nmostly Chromium, a few shards on Firefox and WebKit (no WebKit on arm64)\nsharded arsenals / external integrations / remaining, plus infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nCACHES\nCore: reads the Maven, Yarn, Playwright, buildx and pip caches\nNightly: bypasses them all, for reads and writes\n\nDOCS CHECK\nCore: builds without the git plugins, no GitHub API call per page\nNightly: builds with them, as the deployed site does, advisory in the Gate" {
 style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
 }
 

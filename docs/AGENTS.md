@@ -21,22 +21,28 @@ docs/mkdocs.yml       → MkDocs configuration, nav tree and link validation
 docs/hooks/checks.py  → MkDocs hook: checks pages, images, search index, links and links.json on every build
 docs/links.json       → Map of the docs links the backend and the frontend open by key, and the retired paths
 docs/check.py         → Strict build with every check; skips when nothing changed (--force to rebuild)
-docs/.python-version  → Oldest Python the docs toolchain supports (3.11)
-docs/run.py           → Entry point: sets up docs/.venv/py<version>-<digest> with pip, then runs check, serve or test
-docs/toolchain.py     → Helpers of run.py and check.py: build engine (the one mike deploys with), atomic writes
-docs/tests/           → Tests of run.py, check.py and the hook (`python3 docs/run.py test`)
+docs/.python-version  → Oldest Python the docs toolchain supports
+docs/run.py           → Entry point: chooses the Python, sets up docs/.venv/py<version>-<digest> with pip, then runs check, serve or test
+docs/serve.sh, serve.ps1 → Start a Python on docs/run.py serve
+docs/tests/           → Tests of run.py, check.py and the hooks (`python3 docs/run.py test`)
 docs/requirements.in  → Python dependencies (direct)
 docs/requirements.txt → Generated from requirements.in with uv pip compile (do NOT edit)
 ```
 
-Run the checks with Python 3.11 (`.python-version`) or later, from any folder: `python3 docs/run.py check`.
-It must pass before a docs change is pushed. When you move or rename a page or a heading, add a redirect
-in `mkdocs.yml` for the old URL, move the old path of every key of `links.json` that points to it to the
-`retired` list, and point the key at the new path: a key that goes through a redirect fails the check, a
-retired path may, but must still resolve. Released versions of the application open the retired paths:
-keep them, and remove one only when no supported release opens it any more. Never write a
-`docs.openaev.io` URL in the application code: add a key to `links.json` and use it. Links go to the latest docs (`/latest/` or
-relative): a link to a fixed version (`https://docs.openaev.io/<version>/...`) fails the check on purpose.
+Run the checks from any folder with `python3 docs/run.py check` (`py -3 docs\run.py check` on Windows). It must
+pass before a docs change is pushed. `run.py` needs a Python of at least the version of `.python-version` with its
+`venv` module, and finds a usable `python3.N` itself when `python3` is too old: see "Which Python runs the docs
+toolchain" in `docs/README.md`.
+
+When you move or rename a page, add a redirect in `mkdocs.yml` from the old page, move the old path of every key of
+`links.json` that points to it to the `retired` list, point the key at the new path, and update the matching
+`DocsLinks` constant of the backend. Redirects are per page: when you rename a heading a key or a retired path points
+to, keep the old anchor on the page (`<a id="old-anchor"></a>` next to the new heading), move the old path to
+`retired`, point the key at the new anchor and update its `DocsLinks` constant. A key that goes through a redirect fails the check, a retired path may, but must still
+resolve. Released versions of the application open the retired paths: keep them, and remove one only when no
+supported release opens it any more. Never write a `docs.openaev.io` URL in the application code: add a key to
+`links.json` and use it. In the docs, link pages relatively: the check fails on an absolute `docs.openaev.io` link,
+which MkDocs cannot check.
 
 ## Writing style rules
 
@@ -171,7 +177,8 @@ Hide the documentation of a feature behind its backend `PreviewFeature` constant
 - Inside a table or a list, use `{%- if ... %}` and `{%- endif %}` so the hidden lines do not split it.
 - To hide a whole page, add `preview_feature: CREDENTIAL_ASSET` to its front matter instead of a `feature_visible()`
   block: the `preview_features.py` hook removes it from the `nav` and from the build (no URL, no search entry). Keep
-  every link to that page inside a `feature_visible()` block, or the strict build fails.
+  every link to that page inside a `feature_visible()` block, and point no redirect of `mkdocs.yml` at it, or the
+  strict build fails.
 - Preview the hidden content locally with `DOCS_FEATURE_FLAGS=CREDENTIAL_ASSET python3 docs/run.py serve` (`*` shows all of them).
 - When the backend removes the constant, the strict build fails until you remove the `feature_visible()` blocks and
   the `preview_feature` front matter.

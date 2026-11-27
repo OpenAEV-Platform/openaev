@@ -82,33 +82,21 @@ corepack enable
 
 ## Documentation check
 
-The backend build and `yarn check-docs-links` build the documentation to check that every
-documentation link of the application, listed in `docs/links.json`, points to an existing page and
-section. They need Python with its `venv` module, at least the version in `docs/.python-version`
-(3.11): on first use, they create a virtual environment in `docs/.venv` and install the pinned
-documentation dependencies in it.
+The backend build and `yarn check-docs-links` run the [documentation check](build-from-source.md#documentation-check),
+which needs Python, at least the version in `docs/.python-version`, with its `venv` module.
 
-Install Python from [python.org](https://www.python.org/downloads/windows/) or with a package manager. The installer
-includes `venv` and the `py` launcher:
+Install Python from [python.org](https://www.python.org/downloads/windows/) or with a package manager. The
+installer includes the `venv` module and the `py` launcher:
 
 ```bash
 winget install Python.Python.3.12
 ```
 
-Verify the installation, which must report the version in `docs/.python-version` (3.11) or later:
+Verify that `py -3` reports at least the version in `docs/.python-version`:
 
 ```bash
 py -3 --version
 ```
-
-The checks use the first usable Python among the `py -3` launcher, `python3` and `python`, then `python3.N` from the newest
-version down: a Python is usable when it runs, has its `venv` module and is recent enough, so one without
-`venv` is skipped and the next one is tried. To choose one, set the `OPENAEV_DOCS_PYTHON` environment
-variable to its path, or pass `-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never
-replaced by another one: when it is not usable, the check names it.
-
-Without a usable Python, the backend build prints a warning and goes on without the check, while
-`yarn check-docs-links` fails. Add `-Dopenaev.docs.check.skip=true` to the Maven command to skip the check.
 
 ## What's next?
 

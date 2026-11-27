@@ -5,12 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -36,13 +39,22 @@ class DocsLinksTest {
   private static final String LINKS_FILE = "docs/links.json";
   private static final String PROPERTIES_FILE =
       "openaev-api/src/main/resources/application.properties";
+  private static final String SOURCE_FILE =
+      "openaev-api/src/main/java/io/openaev/docs/DocsLinks.java";
 
-  /** A docs URL, until a character that cannot be part of it. */
+  /** The docs domain, however it is spelled. */
+  private static final Pattern DOCS_DOMAIN =
+      Pattern.compile("docs\\.openaev\\.io", Pattern.CASE_INSENSITIVE);
+
+  /** A docs URL in prose, with or without a scheme, up to the next whitespace. */
   private static final Pattern DOCS_URL =
-      Pattern.compile("https?://docs\\.openaev\\.io[^\\s\"'<>\\[\\]{}|\\\\^`]*");
+      Pattern.compile("(https?://)?docs\\.openaev\\.io\\S*", Pattern.CASE_INSENSITIVE);
 
-  /** Sentence punctuation that follows a URL in prose rather than belonging to it. */
-  private static final String TRAILING_PUNCTUATION = ".,;:!?)";
+  /** A Java string literal on one line. */
+  private static final Pattern STRING_LITERAL = Pattern.compile("\"((?:[^\"\\\\\\r\\n]|\\\\.)*)\"");
+
+  /** Punctuation that may follow a URL in prose without belonging to it. */
+  private static final String TRAILING_PUNCTUATION = ".,;:!?)]}>'\"";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -64,7 +76,7 @@ class DocsLinksTest {
   }
 
   /**
-   * The full URL of each key of a links map: {@code base} followed by the key's path. Other
+   * The full URL of each key of the links map: {@code base} followed by the key's path. Other
    * top-level members (e.g. {@code retired}, for the docs build) are ignored.
    */
   private static Map<String, String> readUrls(String json) throws IOException {
@@ -78,19 +90,21 @@ class DocsLinksTest {
     return urls;
   }
 
+  /** The members of DocsLinks, without those a coverage agent adds. */
+  private static <T extends Member> List<T> declared(T[] members) {
+    return Arrays.stream(members).filter(member -> !member.isSynthetic()).toList();
+  }
+
   private static Map<String, String> constants() throws IllegalAccessException {
     Map<String, String> constants = new TreeMap<>();
-    for (Field field : DocsLinks.class.getDeclaredFields()) {
-      int modifiers = field.getModifiers();
-      if (Modifier.isPublic(modifiers)) {
-        assertThat(Modifier.isStatic(modifiers) && Modifier.isFinal(modifiers))
-            .as("%s must be public static final", field.getName())
-            .isTrue();
-        assertThat(field.getType()).as(field.getName()).isEqualTo(String.class);
-        constants.put(field.getName(), (String) field.get(null));
-      }
+    for (Field field : declared(DocsLinks.class.getDeclaredFields())) {
+      constants.put(field.getName(), (String) field.get(null));
     }
     return constants;
+  }
+
+  private static int lineOf(String text, int index) {
+    return (int) text.substring(0, index).chars().filter(c -> c == '\n').count() + 1;
   }
 
   private static String stripTrailingPunctuation(String url) {
@@ -99,22 +113,6 @@ class DocsLinksTest {
       end--;
     }
     return url.substring(0, end);
-  }
-
-  /** The docs URLs of the comment lines of a properties file, as {@code line: url}. */
-  private static List<String> commentUrls(List<String> lines) {
-    List<String> found = new ArrayList<>();
-    for (int i = 0; i < lines.size(); i++) {
-      String line = lines.get(i).stripLeading();
-      if (!line.startsWith("#") && !line.startsWith("!")) {
-        continue;
-      }
-      Matcher matcher = DOCS_URL.matcher(line);
-      while (matcher.find()) {
-        found.add((i + 1) + ": " + stripTrailingPunctuation(matcher.group()));
-      }
-    }
-    return found;
   }
 
   @BeforeAll
@@ -142,7 +140,7 @@ class DocsLinksTest {
     }
 
     @Test
-    @DisplayName("Every public constant is a key of the map")
+    @DisplayName("Every constant is a key of the map")
     void given_constants_should_allBeKeysOfTheMap() throws IllegalAccessException {
       // Arrange
       Collection<String> expectedNames =
@@ -153,6 +151,74 @@ class DocsLinksTest {
 
       // Assert
       assertThat(names).containsExactlyInAnyOrderElementsOf(expectedNames);
+    }
+  }
+
+  @Nested
+  @DisplayName("When reading the DocsLinks class")
+  class DocsLinksClass {
+
+    @Test
+    @DisplayName("It holds only public static final String constants and its private constructor")
+    void given_docsLinksClass_should_holdOnlyStringConstants() {
+      // Act
+      List<Field> fields = declared(DocsLinks.class.getDeclaredFields());
+      List<Constructor<?>> constructors = declared(DocsLinks.class.getDeclaredConstructors());
+
+      // Assert
+      assertThat(fields)
+          .allSatisfy(
+              field -> {
+                int modifiers = field.getModifiers();
+                assertThat(
+                        Modifier.isPublic(modifiers)
+                            && Modifier.isStatic(modifiers)
+                            && Modifier.isFinal(modifiers))
+                    .as("%s must be public static final", field.getName())
+                    .isTrue();
+                assertThat(field.getType()).as(field.getName()).isEqualTo(String.class);
+              });
+      assertThat(declared(DocsLinks.class.getDeclaredMethods())).isEmpty();
+      assertThat(DocsLinks.class.getDeclaredClasses()).isEmpty();
+      assertThat(constructors)
+          .singleElement()
+          .satisfies(
+              constructor -> {
+                assertThat(Modifier.isPrivate(constructor.getModifiers())).isTrue();
+                assertThat(constructor.getParameterCount()).isZero();
+              });
+    }
+
+    @Test
+    @DisplayName("Its source names the docs only in literals that are the values of its constants")
+    void given_docsLinksSource_should_holdOnlyConstantValues()
+        throws IOException, IllegalAccessException {
+      // Arrange
+      String source = Files.readString(repositoryRoot.resolve(SOURCE_FILE), StandardCharsets.UTF_8);
+      Collection<String> values = constants().values();
+
+      // Act
+      List<String> unexpected = new ArrayList<>();
+      Matcher domain = DOCS_DOMAIN.matcher(source);
+      while (domain.find()) {
+        Matcher literal = STRING_LITERAL.matcher(source);
+        String found = null;
+        while (literal.find()) {
+          if (literal.start() < domain.start() && domain.end() < literal.end()) {
+            found = literal.group(1);
+            break;
+          }
+        }
+        if (found == null || !values.contains(found)) {
+          unexpected.add(
+              lineOf(source, domain.start())
+                  + ": "
+                  + (found == null ? "outside a string literal" : found));
+        }
+      }
+
+      // Assert
+      assertThat(unexpected).as(SOURCE_FILE).isEmpty();
     }
   }
 
@@ -168,62 +234,27 @@ class DocsLinksTest {
           Files.readAllLines(repositoryRoot.resolve(PROPERTIES_FILE), StandardCharsets.UTF_8);
 
       // Act
-      List<String> found = commentUrls(lines);
+      List<String> found = new ArrayList<>();
+      List<String> unknown = new ArrayList<>();
+      for (int i = 0; i < lines.size(); i++) {
+        String line = lines.get(i).stripLeading();
+        if (!line.startsWith("#") && !line.startsWith("!")) {
+          continue;
+        }
+        Matcher matcher = DOCS_URL.matcher(line);
+        while (matcher.find()) {
+          String url = stripTrailingPunctuation(matcher.group());
+          String withScheme = matcher.group(1) == null ? "https://" + url : url;
+          found.add(url);
+          if (!urls.containsValue(withScheme)) {
+            unknown.add((i + 1) + ": " + url);
+          }
+        }
+      }
 
       // Assert
       assertThat(found).isNotEmpty();
-      assertThat(found)
-          .allSatisfy(
-              lineAndUrl ->
-                  assertThat(urls.values())
-                      .as("%s:%s", PROPERTIES_FILE, lineAndUrl)
-                      .contains(lineAndUrl.substring(lineAndUrl.indexOf(": ") + 2)));
-    }
-
-    @Test
-    @DisplayName("A URL followed by sentence punctuation is read without it")
-    void given_trailingPunctuation_should_stripIt() {
-      // Arrange
-      List<String> lines =
-          List.of(
-              "### see also: https://docs.openaev.io/latest/a/#b.",
-              "# (https://docs.openaev.io/latest/c/);",
-              "key=https://docs.openaev.io/latest/not-a-comment/");
-
-      // Act
-      List<String> found = commentUrls(lines);
-
-      // Assert
-      assertThat(found)
-          .containsExactly(
-              "1: https://docs.openaev.io/latest/a/#b", "2: https://docs.openaev.io/latest/c/");
-    }
-  }
-
-  @Nested
-  @DisplayName("When reading a links map")
-  class ReadingLinksMap {
-
-    @Test
-    @DisplayName("Other top-level members, such as retired, are ignored")
-    void given_retiredMember_should_beIgnored() throws IOException {
-      // Arrange
-      String json =
-          """
-          {"base": "https://docs.openaev.io/latest/",
-           "links": {"home": "", "teams": "usage/build/people/#teams"},
-           "retired": ["old/page/"]}
-          """;
-
-      // Act
-      Map<String, String> read = readUrls(json);
-
-      // Assert
-      assertThat(read)
-          .containsExactlyInAnyOrderEntriesOf(
-              Map.of(
-                  "home", "https://docs.openaev.io/latest/",
-                  "teams", "https://docs.openaev.io/latest/usage/build/people/#teams"));
+      assertThat(unknown).as(PROPERTIES_FILE).isEmpty();
     }
   }
 }

@@ -44,11 +44,17 @@
     "deployment/ecosystem/executors/#tanium-agent",
     "deployment/ecosystem/integration-manager/overview/",
     "deployment/platform/run-modes/",
+    "integrations/xtm-suite/xtm-one/",
+    "integrations/xtm-suite/xtm-suite-connector/",
     "usage/build/threat-arsenals/output-parsers/",
+    "usage/chaining/",
     "usage/collectors/",
     "usage/foundations/scenarios-and-simulations/",
     "usage/injectors",
     "usage/openaev-agent/",
-    "usage/teams_and_players_and_organizations/#teams"
+    "usage/payloads/payloads/#output-parser",
+    "usage/scenarios-and-simulations/",
+    "usage/teams_and_players_and_organizations/#teams",
+    "usage/threat-arsenals/threat-arsenals/#output-parsers"
   ]
 }

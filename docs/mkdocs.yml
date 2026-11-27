@@ -84,6 +84,7 @@ plugins:
         'usage/autonomous-attack-chaining/configuration.md': 'usage/attack-chaining/autonomous/configuration.md'
         'usage/autonomous-attack-chaining/overview.md': 'usage/attack-chaining/autonomous/overview.md'
         'usage/autonomous-attack-chaining/scenario-creation.md': 'usage/attack-chaining/autonomous/scenario-creation.md'
+        'usage/chaining.md': 'usage/attack-chaining/overview.md'
         'usage/collectors.md': 'integrations/collectors/collectors.md'
         'usage/injectors.md': 'integrations/injectors/injectors.md'
         'usage/environment/collectors.md': 'integrations/collectors/collectors.md'
@@ -111,12 +112,16 @@ plugins:
         'usage/notifications/overview.md': 'usage/run-and-evaluate/notifications/overview.md'
         'usage/notifications/triggers.md': 'usage/run-and-evaluate/notifications/triggers.md'
         'usage/openaev-agent.md': 'integrations/agents/openaev-agent.md'
+        'usage/payloads/payloads.md': 'usage/build/threat-arsenals/threat-arsenals.md'
         'usage/rest-api.md': 'reference/apis/rest-api.md'
+        'usage/scenarios-and-simulations.md': 'usage/get-started/foundations/scenarios-and-simulations.md'
         'usage/teams_and_players_and_organizations.md': 'usage/build/people.md'
+        'usage/threat-arsenals/threat-arsenals.md': 'usage/build/threat-arsenals/threat-arsenals.md'
   - macros
   # The contributors and dates shown on each page come from git history and the GitHub API.
-  # check.py only needs the pages, so it sets DOCS_GIT_PLUGINS=false (true or false) to skip both,
-  # unless the environment sets it. Nightly sets it to true and builds with them.
+  # check.py turns both plugins off (it sets DOCS_GIT_PLUGINS=false) unless it runs with
+  # --git-plugins, as the nightly Docs Check does. serve and mike keep them on unless the
+  # environment sets DOCS_GIT_PLUGINS=false.
   - git-committers:
       enabled: !ENV [DOCS_GIT_PLUGINS, true]
       repository: OpenAEV-Platform/openaev
@@ -140,8 +145,8 @@ validation:
     absolute_links: warn
     unrecognized_links: warn
 # preview_features.py leaves the pages of hidden preview features out of the build (see main.py).
-# hooks/checks.py checks what MkDocs does not: built pages, images, search index, absolute links to
-# the docs site, page URIs and links.json. See its docstring.
+# hooks/checks.py checks what MkDocs does not: built pages, images, search index, links written in
+# raw HTML, redirects, page URIs and links.json. See its docstring.
 hooks:
   - preview_features.py
   - hooks/checks.py

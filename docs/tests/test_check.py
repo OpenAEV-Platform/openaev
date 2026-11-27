@@ -1,4 +1,4 @@
-"""Tests of check.py: fingerprint, skip, build engine errors and exit codes. The build is faked.
+"""Tests of check.py: fingerprint, skip, build folders, engine errors and exit codes. The build is faked.
 
 Run with: python3 docs/run.py test
 """
@@ -7,6 +7,8 @@ import contextlib
 import io
 import logging
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -73,14 +75,17 @@ class FingerprintTest(unittest.TestCase):
 
     def test_ignores_environments_caches_output_and_tests(self):
         before = check.fingerprint(self.docs, {})
-        for folder in (".venv/py3.11", ".cache/check", "site", "tests", "hooks/__pycache__"):
+        for folder in (".venv/py3.11", ".cache/check", "site", "tests", "hooks/__pycache__", ".ruff_cache",
+                       ".pytest_cache", ".mypy_cache"):
             (self.docs / folder).mkdir(parents=True)
             (self.docs / folder / "x").write_text("x")
+        for name in (".DS_Store", "docs/.DS_Store", "docs/Thumbs.db"):
+            (self.docs / name).write_text("x")
         self.assertEqual(before, check.fingerprint(self.docs, {}))
 
     def test_only_the_top_folders_are_left_out(self):
         before = check.fingerprint(self.docs, {})
-        for folder in ("docs/tests", "docs/site", "docs/usage/.cache", "overrides/.venv"):
+        for folder in ("docs/tests", "docs/site", "docs/usage/.cache", "overrides/.venv", "docs/.ruff_cache"):
             (self.docs / folder).mkdir(parents=True)
             (self.docs / folder / "page.md").write_text("x")
             after = check.fingerprint(self.docs, {})
@@ -122,7 +127,6 @@ class FakeConfigurationError(Exception):
 def fake_engine(load_config=None, build=None):
     config = SimpleNamespace(plugins=mock.Mock())
     return SimpleNamespace(
-        name="mkdocs",
         load_config=load_config or (lambda *args, **kwargs: config),
         build=build or (lambda config: None),
         Abort=FakeAbort,
@@ -145,12 +149,13 @@ class MkdocsBuildTest(unittest.TestCase):
             with self.assertRaises(check.DocsProblems):
                 self.build(engine)
 
-    def test_a_plugin_missing_from_the_environment_is_a_toolchain_error(self):
+    def test_an_unknown_plugin_name_is_a_docs_problem(self):
+        # run.py installs exactly requirements.txt: a plugin it lacks is a wrong name in mkdocs.yml.
         def load_config(*args, **kwargs):
             logging.getLogger("mkdocs.config").error('Config value \'plugins\': The "nope" plugin is not installed')
             raise FakeAbort("Aborted with a configuration error!")
 
-        with self.assertRaises(check.ToolchainError):
+        with self.assertRaises(check.DocsProblems):
             self.build(fake_engine(load_config=load_config))
 
     def test_other_errors_go_through_and_main_exits_3(self):
@@ -210,11 +215,6 @@ class RunTest(unittest.TestCase):
         self.run_quietly(force=False, builder=self.build_ok)
         self.assertEqual(len(self.sites), 2)
 
-    def test_each_run_builds_into_its_own_directory(self):
-        self.run_quietly(force=True, builder=self.build_ok)
-        self.run_quietly(force=True, builder=self.build_ok)
-        self.assertNotEqual(self.sites[0], self.sites[1])
-
     def test_docs_problems_exit_1_and_keep_no_fingerprint(self):
         def build(docs, site_dir):
             self.sites.append(site_dir)
@@ -223,6 +223,36 @@ class RunTest(unittest.TestCase):
         self.assertEqual(self.run_quietly(force=False, builder=build), check.DOCS_PROBLEMS)
         self.assertFalse(self.stamp.exists())
         self.assertFalse(self.sites[0].exists())
+
+    def test_builds_into_the_cache_folder_named_after_the_process(self):
+        self.run_quietly(force=True, builder=self.build_ok)
+        self.assertEqual(self.sites[0], self.docs / ".cache" / "check" / f"site-{os.getpid()}")
+
+    def test_removes_the_build_folders_of_dead_checks_only(self):
+        dead = subprocess.Popen([sys.executable, "-c", "pass"])
+        dead.wait()
+        cache = self.docs / ".cache" / "check"
+        for pid in (dead.pid, os.getppid()):
+            (cache / f"site-{pid}" / "x").mkdir(parents=True)
+        self.run_quietly(force=True, builder=self.build_ok)
+        self.assertFalse((cache / f"site-{dead.pid}").exists())
+        self.assertTrue((cache / f"site-{os.getppid()}").exists(), "the folder of a running check stays")
+
+    def test_a_file_changed_during_the_build_leaves_no_fingerprint(self):
+        def build(docs, site_dir):
+            self.sites.append(site_dir)
+            (docs / "docs" / "index.md").write_text("# Edited while the build ran\n")
+
+        self.assertEqual(self.run_quietly(force=False, builder=build), check.OK)
+        self.assertFalse(self.stamp.exists())
+        self.run_quietly(force=False, builder=build)
+        self.assertEqual(len(self.sites), 2, "the next check builds again")
+
+    def test_a_fingerprint_that_cannot_be_written_only_warns(self):
+        with mock.patch.object(check, "write_atomically", side_effect=PermissionError("read-only")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(check.run(self.docs, force=False, builder=self.build_ok), check.OK)
+        self.assertIn("read-only", err.getvalue())
 
     def test_a_failed_check_does_not_skip_the_next_one(self):
         self.run_quietly(force=False, builder=self.build_ok)
@@ -254,17 +284,22 @@ class MainTest(unittest.TestCase):
         for code in (check.OK, check.DOCS_PROBLEMS):
             self.assertEqual(self.main(["--force"], run=mock.Mock(return_value=code))[0], code)
 
-    def test_defaults_the_git_plugins_off_without_leaking_into_the_environment(self):
-        seen = {}
-        os.environ.pop("DOCS_GIT_PLUGINS", None)
+    def test_the_git_plugins_run_only_with_their_flag_whatever_the_environment(self):
+        for exported in (None, "true", "false"):
+            for argv, expected in (([], "false"), (["--git-plugins"], "true")):
+                seen = {}
 
-        def run(docs, force):
-            seen["value"] = os.environ.get("DOCS_GIT_PLUGINS")
-            return check.OK
+                def run(docs, force, seen=seen):
+                    seen["value"] = os.environ.get("DOCS_GIT_PLUGINS")
+                    return check.OK
 
-        self.main([], run=run)
-        self.assertEqual(seen["value"], "false")
-        self.assertNotIn("DOCS_GIT_PLUGINS", os.environ)
+                with mock.patch.dict(os.environ):
+                    os.environ.pop("DOCS_GIT_PLUGINS", None)
+                    if exported is not None:
+                        os.environ["DOCS_GIT_PLUGINS"] = exported
+                    self.main(argv, run=run)
+                    self.assertEqual(os.environ.get("DOCS_GIT_PLUGINS"), exported, "no leak out of main")
+                self.assertEqual(seen["value"], expected, (exported, argv))
 
     def test_bad_arguments_exit_2(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:

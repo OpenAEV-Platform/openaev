@@ -36,12 +36,12 @@ The minimum Node.js version is specified in `openaev-front/package.json` (`engin
 1. **Start services**:
   `cd openaev-dev && if command -v podman >/dev/null 2>&1; then podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq; elif command -v docker >/dev/null 2>&1; then docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq; else echo "Neither podman nor docker is installed." >&2; exit 1; fi`
 2. **Build frontend**: `cd openaev-front && yarn install && yarn build` (~4min)
-3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`. The `openaev-api` build also checks the docs links of `docs/links.json` against the built docs (`docs-check` goal): it uses [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11), plus `python3-venv` on Debian/Ubuntu, found on the `PATH` or chosen with `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python` (`docs/run.py` sets up the docs toolchain in its own virtual environment). It fails the build only on docs link problems; without a usable Python it warns and the build goes on. `-Dopenaev.docs.check.skip=true` skips it, and it skips itself in CI, where the Docs Check job is the gate
+3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`. The `openaev-api` build also runs the docs check (`docs-check` goal, see [backend › Documentation Links](instructions/backend.instructions.md#documentation-links)): it builds the docs and fails the build on any problem the check reports, and only warns when it cannot run (no usable Python). It needs Python, at least the version in `docs/.python-version`, with its `venv` module (`python3-venv` on Debian/Ubuntu), found as [docs/README.md](../docs/README.md#which-python-runs-the-docs-toolchain) explains or chosen with `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python`. `-Dopenaev.docs.check.skip=true` skips it, and it skips itself in CI, where the Docs Check job is the gate
 
 ### Linting & Formatting
 
 **Backend**: `mvn spotless:check` / `mvn spotless:apply` (Google Java Format)
-**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`), `yarn check-docs-links` (docs links check, needs the Python of `docs/.python-version` and fails without it)
+**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`), `yarn check-docs-links` (docs check, needs at least the Python version in `docs/.python-version` and fails when it cannot run)
 **Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` -
 ignore unless your changes touch these.
 
@@ -84,7 +84,7 @@ See the domain-specific instruction files in `.github/instructions/` for detaile
 **Frontend Missing**: Backend needs frontend built first (copies from `builder/prod/build/`)
 **Service Errors**: Ensure Docker services running; CI waits 60s for readiness
 **Memory**: Use `NODE_OPTIONS=--max_old_space_size=8192` for frontend tests
-**Python not found / `python3-venv` missing**: The `openaev-api` build warns that the docs links check did not run, and `yarn check-docs-links` fails. Install [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11), with `venv` (`sudo apt install python3-venv` on Debian/Ubuntu; a Python without it is skipped for the next `python3.N`), point `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python` to it when it is not found (an explicit choice that is not usable is reported by name), or add `-Dopenaev.docs.check.skip=true`
+**Python not found / `python3-venv` missing**: The `openaev-api` build warns that the docs check did not run, and `yarn check-docs-links` fails. Install [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version`, with `venv` (`sudo apt install python3-venv` on Debian/Ubuntu), point `OPENAEV_DOCS_PYTHON` / `-Dopenaev.docs.python` to it when it is not found (see [docs/README.md](../docs/README.md#which-python-runs-the-docs-toolchain), or add `-Dopenaev.docs.check.skip=true`
 **Could not find goal 'docs-check'**: `~/.m2` holds an older build of `openaev-maven-plugin` with the same version — run `mvn -pl openaev-maven-plugin install` once (or a full `mvn install -DskipTests`)
 
 ## Pre-PR Checklist

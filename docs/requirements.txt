@@ -106,7 +106,9 @@ platformdirs==4.13.5
     #   mkdocs-get-deps
     #   properdocs
 properdocs==1.6.7
-    # via mkdocs-redirects
+    # via
+    #   -r requirements.in
+    #   mkdocs-redirects
 pygments==2.21.0
     # via mkdocs-material
 pymdown-extensions==12.3
