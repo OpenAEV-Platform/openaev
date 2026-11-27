@@ -1,15 +1,24 @@
-import { searchAssetGroupAsOption, searchAssetGroupByIdAsOption } from '../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointAsOption, searchEndpointByIdAsOption } from '../../../actions/assets/endpoint-actions';
+import { searchAssetGroupByIdAsOption, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
+import { searchEndpointByIdAsOption, searchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { searchAtomicTestings } from '../../../actions/atomic_testings/atomic-testing-actions';
 import { searchExercises, searchExercisesByIds } from '../../../actions/Exercise';
 import { searchInjectByIdAsOption } from '../../../actions/injects/inject-action';
 import { searchScenarioAsOption, searchScenarioByIdAsOption } from '../../../actions/scenarios/scenario-actions';
 import { searchSimulationAsOptions, searchSimulationByIdAsOptions } from '../../../actions/simulations/simulation-action';
-import { searchTeamByIdAsOption, searchTeamsAsOption } from '../../../actions/teams/team-actions';
+import { searchTeamByIdAsOption, searchTeams } from '../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption, searchPlayersAsOption } from '../../../actions/users/User';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
-import { type ExerciseSimple, type InjectResultOutput, type Reporting, type ReportingModule, type ThemeInput } from '../../../utils/api-types';
+import {
+  type AssetGroupOutput,
+  type EndpointOutput,
+  type ExerciseSimple,
+  type InjectResultOutput,
+  type Reporting,
+  type ReportingModule,
+  type TeamOutput,
+  type ThemeInput,
+} from '../../../utils/api-types';
 import { type Option } from '../../../utils/Option';
 
 /**
@@ -167,6 +176,34 @@ const mapAtomicTestingOptions = (page: Page<InjectResultOutput>): Option[] =>
     label: inject.inject_title || inject.inject_id,
   }));
 
+/** Maximum number of subject options fetched per text search. */
+export const SUBJECT_OPTIONS_SIZE = 50;
+
+const subjectSearchInput = (search: string, sortField: string) => ({
+  page: 0,
+  size: SUBJECT_OPTIONS_SIZE,
+  textSearch: search,
+  sorts: initSorting(sortField, 'ASC'),
+});
+
+const mapAssetGroupOptions = (page: Page<AssetGroupOutput>): Option[] =>
+  (page.content ?? []).map(group => ({
+    id: group.asset_group_id,
+    label: group.asset_group_name,
+  }));
+
+const mapEndpointOptions = (page: Page<EndpointOutput>): Option[] =>
+  (page.content ?? []).map(endpoint => ({
+    id: endpoint.asset_id,
+    label: endpoint.asset_name,
+  }));
+
+const mapTeamOptions = (page: Page<TeamOutput>): Option[] =>
+  (page.content ?? []).map(team => ({
+    id: team.team_id,
+    label: team.team_name,
+  }));
+
 /**
  * Builds a simulation option label as {@code name (start date)}, so the many
  * same-named simulations can be told apart. The date part is dropped when the
@@ -222,14 +259,24 @@ export const searchSubjectOptions = (
         textSearch: search,
         sorts: initSorting('inject_updated_at', 'DESC'),
       }).then((result: { data: Page<InjectResultOutput> }) => mapAtomicTestingOptions(result.data));
+    // Endpoints, asset groups and teams: the GET /options helpers are filter
+    // autocompletes scoped to the targets of injects (atomic testings by
+    // default), so a report subject would only list the entities an inject
+    // already targets (#9968). A report subject is any readable entity: page
+    // through the permission-aware search endpoints instead.
     case 'ENDPOINT':
-      return searchEndpointAsOption(search).then((result: { data: Option[] }) => result.data);
+      return searchEndpoints(subjectSearchInput(search, 'asset_name'))
+        .then((result: { data: Page<EndpointOutput> }) => mapEndpointOptions(result.data));
     case 'ASSET_GROUP':
-      return searchAssetGroupAsOption(search).then((result: { data: Option[] }) => result.data);
+      return searchAssetGroups(subjectSearchInput(search, 'asset_group_name'))
+        .then((result: { data: Page<AssetGroupOutput> }) => mapAssetGroupOptions(result.data));
     case 'PLAYER':
+      // GET /api/players/options is already unscoped (every player of the tenant).
       return searchPlayersAsOption(search).then((result: { data: Option[] }) => result.data);
     case 'TEAM':
-      return searchTeamsAsOption(search).then((result: { data: Option[] }) => result.data);
+      // Non-contextual teams only (the team search excludes simulation-local teams).
+      return searchTeams(subjectSearchInput(search, 'team_name'))
+        .then((result: { data: Page<TeamOutput> }) => mapTeamOptions(result.data));
     default:
       return Promise.resolve([]);
   }
