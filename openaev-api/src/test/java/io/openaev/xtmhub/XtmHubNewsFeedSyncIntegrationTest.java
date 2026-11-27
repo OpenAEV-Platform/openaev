@@ -327,7 +327,7 @@ class XtmHubNewsFeedSyncIntegrationTest extends IntegrationTest {
       User subscribed = createUser(firstTenant);
       User unsubscribed = createUser(firstTenant);
       unsubscribed.setUnsubscribedNewsFeedTypes(new String[] {"BLOG_POST"});
-      userRepository.save(unsubscribed);
+      updateUser(unsubscribed);
       Map<String, String> metadata =
           Map.of("description", "A description", "author_names", "[\"Jane\"]");
       givenHubReturns(FIRST_TOKEN, blogPost(metadata), scenario("hub-1"));
