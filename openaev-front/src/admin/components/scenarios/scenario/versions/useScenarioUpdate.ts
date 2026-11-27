@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { type ScenarioChangeOutput, type ScenarioUpdateInput, type ScenarioUpdatePreviewOutput } from '../../../../../utils/api-types';
+import { type MergeChoice } from '../../../../../components/common/update/ConflictChoice';
+import { type ScenarioChangeOutput, type ScenarioUpdatePreviewOutput } from '../../../../../utils/api-types';
 import { valueText, withStatus } from './scenarioChanges';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
-
-export type ScenarioUpdateChoice = NonNullable<ScenarioUpdateInput['scenario_update_choices']>[string];
 
 interface Refusal {
   message: string;
@@ -23,7 +22,7 @@ const refusalOf = (error: {
 const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) => {
   const [preview, setPreview] = useState<ScenarioUpdatePreviewOutput | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
+  const [choices, setChoices] = useState<Record<string, MergeChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<Refusal | null>(null);
@@ -57,11 +56,11 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   }, [preview]);
   const ready = preview !== null && changes.conflicts.every(conflict => choices[conflict.scenario_change_id]);
 
-  const choose = (changeId: string, choice: ScenarioUpdateChoice) => setChoices(previous => ({
+  const choose = (changeId: string, choice: MergeChoice) => setChoices(previous => ({
     ...previous,
     [changeId]: choice,
   }));
-  const chooseAll = (choice: ScenarioUpdateChoice) => setChoices(Object.fromEntries(changes.conflicts.map(conflict => [conflict.scenario_change_id, choice])));
+  const chooseAll = (choice: MergeChoice) => setChoices(Object.fromEntries(changes.conflicts.map(conflict => [conflict.scenario_change_id, choice])));
   // Typing starts from the client's own value.
   const startEdit = (conflict: ScenarioChangeOutput) => {
     choose(conflict.scenario_change_id, 'EDIT');

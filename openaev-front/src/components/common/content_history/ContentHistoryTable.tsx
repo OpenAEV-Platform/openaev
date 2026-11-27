@@ -107,8 +107,7 @@ const ContentHistoryTable = <T extends ContentChangeOutput>({ history: { entries
                               <IconButton
                                 priority="tertiary"
                                 size="sm"
-                                // FDS-WORKAROUND: white like the Versions rows' arrow, the tertiary IconButton paints it blue
-                                // — remove when the library IconButton has a neutral colour — see the History arrow note in this PR
+                                // FDS-WORKAROUND: white like the Versions rows' arrow — remove when IconButton has a neutral colour — see fds-migration/LIBRARY-FEEDBACK.md #74
                                 icon={<FoldArrow open={open} neutral />}
                                 aria-label={open ? t('Hide the changes') : t('Show the changes')}
                                 aria-expanded={open}

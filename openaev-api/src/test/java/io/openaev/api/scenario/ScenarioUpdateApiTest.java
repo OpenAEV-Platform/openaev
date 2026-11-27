@@ -6,8 +6,8 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
+import static io.openaev.service.catalog.merge.MergeChoice.MISSING;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CHANGED_MEANWHILE;
-import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.CONFLICT_LEFT;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService.INSTALLED_BEFORE_UPDATES;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.CHAINED_REFUSED;
 import static io.openaev.service.catalog.scenario.update.CatalogScenarioUpdater.IMPORTED_LINKS_REFUSED;
@@ -733,7 +733,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                   .value("CONFLICT"));
       update(scenario, Map.of())
           .andExpect(status().isConflict())
-          .andExpect(jsonPath("$.message").value(CONFLICT_LEFT));
+          .andExpect(jsonPath("$.message").value(MISSING));
       update(scenario, Map.of(conflictId, "KEEP_MINE")).andExpect(status().isNoContent());
       assertThat(onlyInject(scenario).getTitle()).isEqualTo(MY_TITLE);
       assertThat(installedVersion(scenario)).isEqualTo(NEWER);

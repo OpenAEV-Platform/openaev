@@ -40,7 +40,8 @@ vi.mock('../../../../admin/components/threat_arsenal/revocation/usePayloadRevoca
     revocationDone: vi.fn(),
   }),
 }));
-vi.mock('../../../../admin/components/threat_arsenal/revocation/PayloadRevocationDialog', () => ({ default: () => null }));
+vi.mock('../../../../admin/components/threat_arsenal/revocation/PayloadRevokeDialog', () => ({ default: () => null }));
+vi.mock('../../../../admin/components/threat_arsenal/revocation/PayloadLiftDialog', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/threat_arsenal/versions/useAfterNewVersion', () => ({ default: () => vi.fn() }));
 vi.mock('../../../../components/common/Drawer', () => ({
   default: ({ open, title, children }: {

@@ -16,9 +16,9 @@ const usePayloadInstall = () => {
     setInstalledIds(previous => new Set([...previous, action.action_id]));
     notifyInstalled(nameOf(action), version);
   };
-  const install = (action: AvailablePayloadActionOutput) => {
+  // The latest version unless another one is picked.
+  const install = (action: AvailablePayloadActionOutput, version = action.action_payload_version) => {
     const id = action.action_id;
-    const version = action.action_payload_version;
     setInstallingIds(previous => new Set([...previous, id]));
     installCatalogPayload(id, version)
       .then(() => markInstalled(action, version))
@@ -30,7 +30,6 @@ const usePayloadInstall = () => {
     isInstalled: (action: AvailablePayloadActionOutput) => installedIds.has(action.action_id),
     isInstalling: (action: AvailablePayloadActionOutput) => installingIds.has(action.action_id),
     install,
-    markInstalled,
     // A reload lists only what is still to install.
     forgetInstalled: () => setInstalledIds(new Set()),
   };

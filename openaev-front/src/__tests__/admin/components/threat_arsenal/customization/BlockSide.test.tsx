@@ -11,8 +11,8 @@ vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (me
 const field = (name: PayloadFieldUpdateOutput['field_name'], filigran: unknown, yours: unknown): PayloadFieldUpdateOutput => ({
   field_name: name,
   field_block: name === 'PLATFORMS' ? 'PLATFORMS' : 'EXECUTION',
-  field_filigran: filigran as PayloadFieldUpdateOutput['field_filigran'],
-  field_yours: yours as PayloadFieldUpdateOutput['field_yours'],
+  field_applied: filigran as PayloadFieldUpdateOutput['field_applied'],
+  field_local: yours as PayloadFieldUpdateOutput['field_local'],
   field_status: 'CONFLICT',
 });
 
@@ -21,7 +21,7 @@ describe('BlockSide', () => {
 
   it('given_platforms_should_showThemAsChips', () => {
     // Act
-    render(<BlockSide fields={[field('PLATFORMS', ['Windows', 'Linux'], ['Windows'])]} side="theirs" />);
+    render(<BlockSide fields={[field('PLATFORMS', ['Windows', 'Linux'], ['Windows'])]} side="TAKE_APPLIED" />);
 
     // Assert
     expect(screen.getByText('Windows')).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe('BlockSide', () => {
             default_value: '22',
           }]),
         ]}
-        side="mine"
+        side="KEEP_MINE"
       />,
     );
 
@@ -56,7 +56,7 @@ describe('BlockSide', () => {
 
   it('given_noValue_should_sayItIsEmpty', () => {
     // Act
-    render(<BlockSide fields={[field('CLEANUP_COMMAND', null, 'del out.txt')]} side="theirs" />);
+    render(<BlockSide fields={[field('CLEANUP_COMMAND', null, 'del out.txt')]} side="TAKE_APPLIED" />);
 
     // Assert
     expect(screen.getByText('Empty')).toBeInTheDocument();

@@ -3,8 +3,8 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.api.catalog.CatalogRoutes.TENANT_CATALOG_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.service.catalog.merge.MergeChoice.MISSING;
 import static io.openaev.service.payload.CustomizableField.LOCKED_ON_CUSTOMIZED_COPY;
-import static io.openaev.service.payload.PayloadCustomizationMerge.CONFLICT_WITHOUT_CHOICE;
 import static io.openaev.service.payload.PayloadCustomizationService.NOT_CUSTOMIZED;
 import static io.openaev.service.payload.PayloadCustomizationService.NOT_FILIGRAN;
 import static io.openaev.service.payload.PayloadCustomizationService.NOT_LATEST;
@@ -398,8 +398,8 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       JsonNode command = fieldOf(update, "COMMAND_CONTENT");
       assertThat(command.path("field_block").asText()).isEqualTo("EXECUTION");
       assertThat(command.path("field_status").asText()).isEqualTo("CONFLICT");
-      assertThat(command.path("field_filigran").asText()).isEqualTo(FILIGRAN_COMMAND);
-      assertThat(command.path("field_yours").asText()).isEqualTo(MY_COMMAND);
+      assertThat(command.path("field_applied").asText()).isEqualTo(FILIGRAN_COMMAND);
+      assertThat(command.path("field_local").asText()).isEqualTo(MY_COMMAND);
       JsonNode cleanup = fieldOf(update, "CLEANUP_COMMAND");
       assertThat(cleanup.path("field_block").asText()).isEqualTo("EXECUTION");
       assertThat(cleanup.path("field_status").asText()).isEqualTo("CONFLICT");
@@ -519,7 +519,7 @@ class ThreatArsenalCustomizationApiTest extends IntegrationTest {
       // Act & Assert
       update(copy.path("injector_contract_id").asText(), newer, Map.of())
           .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(CONFLICT_WITHOUT_CHOICE));
+          .andExpect(jsonPath("$.message").value(MISSING));
     }
 
     @Test

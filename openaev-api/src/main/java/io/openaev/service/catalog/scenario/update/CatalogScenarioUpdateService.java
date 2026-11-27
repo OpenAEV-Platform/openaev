@@ -11,12 +11,11 @@ import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.event.ContentChangePublisher;
+import io.openaev.service.catalog.merge.MergeChoice;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogScenarioUpdateService {
 
   public static final String CHANGED_MEANWHILE = "The scenario changed meanwhile: try again";
-  public static final String CONFLICT_LEFT = "Choose a side for each conflict";
   public static final String INSTALLED_BEFORE_UPDATES =
       "This scenario was installed before updates were supported: it cannot be updated or rolled"
           + " back";
@@ -62,19 +60,11 @@ public class CatalogScenarioUpdateService {
         update.installed().version(),
         merge,
         scenarioPayloadCheckService.check(update.installed().tenantId(), merge.merged()),
-        notes(update));
-  }
-
-  // The versions after the installed one up to the one applied, with a changelog.
-  private List<CatalogScenario> notes(ScenarioUpdate update) {
-    InstalledScenario installed = update.installed();
-    return catalogListService.versions(CatalogScenario.class, installed.externalId()).stream()
-        .filter(version -> version.getChangelog() != null)
-        .filter(
-            version -> SemanticVersion.ORDER.compare(version.getVersion(), installed.version()) > 0)
-        .filter(
-            version -> SemanticVersion.ORDER.compare(version.getVersion(), update.version()) <= 0)
-        .toList();
+        catalogListService.releaseNotes(
+            CatalogScenario.class,
+            update.installed().externalId(),
+            update.installed().version(),
+            update.version()));
   }
 
   // -- UPDATE --
@@ -86,7 +76,7 @@ public class CatalogScenarioUpdateService {
       ScenarioUpdate update,
       String previewedVersion,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, MergeChoice> choices,
       Map<String, String> edits) {
     payloadFiles.forEach(
         (released, file) ->
@@ -98,7 +88,7 @@ public class CatalogScenarioUpdateService {
     ScenarioMerge.Result merge =
         ScenarioMerge.merge(update.base(), update.applied(), local, choices, edits);
     if (!merge.resolved()) {
-      throw new ConflictException(CONFLICT_LEFT);
+      throw new ConflictException(MergeChoice.MISSING);
     }
     scenarioRevisionService.keep(scenario, update.reason(), local);
     writer.write(scenario, injects, merge.merged());

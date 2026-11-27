@@ -30,7 +30,7 @@ interface Props {
 const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClose, onUpdated }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { conflicts, news, kept, sides, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
+  const { conflicts, news, kept, choices, choose, ready, applying, apply } = useCustomizationUpdate(actionId, update);
   const version = update.update_version;
   const notes = update.update_release_notes;
   const label = (field: PayloadFieldUpdateOutput) => t(CUSTOMIZABLE_FIELD_LABELS[field.field_name]);
@@ -64,11 +64,11 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClo
                   <ConflictChoice
                     key={block}
                     title={fields.map(label).join(', ')}
-                    theirsLabel={t('Filigran version v{version}', { version })}
-                    mineLabel={t('Yours')}
-                    theirs={<BlockSide fields={fields} side="theirs" />}
-                    mine={<BlockSide fields={fields} side="mine" />}
-                    selected={sides[block]}
+                    appliedLabel={t('Filigran version v{version}', { version })}
+                    localLabel={t('Yours')}
+                    applied={<BlockSide fields={fields} side="TAKE_APPLIED" />}
+                    local={<BlockSide fields={fields} side="KEEP_MINE" />}
+                    selected={choices[block]}
                     onSelect={side => choose(block, side)}
                   />
                 ))}
@@ -95,7 +95,7 @@ const PayloadUpdateDialog: FunctionComponent<Props> = ({ actionId, update, onClo
                     id: field.field_name,
                     field: label(field),
                     before: fieldText(field.field_name, field.field_base),
-                    after: fieldText(field.field_name, field.field_filigran),
+                    after: fieldText(field.field_name, field.field_applied),
                   }))}
                 />
               )}

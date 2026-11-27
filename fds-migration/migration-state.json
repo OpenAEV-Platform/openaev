@@ -105,7 +105,7 @@
       ],
       "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
       "files": [
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevokeDialog.tsx",
         "openaev-front/src/components/fields/TextFieldFds.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioConflicts.tsx"
       ]
@@ -167,7 +167,7 @@
         "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalSelectAll.tsx",
         "openaev-front/src/admin/components/threat_arsenal/list/ThreatArsenalListRow.tsx",
         "openaev-front/src/admin/components/threat_arsenal/versions/usages/PayloadUsagesTable.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx"
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevokeDialog.tsx"
       ]
     },
     {
@@ -896,7 +896,7 @@
         "openaev-front/src/admin/components/threat_arsenal/versions/VersionsTabNote.tsx",
         "openaev-front/src/admin/components/threat_arsenal/catalog/CatalogPayloadInstallAction.tsx",
         "openaev-front/src/admin/components/scenarios/catalog/CatalogScenarioAction.tsx",
-        "openaev-front/src/admin/components/scenarios/catalog/ScenarioCatalogDrawer.tsx",
+        "openaev-front/src/components/common/marketplace/drawer/MarketplaceItemDrawer.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioRevisionsTable.tsx",
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioVersionsTable.tsx",
@@ -994,7 +994,7 @@
       ],
       "reason": "The revoke and lift dialog of a payload version: title, description, scrolling body and footer actions.",
       "files": [
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadVersionDialog.tsx",
         "openaev-front/src/admin/components/threat_arsenal/customization/PayloadUpdateDialog.tsx"
       ]
     },

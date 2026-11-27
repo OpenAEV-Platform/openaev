@@ -2610,3 +2610,33 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 **Product need.** A pivot to OpenCTI or OpenCRQ shows what the click brings before the click: the counterpart's name, type and key facts, or, when not connected, a teaser with example placeholders. That content is a small card, not a label, and it must open on hover and on focus.
 
 **The request.** A `HoverCard` (or a `Popover` with a hover trigger) that takes structured content and opens on hover and focus, or a ruling that `Tooltip` may carry a short structured card. **Removal condition:** that component ships; the pivot preview then moves to it in one commit.
+
+## 73. `Alert` keeps the browser margins of its title and description
+
+**Status.** Open. Worked around in the product: `design-system-host.css` resets the margin of `p.text-alert` and of the paragraph right after it (PR #9712).
+
+**Measured.** At library 1.13.0 the `Alert` renders its title and description as `<p>` and ships no reset, so they keep the browser's 1em margins. The title sits about 14px under the icon and a 28px gap opens before the description.
+
+**Product need.** The Figma Alert aligns the title with the icon and puts the description right under it, on every Alert of the product.
+
+**The request.** Reset the margins of the Alert's title and description in the library. **Removal condition:** the library resets them; the rule in `design-system-host.css` goes.
+
+## 74. `IconButton` has no neutral colour
+
+**Status.** Open. Worked around in the product: the fold arrow of the History rows paints its icon in the primary text colour (`FoldArrow neutral`, `ContentHistoryTable`, PR #9712).
+
+**Measured.** At library 1.13.0 a `tertiary` `IconButton` paints its icon in the brand blue. No priority or prop gives the neutral text colour.
+
+**Product need.** The fold arrows of a table read as part of the row, white like the Versions rows' arrow, not as a call to action.
+
+**The request.** A neutral colour for `IconButton` (a `neutral` priority or a colour prop). **Removal condition:** it ships; `FoldArrow` drops its `neutral` style.
+
+## 75. `Card` has no tags slot
+
+**Status.** Open. Worked around in the product: `MarketplaceCard` lays its chips out in a plain row, 8px apart, between the subtitle and the description (PR #9712).
+
+**Measured.** The Figma Card (node 8486:41702) has a tags slot. The library `Card` of 1.13.0 has none.
+
+**Product need.** Catalogue cards show the type, status and platforms of an item as chips in one place.
+
+**The request.** A `CardTags` slot in the library `Card`. **Removal condition:** it ships; `MarketplaceCard` moves its chips into it.

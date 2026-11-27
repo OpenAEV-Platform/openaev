@@ -9,13 +9,13 @@ import { type PayloadFieldUpdateOutput } from '../../../../utils/api-types';
 import { CUSTOMIZABLE_FIELD_LABELS, type CustomizableField, fieldText } from './fieldUpdates';
 
 const VALUE_OF: Record<ConflictSide, (field: PayloadFieldUpdateOutput) => unknown> = {
-  theirs: field => field.field_filigran,
-  mine: field => field.field_yours,
+  TAKE_APPLIED: field => field.field_applied,
+  KEEP_MINE: field => field.field_local,
 };
 
 const OTHER_SIDE: Record<ConflictSide, ConflictSide> = {
-  theirs: 'mine',
-  mine: 'theirs',
+  TAKE_APPLIED: 'KEEP_MINE',
+  KEEP_MINE: 'TAKE_APPLIED',
 };
 
 interface ValueProps {

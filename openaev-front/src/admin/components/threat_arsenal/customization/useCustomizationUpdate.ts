@@ -3,19 +3,11 @@ import { useState } from 'react';
 import { updateThreatArsenalCustomization } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { type ConflictSide } from '../../../../components/common/update/ConflictChoice';
 import {
-  type PayloadCustomizationUpdateInput,
   type PayloadCustomizationUpdateOutput,
   type PayloadFieldUpdateOutput,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
 import { type CustomizableBlock } from './fieldUpdates';
-
-type Choices = NonNullable<PayloadCustomizationUpdateInput['update_choices']>;
-
-const CHOICE_OF_SIDE: Record<ConflictSide, Choices[string]> = {
-  theirs: 'TAKE_APPLIED',
-  mine: 'KEEP_MINE',
-};
 
 interface ConflictBlock {
   block: CustomizableBlock;
@@ -24,7 +16,7 @@ interface ConflictBlock {
 
 /** The fields of an update by what happens to them, and the choice made on each conflicting block. */
 const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUpdateOutput) => {
-  const [sides, setSides] = useState<Record<string, ConflictSide>>({});
+  const [choices, setChoices] = useState<Record<string, ConflictSide>>({});
   const [applying, setApplying] = useState(false);
 
   const withStatus = (status: PayloadFieldUpdateOutput['field_status']) => update.update_fields.filter(field => field.field_status === status);
@@ -34,7 +26,7 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
     fields: conflicting.filter(field => field.field_block === block),
   }));
 
-  const choose = (block: CustomizableBlock, side: ConflictSide) => setSides(previous => ({
+  const choose = (block: CustomizableBlock, side: ConflictSide) => setChoices(previous => ({
     ...previous,
     [block]: side,
   }));
@@ -43,7 +35,7 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
     setApplying(true);
     return updateThreatArsenalCustomization(actionId, {
       update_payload_id: update.update_payload_id,
-      update_choices: Object.fromEntries(Object.entries(sides).map(([block, side]) => [block, CHOICE_OF_SIDE[side]])),
+      update_choices: choices,
     })
       .then(({ data }: { data: ThreatArsenalAction }) => data)
       .finally(() => setApplying(false));
@@ -53,9 +45,9 @@ const useCustomizationUpdate = (actionId: string, update: PayloadCustomizationUp
     conflicts,
     news: withStatus('TAKE_APPLIED'),
     kept: withStatus('KEEP_MINE'),
-    sides,
+    choices,
     choose,
-    ready: conflicts.every(({ block }) => sides[block]),
+    ready: conflicts.every(({ block }) => choices[block]),
     applying,
     apply,
   };

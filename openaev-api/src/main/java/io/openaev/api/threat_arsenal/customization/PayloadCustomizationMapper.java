@@ -42,8 +42,8 @@ public class PayloadCustomizationMapper {
         field.field(),
         field.field().getBlock(),
         field.base(),
-        field.filigran(),
-        field.yours(),
+        field.applied(),
+        field.local(),
         field.status());
   }
 }

@@ -19,7 +19,8 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download, isFeatureEnabled } from '../../../utils/utils';
 import useCanUpdateAction from './hook/useCanUpdateAction';
 import { type OpenedTab } from './hook/useOpenedAction';
-import PayloadRevocationDialog from './revocation/PayloadRevocationDialog';
+import PayloadLiftDialog from './revocation/PayloadLiftDialog';
+import PayloadRevokeDialog from './revocation/PayloadRevokeDialog';
 import usePayloadRevocation from './revocation/usePayloadRevocation';
 import ThreatArsenalActionEditDrawer from './ThreatArsenalActionEditDrawer';
 import { isCustomizedCopy } from './utils/threatArsenalStatusUtils';
@@ -175,11 +176,19 @@ const ThreatArsenalActionPopover = ({
         </MenuContent>
       </Menu>
 
-      <PayloadRevocationDialog
-        open={revocation !== null}
+      <PayloadRevokeDialog
+        open={revocation === 'revoke'}
         name={name}
-        lift={revocation === 'lift'}
-        versions={revocation === 'lift' ? liftable : revocable}
+        versions={revocable}
+        currentPayloadId={payloadId}
+        actionId={actionId}
+        onClose={closeRevocation}
+        onDone={revocationDone}
+      />
+      <PayloadLiftDialog
+        open={revocation === 'lift'}
+        name={name}
+        versions={liftable}
         currentPayloadId={payloadId}
         actionId={actionId}
         onClose={closeRevocation}

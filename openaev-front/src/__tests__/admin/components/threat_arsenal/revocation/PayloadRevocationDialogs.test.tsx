@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import PayloadRevocationDialog from '../../../../../admin/components/threat_arsenal/revocation/PayloadRevocationDialog';
+import PayloadLiftDialog from '../../../../../admin/components/threat_arsenal/revocation/PayloadLiftDialog';
+import PayloadRevokeDialog from '../../../../../admin/components/threat_arsenal/revocation/PayloadRevokeDialog';
 import { expectLibraryButton } from '../../../../utils/designSystemAssertions';
 import { aUsage, aVersion, renderInApp, someUsages } from '../threatArsenalTestUtils';
 
@@ -37,11 +38,11 @@ const older = aVersion({
 const renderDialog = (lift = false, versions = [current]) => {
   const onClose = vi.fn();
   const onDone = vi.fn();
+  const Dialog = lift ? PayloadLiftDialog : PayloadRevokeDialog;
   renderInApp(
-    <PayloadRevocationDialog
+    <Dialog
       open
       name="Mimikatz"
-      lift={lift}
       versions={versions}
       currentPayloadId="payload-v2"
       actionId="card-action"
@@ -55,7 +56,7 @@ const renderDialog = (lift = false, versions = [current]) => {
   };
 };
 
-describe('PayloadRevocationDialog', () => {
+describe('PayloadRevokeDialog and PayloadLiftDialog', () => {
   beforeEach(() => {
     mocks.fetchUsages.mockResolvedValue({
       data: someUsages([

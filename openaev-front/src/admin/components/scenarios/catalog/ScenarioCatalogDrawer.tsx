@@ -1,9 +1,9 @@
-import { Button, Text } from '@filigran/design-system';
+import { Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { Field } from '../../../../components/common/detail/EntityDetailCommon';
-import Drawer from '../../../../components/common/Drawer';
+import MarketplaceItemDrawer from '../../../../components/common/marketplace/drawer/MarketplaceItemDrawer';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
@@ -13,7 +13,7 @@ import MissingRequirementAlert from './MissingRequirementAlert';
 import ScenarioCatalogFacts from './ScenarioCatalogFacts';
 
 interface Props {
-  scenario: CatalogScenarioOutput | null;
+  scenario: CatalogScenarioOutput;
   canInstall: boolean;
   onClose: () => void;
   onInstall: (scenario: CatalogScenarioOutput) => void;
@@ -33,8 +33,8 @@ const factsOf = (scenario: CatalogScenarioOutput): ScenarioFormInput => ({
 const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall, onClose, onInstall, onUpdate }) => {
   const { t, nsd } = useFormatter();
   const theme = useTheme();
-  const missing = scenario?.catalog_scenario_missing_requirements ?? [];
-  const payloads = scenario?.catalog_scenario_payloads ?? [];
+  const missing = scenario.catalog_scenario_missing_requirements ?? [];
+  const payloads = scenario.catalog_scenario_payloads ?? [];
   const row = {
     display: 'flex',
     alignItems: 'center',
@@ -47,70 +47,53 @@ const ScenarioCatalogDrawer: FunctionComponent<Props> = ({ scenario, canInstall,
   } as const;
 
   return (
-    <Drawer
-      open={scenario !== null}
-      handleClose={onClose}
-      title={scenario ? (scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id) : ''}
+    <MarketplaceItemDrawer
+      title={scenario.catalog_scenario_name ?? scenario.catalog_scenario_external_id}
+      onClose={onClose}
+      actions={<CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} onUpdate={onUpdate} />}
     >
-      {scenario && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: theme.spacing(3),
-        }}
-        >
-          <div style={{
-            ...row,
-            flexWrap: 'wrap',
-          }}
-          >
-            <PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} />
-            <Text variant="content-caption">
-              {[
-                `v${scenario.catalog_scenario_version}`,
-                scenario.catalog_scenario_injects_count != null ? t('{count} injects', { count: String(scenario.catalog_scenario_injects_count) }) : null,
-                scenario.catalog_scenario_published_at ? `${t('Published')} ${nsd(scenario.catalog_scenario_published_at)}` : null,
-                scenario.catalog_scenario_author ? `${t('by')} ${scenario.catalog_scenario_author}` : null,
-              ].filter(Boolean).join(' · ')}
-            </Text>
+      <div style={{
+        ...row,
+        flexWrap: 'wrap',
+      }}
+      >
+        <PlatformIconGroup platforms={scenario.catalog_scenario_platforms} width={16} />
+        <Text variant="content-caption">
+          {[
+            `v${scenario.catalog_scenario_version}`,
+            scenario.catalog_scenario_injects_count != null ? t('{count} injects', { count: String(scenario.catalog_scenario_injects_count) }) : null,
+            scenario.catalog_scenario_published_at ? `${t('Published')} ${nsd(scenario.catalog_scenario_published_at)}` : null,
+            scenario.catalog_scenario_author ? `${t('by')} ${scenario.catalog_scenario_author}` : null,
+          ].filter(Boolean).join(' · ')}
+        </Text>
+      </div>
+      <ScenarioCatalogFacts key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} values={factsOf(scenario)} />
+      {missing.length > 0 && (
+        <Field label={t('Missing to run it')}>
+          <div style={column}>
+            {missing.map(requirement => (
+              <MissingRequirementAlert key={requirement.requirement_label} requirement={requirement} severity="warning" />
+            ))}
           </div>
-          <ScenarioCatalogFacts key={`${scenario.catalog_scenario_external_id}:${scenario.catalog_scenario_version}`} values={factsOf(scenario)} />
-          {missing.length > 0 && (
-            <Field label={t('Missing to run it')}>
-              <div style={column}>
-                {missing.map(requirement => (
-                  <MissingRequirementAlert key={requirement.requirement_label} requirement={requirement} severity="warning" />
-                ))}
-              </div>
-            </Field>
-          )}
-          {payloads.length > 0 && (
-            <Field label={t('Payloads')}>
-              <div style={column}>
-                {payloads.map(payload => (
-                  <Text key={`${payload.catalog_payload_external_id}:${payload.catalog_payload_version}`} variant="content-base">
-                    {`${payload.catalog_payload_name ?? payload.catalog_payload_external_id} · v${payload.catalog_payload_version}`}
-                  </Text>
-                ))}
-              </div>
-            </Field>
-          )}
-          {scenario.catalog_scenario_changelog && (
-            <Field label={t('What\'s new in v{version}', { version: scenario.catalog_scenario_version })}>
-              {scenario.catalog_scenario_changelog}
-            </Field>
-          )}
-          <div style={{
-            ...row,
-            justifyContent: 'flex-end',
-          }}
-          >
-            <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-            <CatalogScenarioAction scenario={scenario} canInstall={canInstall} onInstall={() => onInstall(scenario)} onUpdate={onUpdate} />
-          </div>
-        </div>
+        </Field>
       )}
-    </Drawer>
+      {payloads.length > 0 && (
+        <Field label={t('Payloads')}>
+          <div style={column}>
+            {payloads.map(payload => (
+              <Text key={`${payload.catalog_payload_external_id}:${payload.catalog_payload_version}`} variant="content-base">
+                {`${payload.catalog_payload_name ?? payload.catalog_payload_external_id} · v${payload.catalog_payload_version}`}
+              </Text>
+            ))}
+          </div>
+        </Field>
+      )}
+      {scenario.catalog_scenario_changelog && (
+        <Field label={t('What\'s new in v{version}', { version: scenario.catalog_scenario_version })}>
+          {scenario.catalog_scenario_changelog}
+        </Field>
+      )}
+    </MarketplaceItemDrawer>
   );
 };
 

@@ -80,7 +80,8 @@
  * preflight, leaves them the user-agent margin (1em above and below). The title then sits ~14px
  * under the icon and a 28px gap opens before the description, instead of the Figma Alert's
  * aligned first line. Scoped to the Alert's own text classes (`text-alert` title, the
- * description right after it). Remove when the library Alert resets its paragraph margins. */
+ * description right after it). Remove when the library Alert resets its paragraph margins.
+ * See fds-migration/LIBRARY-FEEDBACK.md #73. */
 p.text-alert,
 p.text-alert + p {
   margin: 0;

@@ -14,7 +14,7 @@ export interface ScenarioUpdateTarget {
   intro: string;
   version: string;
   // The label of the applied side of a conflict.
-  theirsLabel: string;
+  appliedLabel: string;
   conflictsIntro: string;
   removedConflictLabel: string;
   addedReason: string;
@@ -36,7 +36,7 @@ export const updateTarget = (scenarioId: string, version: string, installedVersi
   title: t('Update to Filigran v{version}', { version }),
   intro: t('The content moves to Filigran v{version}.', { version }),
   version,
-  theirsLabel: t('Filigran version v{version}', { version }),
+  appliedLabel: t('Filigran version v{version}', { version }),
   conflictsIntro: t('Filigran changed things you edited. Pick which version to keep for each.'),
   removedConflictLabel: t('Removed in v{version}, changed by you', { version }),
   addedReason: t('New in v{version}', { version }),
@@ -64,7 +64,7 @@ export const rollbackTarget = (scenarioId: string, revision: ScenarioRevisionOut
       date,
     }),
     version,
-    theirsLabel: t('Revision #{number}', { number }),
+    appliedLabel: t('Revision #{number}', { number }),
     conflictsIntro: t('You edited things this rollback restores. Pick which version to keep for each.'),
     removedConflictLabel: t('Not in revision #{number}, changed by you', { number }),
     addedReason: t('In revision #{number}', { number }),

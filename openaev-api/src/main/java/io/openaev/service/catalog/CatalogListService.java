@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -77,6 +78,17 @@ public class CatalogListService {
   public <T extends CatalogItem> List<T> offeredVersions(Class<T> type, String externalId) {
     return newestFirst(catalogItemRepository.findAllVersions(type, externalId)).stream()
         .filter(CatalogListService::isOffered)
+        .toList();
+  }
+
+  /** The versions after one version up to another that have a changelog, newest first. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> releaseNotes(
+      Class<T> type, String externalId, String after, String upTo) {
+    return versions(type, externalId).stream()
+        .filter(version -> StringUtils.isNotBlank(version.getChangelog()))
+        .filter(version -> SemanticVersion.ORDER.compare(version.getVersion(), after) > 0)
+        .filter(version -> SemanticVersion.ORDER.compare(version.getVersion(), upTo) <= 0)
         .toList();
   }
 
