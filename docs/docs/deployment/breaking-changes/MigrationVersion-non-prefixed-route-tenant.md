@@ -12,9 +12,9 @@ The non-prefixed API routes (`/api/...`, without `/api/tenants/{tenantId}`) read
 |:--|:--|:--|
 | `GET /api/findings/{id}`, `GET /api/findings/{id}/summary` | finding of B; summary counted in the tenant of the finding | finding of any tenant of the caller |
 | `GET /api/sessions`, `GET /api/sessions/{userId}`, `DELETE /api/sessions/...` | users of B | users of every tenant of the caller |
-| `PUT /api/me/profile` with an organization | organization of B | the single tenant of the caller; `400` for a caller of several tenants |
-| `PUT /api/me/profile` without an organization | clears the organization of B | clears the organization of the caller's tenant when the caller has one tenant |
-| `POST /api/mappers/store/{importId}` (dry run) | mapper built in B | single tenant of the caller; `400` when the header names several tenants |
+| `PUT /api/me/profile` with an organization | organization of B, also the `user_organization` of the response; `400` when the header names several tenants | the single tenant of the caller; `400` for a caller of several tenants |
+| `PUT /api/me/profile` without an organization | clears the organization of B; clears none when the header names several tenants | clears the organization of the caller's tenant when the caller has one tenant |
+| `POST /api/mappers/store/{importId}` (dry run) | mapper built in B; `400` when the header names several tenants | the single tenant of the caller; for a caller of several tenants, the default tenant when the caller belongs to it, `400` otherwise |
 | Tenant role create, update and delete | reserved role ids checked in the role's tenant | same |
 | `GET /api/bulk-operations` and the bulk operation stream events | operations of B, plus the caller's operations that carry no tenant | operations of every tenant of the caller, plus the caller's operations that carry no tenant |
 
