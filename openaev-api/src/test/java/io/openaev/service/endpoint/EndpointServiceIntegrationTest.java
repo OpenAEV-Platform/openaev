@@ -30,6 +30,7 @@ import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.ConstraintViolationException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
@@ -625,6 +626,63 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
         Endpoint endpoint = endpointRepository.findById(firstAssetId).orElseThrow();
         assertThat(endpoint.getAgents()).hasSize(1);
         assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
+      }
+
+      @Test
+      @DisplayName("A heartbeat that changes nothing on the host leaves the endpoint row alone")
+      void given_aHeartbeatWithNoEndpointChange_should_keepEndpointUpdatedAt() throws Exception {
+        // Arrange: the registration creates the endpoint, the first heartbeat stamps its seen
+        // source, so the next heartbeat has nothing left to change on the endpoint
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+        entityManager.flush();
+        entityManager.clear();
+        String assetId = register(host);
+        register(host);
+        entityManager.flush();
+        entityManager.clear();
+        Endpoint beforeHeartbeat = endpointRepository.findById(assetId).orElseThrow();
+        Instant updatedAtBeforeHeartbeat = beforeHeartbeat.getUpdatedAt();
+        Instant agentLastSeenBeforeHeartbeat = beforeHeartbeat.getAgents().getFirst().getLastSeen();
+        entityManager.clear();
+
+        // Act
+        register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        Endpoint endpoint = endpointRepository.findById(assetId).orElseThrow();
+        assertThat(endpoint.getUpdatedAt()).isEqualTo(updatedAtBeforeHeartbeat);
+        assertThat(endpoint.getAgents().getFirst().getLastSeen())
+            .isAfter(agentLastSeenBeforeHeartbeat);
+      }
+
+      @Test
+      @DisplayName("A heartbeat that renames the host moves the endpoint's updated date")
+      void given_aHeartbeatWithANewHostname_should_moveEndpointUpdatedAt() throws Exception {
+        // Arrange
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+        entityManager.flush();
+        entityManager.clear();
+        String assetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+        Instant updatedAtAfterRegistration =
+            endpointRepository.findById(assetId).orElseThrow().getUpdatedAt();
+        entityManager.clear();
+        host.setHostname("host-one-renamed");
+
+        // Act
+        register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        Endpoint endpoint = endpointRepository.findById(assetId).orElseThrow();
+        assertThat(endpoint.getHostname()).isEqualTo("host-one-renamed");
+        assertThat(endpoint.getUpdatedAt()).isAfter(updatedAtAfterRegistration);
       }
     }
   }
