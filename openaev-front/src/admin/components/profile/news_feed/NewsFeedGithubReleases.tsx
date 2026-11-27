@@ -1,5 +1,5 @@
 import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { NewReleasesOutlined, OpenInNewOutlined } from '@mui/icons-material';
+import { CellTowerOutlined, OpenInNewOutlined } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet; dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
@@ -28,7 +28,7 @@ const NewsFeedGithubReleases = () => {
   if (releases === null) {
     content = failed ? <SimpleError /> : <Loader variant="inElement" />;
   } else if (releases.length === 0) {
-    content = <Empty message={t('No GitHub releases yet')} icon={NewReleasesOutlined} />;
+    content = <Empty message={t('No GitHub releases yet')} icon={CellTowerOutlined} />;
   } else {
     content = (
       <div style={{ overflowX: 'auto' }}>

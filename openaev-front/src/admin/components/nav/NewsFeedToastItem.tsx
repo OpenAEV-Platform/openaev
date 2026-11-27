@@ -1,5 +1,5 @@
 import { IconButton, Text, Thumbnail, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { ArticleOutlined, NewReleasesOutlined, NotificationsOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
+import { ArticleOutlined, CellTowerOutlined, NotificationsOutlined, OpenInNewOutlined, RouteOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -31,7 +31,7 @@ const NewsFeedToastItem: FunctionComponent<Props> = ({ item }) => {
     typeLabel = t('Blogpost');
     openLabel = t('Open on Filigran blog');
   } else if (isGithubRelease) {
-    TypeIcon = NewReleasesOutlined;
+    TypeIcon = CellTowerOutlined;
     typeLabel = t('GitHub release');
     // A GitHub release lands on GitHub, the redirect of XTM Hub only tells which release.
     openLabel = t('Open on GitHub');
