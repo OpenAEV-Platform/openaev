@@ -111,7 +111,18 @@ def parse_matrix(where: str, value: str) -> list[list[dict]]:
     return parsed
 
 
-def check_api_matrix(where: str, matrix: list[dict]) -> None:
+def optional_inputs(yaml) -> set[str]:
+    """The pipeline inputs a caller may leave out: those declared with required: false.
+
+    PyYAML reads the `on:` key as the boolean True, so both spellings are looked up.
+    """
+    document = yaml.safe_load(PIPELINE.read_text(encoding="utf-8")) or {}
+    trigger = document.get("on") or document.get(True) or {}
+    declared = (trigger.get("workflow_call") or {}).get("inputs") or {}
+    return {name for name, spec in declared.items() if isinstance(spec, dict) and not spec.get("required")}
+
+
+def check_api_matrix(where: str, matrix: list[dict], shadow: bool) -> None:
     seen: dict[str, int] = {}
     coverage_artifacts: dict[str, str] = {}
     for index, entry in enumerate(matrix):
@@ -145,8 +156,14 @@ def check_api_matrix(where: str, matrix: list[dict]) -> None:
                     "which does not exist"
                 )
 
+        # A shadow entry in the API matrix would run as a gating API test shard, and a regular
+        # entry in the shadow matrix would run the plain suite where nothing gates on it.
         mode = entry.get("tenant_mode")
-        if mode is not None and mode not in ("production", "all"):
+        if shadow and not mode:
+            fail(f"{where}: entry '{name}' has no tenant_mode, which every shadow entry needs")
+        if not shadow and mode:
+            fail(f"{where}: entry '{name}' has a tenant_mode; shadow entries go in api-shadow-matrix")
+        if mode and mode not in ("production", "all"):
             fail(f"{where}: entry '{name}' has tenant_mode '{mode}', expected 'production' or 'all'")
 
 
@@ -176,6 +193,8 @@ def main() -> int:
         print(f"No fromJSON(inputs.*) found in {PIPELINE.relative_to(REPO)}", file=sys.stderr)
         return 2
 
+    optional = optional_inputs(yaml)
+
     callers = []
     for path in sorted(WORKFLOWS.glob("*.yml")):
         if path == PIPELINE:
@@ -196,13 +215,14 @@ def main() -> int:
     for path, job_name, given in callers:
         for name in sorted(inputs_to_check):
             if name not in given:
-                fail(f"{path.name} ({job_name}): the pipeline parses input '{name}' but it is not passed")
+                if name not in optional:
+                    fail(f"{path.name} ({job_name}): the pipeline parses input '{name}' but it is not passed")
                 continue
             where = f"{path.name} ({job_name}) input '{name}'"
             for matrix in parse_matrix(where, str(given[name])):
                 checked += 1
                 if name.startswith("api"):
-                    check_api_matrix(where, matrix)
+                    check_api_matrix(where, matrix, shadow="shadow" in name)
                 elif name.startswith("e2e"):
                     check_e2e_matrix(where, matrix)
                 print(f"OK  {where}: {len(matrix)} entries")
