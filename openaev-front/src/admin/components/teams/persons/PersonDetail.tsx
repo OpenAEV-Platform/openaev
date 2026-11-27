@@ -252,13 +252,13 @@ const PersonDetail = () => {
             </Section>
           </DetailSections>
 
-      <SectionBlock title={t('Findings')}>
-        <FindingList
-          filterLocalStorageKey="person-findings"
-          searchFindings={(input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_users', [userId]))}
-          contextId={userId}
-        />
-      </SectionBlock>
+          <SectionBlock title={t('Findings')}>
+            <FindingList
+              filterLocalStorageKey="person-findings"
+              searchFindings={(input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_users', [userId]))}
+              contextId={userId}
+            />
+          </SectionBlock>
 
           <SectionBlock title={t('Injects played')}>
             <InjectResultList

@@ -4,6 +4,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 
+import markingsColumn from '../../../components/common/list/markingsColumn';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -16,9 +17,9 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type AggregatedFindingOutput, type FindingSimple, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
+import { type FindingSimple, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
 
@@ -34,13 +35,12 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '13%' },
-  finding_value: { width: '27%' },
-  finding_assets: { width: '17%' },
-  finding_markings: { width: '12%' },
-  finding_asset_groups: { width: '15%' },
-  finding_created_at: { width: '14%' },
-  finding_updated_at: { width: '14%' },
+  finding_type: { width: '15%' },
+  finding_value: { width: '35%' },
+  finding_asset: { width: '15%' },
+  finding_markings: { width: '15%' },
+  finding_first_seen: { width: '10%' },
+  finding_last_seen: { width: '10%' },
 });
 
 const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
@@ -117,31 +117,31 @@ const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenF
           gap: 0.5,
         }}
         >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Box
-              component="code"
-              sx={theme => ({
-                display: 'inline-block',
-                maxWidth: '95%',
-                padding: '2px 8px',
-                borderRadius: 1,
-                backgroundColor: theme.palette.background.accent,
-                border: `1px solid ${theme.palette.divider}`,
-                fontFamily: 'Consolas, monaco, monospace',
-                fontSize: FDS.scalars['--text-3'],
-                lineHeight: '18px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                verticalAlign: 'middle',
-              })}
-            >
-              {finding.finding_value}
-            </Box>
-          </TooltipTrigger>
-          {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
-        </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                component="code"
+                sx={theme => ({
+                  display: 'inline-block',
+                  maxWidth: '95%',
+                  padding: '2px 8px',
+                  borderRadius: 1,
+                  backgroundColor: theme.palette.background.accent,
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: 'Consolas, monaco, monospace',
+                  fontSize: FDS.scalars['--text-3'],
+                  lineHeight: '18px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  verticalAlign: 'middle',
+                })}
+              >
+                {finding.finding_value}
+              </Box>
+            </TooltipTrigger>
+            {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
+          </Tooltip>
           {/* A CVE finding also known in OpenCTI or OpenCRQ carries the product mark linking to it. */}
           {finding.finding_type === 'cve' && (
             <>
@@ -173,8 +173,8 @@ const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenF
       ),
     },
     ...(markingEnabled
-        ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
-        : []),
+      ? [markingsColumn('finding_markings', (finding: FindingSimple) => finding.finding_asset?.asset_markings ?? [])]
+      : []),
     {
       field: 'finding_first_seen',
       label: 'First seen',

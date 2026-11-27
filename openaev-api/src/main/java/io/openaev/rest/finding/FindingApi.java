@@ -1,7 +1,5 @@
 package io.openaev.rest.finding;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TxCtx;
@@ -12,25 +10,26 @@ import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingRetestInput;
 import io.openaev.rest.finding.form.FindingRetestOutput;
-import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.finding.FindingRetestService;
-import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.finding.FindingOccurrenceService;
+import io.openaev.service.finding.FindingRetestService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
-import jakarta.validation.Valid;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 @RestController
 @RequiredArgsConstructor

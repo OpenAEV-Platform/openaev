@@ -102,14 +102,14 @@ class FindingOccurrenceApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      ResultActions response =
-          searchOccurrences(TenantContext.getCurrentTenant(), finding.getId());
+      ResultActions response = searchOccurrences(TenantContext.getCurrentTenant(), finding.getId());
 
       // Assert
       response
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.totalElements").value(2))
-          .andExpect(jsonPath("$.content[0].finding_occurrence_inject.inject_id").value(inject.getId()))
+          .andExpect(
+              jsonPath("$.content[0].finding_occurrence_inject.inject_id").value(inject.getId()))
           .andExpect(
               jsonPath("$.content[0].finding_occurrence_simulation.context_id")
                   .value(simulation.getId()))

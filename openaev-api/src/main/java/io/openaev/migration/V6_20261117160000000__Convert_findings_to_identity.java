@@ -607,13 +607,11 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     insertOccurrences(connection, occurrences);
     Array oldIdArray = varchars(connection, oldIds);
     Array targetIdArray = varchars(connection, targetIds);
-    copyOccurrences(connection, oldIdArray, targetIdArray);
     copyLinks(connection, "findings_tags", "tag_id", oldIdArray, targetIdArray);
     copyLinks(connection, "findings_teams", "team_id", oldIdArray, targetIdArray);
     linkLocations(connection, "findings_assets", "asset_id", assetLinks);
     linkLocations(connection, "findings_users", "user_id", userLinks);
     moveAndDelete(connection, firstTargetByRow);
-    recomputeSeen(connection, new LinkedHashSet<>(targetIds));
   }
 
   // -- READ --
@@ -759,7 +757,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
       firstSeen = min(firstSeen, row.firstDate());
       lastSeen = max(lastSeen, row.lastDate());
       createdAt = min(createdAt, row.createdAt());
-      updatedAt = max(updatedAt, row.updatedAt());
     }
 
     private void hold(String injectId, Timestamp date) {
@@ -1038,17 +1035,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // A phishing result follows the row to its first finding, and to its occurrence there
-  private static void executeAndCommit(Connection connection, String... statements)
-      throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      for (String sql : statements) {
-        statement.execute(sql);
-      }
-    }
-    connection.commit();
-  }
-
   // CONCURRENTLY refuses to run inside a transaction block
   private static void executeOutsideTransaction(Connection connection, String sql)
       throws SQLException {
@@ -1113,35 +1099,6 @@ public class V6_20261117160000000__Convert_findings_to_identity extends BaseJava
 
   private static Timestamp max(Timestamp current, Timestamp candidate) {
     return current == null || candidate.after(current) ? candidate : current;
-  }
-
-  // From the occurrences; a finding without any keeps the dates of its row
-  private static void recomputeSeen(Connection connection, Set<String> findingIds)
-      throws SQLException {
-    if (findingIds.isEmpty()) {
-      return;
-    }
-    Array ids = connection.createArrayOf("varchar", findingIds.toArray());
-    try (PreparedStatement seen =
-            connection.prepareStatement(
-                "UPDATE findings f SET finding_first_seen = s.first_seen,"
-                    + " finding_last_seen = s.last_seen, finding_updated_at = now()"
-                    + " FROM (SELECT finding_occurrence_finding_id AS finding_id,"
-                    + " min(finding_occurrence_date) AS first_seen,"
-                    + " max(finding_occurrence_date) AS last_seen FROM finding_occurrences"
-                    + " WHERE finding_occurrence_finding_id = ANY (?)"
-                    + " GROUP BY finding_occurrence_finding_id) s"
-                    + " WHERE f.finding_id = s.finding_id");
-        PreparedStatement withoutOccurrence =
-            connection.prepareStatement(
-                "UPDATE findings SET finding_updated_at = now() WHERE finding_id = ANY (?)"
-                    + " AND NOT EXISTS (SELECT 1 FROM finding_occurrences"
-                    + " WHERE finding_occurrence_finding_id = finding_id)")) {
-      seen.setArray(1, ids);
-      seen.executeUpdate();
-      withoutOccurrence.setArray(1, ids);
-      withoutOccurrence.executeUpdate();
-    }
   }
 
   // -- SEARCH INDEX --

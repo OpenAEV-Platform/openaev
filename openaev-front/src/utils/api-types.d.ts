@@ -183,78 +183,6 @@ export interface AgentTarget {
     | "SUCCESS";
 }
 
-export interface AggregatedFindingOutput {
-  /**
-   * Asset groups linked to assets
-   * @uniqueItems true
-   */
-  finding_asset_groups?: AssetGroupSimple[];
-  /**
-   * Assets linked to the finding (any asset type, not only endpoints)
-   * @uniqueItems true
-   */
-  finding_assets: EndpointSimple[];
-  /**
-   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
-   * @format date-time
-   */
-  finding_created_at: string;
-  /**
-   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
-   * @format date-time
-   */
-  finding_first_seen?: string;
-  /**
-   * Finding Id
-   * @minLength 1
-   */
-  finding_id: string;
-  /**
-   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
-   * @format date-time
-   */
-  finding_last_seen?: string;
-  /**
-   * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
-   */
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /**
-   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
-   * @format date-time
-   */
-  finding_updated_at: string;
-  /**
-   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
-   * @minLength 1
-   */
-  finding_value: string;
-}
-
 export interface AiAttack {
   ai_attack_category?: string;
   ai_attack_content?: string;
@@ -322,7 +250,6 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_read_only?: boolean;
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   payload_type?: string;
@@ -5442,8 +5369,6 @@ export interface EndpointSimple {
    * @minLength 1
    */
   asset_name: string;
-  /** Asset type discriminator (e.g. Endpoint, SecurityPlatform) */
-  asset_type?: string;
   /** OS platform when the asset is an endpoint */
   endpoint_platform?: string;
 }
@@ -6649,15 +6574,15 @@ export interface FindingOccurrenceOutput {
 }
 
 export interface FindingOutput {
-  /**
-   * Asset groups targeted by the inject that produced the finding
-   * @uniqueItems true
-   */
-  finding_asset_groups?: AssetGroupSimple[];
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
    * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * First time the finding was detected; the creation time when the detection time is unknown
    * @format date-time
    */
   finding_first_seen?: string;
@@ -6666,23 +6591,40 @@ export interface FindingOutput {
    * @minLength 1
    */
   finding_id: string;
+  /** Inject that produced the finding */
+  finding_inject_id?: string;
   /**
    * Last time the finding was detected; the last write time when the detection time is unknown
    * @format date-time
    */
   finding_last_seen?: string;
+  /**
+   * When a re-test last ended on the finding
+   * @format date-time
+   */
+  finding_last_tested?: string;
   /** Asset or player the finding was detected on, absent when unknown */
   finding_location?: TargetSimple;
+  /** Finding name */
+  finding_name?: string;
   /**
    * Number of occurrences, one per inject that detected the finding
    * @format int64
    */
   finding_occurrences_count?: number;
+  /** Re-test inject queued and not finished yet */
+  finding_retest_inject_id?: string;
+  /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
+  finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
+  /** Inject whose run set the current status (a detection or a re-test) */
+  finding_status_inject_id?: string;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true
    */
   finding_tags?: string[];
+  /** Team ids linked to the finding */
+  finding_teams?: string[];
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -6747,19 +6689,15 @@ export interface FindingRetestOutput {
   retest_inject_id: string;
 }
 
-export interface FindingSummaryOutput {
-  /**
-   * Number of distinct impacted assets across all occurrences
-   * @format int64
-   */
-  finding_assets_count?: number;
-  /**
-   * First time this finding was seen across all occurrences
-   * @format date-time
-   */
-  finding_first_seen?: string;
-  /** Representative finding id used to resolve the (type, value) group */
-  finding_id?: string;
+export interface FindingSimple {
+  /** Asset the finding was detected on, null when it is not on an asset */
+  finding_asset?: EndpointSimple;
+  /** @format date-time */
+  finding_first_seen: string;
+  /** @minLength 1 */
+  finding_id: string;
+  /** @format date-time */
+  finding_last_seen: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -11975,94 +11913,6 @@ export interface RelatedEntityOutput {
   context?: string;
   id?: string;
   name?: string;
-}
-
-export interface RelatedFindingOutput {
-  /**
-   * Asset groups linked to assets
-   * @uniqueItems true
-   */
-  finding_asset_groups?: AssetGroupSimple[];
-  /**
-   * Assets linked to the finding (any asset type, not only endpoints)
-   * @uniqueItems true
-   */
-  finding_assets: EndpointSimple[];
-  /**
-   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
-   * @format date-time
-   */
-  finding_created_at: string;
-  /**
-   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
-   * @format date-time
-   */
-  finding_first_seen?: string;
-  /**
-   * Finding Id
-   * @minLength 1
-   */
-  finding_id: string;
-  /** Inject linked to finding */
-  finding_inject: InjectSimple;
-  /**
-   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
-   * @format date-time
-   */
-  finding_last_seen?: string;
-  /** Scenario linked to inject */
-  finding_scenario?: ScenarioSimple;
-  /** Simulation linked to inject */
-  finding_simulation?: ExerciseSimple;
-  /**
-   * Teams linked to the finding occurrence
-   * @uniqueItems true
-   */
-  finding_teams?: TargetSimple[];
-  /**
-   * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
-   */
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /**
-   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
-   * @format date-time
-   */
-  finding_updated_at: string;
-  /**
-   * Players (persons) linked to the finding occurrence
-   * @uniqueItems true
-   */
-  finding_users?: TargetSimple[];
-  /**
-   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
-   * @minLength 1
-   */
-  finding_value: string;
 }
 
 export interface Relationship {

@@ -1723,7 +1723,6 @@ class TenantActiveTableAccessArchTest {
               // transaction (pinned by TenantScopedEntrypointsTxCtxArchTest).
               FindingApi.class,
               FindingService.class,
-              FindingDistinctSearchService.class,
               // Counterpart facts (finding counts per asset or CVE), reached only from the
               // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
               LocalObjectService.class,

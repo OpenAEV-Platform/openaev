@@ -12,8 +12,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FindingOccurrenceRepository
-    extends JpaRepository<FindingOccurrence, String>,
-        JpaSpecificationExecutor<FindingOccurrence> {
+    extends JpaRepository<FindingOccurrence, String>, JpaSpecificationExecutor<FindingOccurrence> {
 
   /** Ids of the given findings that already have an occurrence on the inject. */
   // The join on the finding is what scopes the read: finding_occurrences has no tenant of its own

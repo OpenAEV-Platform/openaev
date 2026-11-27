@@ -2,15 +2,15 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
-import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.asset.endpoint.form.EndpointSimple;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.FindingOutput;
-import io.openaev.rest.finding.form.FindingSummaryOutput;
-import io.openaev.rest.finding.form.RelatedFindingOutput;
-import io.openaev.service.AssetGroupService;
 import io.openaev.rest.finding.form.FindingSimple;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.TargetType;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,9 +44,9 @@ public class FindingMapper {
 
   /**
    * Group-wide impact counts of a finding, resolved by the service and handed over as one value so
-   * four positional {@code long} arguments cannot be silently swapped.
+   * three positional {@code long} arguments cannot be silently swapped.
    */
-  public record FindingImpactCounts(long assets, long teams, long users, long assetGroups) {}
+  public record FindingImpactCounts(long assets, long teams, long users) {}
 
   /**
    * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
@@ -130,75 +130,5 @@ public class FindingMapper {
           .build();
     }
     return null;
-  }
-
-  public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
-    Optional<Inject> inject = latestOccurrence(finding).map(FindingOccurrence::getInject);
-    Optional<Exercise> simulation = inject.map(Inject::getExercise);
-    return RelatedFindingOutput.builder()
-        .id(finding.getId())
-        .value(finding.getValueDisplay())
-        .type(finding.getType())
-        .updateDate(finding.getUpdateDate())
-        .firstSeen(firstSeenOf(finding))
-        .lastSeen(lastSeenOf(finding))
-        .assets(
-            finding.getAssets().stream()
-                .map(asset -> endpointMapper.toEndpointSimple(asset))
-                .collect(Collectors.toSet()))
-        .assetGroups(assetGroupsOf(finding))
-        .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
-        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
-        .scenario(
-            simulation
-                .map(Exercise::getScenario)
-                .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
-                .orElse(null))
-        // Teams and persons attached to this occurrence (e.g. phishing credential findings): the
-        // occurrence list needs them to show WHO was impacted, not only which machine.
-        .teams(
-            finding.getTeams().stream()
-                .map(
-                    team ->
-                        TargetSimple.builder()
-                            .id(team.getId())
-                            .name(team.getName())
-                            .type(TargetType.TEAMS)
-                            .build())
-                .collect(Collectors.toSet()))
-        .users(
-            finding.getUsers().stream()
-                .map(
-                    user ->
-                        TargetSimple.builder()
-                            .id(user.getId())
-                            .name(user.getNameOrEmail())
-                            .type(TargetType.PLAYERS)
-                            .build())
-                .collect(Collectors.toSet()))
-        .creationDate(finding.getCreationDate())
-        .build();
-  }
-
-  /**
-   * First detection of a finding row: its first seen, or its creation time when the detection time
-   * is unknown (rows written before first/last seen existed). Same rule as the summary aggregate.
-   */
-  public static Instant firstSeenOf(Finding finding) {
-    return Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate());
-  }
-
-  /**
-   * Last detection of a finding row: its last seen, or its last write time when the detection time
-   * is unknown. Never the write time when a detection time exists: any write moves it.
-   */
-  public static Instant lastSeenOf(Finding finding) {
-    return Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate());
-  }
-
-  private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {
-    return finding.getOccurrences().stream()
-        .filter(occurrence -> occurrence.getInject() != null)
-        .max(Comparator.comparing(FindingOccurrence::getDate));
   }
 }

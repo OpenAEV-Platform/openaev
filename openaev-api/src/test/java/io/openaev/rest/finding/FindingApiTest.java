@@ -38,15 +38,12 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -78,6 +75,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private FindingRepository findingRepository;
+  @Autowired private FindingMapper findingMapper;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -457,14 +455,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                             .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
-                .map(findingMapper::toFindingSimple)
                 .sorted(
-                    (o1, o2) -> {
-                      if (o1.getCreationDate().equals(o2.getCreationDate())) {
-                        return o1.getValue().compareTo(o2.getValue());
-                      }
-                      return o1.getCreationDate().compareTo(o2.getCreationDate());
-                    })
+                    Comparator.comparing(Finding::getCreationDate)
+                        .thenComparing(Finding::getValueDisplay))
+                .map(findingMapper::toFindingSimple)
                 .limit(input.getSize())
                 .toList();
 
@@ -1131,8 +1125,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       // Assert
       assertThat(Instant.parse(JsonPath.read(response, "$.finding_first_seen")))
           .isEqualTo(firstSeen);
-      assertThat(Instant.parse(JsonPath.read(response, "$.finding_last_seen")))
-          .isEqualTo(lastSeen);
+      assertThat(Instant.parse(JsonPath.read(response, "$.finding_last_seen"))).isEqualTo(lastSeen);
       assertThat((Integer) JsonPath.read(response, "$.finding_occurrences_count")).isEqualTo(2);
       assertThat((String) JsonPath.read(response, "$.finding_location.target_id"))
           .isEqualTo(savedEndpoint.getId());
@@ -1308,8 +1301,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
               ContractOutputType.Text, savedFinding, null, null, savedEndpoint, null);
 
       performCallbackRequest(FINDING_URI + "/endpoints/" + savedEndpoint.getId() + "/search", input)
-          .andExpect(
-              jsonPath("$.content.[0].finding_asset.asset_id").value(savedEndpoint.getId()))
+          .andExpect(jsonPath("$.content.[0].finding_asset.asset_id").value(savedEndpoint.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"));
@@ -1699,62 +1691,6 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
               .getContentAsString();
       assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(createdAt);
       assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(updatedAt);
-    }
-
-    @Test
-    @DisplayName("Distinct search aggregates detection times across a group (#9846)")
-    void given_aGroupOfOccurrences_should_aggregateSeenWithFallback() {
-      scopeToAmbientTenant();
-      Finding detected =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      Finding legacy =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper2)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      // The detected row was rewritten late (T2); the legacy row has no detection times.
-      setFindingDates(
-          detected.getId(),
-          Instant.parse("2026-01-05T00:00:00Z"),
-          Instant.parse("2026-11-24T22:28:00Z"));
-      setFindingSeen(
-          detected.getId(),
-          Instant.parse("2026-01-01T00:00:00Z"),
-          Instant.parse("2026-03-02T00:00:00Z"));
-      setFindingDates(
-          legacy.getId(),
-          Instant.parse("2026-02-01T00:00:00Z"),
-          Instant.parse("2026-04-01T00:00:00Z"));
-      setFindingSeen(legacy.getId(), null, null);
-
-      entityManager.flush();
-      entityManager.clear();
-
-      Page<AggregatedFindingOutput> page =
-          findingDistinctSearchService.searchDistinctFindings(new SearchPaginationInput());
-
-      assertThat(page.getContent()).hasSize(1);
-      AggregatedFindingOutput group = page.getContent().getFirst();
-      // MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen, updateDate)), the rule
-      // of the summary aggregate: the legacy row's update time wins over the detected row's last
-      // seen, the detected row's late write does not count as a detection.
-      assertThat(group.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
-      assertThat(group.getLastSeen()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
-      assertThat(group.getCreationDate()).isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
-      assertThat(group.getUpdateDate()).isEqualTo(Instant.parse("2026-11-24T22:28:00Z"));
-
-      FindingRepository.FindingSeenAggregate seen =
-          findingRepository.findSeenAggregate(
-              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
-      assertThat(seen.getFirstSeen()).isEqualTo(group.getFirstSeen());
-      assertThat(seen.getLastSeen()).isEqualTo(group.getLastSeen());
     }
 
     private Instant readInstant(String json, String path) {

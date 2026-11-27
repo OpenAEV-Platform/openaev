@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,9 +13,11 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.database.specification.FindingSpecification;
 import io.openaev.finding.identity.DetectedFinding;
 import io.openaev.finding.identity.LocationIdentity;
 import io.openaev.finding.identity.LocationIdentity.AssetLocation;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.service.finding.FindingRecordingService;
@@ -76,14 +79,13 @@ public class FindingService {
     String displayValue = finding.getValueDisplay();
 
     FindingRepository.FindingSeenAggregate seen =
-            this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
+        this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
 
     FindingMapper.FindingImpactCounts counts =
-            new FindingMapper.FindingImpactCounts(
-                    this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
-                    this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
-                    this.findingRepository.countDistinctUsers(type, displayValue, tenantId),
-                    countDistinctAssetGroups(type, displayValue, tenantId));
+        new FindingMapper.FindingImpactCounts(
+            this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
+            this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
+            this.findingRepository.countDistinctUsers(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }
@@ -98,20 +100,6 @@ public class FindingService {
                 scope.and(FindingSpecification.matching(specification)), pageable),
         searchPaginationInput,
         Finding.class);
-  }
-
-  /**
-   * The asset groups of the whole (type, value) group: those that contain one of its assets,
-   * statically or through their dynamic filter. Never the groups its injects targeted.
-   */
-  private long countDistinctAssetGroups(
-      ContractOutputType type, String displayValue, String tenantId) {
-    List<String> assetIds =
-        this.findingRepository.findDistinctAssetIds(type, displayValue, tenantId);
-    return this.assetGroupMembershipResolver.assetGroupIdsByAssetId(assetIds).values().stream()
-        .flatMap(Set::stream)
-        .distinct()
-        .count();
   }
 
   /**
