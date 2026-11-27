@@ -75,6 +75,20 @@ const ImportReportDialog: FunctionComponent<Props> = ({
     borderBottom: `1px solid ${theme.palette.divider}`,
   } as const;
 
+  const valueStyle = {
+    maxWidth: 200,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as const;
+
+  // The reason sentence is the longest text of a row: it keeps a minimum width so it does not wrap
+  // into a tall, narrow column.
+  const reasonCellStyle = {
+    ...cellStyle,
+    minWidth: 240,
+  } as const;
+
   return (
     <Dialog
       open={open}
@@ -124,9 +138,15 @@ const ImportReportDialog: FunctionComponent<Props> = ({
                           <td style={cellStyle}>{row.import_row_position}</td>
                           {report.import_columns.map(column => (
                             // Plain text on purpose: these are the user's own fields, never HTML.
-                            <td key={column} style={cellStyle}>{row.import_row_values[column] || '-'}</td>
+                            // A very long value is cut with an ellipsis (full value in the tooltip) so it
+                            // cannot stretch the table and squeeze the reason column.
+                            <td key={column} style={cellStyle}>
+                              <div style={valueStyle} title={row.import_row_values[column]}>
+                                {row.import_row_values[column] || '-'}
+                              </div>
+                            </td>
                           ))}
-                          <td style={cellStyle}>
+                          <td style={reasonCellStyle}>
                             {row.import_row_reason && (
                               <Chip
                                 label={reasonLabels[row.import_row_reason] ?? row.import_row_reason}

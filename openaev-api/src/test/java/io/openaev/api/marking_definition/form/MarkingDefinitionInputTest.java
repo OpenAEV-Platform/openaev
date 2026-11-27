@@ -1,5 +1,7 @@
 package io.openaev.api.marking_definition.form;
 
+import static io.openaev.database.model.MarkingDefinition.DEFINITION_MAX_LENGTH;
+import static io.openaev.database.model.MarkingDefinition.TYPE_MAX_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import jakarta.validation.Validation;
@@ -12,8 +14,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MarkingDefinitionInput")
 class MarkingDefinitionInputTest {
 
-  // The width of the type and definition columns.
-  private static final int COLUMN_WIDTH = 255;
   private static final Validator VALIDATOR =
       Validation.buildDefaultValidatorFactory().getValidator();
 
@@ -27,7 +27,8 @@ class MarkingDefinitionInputTest {
   @DisplayName("given_aTypeOrDefinitionOfTheColumnWidth_should_beValid")
   void given_aTypeOrDefinitionOfTheColumnWidth_should_beValid() {
     // Act
-    Set<String> invalid = invalidProperties("T".repeat(COLUMN_WIDTH), "D".repeat(COLUMN_WIDTH));
+    Set<String> invalid =
+        invalidProperties("T".repeat(TYPE_MAX_LENGTH), "D".repeat(DEFINITION_MAX_LENGTH));
 
     // Assert
     assertEquals(Set.of(), invalid);
@@ -38,7 +39,7 @@ class MarkingDefinitionInputTest {
   void given_aTypeOrDefinitionBeyondTheColumnWidth_should_beRefused() {
     // Act
     Set<String> invalid =
-        invalidProperties("T".repeat(COLUMN_WIDTH + 1), "D".repeat(COLUMN_WIDTH + 1));
+        invalidProperties("T".repeat(TYPE_MAX_LENGTH + 1), "D".repeat(DEFINITION_MAX_LENGTH + 1));
 
     // Assert
     assertEquals(Set.of("type", "definition"), invalid);
