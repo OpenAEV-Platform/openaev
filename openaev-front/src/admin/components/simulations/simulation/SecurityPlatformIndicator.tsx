@@ -14,6 +14,8 @@ import { useHelper } from '../../../../store';
 import { type SecurityPlatform, type SecurityPlatformSnapshotOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import isConnectorManaged from '../../assets/security_platforms/securityPlatformUtils';
 
@@ -50,6 +52,7 @@ const SecurityPlatformIndicator: FunctionComponent<SecurityPlatformIndicatorProp
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
+  const ability = useAbility();
 
   const { securityPlatforms, workflowConfiguration } = useHelper(
     (helper: SecurityPlatformHelper & WorkflowConfigurationHelper) => ({
@@ -58,7 +61,9 @@ const SecurityPlatformIndicator: FunctionComponent<SecurityPlatformIndicatorProp
     }),
   );
   useDataLoader(() => {
-    dispatch(fetchSecurityPlatforms());
+    if (ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)) {
+      dispatch(fetchSecurityPlatforms());
+    }
   });
   useEffect(() => {
     if (workflowId) {

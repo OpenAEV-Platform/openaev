@@ -7,10 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type EsSeries } from '../../../utils/api-types';
 
-const { mockDispatch, adHocSeriesMock, gridMountSpy } = vi.hoisted(() => ({
+const { mockDispatch, adHocSeriesMock, gridMountSpy, mockCan } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   adHocSeriesMock: vi.fn(),
   gridMountSpy: vi.fn(),
+  mockCan: vi.fn(() => true),
 }));
 
 vi.mock('../../../components/i18n', () => ({
@@ -37,6 +38,8 @@ vi.mock('../../../utils/hooks/useDataLoader', () => ({
     loader();
   },
 }));
+
+vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: mockCan }) }));
 
 vi.mock('../../../actions/assets/securityPlatform-actions', () => ({ fetchSecurityPlatforms: () => ({ type: 'fetchSecurityPlatforms' }) }));
 
@@ -158,5 +161,30 @@ describe('DefaultHomeDashboard first load (#7599)', () => {
     // Assert: the gauge defaults to hidden, the dashboard still renders
     expect(await screen.findByTestId('dashboard-grid')).toBeDefined();
     expect(gridMountSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DefaultHomeDashboard security platforms loading (#9813)', () => {
+  beforeEach(() => {
+    mockDispatch.mockClear();
+    adHocSeriesMock.mockReset();
+    adHocSeriesMock.mockResolvedValue(probeResponse(0));
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockCan.mockReturnValue(true);
+  });
+
+  it.each([true, false])('loads the security platforms only when the user can access them (can: %s)', async (canAccess) => {
+    // Arrange
+    mockCan.mockReturnValue(canAccess);
+
+    // Act
+    renderDashboard();
+    await act(async () => {});
+
+    // Assert
+    expect(mockDispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
   });
 });
