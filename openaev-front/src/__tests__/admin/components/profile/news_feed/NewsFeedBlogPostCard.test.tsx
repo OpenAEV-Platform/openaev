@@ -181,15 +181,14 @@ describe('NewsFeedBlogPostCard', () => {
       expect(window.open).toHaveBeenCalledWith(`${HUB_URL}/redirect/blog/hub-1?platform_id=${PLATFORM_ID}`, '_blank', 'noopener,noreferrer');
     });
 
-    it('also offers the article as a real link, opening in a new tab without referrer', () => {
+    it('shows the external icon as a plain icon, not as a second control', () => {
       // Act
       renderCard(buildBlogPost());
 
       // Assert
-      const link = screen.getByRole('link', { name: 'Open on Filigran blog' });
-      expect(link).toHaveAttribute('href', `${HUB_URL}/redirect/blog/hub-1?platform_id=${PLATFORM_ID}`);
-      expect(link).toHaveAttribute('target', '_blank');
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(screen.queryByRole('button', { name: 'Open on Filigran blog' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.getByTestId('OpenInNewOutlinedIcon')).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('cannot be clicked when the XTM Hub path leaves XTM Hub', () => {
@@ -198,7 +197,7 @@ describe('NewsFeedBlogPostCard', () => {
 
       // Assert
       expect(screen.queryByRole('button', { name: TITLE })).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'Open on Filigran blog' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('OpenInNewOutlinedIcon')).not.toBeInTheDocument();
     });
   });
 });

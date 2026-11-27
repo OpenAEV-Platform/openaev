@@ -1,4 +1,4 @@
-import { AvatarGroup, Card, CardFooter, CardHeader, CardInfo, CardMedia, CardTitle, IconButton, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { AvatarGroup, Card, CardFooter, CardHeader, CardInfo, CardMedia, CardTitle, Text } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
 import { useEffect, useId, useRef, useState } from 'react';
 
@@ -86,22 +86,8 @@ const NewsFeedBlogPostCard = ({ item }: Props) => {
             />
           </>
         )}
-        end={href && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <IconButton
-                asChild
-                priority="tertiary"
-                size="sm"
-                aria-label={t('Open on Filigran blog')}
-                icon={<OpenInNewOutlined fontSize="small" />}
-              >
-                <a href={href} target="_blank" rel="noopener noreferrer" />
-              </IconButton>
-            </TooltipTrigger>
-            <TooltipContent>{t('Open on Filigran blog')}</TooltipContent>
-          </Tooltip>
-        )}
+        // Decorative: the whole card is the clickable target, the icon only tells that it leaves the platform.
+        end={href && <OpenInNewOutlined fontSize="small" aria-hidden="true" className="text-icon-highlight" />}
       />
     </Card>
   );
