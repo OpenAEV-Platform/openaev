@@ -342,6 +342,15 @@ public class StreamService {
   })
   private abstract static class UserStreamMixIn {}
 
+  private static final List<Class<? extends Base>> PLATFORM_ROWS =
+      List.of(
+          User.class,
+          Tenant.class,
+          UserEvent.class,
+          CatalogConnector.class,
+          CatalogConnectorConfiguration.class,
+          CatalogConnectorInjectorContract.class);
+
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
           ResourceType.VULNERABILITY,
@@ -662,8 +671,20 @@ public class StreamService {
     return null;
   }
 
+  /**
+   * Whether the event goes to a consumer of {@code consumerTenantId}: a row of a tenant goes to the
+   * consumers of that tenant, and a platform row ({@link #isPlatformRow}) to the consumers of every
+   * tenant. A row with no tenant column (an objective, an expectation, a lessons category) belongs
+   * to the tenant of its parent, the tenant it is written in, so it goes to the consumers of the
+   * tenant its event carries. That tenant is read without a query: the fan-out runs this check for
+   * each consumer of each event. When the event names no tenant the change is made in ({@link
+   * BaseEvent#isTenantAttributed()}: a write whose scope holds no tenant or several), such a row
+   * goes to the consumers of no tenant.
+   *
+   * <p>A consumer with no tenant receives the events of every tenant. The stream API names a tenant
+   * for every consumer it registers.
+   */
   private boolean isVisibleForTenant(BaseEvent event, String consumerTenantId) {
-    // Keep legacy behavior for /api/stream consumers (no explicit tenant in the URL).
     if (consumerTenantId == null || consumerTenantId.isBlank()) {
       return true;
     }
@@ -680,7 +701,20 @@ public class StreamService {
     if (event.getInstance() instanceof TenantIdBase tenantIdScoped) {
       return consumerTenantId.equals(tenantIdScoped.getTenantId());
     }
-    return true;
+    if (isPlatformRow(event.getInstance())) {
+      return true;
+    }
+    return event.isTenantAttributed() && consumerTenantId.equals(event.getTenantId());
+  }
+
+  /**
+   * A row of the platform, which belongs to no tenant: a user (delivered with the fields of each
+   * consumer's tenant, {@link #userInTenantOf}), a tenant, a user event, the shared connector
+   * catalogue, or a row of one user, which goes to that user alone.
+   */
+  private static boolean isPlatformRow(Base instance) {
+    return instance instanceof UserScoped
+        || PLATFORM_ROWS.stream().anyMatch(type -> type.isInstance(instance));
   }
 
   /**

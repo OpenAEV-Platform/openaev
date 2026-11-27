@@ -80,8 +80,11 @@ import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import reactor.core.Disposable;
 
 /**
@@ -89,7 +92,8 @@ import reactor.core.Disposable;
  * transaction scoped to the tenant of what it handles, every row it writes names its tenant, and
  * the entity events it publishes take the one tenant that scope pins. Each case runs on a bare
  * thread whose thread-local tenant is cleared, the way a broker or Quartz worker starts, against a
- * second tenant, with the production list of isolated tables armed.
+ * second tenant, with the production list of isolated tables armed. The events of a request take
+ * that tenant too, when its scope pins one.
  */
 @WithMockUser(isAdmin = true)
 @Import(EventConsumerTenantAttributionTest.ScopedWriterConfig.class)
@@ -208,24 +212,51 @@ class EventConsumerTenantAttributionTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given a row with no tenant written in a transaction scoped to two tenants, should carry"
-            + " the default tenant the thread falls back to")
-    void given_rowWithNoTenantWrittenInAScopeOfTwoTenants_should_carryTheFallbackTenant()
+            + " the default tenant the thread falls back to, marked unattributed, and reach the"
+            + " consumers of no tenant while a row of the default tenant reaches its consumer")
+    void given_rowWithNoTenantWrittenInAScopeOfTwoTenants_should_reachNoTenantConsumer()
         throws Exception {
       // Arrange
       String expectationId = seedInjectWithOpenExpectation(tenantB).expectationId();
-
-      // Act
-      onBareThreadWithNoAmbientTenant(
-          () ->
+      SeededInject ofDefault = seedInjectWithOpenExpectation(DEFAULT_TENANT_UUID);
+      StreamProbe probe = new StreamProbe();
+      try {
+        // Act
+        onBareThreadWithNoAmbientTenant(
+            () -> {
               tenantTx.execute(
                   TxCtx.forTenants(List.of(tenantA, tenantB)),
-                  () -> scoreExpectation(expectationId)));
+                  () -> scoreExpectation(expectationId));
+              tenantTx.execute(
+                  TxCtx.forTenant(DEFAULT_TENANT_UUID),
+                  () -> scoreExpectation(ofDefault.expectationId()));
+            });
+        List<BaseEvent> expectationEvents = eventsAbout(BaseInjectExpectation.class);
+        probe.feed(expectationEvents);
 
-      // Assert
-      assertThat(eventsAbout(BaseInjectExpectation.class))
-          .isNotEmpty()
-          .extracting(BaseEvent::getTenantId)
-          .containsOnly(DEFAULT_TENANT_UUID);
+        // Assert: off a request too, a scope of several tenants names no tenant for the write;
+        // the default consumer receives the row written in its own tenant, so it is not vacuous
+        assertThat(expectationEvents)
+            .filteredOn(event -> expectationId.equals(event.getInstance().getId()))
+            .isNotEmpty()
+            .allSatisfy(
+                event -> {
+                  assertThat(event.getTenantId()).isEqualTo(DEFAULT_TENANT_UUID);
+                  assertThat(event.isTenantAttributed()).isFalse();
+                });
+        assertThat(probe.receivedInDefault)
+            .extracting(event -> event.getInstance().getId())
+            .contains(ofDefault.expectationId())
+            .doesNotContain(expectationId);
+        assertThat(probe.receivedInA)
+            .extracting(event -> event.getInstance().getId())
+            .doesNotContain(expectationId);
+        assertThat(probe.receivedInB)
+            .extracting(event -> event.getInstance().getId())
+            .doesNotContain(expectationId);
+      } finally {
+        jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", ofDefault.simulationId());
+      }
     }
 
     @Test
@@ -243,12 +274,103 @@ class EventConsumerTenantAttributionTest extends IntegrationTest {
       // Act
       probe.feed(expectationEvents);
 
-      // Assert: the stream routes a row with no tenant to the consumers of every tenant and
-      // checks each one's rights, so the event tenant only decides where its markings are read
+      // Assert: the event tenant decides which consumers the row reaches and where its markings
+      // are read
       assertThat(probe.receivedInB)
           .extracting(event -> event.getInstance().getId())
           .contains(expectationId);
+      assertThat(probe.receivedInA)
+          .extracting(event -> event.getInstance().getId())
+          .doesNotContain(expectationId);
       assertThat(probe.markingTenants).isNotEmpty().containsOnly(tenantB);
+    }
+  }
+
+  @Nested
+  @DisplayName("Entity events built on a request")
+  class RequestEventTenant {
+
+    @Test
+    @DisplayName(
+        "given a row with no tenant written on a request whose scope pins one tenant, should carry"
+            + " that tenant and not the default tenant the thread falls back to")
+    void given_rowWithNoTenantWrittenOnARequestScopedToOneTenant_should_carryThatTenant()
+        throws Exception {
+      // Arrange
+      String expectationId = seedInjectWithOpenExpectation(tenantB).expectationId();
+
+      // Act: the header route sets no thread-local tenant, its scope names tenant B
+      onBareThreadWithNoAmbientTenant(
+          () ->
+              onRequest(
+                  () -> scopedExpectationWriter.score(TxCtx.forTenant(tenantB), expectationId)));
+
+      // Assert
+      assertThat(eventsAbout(BaseInjectExpectation.class))
+          .isNotEmpty()
+          .extracting(BaseEvent::getTenantId)
+          .containsOnly(tenantB);
+    }
+
+    @Test
+    @DisplayName(
+        "given a row with no tenant written on a request whose scope holds two tenants, should"
+            + " carry the default tenant the thread falls back to, marked unattributed, and reach"
+            + " the stream consumers of no tenant")
+    void given_rowWithNoTenantWrittenOnARequestScopedToTwoTenants_should_reachNoTenantConsumer()
+        throws Exception {
+      // Arrange
+      String expectationId = seedInjectWithOpenExpectation(tenantB).expectationId();
+      onBareThreadWithNoAmbientTenant(
+          () ->
+              onRequest(
+                  () ->
+                      scopedExpectationWriter.score(
+                          TxCtx.forTenants(List.of(tenantA, tenantB)), expectationId)));
+      List<BaseEvent> expectationEvents = eventsAbout(BaseInjectExpectation.class);
+      StreamProbe probe = new StreamProbe();
+
+      // Act
+      probe.feed(expectationEvents);
+
+      // Assert: the tenant the other listeners read is the fallback one; the stream holds the row
+      // back from every tenant, the fallback one included
+      assertThat(expectationEvents)
+          .isNotEmpty()
+          .extracting(BaseEvent::getTenantId)
+          .containsOnly(DEFAULT_TENANT_UUID);
+      assertThat(expectationEvents).extracting(BaseEvent::isTenantAttributed).containsOnly(false);
+      assertThat(probe.receivedInA).isEmpty();
+      assertThat(probe.receivedInB).isEmpty();
+      assertThat(probe.receivedInDefault).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a row with no tenant written on a request whose scope holds no tenant, should carry"
+            + " the default tenant the thread falls back to, marked unattributed, and reach the"
+            + " stream consumers of no tenant")
+    void given_rowWithNoTenantWrittenOnARequestScopedToNoTenant_should_reachNoTenantConsumer()
+        throws Exception {
+      // Arrange
+      String expectationId = seedInjectWithOpenExpectation(tenantB).expectationId();
+      onBareThreadWithNoAmbientTenant(
+          () -> onRequest(() -> scopedExpectationWriter.score(TxCtx.missing(), expectationId)));
+      List<BaseEvent> expectationEvents = eventsAbout(BaseInjectExpectation.class);
+      StreamProbe probe = new StreamProbe();
+
+      // Act
+      probe.feed(expectationEvents);
+
+      // Assert: a public route with no tenant in its path names no tenant for its write
+      assertThat(expectationEvents)
+          .isNotEmpty()
+          .extracting(BaseEvent::getTenantId)
+          .containsOnly(DEFAULT_TENANT_UUID);
+      assertThat(expectationEvents).extracting(BaseEvent::isTenantAttributed).containsOnly(false);
+      assertThat(probe.receivedInA).isEmpty();
+      assertThat(probe.receivedInB).isEmpty();
+      assertThat(probe.receivedInDefault).isEmpty();
     }
   }
 
@@ -651,6 +773,7 @@ class EventConsumerTenantAttributionTest extends IntegrationTest {
   private final class StreamProbe {
     private final List<BaseEvent> receivedInA = new CopyOnWriteArrayList<>();
     private final List<BaseEvent> receivedInB = new CopyOnWriteArrayList<>();
+    private final List<BaseEvent> receivedInDefault = new CopyOnWriteArrayList<>();
     private final List<String> markingTenants = new CopyOnWriteArrayList<>();
 
     void feed(List<BaseEvent> events) {
@@ -671,11 +794,13 @@ class EventConsumerTenantAttributionTest extends IntegrationTest {
               mapper);
       Disposable consumerOfA = subscribe(stream, tenantA, receivedInA);
       Disposable consumerOfB = subscribe(stream, tenantB, receivedInB);
+      Disposable consumerOfDefault = subscribe(stream, DEFAULT_TENANT_UUID, receivedInDefault);
       try {
         events.forEach(stream::listenDatabaseUpdate);
       } finally {
         consumerOfA.dispose();
         consumerOfB.dispose();
+        consumerOfDefault.dispose();
       }
     }
 
@@ -690,6 +815,17 @@ class EventConsumerTenantAttributionTest extends IntegrationTest {
   /** The unit's body, run as a broker or Quartz worker runs it. */
   private interface WorkerBody {
     void run() throws Exception;
+  }
+
+  /** Runs {@code body} inside a request with no declared attribution, as a controller runs. */
+  private static void onRequest(WorkerBody body) throws Exception {
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest()));
+    try {
+      body.run();
+    } finally {
+      RequestContextHolder.resetRequestAttributes();
+    }
   }
 
   private static void onBareThreadWithNoAmbientTenant(WorkerBody body) throws InterruptedException {

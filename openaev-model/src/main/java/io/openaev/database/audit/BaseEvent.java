@@ -64,14 +64,26 @@ public class BaseEvent implements Cloneable {
 
   /**
    * The tenant the change is made in: the one the request declared with {@link
-   * #attributeRequestEventsTo} for the type of the entity, else {@link
-   * TenantContext#getCurrentTenant()} when the event is built. Off a request, the one tenant the
-   * scope of the transaction pins comes first ({@link TransactionTenantScope#pinnedTenant()}): the
-   * row is written there. Null when the request declared an empty scope for the type with {@link
-   * #attributeRequestEventsToOneOf}: the change is made in no tenant. A value that depends on the
-   * tenant, such as the organization of a user, is only valid for the consumers of this tenant.
+   * #attributeRequestEventsTo} for the type of the entity, else the one tenant the scope of the
+   * transaction pins ({@link TransactionTenantScope#pinnedTenant()}), on a request as off it: the
+   * row is written there. With neither, {@link TenantContext#getCurrentTenant()} when the event is
+   * built, which is the default tenant on a route that names no tenant in its path. Null when the
+   * request declared an empty scope for the type with {@link #attributeRequestEventsToOneOf}: the
+   * change is made in no tenant. A value that depends on the tenant, such as the organization of a
+   * user, is only valid for the consumers of this tenant.
    */
   @JsonIgnore private final String tenantId;
+
+  /**
+   * Whether {@link #tenantId} names the tenant the change is made in. False when the transaction
+   * scope holds no tenant or several, and no tenant is declared for the type of the entity: the
+   * write names no tenant it goes to, and {@link #tenantId} holds the ambient tenant, which need
+   * not own the row. That holds on a request (a public route with no tenant in its path, or a
+   * caller in several tenants with no selector) and off it (background work across tenants). The
+   * stream delivers such an event of a row with no tenant column to the consumers of no tenant.
+   * True with no scope written on the transaction.
+   */
+  @JsonIgnore private final boolean tenantAttributed;
 
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
@@ -118,7 +130,10 @@ public class BaseEvent implements Cloneable {
       // Falls back to the entity itself, which consumers resolve through its own resource type.
       log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
     }
-    this.tenantId = attributedTenantOf(requestAttributes, data, TenantContext.getCurrentTenant());
+    Attribution attribution =
+        attributionOf(requestAttributes, data, TenantContext.getCurrentTenant());
+    this.tenantId = attribution.tenantId();
+    this.tenantAttributed = attribution.attributed();
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();
@@ -186,14 +201,13 @@ public class BaseEvent implements Cloneable {
 
   /**
    * Declares the tenant the writes of the current request go to, for the events of the entities of
-   * one type. The ambient tenant is the default one when the request names another in {@code
-   * X-Tenant-Ids}, so it would attribute those events to the wrong tenant. Does nothing outside a
-   * request.
+   * one type. It comes before the tenant the scope of the transaction pins, for a writer that
+   * writes in a tenant its scope does not pin. Does nothing outside a request.
    *
    * <p>The attribution applies to the events of entities that are an instance of {@code
-   * entityType}, whenever in the request they are built. The events of every other entity keep the
-   * ambient tenant, so a writer names the type whose events carry a value that depends on the
-   * tenant, and never moves the events of other entities it touches.
+   * entityType}, whenever in the request they are built. The events of every other entity take the
+   * tenant of the scope, else the ambient tenant, so a writer names the type whose events carry a
+   * value that depends on the tenant, and never moves the events of other entities it touches.
    *
    * @param tenantId the tenant the request writes in; null declares nothing for the type
    * @param entityType the type of the entities whose events are attributed to that tenant
@@ -212,10 +226,10 @@ public class BaseEvent implements Cloneable {
   /**
    * Declares the tenants a request reads the roles of a user in, for the events of the entities of
    * one type: the value of such an event that depends on the roles is complete for the consumers of
-   * the tenant the event is attributed to, and for no other. The event is attributed to the ambient
-   * tenant when it is one of {@code tenantIds}, since the ambient tenant is what the events of the
-   * request take by default, and otherwise to the first of them in the order of their ids. Does
-   * nothing outside a request.
+   * the tenant the event is attributed to, and for no other. The event is attributed to the tenant
+   * the events of the request take by default (the one tenant the scope pins, else the ambient
+   * tenant) when it is one of {@code tenantIds}, and otherwise to the first of them in the order of
+   * their ids. Does nothing outside a request.
    *
    * @param tenantIds the tenants the request reads in
    * @param entityType the type of the entities whose events are attributed
@@ -241,34 +255,40 @@ public class BaseEvent implements Cloneable {
     return (Map<Class<? extends Base>, List<String>>) attributions;
   }
 
+  /** The tenant of an event, and whether the change is known to be made in it. */
+  private record Attribution(String tenantId, boolean attributed) {}
+
   @SuppressWarnings("unchecked")
-  private static String attributedTenantOf(
+  private static Attribution attributionOf(
       RequestAttributes requestAttributes, Base data, String ambientTenant) {
+    String writeTenant = TransactionTenantScope.pinnedTenant().orElse(ambientTenant);
+    // A scope written with no tenant or several names no tenant the write goes to.
+    boolean scopeNamesTheWriteTenant =
+        !TransactionTenantScope.holdsNoTenant() && !TransactionTenantScope.holdsSeveralTenants();
     if (requestAttributes == null) {
-      return TransactionTenantScope.pinnedTenant().orElse(ambientTenant);
+      return new Attribution(writeTenant, scopeNamesTheWriteTenant);
     }
     Object attributions =
         requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
-    if (attributions == null) {
-      return ambientTenant;
-    }
     Optional<List<String>> declared =
-        ((Map<Class<? extends Base>, List<String>>) attributions)
-            .entrySet().stream()
-                .filter(attribution -> attribution.getKey().isInstance(data))
-                .map(Map.Entry::getValue)
-                .findFirst();
+        attributions == null
+            ? Optional.empty()
+            : ((Map<Class<? extends Base>, List<String>>) attributions)
+                .entrySet().stream()
+                    .filter(attribution -> attribution.getKey().isInstance(data))
+                    .map(Map.Entry::getValue)
+                    .findFirst();
     if (declared.isEmpty()) {
-      return ambientTenant;
+      return new Attribution(writeTenant, scopeNamesTheWriteTenant);
     }
     List<String> tenantIds = declared.get();
     if (tenantIds.isEmpty()) {
-      return null;
+      return new Attribution(null, true);
     }
-    if (tenantIds.contains(ambientTenant)) {
-      return ambientTenant;
+    if (tenantIds.contains(writeTenant)) {
+      return new Attribution(writeTenant, true);
     }
-    return tenantIds.getFirst();
+    return new Attribution(tenantIds.getFirst(), true);
   }
 
   /**

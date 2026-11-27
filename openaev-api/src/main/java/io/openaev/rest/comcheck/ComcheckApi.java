@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -16,6 +17,7 @@ import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.comcheck.ComcheckPublicLookupService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,10 +40,17 @@ public class ComcheckApi extends RestBehavior {
   private TeamRepository teamRepository;
   private ExerciseService exerciseService;
   private ComcheckStatusRepository comcheckStatusRepository;
+  private ComcheckPublicLookupService comcheckPublicLookupService;
 
   @Autowired
   public void setComcheckStatusRepository(ComcheckStatusRepository comcheckStatusRepository) {
     this.comcheckStatusRepository = comcheckStatusRepository;
+  }
+
+  @Autowired
+  public void setComcheckPublicLookupService(
+      ComcheckPublicLookupService comcheckPublicLookupService) {
+    this.comcheckPublicLookupService = comcheckPublicLookupService;
   }
 
   @Autowired
@@ -63,6 +72,15 @@ public class ComcheckApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
   public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
+    // The scope of this route holds no tenant: the events of the status and of its comcheck go to
+    // the consumers of the tenant of their simulation.
+    comcheckPublicLookupService
+        .tenantOfStatus(comcheckStatusId)
+        .ifPresent(
+            tenantId -> {
+              BaseEvent.attributeRequestEventsTo(tenantId, ComcheckStatus.class);
+              BaseEvent.attributeRequestEventsTo(tenantId, Comcheck.class);
+            });
     ComcheckStatus comcheckStatus =
         comcheckStatusRepository
             .findById(comcheckStatusId)
