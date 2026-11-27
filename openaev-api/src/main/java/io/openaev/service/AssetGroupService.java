@@ -414,16 +414,16 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
    */
   private Set<String> dynamicMembersAmong(
       final AssetGroup group, final Collection<String> assetIds) {
-    Set<String> members = new HashSet<>();
     Specification<Endpoint> endpointFilter = computeFilterGroupJpa(group.getDynamicFilter());
     Specification<Endpoint> endpointIdIn = (root, query, cb) -> root.get("id").in(assetIds);
-    this.endpointService
-        .endpoints(
-            endpointFilter
-                .and(endpointsOfTenantOf(group))
-                .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
-                .and(endpointIdIn))
-        .forEach(endpoint -> members.add(endpoint.getId()));
+    Set<String> members =
+        new HashSet<>(
+            idsOf(
+                Endpoint.class,
+                endpointFilter
+                    .and(endpointsOfTenantOf(group))
+                    .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+                    .and(endpointIdIn)));
     if (isFilterResolvableForBaseAssets(group.getDynamicFilter())) {
       String tenantId = group.getTenant().getId();
       Specification<Asset> assetFilter = computeFilterGroupJpa(group.getDynamicFilter());
@@ -433,9 +433,7 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
                   cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE),
                   cb.equal(root.get("tenant").get("id"), tenantId),
                   root.get("id").in(assetIds));
-      this.assetService
-          .assets(assetFilter.and(nonEndpointOfTenant))
-          .forEach(asset -> members.add(asset.getId()));
+      members.addAll(idsOf(Asset.class, assetFilter.and(nonEndpointOfTenant)));
     }
     return members;
   }
@@ -451,7 +449,7 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
               .and(endpointsOfTenantOf(assetGroup))
               .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
               .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
-      return !this.endpointService.endpoints(specification).isEmpty();
+      return !idsOf(Endpoint.class, specification).isEmpty();
     }
     // Same eager key validation as resolveDynamicNonEndpointAssets: endpoint-only filter keys
     // cannot match non-endpoint assets and would fail the base-Asset query.
@@ -461,7 +459,7 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
     Specification<Asset> filterSpecification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
     Specification<Asset> specification =
         filterSpecification.and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
-    return !this.assetService.assets(specification).isEmpty();
+    return !idsOf(Asset.class, specification).isEmpty();
   }
 
   /**
