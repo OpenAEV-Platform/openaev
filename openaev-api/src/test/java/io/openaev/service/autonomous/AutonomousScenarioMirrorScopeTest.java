@@ -9,7 +9,6 @@ import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -18,7 +17,6 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -29,8 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * An autonomous run mirrors every step it authors on its simulation onto its scenario, in a {@code
@@ -40,12 +36,12 @@ import org.springframework.test.context.DynamicPropertySource;
  * targets and tags of the twin are written empty, and once {@code injectors_contracts} is active
  * the contract check refuses the twin altogether.
  *
- * <p>The tests arm the production list plus {@code injectors_contracts} and the seven chaining
- * tables, so the mirror is checked in the scope it will run in once those tables are active: a twin
- * read or deleted outside the run's tenant is then not found. They seed a tenant of their own
- * through auto-committed JDBC, and call the service inside a scoped transaction, the shape of the
- * orchestrator callback handler. Not {@code @Transactional}: the mirror's own transaction could not
- * see rows left uncommitted in a test-managed one.
+ * <p>The statement inspector gates {@code injectors_contracts} and the seven chaining tables, so
+ * the mirror is checked in the scope it runs in: a twin read or deleted outside the run's tenant is
+ * then not found. They seed a tenant of their own through auto-committed JDBC, and call the service
+ * inside a scoped transaction, the shape of the orchestrator callback handler. Not
+ * {@code @Transactional}: the mirror's own transaction does not see rows left uncommitted in a
+ * test-managed one.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Autonomous run scenario mirror under the run's tenant scope")
@@ -60,15 +56,6 @@ class AutonomousScenarioMirrorScopeTest extends IntegrationTest {
           "steps_delay_queue",
           "scope_variables",
           "conditions");
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithInjectorContractsAndChaining(
-      DynamicPropertyRegistry registry) {
-    TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("injectors_contracts");
-    tables.addAll(CHAINING_TABLES);
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private AutonomousRunService autonomousRunService;
   @Autowired private TenantScopedTransaction tenantTx;

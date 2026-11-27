@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
  * reaches Hibernate as a merge.
  *
  * <p>The row is an {@code attackpath_graph_version} counter because that table is self-isolated
- * ({@code TenantTables#selfIsolatedTables}): the statement inspector never gates it and no
- * activation list can name it, so nothing refuses the wrong-tenant insert before the detector sees
- * it. On an active table the statement inspector sends the written tenant through {@code
- * require_tenant_write}, which refuses such a write, so the detector would never get to judge it.
+ * ({@code TenantTables#selfIsolatedTables}): the statement inspector never gates it, so nothing
+ * refuses the wrong-tenant insert before the detector sees it. On an active table the statement
+ * inspector sends the written tenant through {@code require_tenant_write}, which refuses such a
+ * write, so the detector would never get to judge it.
  */
 @RestController
 @RequiredArgsConstructor

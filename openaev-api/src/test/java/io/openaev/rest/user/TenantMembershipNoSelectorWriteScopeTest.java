@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
@@ -76,7 +76,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Membership writes with no tenant selector")
-public class TenantMembershipNoSelectorWriteScopeTest extends ProductionTablesIntegrationTest {
+public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
   /** Production's active tables: the handlers read and write tables the inspector gates. */
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

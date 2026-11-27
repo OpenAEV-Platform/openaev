@@ -55,9 +55,8 @@ import org.springframework.transaction.annotation.Transactional;
  * narrows the aggregation for it, and the values land in the indexed document of the owning tenant,
  * where they are filterable attributes.
  *
- * <p>Neither link table is a tenant-active table and the aggregated ids are returned without
- * joining their parent table, so the statement inspector does not narrow them either. These tests
- * consequently hold whatever the active-tables list is.
+ * <p>Neither link table carries a tenant column and the aggregated ids come back without joining
+ * their parent table, so the statement inspector does not narrow them either.
  */
 @Transactional
 @WithMockUser

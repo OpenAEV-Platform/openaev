@@ -16,11 +16,9 @@
 # the write from the request's write scope, or add it here with a reason. Wrong-tenant writes that
 # are real defects are NOT waived here; they are tracked as findings in the task report.
 #
-# Lines starting with # and blank lines are ignored. Frozen from one full run of the API suite with the
-# nightly shadow arguments (the production active-tables list, both detectors on), which is where the
-# gate runs; a line never produced again is reported at shutdown with a [WRITEATTR-STALE] marker. A run
-# without the production list can produce signatures that are not listed here, from tests that document
-# the behaviour of a table before its activation (a cross-tenant update that the active table refuses).
+# Lines starting with # and blank lines are ignored. Frozen from one full run of the API suite with
+# both detectors on, which is how every API shard of the pull request CI runs; a line never produced
+# again is reported at shutdown with a [WRITEATTR-STALE] marker.
 #
 # Every signature below was traced to the test and production path that produced it. None is a live
 # cross-tenant write: each is either test-driven provisioning, by-design seeding into the default
@@ -133,20 +131,6 @@ injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.In
 collector_types DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_email_templates DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_landing_pages DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
-
-# --- Produced only under a test whose own active-tables assumption does not hold under the
-# production shadow-prod list. CweHttpIsolationTest activates cwes alone, so collectors is inactive
-# there and the bulk insert reaches the default tenant's collector: the write reaches another tenant
-# precisely because isolation is off in that test's allowlist; in production collectors is active.
-# ImportMapperHttpInertWhenInactiveTest is the same shape from the other side: its own header claims
-# import_mappers is inactive "by default" and its sibling ImportMapperHttpIsolationTest proves the
-# active case, but it arms nothing itself, so under the production active-tables list (which already
-# carries import_mappers) the update is NOT refused the way its header assumes; a full
-# collection under that exact list is what surfaced this (a prior claim in this file said no write
-# happens here, traced wrong or against a stale list). Retired when CweHttpIsolationTest arms
-# collectors as well, or when either fixture stops relying on a table it assumes is inactive.
-collectors DEFAULT io.openaev.rest.vulnerability.VulnerabilityApi.bulkInsertVulnerabilitiesForCollector
-import_mappers OTHER io.openaev.rest.mapper.MapperApi.updateImportMapper
 
 # --- Produced only by the detector's own attribution tests, which drive a production frame under a
 # scope that does not contain the written tenant to prove the write is still attributed after a

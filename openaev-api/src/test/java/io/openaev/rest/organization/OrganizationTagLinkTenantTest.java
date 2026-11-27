@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -41,12 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants, and the lookup of the
  * tag ids then returns the tags of every tenant of the header. The links are read from {@code
  * organizations_tags} through JDBC on the test connection, which the statement inspector does not
- * rewrite. The class arms the production list.
+ * rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Organization update refuses a tag of another tenant")
-class OrganizationTagLinkTenantTest extends ProductionTablesIntegrationTest {
+class OrganizationTagLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String ORGANIZATIONS_TAGS =

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A payload upsert resolves its executable document in its own write tenant")
-class PayloadUpsertDocumentLinkTenantTest extends ProductionTablesIntegrationTest {
+class PayloadUpsertDocumentLinkTenantTest extends IntegrationTest {
 
   @Autowired private PayloadUpsertService payloadUpsertService;
   @Autowired private DocumentRepository documentRepository;

@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -33,14 +33,14 @@ import org.springframework.transaction.annotation.Transactional;
  * caller without the default is refused with 400 rather than guessing.
  *
  * <p>The row's tenant is read by raw JDBC, on the Hibernate session's own connection: {@code
- * groups} is armed ({@link ProductionTablesIntegrationTest}), so a Hibernate-level read of the same
- * row would be rewritten by the statement inspector and could not serve as ground truth.
+ * groups} is gated by the statement inspector, so a Hibernate-level read of the same row would be
+ * rewritten by the statement inspector and is no ground truth.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "TenantGroupApi.createGroup resolves the write tenant from the caller with no selector")
-class TenantGroupNoSelectorWriteScopeTest extends ProductionTablesIntegrationTest {
+class TenantGroupNoSelectorWriteScopeTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
 

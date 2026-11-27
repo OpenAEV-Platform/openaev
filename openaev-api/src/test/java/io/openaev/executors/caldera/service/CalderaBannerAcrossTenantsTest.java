@@ -8,7 +8,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.BannerMessage;
@@ -49,7 +49,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @WithoutTenantScope
 @DisplayName("Caldera unavailable banner across tenants")
-class CalderaBannerAcrossTenantsTest extends ProductionTablesIntegrationTest {
+class CalderaBannerAcrossTenantsTest extends IntegrationTest {
 
   private static final String TENANT_B = "caldera-banner-tenant-b";
   private static final BannerMessage.BANNER_KEYS BANNER =

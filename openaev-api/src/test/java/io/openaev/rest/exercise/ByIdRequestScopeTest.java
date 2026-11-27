@@ -10,16 +10,16 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with the
- * production list of isolated tables, which now carries {@code exercises} and {@code scenarios}. On
- * the tenant route the scope is the path tenant, so nothing changes there. On the non-prefixed
- * route the scope is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names
- * none: a row outside that scope is not found by id.
+ * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with
+ * {@code exercises} and {@code scenarios} gated by the statement inspector. On the tenant route the
+ * scope is the path tenant, so nothing changes there. On the non-prefixed route the scope is the
+ * {@code X-Tenant-Ids} selector, or the caller's memberships when it names none: a row outside that
+ * scope is not found by id.
  */
 @CoversTenantIsolation({"exercises", "scenarios"})
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, production tables")
-class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
+class ByIdRequestScopeTest extends ByIdRequestScopeEnterpriseEditionTestBase {
 
   @Nested
   @DisplayName("Tenant route")

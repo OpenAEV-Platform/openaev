@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -46,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("reporting_generations and reporting_schedules refuse another tenant's row by id")
-class ReportingChildRowHttpIsolationTest extends ProductionTablesIntegrationTest {
+class ReportingChildRowHttpIsolationTest extends IntegrationTest {
 
   private static final String REPORTING_BY_ID = TENANT_REPORTINGS_URI + "/{reportingId}";
   private static final String GENERATION_BY_ID =

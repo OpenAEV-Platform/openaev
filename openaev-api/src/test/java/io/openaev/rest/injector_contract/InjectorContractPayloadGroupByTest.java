@@ -5,7 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
@@ -33,12 +33,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Pins that the contract searches answer a success status on the production list of isolated
- * tables, which holds {@code payloads}. The tuple queries of {@code InjectorContractService} group
- * by the id and every projected column ({@code getCommonGroupBy}); {@code TenantStatementInspector}
- * wraps the joined {@code payloads} table in a filtered derived table, which has no primary key, so
- * the statement is valid only if the projected columns are part of the grouping. Each test posts
- * one search on the tenant route with the default input:
+ * Pins that the contract searches answer a success status with {@code payloads} gated. The tuple
+ * queries of {@code InjectorContractService} group by the id and every projected column ({@code
+ * getCommonGroupBy}); {@code TenantStatementInspector} wraps the joined {@code payloads} table in a
+ * filtered derived table, which has no primary key, so the statement is valid only if the projected
+ * columns are part of the grouping. Each test posts one search on the tenant route with the default
+ * input:
  *
  * <ul>
  *   <li>{@code given_payloadsActive_should_notFailOnInjectorContractSearch} posts {@code
@@ -53,9 +53,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * the request runs in its own transaction, as in production, and applies the tenant scope itself.
  */
 @WithMockUser(isAdmin = true)
-@DisplayName(
-    "InjectorContractApi/ThreatArsenalApi search on the production list of isolated tables")
-class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest {
+@DisplayName("InjectorContractApi/ThreatArsenalApi search with every tenant table gated")
+class InjectorContractPayloadGroupByTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -124,7 +123,7 @@ class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest
   @Test
   @DisplayName(
       "POST /api/tenants/{tenantId}/injector_contracts/search with full details answers a success"
-          + " status on the production list of isolated tables")
+          + " status with every tenant table gated")
   void given_payloadsActive_should_notFailOnInjectorContractSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 
@@ -139,7 +138,7 @@ class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest
   @Test
   @DisplayName(
       "POST /api/tenants/{tenantId}/threat_arsenals/search in THREAT_ARSENAL mode answers a success"
-          + " status on the production list of isolated tables")
+          + " status with every tenant table gated")
   void given_payloadsActive_should_notFailOnThreatArsenalSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 

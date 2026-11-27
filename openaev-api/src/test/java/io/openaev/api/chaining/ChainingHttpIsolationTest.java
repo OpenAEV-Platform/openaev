@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.StepInput;
@@ -92,9 +92,9 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * manual injector contract, and a condition linked to that step. The caller belongs to tenant B
  * only and addresses tenant A's rows through tenant B's path. Every read, update and delete below
  * resolves the row by its id alone, and the chaining tables carry no Hibernate filter, so nothing
- * but the statement inspector stands between the caller and tenant A's rows: registering the
- * production list without {@code workflows} turns the cross-tenant assertions that reach a workflow
- * red while the same-tenant ones stay green.
+ * but the statement inspector stands between the caller and tenant A's rows: leaving {@code
+ * workflows} ungated turns the cross-tenant assertions that reach a workflow red while the
+ * same-tenant ones stay green.
  *
  * <p>The admin caller bypasses the parent-permission resolution of the access control aspect and
  * reaches the handlers' own reads; the non-admin caller is stopped by that resolution, which reads
@@ -108,7 +108,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Chaining workflow, step and condition isolation through the real HTTP endpoints")
-class ChainingHttpIsolationTest extends ProductionTablesIntegrationTest {
+class ChainingHttpIsolationTest extends IntegrationTest {
 
   private static final String WORKFLOW_CONFIGURATION_URI =
       TENANT_WORKFLOW_URI + "/{workflowId}/configuration";

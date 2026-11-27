@@ -2,7 +2,7 @@ package io.openaev.service.finding;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
@@ -30,7 +30,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * auto-committed JDBC, so the statement inspector applies to the service calls only.
  */
 @DisplayName("Finding occurrence tenant isolation")
-class FindingOccurrenceTenantIsolationTest extends ProductionTablesIntegrationTest {
+class FindingOccurrenceTenantIsolationTest extends IntegrationTest {
 
   @Autowired private DataSource dataSource;
   @Autowired private TenantScopedTransaction tenantTx;

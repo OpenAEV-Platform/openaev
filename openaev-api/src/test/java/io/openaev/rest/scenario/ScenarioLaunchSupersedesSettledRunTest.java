@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("A manual launch supersedes the scenario's settled autonomous run in its own tenant")
-class ScenarioLaunchSupersedesSettledRunTest extends ProductionTablesIntegrationTest {
+class ScenarioLaunchSupersedesSettledRunTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;

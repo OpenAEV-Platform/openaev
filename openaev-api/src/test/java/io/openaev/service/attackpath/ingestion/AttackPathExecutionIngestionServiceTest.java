@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -79,7 +79,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: create EXECUTION rows")
 @Import(AttackPathExecutionIngestionServiceTest.NudgeRecorder.class)
-class AttackPathExecutionIngestionServiceTest extends ProductionTablesIntegrationTest {
+class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
   /**
    * The simulation the verdict tests share; each uses its own tenant, so their counters are too.

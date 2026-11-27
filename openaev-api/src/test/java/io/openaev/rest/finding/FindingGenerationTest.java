@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Endpoint;
@@ -32,8 +31,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Each source writes its findings through {@code recordFindingsByInject} (#7848, chunk 4): the
@@ -45,12 +42,6 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @DisplayName("FindingService.generateFindings")
 class FindingGenerationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   private static final Instant SENT_DATE = Instant.parse("2026-11-02T09:00:00Z");
   private static final ObjectMapper MAPPER = new ObjectMapper();

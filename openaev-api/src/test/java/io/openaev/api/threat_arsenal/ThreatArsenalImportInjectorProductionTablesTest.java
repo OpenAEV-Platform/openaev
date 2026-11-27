@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -42,14 +42,14 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * {@code injectors} is on the production active-tables list, so the statement inspector already
- * restricts {@code findAllByPayloads(true)} to the scope a caller selects. A single-tenant HTTP
- * selector (the header or the tenant-prefixed route) therefore hides a foreign tenant's payload
- * injector from the lookup before {@link ThreatArsenalImportService} ever runs its own write-tenant
- * filter, so it cannot exercise that filter. Only a scope that spans both the default tenant and
- * the write tenant lets the unfiltered lookup meet both tenants' copies, which is what the
- * service-level case below sets up directly. The header and tenant-prefixed cases are kept
- * alongside it as end-to-end coverage of the import on both routes once the table is armed.
+ * {@code injectors} is a tenant table, so the statement inspector already restricts {@code
+ * findAllByPayloads(true)} to the scope a caller selects. A single-tenant HTTP selector (the header
+ * or the tenant-prefixed route) therefore hides a foreign tenant's payload injector from the lookup
+ * before {@link ThreatArsenalImportService} ever runs its own write-tenant filter, so it cannot
+ * exercise that filter. Only a scope that spans both the default tenant and the write tenant lets
+ * the unfiltered lookup meet both tenants' copies, which is what the service-level case below sets
+ * up directly. The header and tenant-prefixed cases are kept alongside it as end-to-end coverage of
+ * the import on both routes once the table is armed.
  *
  * <p>Deliberately NOT {@code @Transactional}: the HTTP calls run in their own transaction, the way
  * a real request does, and the service-level case opens its own background transaction through
@@ -57,7 +57,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @DisplayName("Importing a threat arsenal action links the payload injectors of the write tenant")
 @WithMockUser(isAdmin = true)
-class ThreatArsenalImportInjectorProductionTablesTest extends ProductionTablesIntegrationTest {
+class ThreatArsenalImportInjectorProductionTablesTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

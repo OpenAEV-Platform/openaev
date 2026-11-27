@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Tenant;
@@ -40,12 +40,12 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants. The tag ids of the
  * body resolve in the tenant of the challenge alone. The links are read from {@code
  * challenges_tags} through JDBC on the test connection, which the statement inspector does not
- * rewrite. The class arms the production list.
+ * rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Challenge update links only the tags of the challenge tenant")
-class ChallengeTagLinkTenantTest extends ProductionTablesIntegrationTest {
+class ChallengeTagLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String CHALLENGES_TAGS =

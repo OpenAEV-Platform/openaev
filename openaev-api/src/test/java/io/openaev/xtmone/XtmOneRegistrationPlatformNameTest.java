@@ -8,7 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -30,7 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  */
 @WithoutTenantScope
 @DisplayName("XTM One registration sends the name the default tenant gave the platform")
-class XtmOneRegistrationPlatformNameTest extends ProductionTablesIntegrationTest {
+class XtmOneRegistrationPlatformNameTest extends IntegrationTest {
 
   @Autowired private XtmOneService xtmOneService;
   @Autowired private SettingRepository settingRepository;

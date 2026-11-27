@@ -3,7 +3,7 @@ package io.openaev.secrets.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -35,7 +35,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @CoversTenantIsolation("secrets")
 @WithMockUser(isAdmin = true)
 @DisplayName("secrets refuses another tenant's secret under one tenant's scope")
-class SecretServiceScopeIsolationTest extends ProductionTablesIntegrationTest {
+class SecretServiceScopeIsolationTest extends IntegrationTest {
 
   @Autowired private SecretService secretService;
   @Autowired private TenantScopedTransaction tenantTx;

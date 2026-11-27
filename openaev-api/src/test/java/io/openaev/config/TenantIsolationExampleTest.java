@@ -11,12 +11,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * End-to-end proof that the tenant filter actually isolates rows when wired. The real inspector is
- * activated for {@code tags} through the production wiring ({@code openaev.tenant.active-tables}),
- * so the same query returns different rows depending only on the transaction's {@code
- * app.current_tenants} scope: a tenant sees its own rows, never another's, and an empty scope sees
- * nothing (fail-closed). This exercises the whole chain against PostgreSQL (set_config, the SQL
- * rewrite, {@code can_access_tenant}, and real execution), so it proves correctness, not just that
- * a guard is present.
+ * wired for {@code tags} through the production wiring (every tenant table is gated), so the same
+ * query returns different rows depending only on the transaction's {@code app.current_tenants}
+ * scope: a tenant sees its own rows, never another's, and an empty scope sees nothing
+ * (fail-closed). This exercises the whole chain against PostgreSQL (set_config, the SQL rewrite,
+ * {@code can_access_tenant}, and real execution), so it proves correctness, not just that a guard
+ * is present.
  */
 @SpringBootTest
 @DisplayName("Tenant isolation — end-to-end example on the tags table")

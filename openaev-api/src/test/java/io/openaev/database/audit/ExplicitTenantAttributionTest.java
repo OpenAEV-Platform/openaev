@@ -3,7 +3,7 @@ package io.openaev.database.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Cwe;
@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A row saved without a tenant is refused, not filed under the ambient tenant")
-class ExplicitTenantAttributionTest extends ProductionTablesIntegrationTest {
+class ExplicitTenantAttributionTest extends IntegrationTest {
 
   private static final String NULL_TENANT_REFUSED = "null value in column \"tenant_id\"";
 

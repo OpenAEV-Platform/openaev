@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Launching a scenario whose inject has a document attached")
-class ScenarioLaunchWithInjectDocumentTest extends ProductionTablesIntegrationTest {
+class ScenarioLaunchWithInjectDocumentTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

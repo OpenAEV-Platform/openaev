@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
@@ -45,7 +45,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @DisplayName(
     "InjectorContractApi singular endpoints resolve a single tenant for a two-tenant caller")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiSingularEndpointsTenantScopeTest extends ProductionTablesIntegrationTest {
+class InjectorContractApiSingularEndpointsTenantScopeTest extends IntegrationTest {
 
   private static final String URL = INJECTOR_CONTRACT_URL;
   private static final String DEFAULT_LABEL = "default-tenant-copy";

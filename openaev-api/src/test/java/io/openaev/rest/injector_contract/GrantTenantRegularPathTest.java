@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -68,7 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser
 @DisplayName("On the regular route, a tenant-group grant counts only in the ambient tenant")
-class GrantTenantRegularPathTest extends ProductionTablesIntegrationTest {
+class GrantTenantRegularPathTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String TENANT_AUTONOMOUS_URI = TENANT_PREFIX + "/autonomous-runs";

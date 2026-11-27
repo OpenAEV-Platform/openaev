@@ -113,8 +113,8 @@ class PhishingResultTenantScopeTest extends IntegrationTest {
     @ExpectsEmptyScopeReads("the token lookup with no scope is the subject: it answers nothing")
     @DisplayName("with no scope at all: even the token's own tenant resolves to nothing")
     void given_noScopeSet_should_failClosedOnItsOwnToken() {
-      // Act & Assert - the control for the test above, on a different line than the active-tables
-      // property: the resolve succeeds BECAUSE a scope is set.
+      // Act & Assert - the control for the test above: the resolve succeeds BECAUSE a scope is
+      // set.
       assertThat(phishingTrackingService.resolveAndBackfillByToken(TxCtx.missing(), tokenB))
           .as("an active-table token lookup with no tenant scope must fail closed")
           .isEmpty();

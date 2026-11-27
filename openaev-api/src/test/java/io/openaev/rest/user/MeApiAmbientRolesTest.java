@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -69,7 +69,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Current user response with roles active")
-class MeApiAmbientRolesTest extends ProductionTablesIntegrationTest {
+class MeApiAmbientRolesTest extends IntegrationTest {
 
   /** A capability held only through a role of the default tenant. */
   private static final Capability DEFAULT_TENANT_CAPABILITY = Capability.ACCESS_ASSESSMENT;

@@ -17,18 +17,11 @@ import java.util.stream.Collectors;
 public record TenantTables(Set<String> strict, Set<String> dualScope) {
 
   /**
-   * Activation allowlist entry meaning "every tenant table, dual-scope ones included, but the
-   * self-isolated ones"; see {@link #restrictTo}.
-   */
-  public static final String ALL_STRICT = "*";
-
-  /**
    * Self-isolated tables: tables the schema derivation reads as strict but that must not be gated
-   * by the statement inspector, so {@link #ALL_STRICT} leaves them out. "Self-isolated" means the
-   * table does not rely on the inspector for its isolation, for one of the reasons given per table
-   * below: it carries its own tenant predicates, it holds no tenant-scoped data at all, or gating
-   * it would make the scope depend on the rows that compute it. Naming one of them in an explicit
-   * active-tables list is a configuration error that {@link #restrictTo} rejects at startup.
+   * by the statement inspector, so {@link #withoutSelfIsolated} leaves them out. "Self-isolated"
+   * means the table does not rely on the inspector for its isolation, for one of the reasons given
+   * per table below: it carries its own tenant predicates, it holds no tenant-scoped data at all,
+   * or gating it would make the scope depend on the rows that compute it.
    *
    * <ul>
    *   <li>{@code attackpath_graph_version}: its version counter is bumped by a single native {@code
@@ -66,7 +59,8 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    *       {@code WriteAttrMembershipTableTest}.
    * </ul>
    *
-   * A table belongs here only with that kind of written reason. "Not activated yet" is not one.
+   * A table belongs here only with that kind of written reason. A table this list names has no
+   * ambient isolation at all.
    */
   private static final Set<String> SELF_ISOLATED_TABLES =
       Set.of("attackpath_graph_version", "tenants", "users_tenants");
@@ -153,56 +147,16 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
   }
 
   /**
-   * Restricts these tables to an activation allowlist: only listed tables stay active. This is the
-   * table-by-table rollout knob; an empty allowlist activates nothing, so the inspector stays
-   * inert. An entry that is not a known tenant table fails fast, to surface a typo at startup
-   * rather than silently leave a table unprotected. So does an entry that is a self-isolated table
-   * ({@link #selfIsolatedTables()}): gating one is never what an operator means, and for the
-   * membership mapping it refuses every member every tenant-prefixed request.
-   *
-   * <p>The single entry {@value #ALL_STRICT} activates every tenant table, strict and dual-scope,
-   * except those listed in {@code SELF_ISOLATED_TABLES}: the rollout's terminal state. A dual-scope
-   * table is covered because its platform rows (no tenant) are written only by a transaction the
-   * server marked platform-write ({@code TenantDimension}, {@code io.openaev.aop.PlatformWrite}),
-   * so the mechanism does cover a write with no tenant. It is rejected alongside other entries, so
-   * a list always reads as either "these tables" or "all of them", never both.
+   * The tables the statement inspector gates: every strict and dual-scope table but the
+   * self-isolated ones. A dual-scope table is covered because its platform rows (no tenant) are
+   * written only by a transaction the server marked platform-write ({@code TenantDimension}, {@code
+   * io.openaev.aop.PlatformWrite}).
    */
-  public TenantTables restrictTo(Collection<String> allowlist) {
-    Set<String> allowed = lowercase(new HashSet<>(allowlist));
-    if (allowed.contains(ALL_STRICT)) {
-      if (allowed.size() > 1) {
-        throw new IllegalArgumentException(
-            "active-tables is either '"
-                + ALL_STRICT
-                + "' or a list of tables, not both: "
-                + allowed);
-      }
-      Set<String> activableStrict = new HashSet<>(strict);
-      activableStrict.removeAll(SELF_ISOLATED_TABLES);
-      Set<String> activableDualScope = new HashSet<>(dualScope);
-      activableDualScope.removeAll(SELF_ISOLATED_TABLES);
-      return new TenantTables(activableStrict, activableDualScope);
-    }
-    Set<String> selfIsolated = new HashSet<>(allowed);
-    selfIsolated.retainAll(SELF_ISOLATED_TABLES);
-    if (!selfIsolated.isEmpty()) {
-      throw new IllegalArgumentException(
-          "active-tables names self-isolated tables, which the statement inspector must never gate: "
-              + selfIsolated);
-    }
-    Set<String> known = new HashSet<>(strict);
-    known.addAll(dualScope);
-    Set<String> unknown = new HashSet<>(allowed);
-    unknown.removeAll(known);
-    if (!unknown.isEmpty()) {
-      throw new IllegalArgumentException("active-tables are not tenant-aware tables: " + unknown);
-    }
-    return new TenantTables(retainOnly(strict, allowed), retainOnly(dualScope, allowed));
-  }
-
-  private static Set<String> retainOnly(Set<String> names, Set<String> allowed) {
-    Set<String> kept = new HashSet<>(names);
-    kept.retainAll(allowed);
-    return kept;
+  public TenantTables withoutSelfIsolated() {
+    Set<String> gatedStrict = new HashSet<>(strict);
+    gatedStrict.removeAll(SELF_ISOLATED_TABLES);
+    Set<String> gatedDualScope = new HashSet<>(dualScope);
+    gatedDualScope.removeAll(SELF_ISOLATED_TABLES);
+    return new TenantTables(gatedStrict, gatedDualScope);
   }
 }

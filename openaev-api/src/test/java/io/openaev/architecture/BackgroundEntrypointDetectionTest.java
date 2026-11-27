@@ -384,74 +384,24 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
-  @DisplayName("a waiver expires when its named table appears in the active-tables list")
-  void waiverExpiresWhenTableActivates() {
+  @DisplayName("a waiver expires when its named table is gated, strict or dual-scope")
+  void waiverExpiresWhenItsTableIsGated() {
     Map<String, String> baseline =
-        Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:injects");
-    assertTrue(
+        Map.of(
+            "io.openaev.Strict", "cross-tenant-resolve until-active:reporting_schedules",
+            "io.openaev.Dual", "cross-tenant-resolve until-active:groups");
+    List<String> expired =
         BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("tags", "injects"), Set.of())
-            .stream()
-            .anyMatch(s -> s.contains("io.openaev.Fixture")),
-        "the waiver must expire once 'injects' is active");
+            baseline, Set.of("reporting_schedules", "groups"));
     assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(baseline, Set.of("tags"), Set.of())
+        expired.stream().anyMatch(s -> s.contains("io.openaev.Strict"))
+            && expired.stream().anyMatch(s -> s.contains("io.openaev.Dual")),
+        "a gated strict table and a gated dual-scope table must both expire their waiver. Got: "
+            + expired);
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(baseline, Set.of("injects"))
             .isEmpty(),
-        "the same waiver must NOT expire while 'injects' is still v1 (red for the right reason)");
-  }
-
-  @Test
-  @DisplayName("a waiver expires under '*' only when its table is one '*' actually activates")
-  void waiverExpiresUnderWildcard() {
-    Map<String, String> baseline =
-        Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:reporting_schedules");
-    assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("*"), Set.of("reporting_schedules", "injects"))
-            .stream()
-            .anyMatch(s -> s.contains("io.openaev.Fixture")),
-        "'*' activates reporting_schedules (a strict table), so the waiver must expire");
-  }
-
-  @Test
-  @DisplayName("a waiver on a dual-scope table expires under '*', which activates it")
-  void dualScopeWaiverExpiresUnderWildcard() {
-    // 'groups' is a dual-scope table; '*' activates it like a strict one, so a waiver named
-    // against it must expire the moment '*' appears, and not before: a table '*' leaves out
-    // holds on to its waiver.
-    Map<String, String> baseline =
-        Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:groups");
-    assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("*"), Set.of("groups", "reporting_schedules"))
-            .stream()
-            .anyMatch(s -> s.contains("io.openaev.Fixture")),
-        "'*' activates 'groups', so its waiver must expire");
-    assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("*"), Set.of("reporting_schedules"))
-            .isEmpty(),
-        "a waiver on a table '*' does not activate must not expire");
-  }
-
-  @Test
-  @DisplayName("a dual-scope until-active waiver expires when its table is listed explicitly")
-  void dualScopeWaiverExpiresWhenListedExplicitly() {
-    // '*' never activates 'groups' (a dual table), but an explicit allowlist can, so a
-    // cross-tenant-resolve until-active:groups waiver must expire the day 'groups' is listed.
-    Map<String, String> baseline =
-        Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:groups");
-    assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("groups"), Set.of("reporting_schedules"))
-            .stream()
-            .anyMatch(s -> s.contains("io.openaev.Fixture")),
-        "an explicit allowlist naming 'groups' must expire the dual-scope waiver");
-    assertTrue(
-        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
-                baseline, Set.of("tags"), Set.of("reporting_schedules"))
-            .isEmpty(),
-        "while 'groups' is still v1 the waiver must not expire (red for the right reason)");
+        "a waiver on a table outside the gated set must not expire (red for the right reason)");
   }
 
   @Test
@@ -480,14 +430,9 @@ class BackgroundEntrypointDetectionTest {
       "a dual-scope table is a legal until-active target; self-isolated tables and typos are not")
   void untilActiveTargetsAreEveryActivatableTable() {
     Set<String> known = BackgroundEntrypointTenantScopeArchTest.knownTenantTables();
-    assertTrue(known.contains("injects"), "a strict table '*' activates must be known");
-    assertTrue(known.contains("reporting_schedules"), "a strict table '*' activates must be known");
-    // A dual-scope table is never activated by '*', but TenantTables.restrictTo accepts it in an
-    // explicit allowlist, so an until-active:<dual> waiver has an activation to expire it and must
-    // be a legal target (otherwise it is rejected as unknown and never expires).
-    assertTrue(
-        known.contains("groups"),
-        "a dual-scope table an explicit allowlist can activate must be a legal until-active target");
+    assertTrue(known.contains("injects"), "a gated strict table must be known");
+    assertTrue(known.contains("reporting_schedules"), "a gated strict table must be known");
+    assertTrue(known.contains("groups"), "a gated dual-scope table must be a legal target");
     assertTrue(
         !known.contains("attackpath_graph_version"),
         "a self-isolated strict table is never activated, so it must not be a legal"
@@ -502,9 +447,9 @@ class BackgroundEntrypointDetectionTest {
 
     // Not just membership of the known set: drive the tags through the actual validation seam. A
     // regression that dropped dual tables from the legal set (rejecting a legal waiver) or that
-    // stopped rejecting self-isolated targets fails here. 'groups' is dual-scope and now legal;
-    // 'attackpath_graph_version' is strict but self-isolated (never activated); 'injects'
-    // is a real strict target.
+    // stopped rejecting self-isolated targets fails here. 'groups' is dual-scope and gated;
+    // 'attackpath_graph_version' is strict but self-isolated (never gated); 'injects' is a real
+    // strict target.
     Map<String, String> baseline =
         Map.of(
             "io.openaev.Dual", "cross-tenant-resolve until-active:groups",
@@ -514,8 +459,7 @@ class BackgroundEntrypointDetectionTest {
         BackgroundEntrypointTenantScopeArchTest.unknownUntilActiveTables(baseline, known);
     assertTrue(
         unknown.stream().noneMatch(s -> s.contains("io.openaev.Dual")),
-        "a dual-scope table tag must be accepted (an explicit allowlist can activate it). Got: "
-            + unknown);
+        "a dual-scope table tag must be accepted (the inspector gates it). Got: " + unknown);
     assertTrue(
         unknown.stream()
             .anyMatch(
@@ -816,42 +760,5 @@ class BackgroundEntrypointDetectionTest {
     assertTrue(
         reason.startsWith(classification),
         fqcn + " must be classified '" + classification + "', got: " + reason);
-  }
-
-  @Test
-  @DisplayName(
-      "the effective active-tables prefers the JVM system property over the production file")
-  void effectiveActiveTablesPrefersTheShadowSystemProperty() {
-    Set<String> file = Set.of("tags");
-    // A shadow run passes -Dopenaev.tenant.active-tables='*'; that must win over the file so the
-    // wildcard expiry the guard promises actually fires in that run.
-    assertEquals(
-        Set.of("*"),
-        BackgroundEntrypointTenantScopeArchTest.resolveActiveTables("*", () -> file),
-        "the system property the JVM carries is the effective allowlist and must win over the file");
-    // No property set: an ordinary build reads the production application.properties.
-    assertEquals(
-        file,
-        BackgroundEntrypointTenantScopeArchTest.resolveActiveTables(null, () -> file),
-        "with no system property the production file is the source of truth");
-  }
-
-  @Test
-  @DisplayName("effectiveActiveTables reads the -D the shadow run passes, not only the file")
-  void effectiveActiveTablesReadsTheShadowProperty() {
-    String key = BackgroundEntrypointTenantScopeArchTest.ACTIVE_TABLES_PROPERTY;
-    String previous = System.getProperty(key);
-    try {
-      System.setProperty(key, "*");
-      assertTrue(
-          BackgroundEntrypointTenantScopeArchTest.effectiveActiveTables().contains("*"),
-          "the shadow run's -Dopenaev.tenant.active-tables='*' must reach the expiry check");
-    } finally {
-      if (previous == null) {
-        System.clearProperty(key);
-      } else {
-        System.setProperty(key, previous);
-      }
-    }
   }
 }

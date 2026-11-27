@@ -205,10 +205,7 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
    * Both read endpoints ({@code POST /endpoints/jobs} and the deprecated {@code GET
    * /endpoints/jobs/{externalReference}}) resolve jobs with a Criteria specification that carries
    * no tenant predicate of its own, so their isolation rests entirely on {@code
-   * TenantStatementInspector}. This class is where that can be proven: {@code asset_agent_jobs} is
-   * the only active table here, so a cross-tenant read returning nothing cannot be explained by the
-   * join through {@code assets} (v2-active in production) or by any other table's scope. Removing
-   * the table from {@code openaev.tenant.active-tables} makes the second test below fail.
+   * TenantStatementInspector}, which gates {@code asset_agent_jobs} like every tenant table.
    */
   private long jobsVisibleToTenant(String readerTenantId) {
     return tenantTx.execute(

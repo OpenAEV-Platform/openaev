@@ -5,7 +5,7 @@ import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getUser
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A row saved without a tenant is refused, not filed under the ambient tenant")
-class ExplicitTenantAttributionConnectorsTest extends ProductionTablesIntegrationTest {
+class ExplicitTenantAttributionConnectorsTest extends IntegrationTest {
 
   private static final String NULL_TENANT_REFUSED = "null value in column \"tenant_id\"";
 

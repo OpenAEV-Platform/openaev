@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
  * CONFLICT DO UPDATE} that re-assigns {@code tenant_id}.
  *
  * <p>The table is armed in a {@link TenantStatementInspector} of its own and the rewritten SQL is
- * run on the transaction's connection, so the application's active-tables list is not touched.
+ * run on the transaction's connection, so the application's own inspector is not involved.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional

@@ -30,10 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code MarkingDefinitionService} scopes its list and search with a tenant specification it
  * builds itself, and its by-id path loads the row with an unscoped {@code findById} before
  * comparing the row's tenant with the caller's. Those application-level predicates isolate whether
- * or not the table is active, so every assertion written against the HTTP endpoints holds with the
- * table removed from the activation list and proves nothing about the activation. This class reads
- * through the repository instead, with nothing but the transaction scope in play, so it fails as
- * soon as the table leaves the list.
+ * or not the table is gated, so an assertion written against the HTTP endpoints proves nothing
+ * about the gating. This class reads through the repository instead, with nothing but the
+ * transaction scope in play, so it fails as soon as the table is not gated.
  */
 @CoversTenantIsolation("marking_definitions")
 @Transactional

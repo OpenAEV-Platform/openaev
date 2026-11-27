@@ -10,7 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Filters;
@@ -62,7 +62,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @TestInstance(PER_CLASS)
 @DisplayName("Threat arsenal bulk delete acts in the request's write tenant")
-class ThreatArsenalBulkDeleteEligibilityTenantTest extends ProductionTablesIntegrationTest {
+class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
 
   private static final String BULK_DELETE_URI = "/bulk-delete";
   private static final String SEARCH_URI = "/search";

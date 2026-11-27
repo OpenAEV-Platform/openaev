@@ -4,7 +4,7 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Validating a grant on a contract looks the contract up in the group's tenant")
-class GrantServiceContractTenantTest extends ProductionTablesIntegrationTest {
+class GrantServiceContractTenantTest extends IntegrationTest {
 
   @Autowired private GrantService grantService;
   @Autowired private TenantIsolationTestHelper tenantHelper;

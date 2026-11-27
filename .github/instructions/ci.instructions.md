@@ -45,8 +45,8 @@ the arguments as a bash array in the step that runs the command:
 
 ```bash
 ARGS=()
-if [ -n "$GATE_MODE" ]; then
-  ARGS+=("-Dopenaev.tenant.active-tables=${ACTIVE_TABLES}")
+if [ -n "$INCLUDES_FILE" ]; then
+  ARGS+=("-Dsurefire.includesFile=${INCLUDES_FILE}")
 fi
 mvn ... "${ARGS[@]}"
 ```

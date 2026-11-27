@@ -25,7 +25,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.ExpectsEmptyScopeReads;
@@ -123,7 +123,7 @@ import reactor.core.Disposable;
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("A user event carries the links of the consumer's tenant")
-public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrationTest {
+public class UserStreamEventConsumerTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String PLATFORM_USER_URI = "/api/platform-users";

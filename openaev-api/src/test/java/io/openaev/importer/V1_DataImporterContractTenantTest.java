@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Base;
@@ -76,7 +76,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("The importer attributes and resolves injector contracts in the write tenant")
-class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest {
+class V1_DataImporterContractTenantTest extends IntegrationTest {
 
   private static final String STARTER_PACK_CONTRACT_ID = "93d27459-68d0-43b1-ad65-eacc3cfa5cf7";
 

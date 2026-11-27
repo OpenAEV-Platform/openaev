@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
@@ -45,13 +45,12 @@ import org.springframework.transaction.annotation.Transactional;
  * and the edit carries no tenant selector, so the request scope holds all of them. A document id of
  * another tenant is treated like an unknown one: the lookup refuses with a 404, the same way it
  * already does for a document id that does not exist at all. The links are read through {@code
- * injects_documents} on the test connection, which the statement inspector does not rewrite. The
- * class arms the production list.
+ * injects_documents} on the test connection, which the statement inspector does not rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("An atomic testing links only the documents of its own tenant")
-class AtomicTestingDocumentLinkTenantTest extends ProductionTablesIntegrationTest {
+class AtomicTestingDocumentLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String INJECT_DOCUMENTS =

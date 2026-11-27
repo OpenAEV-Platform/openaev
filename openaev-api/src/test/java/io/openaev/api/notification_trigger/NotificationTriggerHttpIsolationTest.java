@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
@@ -52,7 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("notification_triggers read and write isolation through the real HTTP endpoint")
-class NotificationTriggerHttpIsolationTest extends ProductionTablesIntegrationTest {
+class NotificationTriggerHttpIsolationTest extends IntegrationTest {
 
   private static final String TRIGGER_BY_ID = "/api/tenants/{tenantId}/notification-triggers/{id}";
   private static final String TRIGGERS = "/api/tenants/{tenantId}/notification-triggers";

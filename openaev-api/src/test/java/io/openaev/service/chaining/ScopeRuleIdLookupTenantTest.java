@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -70,12 +70,12 @@ import org.springframework.web.server.ResponseStatusException;
  * the rule carries the tenant of its workflow. The caller belongs to both tenants, and the
  * non-prefixed autonomous run route takes {@code X-Tenant-Ids}, so the request scope holds both
  * tenants. The plan-scenario route reaches {@code getValidAssets} under the same scope through the
- * scope rules it writes. The class arms the production list.
+ * scope rules it writes.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Scope rules resolve the asset ids they store in the tenant of the workflow")
-class ScopeRuleIdLookupTenantTest extends ProductionTablesIntegrationTest {
+class ScopeRuleIdLookupTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String RUN_SCOPE_URI = AutonomousRunApi.AUTONOMOUS_URI + "/{runId}/scope";

@@ -30,7 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  */
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("A directly executed inject carries its simulation's tenant, not the ambient one")
-class DirectInjectExecutionTenantTest extends ByIdRequestScopeProductionTablesTestBase {
+class DirectInjectExecutionTenantTest extends ByIdRequestScopeEnterpriseEditionTestBase {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 

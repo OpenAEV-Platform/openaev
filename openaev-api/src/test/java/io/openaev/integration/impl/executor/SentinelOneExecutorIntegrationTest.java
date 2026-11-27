@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
@@ -42,8 +41,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,12 +63,6 @@ import org.springframework.transaction.annotation.Transactional;
     groupId = "so_group_id",
     siteId = "so_site_id")
 public class SentinelOneExecutorIntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private SentinelOneExecutorClient client;
   @Autowired private EndpointService endpointService;

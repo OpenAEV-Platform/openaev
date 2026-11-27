@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -36,7 +36,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @CoversTenantIsolation("payload_identities")
 @WithMockUser(isAdmin = true)
 @DisplayName("payload_identities refuses another tenant's identity under one tenant's scope")
-class PayloadIdentityScopeIsolationTest extends ProductionTablesIntegrationTest {
+class PayloadIdentityScopeIsolationTest extends IntegrationTest {
 
   @Autowired private PayloadIdentityRepository repository;
   @Autowired private TenantScopedTransaction tenantTx;

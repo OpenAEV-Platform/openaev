@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Autonomous run attack-path step endpoints act on the run's own steps only")
-class AutonomousAttackPathStepOwnershipTest extends ProductionTablesIntegrationTest {
+class AutonomousAttackPathStepOwnershipTest extends IntegrationTest {
 
   private static final String STEP_URI = AUTONOMOUS_URI + "/{runId}/attack-path/steps/{stepId}";
   private static final String UPDATED_TITLE = "updated-attack-path-step";

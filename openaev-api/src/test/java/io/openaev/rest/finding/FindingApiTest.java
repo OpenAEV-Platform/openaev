@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -59,10 +59,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Findings search tests")
-class FindingApiTest extends ProductionTablesIntegrationTest {
+class FindingApiTest extends IntegrationTest {
 
-  // The test profile declares no active tables, so the suite registers the production list: with
-  // no list, the search isolation below would assert what nothing enforces.
+  // The statement inspector gates the findings table, which is what the search isolation below
+  // asserts.
   private static final String FINDING_URI = "/api/findings";
 
   @Resource protected ObjectMapper mapper;

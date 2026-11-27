@@ -201,7 +201,7 @@ class TenantStatementInspectorTest {
   // The primary FROM item, when it is a plain tenant table, is filtered through the select's WHERE
   // instead of being wrapped in a derived sub-query. Wrapping strips the primary key's functional
   // dependency, so "GROUP BY id" while projecting other columns becomes invalid SQL in PostgreSQL
-  // (passes in CI, where active-tables is empty, and fails in production). The move is equivalent
+  // (passes with the table ungated, and fails once it is gated). The move is equivalent
   // only while the primary table is never NULL-extended, so a RIGHT or FULL join anywhere in the
   // join list forces a fallback to wrapping. Joined tables stay wrapped exactly as before.
 

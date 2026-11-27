@@ -22,9 +22,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * never enabled.
  *
  * <p>That reasoning is v1-specific and v2 falsifies it. {@code TenantStatementInspector} does not
- * care whether a transaction is active: with the table in {@code openaev.tenant.active-tables} and
- * {@code app.current_tenants} unset, {@code can_access_tenant} returns false and the count is zero.
- * The gauge keeps reporting, it just reports nothing, which is worse than failing.
+ * care whether a transaction is active: on a gated table with {@code app.current_tenants} unset,
+ * {@code can_access_tenant} returns false and the count is zero. The gauge reports, but it reports
+ * nothing, which is worse than failing.
  *
  * <p>This test pins the asset-group gauge across the {@code asset_groups} activation (#6435). The
  * class is not {@code @Transactional}: the scoped primitive refuses to open inside an active

@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Channel;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser
 @DisplayName("Channel reads are authorized in every tenant of the request scope")
-class ChannelScopeAuthorizationTest extends ProductionTablesIntegrationTest {
+class ChannelScopeAuthorizationTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String CHANNEL_BY_ID_URI = CHANNEL_URI + "/{channelId}";

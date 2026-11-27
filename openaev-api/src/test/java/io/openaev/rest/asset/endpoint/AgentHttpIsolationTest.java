@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
@@ -57,7 +57,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @CoversTenantIsolation("agents")
 @WithMockUser(isAdmin = true)
 @DisplayName("agents isolation on both routes, reads and writes")
-class AgentHttpIsolationTest extends ProductionTablesIntegrationTest {
+class AgentHttpIsolationTest extends IntegrationTest {
 
   private static final String CAPABILITIES_PATH = "/capabilities/resolve";
   private static final String PLAIN_CAPABILITIES =

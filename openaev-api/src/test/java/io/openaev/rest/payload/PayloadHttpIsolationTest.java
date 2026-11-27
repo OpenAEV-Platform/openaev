@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Document;
@@ -54,7 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("payloads read and write isolation through the real HTTP endpoint")
-class PayloadHttpIsolationTest extends ProductionTablesIntegrationTest {
+class PayloadHttpIsolationTest extends IntegrationTest {
 
   private static final String PAYLOAD_BY_ID = "/api/tenants/{tenantId}/payloads/{payloadId}";
 

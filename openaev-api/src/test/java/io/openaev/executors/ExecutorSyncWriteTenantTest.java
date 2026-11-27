@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -68,7 +68,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @WithoutTenantScope
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Executor integrations write the rows they sync in the executor's tenant")
-class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
+class ExecutorSyncWriteTenantTest extends IntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;

@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
@@ -46,7 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous default agents, the callers that name no tenant")
-class AutonomousDefaultAgentsNoSelectorCallersTest extends ProductionTablesIntegrationTest {
+class AutonomousDefaultAgentsNoSelectorCallersTest extends IntegrationTest {
 
   private static final String PLAIN = AutonomousRunApi.AUTONOMOUS_URI + "/default-agents";
   private static final String KEY = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key();

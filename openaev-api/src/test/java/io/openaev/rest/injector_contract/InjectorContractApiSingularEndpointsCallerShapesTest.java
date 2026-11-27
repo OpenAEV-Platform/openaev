@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -58,7 +58,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @DisplayName("Singular contract endpoints, the caller shapes with no tenant selector")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiSingularEndpointsCallerShapesTest extends ProductionTablesIntegrationTest {
+class InjectorContractApiSingularEndpointsCallerShapesTest extends IntegrationTest {
 
   private static final String SELECTOR_REQUIRED = "TENANT_SELECTOR_REQUIRED";
   private static final String UNTOUCHED_UPDATED_AT = "1970-01-01 00:00:00+00";

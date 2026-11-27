@@ -3,7 +3,7 @@ package io.openaev.api.notification_trigger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -37,7 +37,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("recipient groups resolve in the write tenant, not across the whole read scope")
-class NotificationTriggerMapperRecipientGroupScopeTest extends ProductionTablesIntegrationTest {
+class NotificationTriggerMapperRecipientGroupScopeTest extends IntegrationTest {
 
   @Autowired private NotificationTriggerMapper mapper;
   @Autowired private TenantScopedTransaction tenantTx;

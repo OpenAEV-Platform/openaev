@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -84,7 +84,7 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithMockUser(isAdmin = true)
 @DisplayName("Storage object keys name the tenant of their row")
-class StorageObjectKeyTenantTest extends ProductionTablesIntegrationTest {
+class StorageObjectKeyTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

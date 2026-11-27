@@ -3,7 +3,7 @@ package io.openaev.runner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * <p>NOT {@code @Transactional}: the runner opens and owns its transaction.
  */
 @DisplayName("Admin bootstrap with groups active")
-class DualScopeGroupsBootTest extends ProductionTablesIntegrationTest {
+class DualScopeGroupsBootTest extends IntegrationTest {
 
   private static final String PLATFORM_ADMIN_GROUP_ID =
       AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupId();

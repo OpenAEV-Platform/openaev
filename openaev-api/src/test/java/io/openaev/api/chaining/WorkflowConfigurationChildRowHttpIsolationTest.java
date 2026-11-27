@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("workflow_scope_rules and scope_variables refuse another tenant's row on a workflow")
-class WorkflowConfigurationChildRowHttpIsolationTest extends ProductionTablesIntegrationTest {
+class WorkflowConfigurationChildRowHttpIsolationTest extends IntegrationTest {
 
   private static final String WORKFLOW_CONFIGURATION_URI =
       TENANT_WORKFLOW_URI + "/{workflowId}/configuration";

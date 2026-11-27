@@ -26,8 +26,8 @@ import org.hibernate.annotations.UuidGenerator;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 /**
  * Tenant isolation for {@code domains} is fully handled by v2 SQL rewriting ({@code
- * TenantStatementInspector}) once the table is active in {@code openaev.tenant.active-tables}. Keep
- * v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid dual mechanisms.
+ * TenantStatementInspector}), which gates every tenant table. The v1 {@code @Filter} and {@code
+ * TenantBaseListener} stay off this entity to avoid dual mechanisms.
  */
 public class Domain implements TenantBase {
 

@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
@@ -45,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Endpoint queries read the request's tenant scope")
-class EndpointQueriesRequestScopeTest extends ProductionTablesIntegrationTest {
+class EndpointQueriesRequestScopeTest extends IntegrationTest {
 
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
 

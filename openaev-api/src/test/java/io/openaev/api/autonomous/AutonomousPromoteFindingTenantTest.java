@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
@@ -40,7 +40,7 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("promoting a finding to an asset reads the finding in the run's tenant")
-class AutonomousPromoteFindingTenantTest extends ProductionTablesIntegrationTest {
+class AutonomousPromoteFindingTenantTest extends IntegrationTest {
 
   private static final String PATH = "/{runId}/findings/{findingId}/promote-to-asset";
   private static final String SCOPED = TENANT_PREFIX + "/autonomous-runs" + PATH;

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -37,7 +37,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @WithMockUser(isAdmin = true)
 @ExtendWith(DefaultTenantExtension.class)
 @DisplayName("XtmHubService connectivity flag with parameters active")
-class XtmHubConnectivityFlagTest extends ProductionTablesIntegrationTest {
+class XtmHubConnectivityFlagTest extends IntegrationTest {
 
   private static final String FLAG = SettingKeys.XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key();
 

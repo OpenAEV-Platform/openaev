@@ -2,21 +2,16 @@ package io.openaev.rest.exercise;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.Set;
-import java.util.TreeSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Simulation and scenario by-id reads with {@code exercises} and {@code scenarios} isolated on top
- * of the production list. The tenant route keeps working, a selector naming a tenant the caller is
- * not a member of is refused, and a row outside the selector is not found. The expectation drift
- * realignment, which opens no transaction of its own, resolves its row in the request scope too.
+ * Simulation and scenario by-id reads with {@code exercises} and {@code scenarios} gated, as every
+ * tenant table. The tenant route works, a selector naming a tenant the caller is not a member of is
+ * refused, and a row outside the selector is not found. The expectation drift realignment, which
+ * opens no transaction of its own, resolves its row in the request scope too.
  *
  * <p>The two entities carry no v1 tenant filter any more, so the ambient tenant the non-prefixed
  * route leaves on the default one no longer narrows the load: a member tenant's row named by the
@@ -25,14 +20,6 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, both tables isolated")
 class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithExercisesAndScenarios(DynamicPropertyRegistry registry) {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("exercises");
-    tables.add("scenarios");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Nested
   @DisplayName("Tenant route")

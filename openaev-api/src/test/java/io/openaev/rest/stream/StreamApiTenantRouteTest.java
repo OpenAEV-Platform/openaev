@@ -6,7 +6,7 @@ import static io.openaev.rest.stream.StreamApi.TENANT_STREAM_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
@@ -50,7 +50,7 @@ import org.springframework.test.util.ReflectionTestUtils;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("A stream subscriber receives the events of the tenant of its route")
-class StreamApiTenantRouteTest extends ProductionTablesIntegrationTest {
+class StreamApiTenantRouteTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);

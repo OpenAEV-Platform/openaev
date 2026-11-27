@@ -9,17 +9,17 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Atomic testing and plain-inject by-id reads resolve the row inside the request's tenant scope,
- * with the production list of isolated tables, which now includes {@code injects}. On the tenant
- * route the scope is the path tenant, so nothing changes there. On the non-prefixed route the scope
- * is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names none: a row
- * outside that scope is not found by id. A caller with no selector and no tenant membership at all
- * now gets an empty scope and finds nothing, proven instead by {@link ByIdRequestScopeArmedTest
+ * with {@code injects} gated by the statement inspector. On the tenant route the scope is the path
+ * tenant, so nothing changes there. On the non-prefixed route the scope is the {@code X-Tenant-Ids}
+ * selector, or the caller's memberships when it names none: a row outside that scope is not found
+ * by id. A caller with no selector and no tenant membership at all now gets an empty scope and
+ * finds nothing, proven instead by {@link ByIdRequestScopeArmedTest
  * #given_callerWithNoMembershipAndNoSelector_should_notFindDefaultTenantRow}, which predates this
  * table's own activation and is unchanged by it.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Atomic testing and inject by-id reads in the request scope, production tables")
-class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
+class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
 
   @Nested
   @DisplayName("Tenant route")

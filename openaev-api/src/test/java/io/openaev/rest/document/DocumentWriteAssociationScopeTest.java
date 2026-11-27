@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
@@ -62,13 +62,13 @@ import org.springframework.transaction.annotation.Transactional;
  * their ids follows the request scope, which holds every tenant the header names, so the update
  * keeps only the parents of the tenant of the document; the create paths are pinned with a header
  * that names the write tenant alone. The links are read from the join tables through plain JDBC,
- * which the statement inspector never rewrites. The class arms the production list, so the
- * assertions hold with the inspector scoping the lookup.
+ * which the statement inspector never rewrites. The assertions hold with the inspector scoping the
+ * lookup.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Document write paths resolve their associations in the document tenant")
-class DocumentWriteAssociationScopeTest extends ProductionTablesIntegrationTest {
+class DocumentWriteAssociationScopeTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String UPSERT = "/upsert";

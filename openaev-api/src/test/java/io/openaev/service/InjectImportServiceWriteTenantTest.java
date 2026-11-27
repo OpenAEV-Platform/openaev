@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Importing injects from an XLS file writes them in the target's tenant")
-class InjectImportServiceWriteTenantTest extends ProductionTablesIntegrationTest {
+class InjectImportServiceWriteTenantTest extends IntegrationTest {
 
   @Autowired private InjectImportService injectImportService;
   @Autowired private ScenarioRepository scenarioRepository;

@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Team;
@@ -30,8 +29,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -53,12 +50,6 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @DisplayName("ScenarioTeamApi search isolates scenarios_teams by tenant")
 class ScenarioTeamSearchIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   private static final String TENANT_TEAMS_SEARCH_URI =
       TENANT_SCENARIO_URI + "/{scenarioId}/teams/search";

@@ -49,7 +49,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("The by-id scope guard covers every endpoint an admin reaches with no parent load")
-class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTablesTestBase {
+class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeTestBase {
 
   private interface Call {
     int status(ByIdRequestScopeGuardCoverageTest test, Route route, String injectId)

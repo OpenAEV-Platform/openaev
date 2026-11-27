@@ -126,9 +126,8 @@ class CollectorTypeTenantScopeTest extends IntegrationTest {
     @WithoutTenantScope
     @DisplayName("with no scope at all: even the caller's own type fails closed")
     void given_noScopeSet_should_failClosedEvenForItsOwnTenant() {
-      // Act & Assert - the control for the test above, on a different line than the active-tables
-      // property: the lookup succeeds BECAUSE a scope is set, not because the name alone is enough
-      // once the table is active.
+      // Act & Assert - the control for the test above: the lookup succeeds BECAUSE a scope is set,
+      // not because the name alone is enough on a gated table.
       assertTrue(
           collectorTypeRepository.findByName(typeNameA).isEmpty(),
           "an active-table lookup with no tenant scope on the transaction must fail closed, never"

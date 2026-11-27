@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -53,12 +53,12 @@ import org.springframework.transaction.annotation.Transactional;
  * resolve in the tenant of the rule or of the group written alone: an id outside that tenant is
  * treated as an unknown id (a 404 for a tag rule, skipped for an asset group). The links are read
  * from the join tables through JDBC on the test connection, which the statement inspector does not
- * rewrite. The class arms the production list.
+ * rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Tag rules and asset groups link only the rows of their own tenant")
-class AssetGroupLinksTenantTest extends ProductionTablesIntegrationTest {
+class AssetGroupLinksTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String TAG_RULE_GROUPS =

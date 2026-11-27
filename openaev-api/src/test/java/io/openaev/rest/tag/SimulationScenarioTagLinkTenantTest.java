@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -49,7 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
  * edits carry no tenant selector, so the request scope holds all of them. The tag ids of the body
  * resolve in the tenant of the entity written alone. The links are read through {@code
  * exercises_tags}, {@code logs_tags} and {@code scenarios_tags} on the test connection, which the
- * statement inspector does not rewrite. The class arms the production list.
+ * statement inspector does not rewrite.
  *
  * <p>The create endpoints ({@code POST /exercises}, {@code POST /scenarios}) resolve their write
  * tenant with {@code TenantWriteScopeResolver#tenantForWrite(ctx, null)}, which refuses any scope
@@ -61,7 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A simulation, its logs and a scenario link only the tags of their own tenant")
-class SimulationScenarioTagLinkTenantTest extends ProductionTablesIntegrationTest {
+class SimulationScenarioTagLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String EXERCISE_TAGS =

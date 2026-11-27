@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
@@ -54,13 +54,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants. The tag ids of the
  * body resolve in the tenant of the entity written alone. The links are read from the join tables
- * through JDBC on the test connection, which the statement inspector does not rewrite. The class
- * arms the production list.
+ * through JDBC on the test connection, which the statement inspector does not rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Asset updates link only the tags of the entity tenant")
-class AssetTagLinkTenantTest extends ProductionTablesIntegrationTest {
+class AssetTagLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String ASSETS_TAGS = "SELECT tag_id FROM assets_tags WHERE asset_id = ?";

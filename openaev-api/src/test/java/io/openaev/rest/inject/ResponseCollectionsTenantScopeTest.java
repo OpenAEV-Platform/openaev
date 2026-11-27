@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -75,14 +75,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * that point reads zero rows and the response says {@code []} while the stored row carries the
  * links. Every response below must therefore load them inside the request's scoped transaction.
  *
- * <p>The class runs with the production list of isolated tables. It is deliberately NOT {@code
- * Transactional}: a rolled-back test transaction never commits, so its scope would stay alive
- * through serialization and hide the very failure this pins. Seeding runs in committed transactions
- * scoped to the test tenant, and the tenant and its rows are deleted after each test.
+ * <p>The class is deliberately NOT {@code Transactional}: a rolled-back test transaction never
+ * commits, so its scope would stay alive through serialization and hide the very failure this pins.
+ * Seeding runs in committed transactions scoped to the test tenant, and the tenant and its rows are
+ * deleted after each test.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Responses load the lazy collections of isolated tables inside the request scope")
-class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest {
+class ResponseCollectionsTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

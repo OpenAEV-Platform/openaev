@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import io.openaev.architecture.BackgroundEntrypointTenantScopeArchTest;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,7 +13,6 @@ import java.util.regex.Pattern;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
-import org.springframework.core.env.Environment;
 
 /**
  * Runtime fail-closed detector (WS1). A test-scope datasource-proxy listener that flags a statement
@@ -25,9 +25,8 @@ import org.springframework.core.env.Environment;
  * reads of the same tables are never rewritten and never fail closed. The live scope is read from
  * the statement's own connection rather than mirrored, because the integration tests set the GUC
  * directly, bypassing the two Java setters (aspect and primitive). The table name in the report is
- * a best-effort label from {@link TenantSqlLeakOracle#mentioned(String)} over the {@code
- * openaev.tenant.active-tables} allowlist (read from the {@link Environment}); detection does not
- * depend on it.
+ * a best-effort label from {@link TenantSqlLeakOracle#mentioned(String)} over the gated tenant
+ * tables; detection does not depend on it.
  *
  * <p>When wired suite-wide ({@code -Dopenaev.failclosed.detector=on}, see {@link
  * FailClosedDetectorContextCustomizerFactory}) each violation is also printed with a {@code
@@ -56,25 +55,16 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   private static final String READ_SCOPE_SQL =
       "SELECT coalesce(current_setting('app.current_tenants', true), '')";
 
-  private final Environment environment;
   private volatile TenantSqlLeakOracle oracle;
 
-  public FailClosedDetectorListener(Environment environment) {
-    this.environment = environment;
-  }
-
   /**
-   * The oracle over the active-tables allowlist, resolved lazily on first use: the {@link
-   * Environment} (including any {@code @TestPropertySource} activation) is fully populated by the
-   * time any query runs, whereas a placeholder read at bean-post-processor construction is not.
-   * Cached: the allowlist is fixed for the context.
+   * The oracle over the gated tenant tables, built on first use: the entity scan behind it is paid
+   * only by a run that reads a statement. Cached: the set is fixed for the run.
    */
   TenantSqlLeakOracle oracle() {
     TenantSqlLeakOracle local = oracle;
     if (local == null) {
-      // armedBy expands the terminal '*': an oracle built on the token itself watches no table.
-      String activeTables = environment.getProperty("openaev.tenant.active-tables", "");
-      local = new TenantSqlLeakOracle(ProductionActiveTables.armedBy(activeTables));
+      local = new TenantSqlLeakOracle(BackgroundEntrypointTenantScopeArchTest.gatedTenantTables());
       oracle = local;
     }
     return local;

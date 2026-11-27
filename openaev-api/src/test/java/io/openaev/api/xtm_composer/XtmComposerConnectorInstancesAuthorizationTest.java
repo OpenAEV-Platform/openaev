@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @DisplayName("XTM Composer connector-instance endpoints need a platform capability")
-class XtmComposerConnectorInstancesAuthorizationTest extends ProductionTablesIntegrationTest {
+class XtmComposerConnectorInstancesAuthorizationTest extends IntegrationTest {
 
   private static final String REGISTERED_ID = "registered-composer";
 

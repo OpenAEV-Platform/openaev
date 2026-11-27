@@ -3,7 +3,7 @@ package io.openaev.helper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,7 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @WithMockUser(isAdmin = true)
 @TestInstance(PER_CLASS)
 @DisplayName("Inject to run reloaded in its own tenant")
-class InjectHelperTenantReloadTest extends ProductionTablesIntegrationTest {
+class InjectHelperTenantReloadTest extends IntegrationTest {
 
   private record Seeded(String injectId, String endpointId, String agentId) {}
 

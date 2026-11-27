@@ -3,7 +3,7 @@ package io.openaev.rest.settings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.openaev.App;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.SettingKeys;
@@ -25,7 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * TenantScopedTransactionIntegrationTest}, the reference pattern this follows).
  */
 @DisplayName("App.init() survives a restart with parameters active")
-class DualScopeParametersBootTest extends ProductionTablesIntegrationTest {
+class DualScopeParametersBootTest extends IntegrationTest {
 
   @Autowired private App app;
   @Autowired private SettingRepository settingRepository;

@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.payload.form.PayloadsDeprecateInput;
@@ -45,7 +45,7 @@ import org.springframework.test.web.servlet.ResultActions;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Collector payload deprecation resolves one write tenant")
-class PayloadDeprecationWriteTenantTest extends ProductionTablesIntegrationTest {
+class PayloadDeprecationWriteTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

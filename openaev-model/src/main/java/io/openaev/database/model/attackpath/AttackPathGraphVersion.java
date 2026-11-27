@@ -18,11 +18,11 @@ import lombok.Setter;
  * inside the same transaction as every projection write, and the same value is stamped on the rows
  * that write touches, so "changes since v" is answerable from the projection tables alone.
  *
- * <p>Deliberately NOT in {@code openaev.tenant.active-tables}, unlike {@code attackpath_execution}
- * and {@code attackpath_finding}: the bump is an {@code INSERT ... ON CONFLICT DO UPDATE}, a shape
- * the statement inspector cannot rewrite, so activating the table would fail-close every write.
- * Isolation is structural instead of rewritten: the table's primary key is {@code (simulation_id,
- * tenant_id)} and every statement in {@link
+ * <p>Deliberately self-isolated ({@code TenantTables.SELF_ISOLATED_TABLES}), unlike {@code
+ * attackpath_execution} and {@code attackpath_finding}: the bump is an {@code INSERT ... ON
+ * CONFLICT DO UPDATE}, a shape the statement inspector cannot rewrite, so gating the table fails
+ * every write closed. Isolation is structural, not rewritten: the table's primary key is {@code
+ * (simulation_id, tenant_id)} and every statement in {@link
  * io.openaev.database.repository.attackpath.AttackPathGraphVersionRepository} carries an explicit
  * tenant predicate, so no tenant can read, bump or delete another tenant's counter. {@code
  * tenant_id} is NOT NULL with an indexed cascading FK, so a deleted tenant takes its counters with

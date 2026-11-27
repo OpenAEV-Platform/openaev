@@ -2,15 +2,13 @@ package io.openaev.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.architecture.PinnedActiveTablesCatalog.Declaration;
-import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
-import io.openaev.config.ProductionActiveTables;
-import io.openaev.config.TenantTables;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,27 +26,14 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.HierarchyTraversalMode;
 import org.junit.platform.commons.support.ReflectionSupport;
-import org.springframework.test.context.TestContextAnnotationUtils;
 
 /**
- * Fails the build when a table of the production {@code openaev.tenant.active-tables} list has no
- * isolation test. A table is covered by at least one class marked {@link CoversTenantIsolation}
- * that is a runnable test, runs on the real stack with the table in its effective activation list,
- * seeds two tenants and asserts a cross-tenant refusal on the table itself. The gate checks the
- * marker, the arming and the runnable test; the two tenants and the refusal rest on the reading of
- * whoever adds the marker (see the marker's Javadoc).
- *
- * <p>The effective list of a marked class is the one it declares, read with the catalog of {@link
- * PinnedActiveTablesArchTest}: the one annotation that sets the key ({@link
- * PinnedActiveTablesCatalog#declarations}), or what its {@code DynamicPropertySource} methods
- * register ({@link PinnedActiveTablesCatalog#dynamicRegistrations}), on the class, its supertypes
- * and its enclosing classes. A class that declares nothing runs on the test profile's list ({@link
- * ProductionActiveTables#testProfileNames}), which {@code TestProfileActiveTablesTest} holds equal
- * to production's. A class that sets the key twice, both ways, in a registration the scan cannot
- * evaluate, or with {@code *} has no list the gate can read and covers nothing, and neither has a
- * class that declares nothing while the profile arms none. The shapes the catalog cannot see
- * (property files other than the profile's, other profiles, {@code DynamicPropertyRegistrar}) are
- * listed in the "Not seen" paragraph of {@link PinnedActiveTablesCatalog}.
+ * Fails the build when a gated tenant table has no isolation test. A table is covered by at least
+ * one class marked {@link CoversTenantIsolation} that is a runnable test and names only gated
+ * tables, runs on the real stack, seeds two tenants and asserts a cross-tenant refusal on the table
+ * itself. The gate checks the marker and the runnable test; the real stack, the two tenants and the
+ * refusal rest on the reading of whoever adds the marker (see the marker's Javadoc). Every test
+ * runs with every tenant table gated, so the gate has no per-class list to read.
  *
  * <p>A runnable test is a class that is not abstract and not {@link Disabled} (nor a {@link Nested}
  * class of a disabled class), with a method Jupiter runs as a test (not private, not static) that
@@ -56,35 +41,33 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * disabled parent class does not disable its subclass, as in JUnit. {@code EnabledIf}, {@code
  * DisabledIf} and the other conditions are not read.
  *
- * <p>A class whose pin the baseline of {@link PinnedActiveTablesBaseline} records as {@code drifts}
- * or {@code control} covers nothing: its list is known to differ from production for a reason that
- * makes its assertions weaker than production's.
- *
  * <p>The tables that no class covers yet are named, with what is missing and why, in {@code
- * tenant-isolation-coverage-baseline.txt}. A line whose table becomes covered or inactive fails,
- * and its size is frozen by {@link #BASELINE_SIZE}.
+ * tenant-isolation-coverage-baseline.txt}. A line whose table becomes covered or stops being gated
+ * fails, and its size is frozen by {@link #BASELINE_SIZE}.
  */
-@DisplayName("Every active table has a class marked as its isolation test")
+@DisplayName("Every gated table has a class marked as its isolation test")
 class TenantIsolationCoverageArchTest {
 
   /**
    * How many tables the baseline names. Lower it when a line goes. Raise it only in a change that
    * removes the marker of a class found not to assert the refusal on the table itself, and say why
-   * in that change: a new activation never adds a line.
+   * in that change: a new tenant table never adds a line.
    */
   static final int BASELINE_SIZE = 1;
+
+  /**
+   * The package of the fixtures of {@link TenantIsolationCoverageRulesTest}, left out of the tree.
+   */
+  static final String FIXTURE_PACKAGE = "io.openaev.architecture.fixture";
 
   @TestFactory
   @DisplayName("given the test tree, should pass every check of the gate")
   Stream<DynamicTest> given_testTree_should_passEveryCheckOfTheGate() {
     Scan scan =
-        Scan.of(
-            PinnedActiveTablesCatalog.testTreeClasses(),
+        new Scan(
+            testTreeClasses(),
             TenantIsolationCoverageBaseline.load(),
-            PinnedActiveTablesBaseline.load(),
-            ProductionActiveTables.names(),
-            TenantTables.selfIsolatedTables(),
-            ProductionActiveTables.testProfileNames());
+            BackgroundEntrypointTenantScopeArchTest.gatedTenantTables());
     return scan.checks(BASELINE_SIZE).stream()
         .map(
             check ->
@@ -96,18 +79,37 @@ class TenantIsolationCoverageArchTest {
                             .isEmpty()));
   }
 
-  /**
-   * {@code sites} are the classes that decide the list, the ones the pinned-list baseline may name.
-   * {@code tables} is null exactly when {@code failure} is set.
-   */
-  record Effective(Set<String> tables, String failure, Set<String> sites) {
+  /** Every class of the test tree but the fixtures, anonymous and local classes excepted. */
+  static List<Class<?>> testTreeClasses() {
+    return testClasses(
+        "io.openaev", javaClass -> !FIXTURE_PACKAGE.equals(javaClass.getPackageName()));
+  }
 
-    static Effective of(Set<String> tables, Set<String> sites) {
-      return new Effective(tables, null, sites);
-    }
+  /** The fixtures, imported the way the test tree is. */
+  static List<Class<?>> fixtureClasses() {
+    return testClasses(FIXTURE_PACKAGE, javaClass -> true);
+  }
 
-    static Effective unreadable(String failure) {
-      return new Effective(null, failure, Set.of());
+  private static List<Class<?>> testClasses(
+      String packageName, java.util.function.Predicate<JavaClass> keep) {
+    ClassLoader loader = TenantIsolationCoverageArchTest.class.getClassLoader();
+    return new ClassFileImporter()
+            .withImportOption(ImportOption.Predefined.ONLY_INCLUDE_TESTS)
+            .importPackages(packageName)
+            .stream()
+            .filter(keep)
+            .filter(javaClass -> !javaClass.isAnonymousClass() && !javaClass.isLocalClass())
+            .map(JavaClass::getName)
+            .sorted()
+            .<Class<?>>map(name -> load(name, loader))
+            .toList();
+  }
+
+  private static Class<?> load(String name, ClassLoader loader) {
+    try {
+      return Class.forName(name, false, loader);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("cannot load test class " + name, e);
     }
   }
 
@@ -117,51 +119,14 @@ class TenantIsolationCoverageArchTest {
    */
   record Scan(
       List<Class<?>> classes,
-      Map<String, Registration> registrations,
       List<TenantIsolationCoverageBaseline.Entry> baseline,
-      List<PinnedActiveTablesBaseline.Entry> pins,
-      Set<String> production,
-      Set<String> selfIsolated,
-      Set<String> profile) {
+      Set<String> gated) {
 
     record Check(String name, String guidance, Supplier<List<String>> found) {}
 
     /** The classes a scan of the test tree must reach for its silence to mean anything. */
     static final List<Class<?>> REACHED =
-        List.of(
-            TenantIsolationCoverageArchTest.class,
-            CoversTenantIsolation.class,
-            ProductionActiveTables.class);
-
-    static Scan of(
-        List<Class<?>> classes,
-        List<TenantIsolationCoverageBaseline.Entry> baseline,
-        List<PinnedActiveTablesBaseline.Entry> pins,
-        Set<String> production,
-        Set<String> selfIsolated) {
-      return of(classes, baseline, pins, production, selfIsolated, Set.of());
-    }
-
-    /**
-     * {@code profile} is the list the test profile arms for a class that declares none: empty when
-     * the profile arms nothing, which is the default run of a test classpath with no list.
-     */
-    static Scan of(
-        List<Class<?>> classes,
-        List<TenantIsolationCoverageBaseline.Entry> baseline,
-        List<PinnedActiveTablesBaseline.Entry> pins,
-        Set<String> production,
-        Set<String> selfIsolated,
-        Set<String> profile) {
-      return new Scan(
-          classes,
-          PinnedActiveTablesCatalog.dynamicRegistrations(classes),
-          baseline,
-          pins,
-          production,
-          selfIsolated,
-          profile);
-    }
+        List.of(TenantIsolationCoverageArchTest.class, CoversTenantIsolation.class);
 
     /**
      * Every check of the gate, in the order it reports them. The gate's only test runs this list
@@ -171,47 +136,32 @@ class TenantIsolationCoverageArchTest {
     List<Check> checks(int baselineSize) {
       return List.of(
           new Check(
-              "should reach this gate, the marker and the reader of the production list",
+              "should reach this gate and the marker",
               "a scan that misses them read the wrong tree, so its silence means nothing",
               this::unreached),
           new Check(
-              "should find no active table that is self-isolated",
-              "A self-isolated table is never gated by the inspector, so no isolation test can"
-                  + " cover it. The marker's table set needs revisiting",
-              () -> List.copyOf(activeSelfIsolated())),
+              "should find a marker that names only gated tables",
+              "These markers name a table the statement inspector does not gate, or no table at"
+                  + " all: a typo, a table that is not a tenant table, or a self-isolated table",
+              this::markedButNotGated),
           new Check(
-              "should find a marker that names only active tables",
-              "These markers name a table that is not in the production activation list, or no"
-                  + " table at all: a typo, a table that is not active yet, or a self-isolated"
-                  + " table",
-              this::markedButNotActive),
-          new Check(
-              "should find each marked class runnable, with its tables in the effective list",
-              "These classes are not runnable tests, carry a marker for a table their effective list"
-                  + " does not hold, or have a list the gate cannot read. A class with no"
-                  + " declaration runs on the test profile's list: add the table to it, or move the"
-                  + " marker to a class that is armed",
-              this::markedOutsideTheEffectiveList),
-          new Check(
-              "should find no marked class that the pinned-list baseline records as drifts or"
-                  + " control",
-              "A class whose list differs from production for a reason that weakens it proves"
-                  + " less than production does, so it does not count as an isolation test",
-              this::markedButDeclaredWeaker),
+              "should find each marked class runnable",
+              "These classes are not runnable tests: move the marker to a class Jupiter runs",
+              this::markedButNotRunnable),
           new Check(
               "should find a reasoned line for every table the baseline names",
               "every line of " + TenantIsolationCoverageBaseline.RESOURCE,
               () -> TenantIsolationCoverageBaseline.malformed(baseline)),
           new Check(
-              "should find every active table covered or named in the baseline",
-              "These active tables have no marked isolation test that passes the bar. Mark a class"
+              "should find every gated table covered or named in the baseline",
+              "These gated tables have no marked isolation test that passes the bar. Mark a class"
                   + " that meets it (@CoversTenantIsolation, see its Javadoc). The baseline never"
                   + " grows, so "
                   + TenantIsolationCoverageBaseline.RESOURCE
                   + " takes no new line",
               () -> List.copyOf(uncovered())),
           new Check(
-              "should find every baseline table active and uncovered",
+              "should find every baseline table gated and uncovered",
               "These lines no longer describe a gap. Remove each one and lower BASELINE_SIZE: the"
                   + " baseline never grows",
               this::staleBaseline),
@@ -226,19 +176,6 @@ class TenantIsolationCoverageArchTest {
       return REACHED.stream().filter(type -> !seen.contains(type)).map(Class::getName).toList();
     }
 
-    Set<String> activeSelfIsolated() {
-      Set<String> both = new TreeSet<>(production);
-      both.retainAll(selfIsolated);
-      return both;
-    }
-
-    /** The tables the gate can ask a test to cover: the production list, self-isolated excepted. */
-    Set<String> eligible() {
-      Set<String> eligible = new TreeSet<>(production);
-      eligible.removeAll(selfIsolated);
-      return eligible;
-    }
-
     /** The marker of each marked class, in the order of the scan. */
     Map<Class<?>, Set<String>> marked() {
       Map<Class<?>, Set<String>> marked = new LinkedHashMap<>();
@@ -251,8 +188,7 @@ class TenantIsolationCoverageArchTest {
       return marked;
     }
 
-    List<String> markedButNotActive() {
-      Set<String> eligible = eligible();
+    List<String> markedButNotGated() {
       List<String> found = new ArrayList<>();
       marked()
           .forEach(
@@ -261,7 +197,7 @@ class TenantIsolationCoverageArchTest {
                   found.add(type.getName() + " names no table");
                 }
                 tables.stream()
-                    .filter(table -> !eligible.contains(table))
+                    .filter(table -> !gated.contains(table))
                     .forEach(table -> found.add(type.getName() + " names '" + table + "'"));
               });
       return found;
@@ -330,80 +266,24 @@ class TenantIsolationCoverageArchTest {
               || AnnotationSupport.isAnnotated(method, TestTemplate.class));
     }
 
-    List<String> markedOutsideTheEffectiveList() {
+    List<String> markedButNotRunnable() {
       List<String> found = new ArrayList<>();
       unrunnable().forEach((type, why) -> found.add(type.getName() + " " + why));
-      marked()
-          .forEach(
-              (type, tables) -> {
-                Effective effective = effective(type);
-                if (effective.failure() != null) {
-                  found.add(type.getName() + ": " + effective.failure());
-                  return;
-                }
-                tables.stream()
-                    .filter(table -> !effective.tables().contains(table))
-                    .forEach(
-                        table ->
-                            found.add(
-                                type.getName()
-                                    + " marks '"
-                                    + table
-                                    + "', not in its effective list "
-                                    + effective.tables()));
-              });
       return found;
-    }
-
-    List<String> markedButDeclaredWeaker() {
-      List<String> found = new ArrayList<>();
-      weakerPins().forEach((type, lines) -> lines.forEach(line -> found.add(type + " " + line)));
-      return found;
-    }
-
-    /** The marked classes whose list is a drifts or control line, with the line that says so. */
-    private Map<String, List<String>> weakerPins() {
-      Map<String, String> kindByClass = new TreeMap<>();
-      pins.forEach(entry -> kindByClass.put(entry.testClass(), entry.kind()));
-      Map<String, List<String>> weaker = new TreeMap<>();
-      for (Class<?> type : marked().keySet()) {
-        Set<String> names = new LinkedHashSet<>(List.of(type.getName()));
-        names.addAll(effective(type).sites());
-        for (String name : names) {
-          String kind = kindByClass.get(name);
-          if (kind != null
-              && (PinnedActiveTablesBaseline.DEBT_KINDS.contains(kind)
-                  || PinnedActiveTablesBaseline.EXPIRING_KIND.equals(kind))) {
-            weaker
-                .computeIfAbsent(type.getName(), key -> new ArrayList<>())
-                .add("runs with the list of '" + name + "', a " + kind + " line");
-          }
-        }
-      }
-      return weaker;
     }
 
     /**
-     * The classes that cover each table: marked, runnable, with a readable declared list holding
-     * the table, and not a weaker pin. A class counts for a table only when every check above holds
-     * for it.
+     * The classes that cover each table: marked, runnable, naming only gated tables. A class counts
+     * for a table only when every check above holds for it.
      */
     Map<String, List<String>> covered() {
-      Set<String> eligible = eligible();
-      Set<String> weaker = weakerPins().keySet();
       Set<Class<?>> unrunnable = unrunnable().keySet();
       Map<String, List<String>> covered = new TreeMap<>();
       marked()
           .forEach(
               (type, tables) -> {
-                Effective effective = effective(type);
                 boolean passes =
-                    !unrunnable.contains(type)
-                        && effective.failure() == null
-                        && effective.tables().containsAll(tables)
-                        && eligible.containsAll(tables)
-                        && !tables.isEmpty()
-                        && !weaker.contains(type.getName());
+                    !unrunnable.contains(type) && !tables.isEmpty() && gated.containsAll(tables);
                 if (passes) {
                   tables.forEach(
                       table ->
@@ -416,7 +296,7 @@ class TenantIsolationCoverageArchTest {
     }
 
     Set<String> uncovered() {
-      Set<String> uncovered = eligible();
+      Set<String> uncovered = new TreeSet<>(gated);
       uncovered.removeAll(covered().keySet());
       baseline.forEach(entry -> uncovered.remove(entry.table()));
       return uncovered;
@@ -427,8 +307,8 @@ class TenantIsolationCoverageArchTest {
       List<String> found = new ArrayList<>();
       for (TenantIsolationCoverageBaseline.Entry entry : baseline) {
         String where = "line " + entry.line() + " '" + entry.table() + "'";
-        if (!production.contains(entry.table())) {
-          found.add(where + " is not an active table");
+        if (!gated.contains(entry.table())) {
+          found.add(where + " is not a gated table");
         } else if (covered.containsKey(entry.table())) {
           found.add(where + " is covered by " + covered.get(entry.table()));
         }
@@ -445,77 +325,6 @@ class TenantIsolationCoverageArchTest {
                   + " tables, not BASELINE_SIZE "
                   + baselineSize
                   + ". Removed one? Lower the constant. The baseline never grows.");
-    }
-
-    /**
-     * The activation list a marked class runs with, read the way Spring resolves the key: what its
-     * registration gives, else its one annotation, else the test profile's list. A class that sets
-     * the key twice, or in an annotation and a registration, or lists {@code *}, has no list the
-     * gate can read, and neither has a class that declares nothing while the profile arms none.
-     */
-    Effective effective(Class<?> type) {
-      List<Declaration> declarations = PinnedActiveTablesCatalog.declarations(type);
-      Map<String, Registration> mine = new TreeMap<>();
-      relatedTypes(type)
-          .forEach(
-              related -> {
-                Registration registration = registrations.get(related.getName());
-                if (registration != null) {
-                  mine.put(related.getName(), registration);
-                }
-              });
-      if (mine.size() > 1) {
-        return Effective.unreadable(
-            "registers the key in several classes " + mine.keySet() + ", Spring resolves one");
-      }
-      if (!mine.isEmpty() && !declarations.isEmpty()) {
-        return Effective.unreadable("sets the key in an annotation and in a registration");
-      }
-      if (!mine.isEmpty()) {
-        Map.Entry<String, Registration> only = mine.entrySet().iterator().next();
-        return only.getValue().evaluated()
-            ? declared(only.getValue().tables(), only.getKey())
-            : Effective.unreadable("registration not evaluated: " + only.getValue().failure());
-      }
-      if (declarations.size() > 1) {
-        return Effective.unreadable("sets the key in several annotations");
-      }
-      if (declarations.size() == 1) {
-        Declaration only = declarations.get(0);
-        return declared(only.tables(), only.site());
-      }
-      if (!profile.isEmpty()) {
-        return declared(profile, "the test profile");
-      }
-      return Effective.unreadable(
-          "declares no activation list and the test profile arms none, so the run arms no table"
-              + " for it; register ProductionActiveTables.names() in a @DynamicPropertySource");
-    }
-
-    private static Effective declared(Set<String> tables, String site) {
-      return tables.contains("*")
-          ? Effective.unreadable("lists '*' in " + site + ", a wildcard the gate does not expand")
-          : Effective.of(tables, Set.of(site));
-    }
-
-    /** The class, its supertypes and the enclosing classes Spring reads configuration from. */
-    private static Set<Class<?>> relatedTypes(Class<?> type) {
-      Set<Class<?>> related = new LinkedHashSet<>();
-      collect(type, related);
-      return related;
-    }
-
-    private static void collect(Class<?> type, Set<Class<?>> related) {
-      if (type == null || type == Object.class || !related.add(type)) {
-        return;
-      }
-      for (Class<?> parent : type.getInterfaces()) {
-        collect(parent, related);
-      }
-      collect(type.getSuperclass(), related);
-      if (TestContextAnnotationUtils.searchEnclosingClass(type)) {
-        collect(type.getEnclosingClass(), related);
-      }
     }
   }
 }

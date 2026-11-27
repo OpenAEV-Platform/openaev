@@ -9,7 +9,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
 
 /**
  * Wires the lazy-after-commit probe into one test context: {@link LazyAfterCommitProbeListener} on
@@ -22,8 +21,8 @@ import org.springframework.core.env.Environment;
 public class LazyAfterCommitProbeTestConfig {
 
   @Bean
-  static BeanPostProcessor lazyAfterCommitProbeWiring(Environment environment) {
-    return probeWiring(environment);
+  static BeanPostProcessor lazyAfterCommitProbeWiring() {
+    return probeWiring();
   }
 
   @Bean
@@ -35,10 +34,9 @@ public class LazyAfterCommitProbeTestConfig {
    * The post-processor both entry points install. The raw datasource is captured as it passes
    * through, so the probe can replay a statement on a connection it owns.
    */
-  static BeanPostProcessor probeWiring(Environment environment) {
+  static BeanPostProcessor probeWiring() {
     DataSource[] raw = new DataSource[1];
-    LazyAfterCommitProbeListener listener =
-        new LazyAfterCommitProbeListener(environment, () -> raw[0]);
+    LazyAfterCommitProbeListener listener = new LazyAfterCommitProbeListener(() -> raw[0]);
     return new BeanPostProcessor() {
       @Override
       public Object postProcessAfterInitialization(Object bean, String beanName) {

@@ -2,7 +2,7 @@ package io.openaev.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -31,7 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @WithoutTenantScope
 @WithMockUser(isAdmin = true)
 @DisplayName("Migration V6_20261116180000000: reset of the XTM Hub connectivity email markers")
-class ResetXtmHubConnectivityEmailMarkersMigrationTest extends ProductionTablesIntegrationTest {
+class ResetXtmHubConnectivityEmailMarkersMigrationTest extends IntegrationTest {
 
   @Autowired private V6_20261116180000000__Reset_xtmhub_connectivity_email_markers migration;
   @Autowired private TenantXtmHubRegistrationRepository registrationRepository;

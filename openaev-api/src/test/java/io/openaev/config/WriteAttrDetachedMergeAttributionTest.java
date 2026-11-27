@@ -130,7 +130,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
    * Forces the pending flush from this test method with a native query the inspector leaves alone
    * (no table), so the flush stack holds no production frame, then reads the row through the
    * transaction's JDBC connection, which the statement inspector does not rewrite, so the read sees
-   * the row whatever the active-tables list says.
+   * the row whatever its tenant.
    */
   private String readTenantFromTestFrame(String simulationId) {
     entityManager.createNativeQuery("SELECT 1").getSingleResult();

@@ -20,7 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -73,8 +72,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -83,16 +80,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-// The context arms the production list, executors included, so the AgentExecutorJoin nested test
+// The statement inspector gates the executors table, so the AgentExecutorJoin nested test
 // exercises the eager agent-to-executor join with the rewrite production applies.
 @CoversTenantIsolation("asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
@@ -706,15 +697,8 @@ class EndpointApiTest extends IntegrationTest {
   }
 
   /**
-   * These assert v2 isolation, which only exists when the table is in {@code
-   * openaev.tenant.active-tables}. The test profile declares none, so the activation lives on the
-   * OUTER class: putting {@code @TestPropertySource} here instead builds a second Spring context
-   * where the mock user provisioned into the parent's {@code TestUserHolder} is missing, and every
-   * test dies on "The given id must not be null" before reaching its assertion.
-   *
-   * <p>Before the activation these rode on the v1 {@code @Filter}. Removing it turned exactly one
-   * of the four red; the other three stayed green while isolating nothing, which is the reason the
-   * outer annotation is not optional.
+   * These assert v2 isolation: {@code assets} is gated like every tenant table, so each
+   * cross-tenant read and write goes through the statement inspector.
    */
   @Nested
   @DisplayName("Tenant Isolation")

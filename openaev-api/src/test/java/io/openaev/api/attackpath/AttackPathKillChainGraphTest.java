@@ -2,7 +2,7 @@ package io.openaev.api.attackpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Exercise;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-class AttackPathKillChainGraphTest extends ProductionTablesIntegrationTest {
+class AttackPathKillChainGraphTest extends IntegrationTest {
 
   private static final String SIM = "SIM-KILLCHAIN";
 

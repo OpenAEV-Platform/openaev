@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ScopeRuleSelectedMode;
@@ -44,12 +44,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants. The teams of a
  * chained simulation are read from the scope of its workflow, and the team ids of the scope rules
- * resolve in the tenant of the workflow alone. The class arms the production list.
+ * resolve in the tenant of the workflow alone.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Workflow scope resolves the teams of its rules in the workflow tenant only")
-class ScopeTeamsTenantTest extends ProductionTablesIntegrationTest {
+class ScopeTeamsTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

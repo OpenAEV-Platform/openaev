@@ -6,7 +6,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithMockUser
 @DisplayName("Bulk operations of the caller")
-class BulkOperationApiTest extends ProductionTablesIntegrationTest {
+class BulkOperationApiTest extends IntegrationTest {
 
   private static final String PREFIXED_ROUTE = "prefixed";
   private static final String NON_PREFIXED_ROUTE = "non-prefixed";

@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Player deletion in the tenant of the request")
-public class PlayerDeleteWriteTenantTest extends ProductionTablesIntegrationTest {
+public class PlayerDeleteWriteTenantTest extends IntegrationTest {
 
   /** Production's active tables: the handler reads and writes tables the inspector gates. */
   private static final String TENANT_HEADER = "X-Tenant-Ids";

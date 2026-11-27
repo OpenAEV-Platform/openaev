@@ -59,10 +59,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * instead, per the activate-tenant-table runbook, and fresh simulation / inject ids per test so a
  * row a failed test left behind cannot leak into another test's raw count.
  *
- * <p>Only the two tables below are v2-active in this context: the test {@code
- * application.properties} carries no tenant activation list, so assets, agents and the other
- * attack-path tables are not tenant-filtered here. A test whose premise depends on one of them
- * being isolated must not assume it.
+ * <p>Every tenant table is gated in this context, as in production, so the raw reads below go
+ * through JDBC to see a row whatever its tenant.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")

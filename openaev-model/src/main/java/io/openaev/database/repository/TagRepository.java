@@ -27,9 +27,9 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   Optional<Tag> findByName(@NotNull final String name);
 
   /**
-   * Tenant-scoped primary-key lookup. A plain {@code findById} carries no tenant predicate on a
-   * table outside {@code active-tables}, so callers resolving an id received from user input (e.g.
-   * import files) must use this method to avoid reading another tenant's tag.
+   * Tenant-scoped primary-key lookup. A plain {@code findById} reads in the scope of the
+   * transaction, which may hold several tenants, so callers resolving an id received from user
+   * input (e.g. import files) must use this method to avoid reading another tenant's tag.
    */
   @NotNull
   Optional<Tag> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);

@@ -42,8 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Before this table was activated the endpoint returned every tenant's templates to any
  * authenticated caller, and the lazy seed decided "already seeded" from a cross-tenant lookup, so
  * the second tenant to open the gallery was served the first tenant's catalog and never got its
- * own. Both are pinned here: every cross-tenant assertion below goes red when the table is removed
- * from the armed list.
+ * own. Both are pinned here: every cross-tenant assertion below goes red when the statement
+ * inspector leaves the table ungated.
  *
  * <p>Rows belonging to another tenant are seeded with a raw native INSERT carrying an explicit
  * tenant_id, never through the ambient tenant.

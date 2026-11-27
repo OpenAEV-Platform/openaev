@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -60,7 +60,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  */
 @SpringBootTest
 @DisplayName("Queue chaining job: each entry's changes are written in its own tenant")
-class QueueChainingJobPendingChangesTest extends ProductionTablesIntegrationTest {
+class QueueChainingJobPendingChangesTest extends IntegrationTest {
 
   @Autowired private QueueChainingJob job;
   @Autowired private WorkflowComposer workflowComposer;

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantTables;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -30,18 +29,15 @@ import org.springframework.data.repository.Repository;
  * Refuses a CTE named after a tenant table in any repository native query.
  *
  * <p>The tenant statement inspector decides what to wrap from the relation name alone. A reference
- * to a CTE called {@code exercises} is therefore wrapped as the {@code exercises} table once that
- * table is active, the wrapper reads {@code tenant_id} from a CTE that has none, and PostgreSQL
- * refuses the whole statement. The inspector itself accepts the rewrite, so {@link
- * NativeQueryTenantInspectorProbeTest} stays green: the failure only shows on a live database, at
- * activation time.
+ * to a CTE called {@code exercises} is therefore wrapped as the {@code exercises} table, the
+ * wrapper reads {@code tenant_id} from a CTE that has none, and PostgreSQL refuses the whole
+ * statement. The inspector itself accepts the rewrite, so {@link
+ * NativeQueryTenantInspectorProbeTest} stays green: the failure only shows on a live database.
  *
- * <p>The names checked are every table the inspector wraps today or will wrap once the rollout
- * ends: the production activation list ({@link ProductionActiveTables}), the strict and dual-scope
- * tenant tables of the entity model and its missed-table inventory ({@code
- * BackgroundEntrypointTenantScopeArchTest#knownTenantTables()}, a superset of the activation
- * burn-down, since {@code TenantTableActivationCoverageArchTest} refuses a deferral that names a
- * table outside it), and the self-isolated tables. Needs no database and no Spring context.
+ * <p>The names checked are every tenant table: the gated ones, strict and dual-scope, from the
+ * entity model and its missed-table inventory ({@code
+ * BackgroundEntrypointTenantScopeArchTest#gatedTenantTables()}), and the self-isolated tables.
+ * Needs no database and no Spring context.
  *
  * <p>What this guard does not see, so a green run is worth no more than this:
  *
@@ -156,10 +152,9 @@ class NativeQueryCteNameArchTest {
     return collisions;
   }
 
-  /** Every table the tenant inspector wraps today or will wrap, lowercased. */
+  /** Every tenant table, gated or self-isolated, lowercased. */
   private static Set<String> tenantTables() {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.addAll(BackgroundEntrypointTenantScopeArchTest.knownTenantTables());
+    Set<String> tables = new TreeSet<>(BackgroundEntrypointTenantScopeArchTest.gatedTenantTables());
     tables.addAll(TenantTables.selfIsolatedTables());
     Set<String> normalised = new TreeSet<>();
     tables.forEach(table -> normalised.add(table.toLowerCase(Locale.ROOT)));

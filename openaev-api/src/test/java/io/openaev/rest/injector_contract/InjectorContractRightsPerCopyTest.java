@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.jayway.jsonpath.JsonPath;
 import com.opencsv.CSVReader;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -67,7 +67,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @DisplayName("Rights per tenant copy of a contract")
 @WithMockUser
-class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest {
+class InjectorContractRightsPerCopyTest extends IntegrationTest {
 
   private static final String LABEL_PREFIX = "rights-copy-";
   private static final String HEADER = "X-Tenant-Ids";

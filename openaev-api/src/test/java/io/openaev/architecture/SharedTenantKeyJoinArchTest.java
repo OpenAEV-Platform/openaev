@@ -8,7 +8,6 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
-import io.openaev.config.ProductionActiveTables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -559,8 +558,8 @@ class SharedTenantKeyJoinArchTest {
 
   /**
    * The rules a single waiver must satisfy, as a pure function so each one can be shown to fire.
-   * {@code activeTables} is the production activation list: the two reasons that depend on it
-   * expire mechanically rather than when someone remembers them.
+   * {@code activeTables} is the set of gated tenant tables: the two reasons that depend on it are
+   * judged against it mechanically, not when someone remembers them.
    */
   static List<String> waiverViolations(String key, String reason, Set<String> activeTables) {
     return waiverViolations(key, reason, activeTables, Map.of());
@@ -608,10 +607,9 @@ class SharedTenantKeyJoinArchTest {
               + " :: fixed-pending must name the pull request that repairs it, as"
               + " fixed-pending:#<number>");
     }
-    // The two reasons that depend on the activation list expire with it, so the list decides,
-    // not whoever does the activation. Without this the format check passes forever: a waiver
-    // could claim attenuation by a table nobody activated, and a deferral could outlive the
-    // activation that was supposed to retire it, both on a green build.
+    // The two reasons that depend on the gated tables are checked against them, so the gated set
+    // decides, not whoever writes the waiver. Without this the format check passes forever: a
+    // waiver claims attenuation by a table nothing gates, on a green build.
     if (reason.startsWith("reaches-active-table:")) {
       String named = reason.substring("reaches-active-table:".length()).split("[ ,:]")[0].trim();
       if (!named.isBlank() && !activeTables.contains(named.toLowerCase(Locale.ROOT))) {
@@ -619,7 +617,7 @@ class SharedTenantKeyJoinArchTest {
             key
                 + " :: reaches-active-table names "
                 + named
-                + ", which is not in openaev.tenant.active-tables. The attenuation this waiver"
+                + ", which the statement inspector does not gate. The attenuation this waiver"
                 + " claims does not hold, so the join is unprotected");
       }
     }
@@ -668,7 +666,7 @@ class SharedTenantKeyJoinArchTest {
   @DisplayName("every waiver carries a classification and a reason")
   void everyWaiverCarriesAClassificationAndAReason() throws IOException {
     List<String> malformed = new ArrayList<>();
-    Set<String> activeTables = ProductionActiveTables.names();
+    Set<String> activeTables = BackgroundEntrypointTenantScopeArchTest.gatedTenantTables();
     Map<String, String> waivers = waivers();
     Map<String, Set<String>> groupTenantGrantAliases = groupTenantGrantAliases(waivers);
     malformed.addAll(grantReaderWaiversBeyondOnePerStatement(waivers));
@@ -1315,7 +1313,7 @@ class SharedTenantKeyJoinArchTest {
   }
 
   @Nested
-  @DisplayName("A waiver that depends on the activation list expires with it")
+  @DisplayName("A waiver that depends on the gated tables is judged against them")
   class WaiverExpiry {
 
     private static final Set<String> ACTIVE = Set.of("attack_patterns", "documents");
@@ -1330,8 +1328,8 @@ class SharedTenantKeyJoinArchTest {
                   + " foreign row is removed there before it can matter here",
               ACTIVE);
       assertTrue(
-          found.stream().anyMatch(v -> v.contains("not in openaev.tenant.active-tables")),
-          "a waiver claiming attenuation by a table nobody activated must fail. Got: " + found);
+          found.stream().anyMatch(v -> v.contains("the statement inspector does not gate")),
+          "a waiver claiming attenuation by a table nothing gates must fail. Got: " + found);
     }
 
     @Test

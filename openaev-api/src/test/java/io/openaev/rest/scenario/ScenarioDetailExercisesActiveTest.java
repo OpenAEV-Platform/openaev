@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -27,8 +26,6 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
@@ -38,16 +35,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * The scenario detail query aggregates the simulations of a scenario in a common table expression.
  * The statement inspector matches table references by name, so a CTE carrying the name of a
- * tenant-isolated table is rewritten as that table and PostgreSQL refuses the statement. These
- * tests run with {@code exercises} isolated on top of the production list, so a CTE named after it
- * turns the scenario detail and its teams into server errors.
+ * tenant-isolated table is rewritten as that table and PostgreSQL refuses the statement. The
+ * statement inspector gates {@code exercises}, so a CTE named after it turns the scenario detail
+ * and its teams into server errors.
  *
  * <p>The class is not {@code @Transactional}: seeding and cleanup run in committed transactions
  * scoped to the test tenant, so the requests read the rows the way production does.
@@ -55,13 +50,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = true)
 @DisplayName("Scenario detail with exercises isolated")
 class ScenarioDetailExercisesActiveTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithExercises(DynamicPropertyRegistry registry) {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("exercises");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

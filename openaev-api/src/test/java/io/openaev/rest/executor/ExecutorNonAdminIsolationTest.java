@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = false)
 @DisplayName("executors isolation holds for a non-admin spanning two tenants")
-class ExecutorNonAdminIsolationTest extends ProductionTablesIntegrationTest {
+class ExecutorNonAdminIsolationTest extends IntegrationTest {
 
   private static final Set<Capability> READ_EXECUTORS = Set.of(Capability.ACCESS_ASSETS);
 

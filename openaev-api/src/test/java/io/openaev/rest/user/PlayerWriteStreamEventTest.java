@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
@@ -90,7 +90,7 @@ import reactor.core.publisher.FluxSink;
 @Transactional
 @RecordApplicationEvents
 @DisplayName("Stream events of a player write")
-public class PlayerWriteStreamEventTest extends ProductionTablesIntegrationTest {
+public class PlayerWriteStreamEventTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

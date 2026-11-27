@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -43,7 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("mitigations read and write isolation through the real HTTP endpoint")
-class MitigationHttpIsolationTest extends ProductionTablesIntegrationTest {
+class MitigationHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_MITIGATIONS = "/api/tenants/{tenantId}/mitigations";
   private static final String TENANT_MITIGATION_BY_ID = TENANT_MITIGATIONS + "/{mitigationId}";

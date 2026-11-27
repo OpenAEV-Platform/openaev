@@ -59,9 +59,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-// Arms teams for this class so the main team API is exercised on v2 isolation, which the test
-// classpath otherwise switches off entirely (it declares no active-tables line). Only teams is
-// armed: the control for any measurement on this class is the same list minus teams.
 class TeamApiTest extends IntegrationTest {
 
   private static final String SEARCH_INPUT = "search input";

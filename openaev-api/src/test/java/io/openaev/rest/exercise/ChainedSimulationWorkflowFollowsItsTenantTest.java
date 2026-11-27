@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Tag;
@@ -66,7 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("The workflow of a chained simulation follows the simulation's tenant")
-class ChainedSimulationWorkflowFollowsItsTenantTest extends ProductionTablesIntegrationTest {
+class ChainedSimulationWorkflowFollowsItsTenantTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseComposer exerciseComposer;

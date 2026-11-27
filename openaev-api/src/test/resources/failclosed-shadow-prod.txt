@@ -1,5 +1,5 @@
-# Fail-closed shadow reference for the "shadow-prod" mode: the suite run under the active-tables
-# list main ships. One production call site per line (class.method, no line number), exactly the
+# Fail-closed shadow reference for the "shadow-prod" mode: the suite run with every tenant table
+# gated, as main ships. One production call site per line (class.method, no line number), exactly the
 # grammar of failclosed-baseline.txt.
 #
 # This is NOT a waiver list and it carries no safety claim. It says only which unscoped production

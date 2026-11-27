@@ -3,7 +3,6 @@ package io.openaev.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.architecture.LazyAssociationCatalog.Association;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Scenario;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,9 +28,9 @@ import org.junit.jupiter.api.Test;
  *
  * <p>A site is an endpoint whose declared response reaches an entity carrying an association that
  * is lazy, serialised by a serializer that loads it, and stored in or joined through a table the
- * production activation list gates (see {@link LazyAssociationCatalog} for each rule). Whether a
- * fetch join or an explicit initialisation attenuates a site is not visible here; the frozen
- * baseline records, per site, what the measurement found.
+ * statement inspector gates (see {@link LazyAssociationCatalog} for each rule). Whether a fetch
+ * join or an explicit initialisation attenuates a site is not visible here; the frozen baseline
+ * records, per site, what the measurement found.
  *
  * <p>The baseline only shrinks: a site that no longer exists must leave it, and its size must equal
  * {@link #BASELINE_SIZE} exactly. The count is checked for equality rather than as a ceiling, so
@@ -205,7 +204,8 @@ lower BASELINE_SIZE by as many:%n%s""",
   }
 
   private static Set<String> liveSites() {
-    return LazyAssociationCatalog.siteKeys(ProductionActiveTables.names());
+    return LazyAssociationCatalog.siteKeys(
+        BackgroundEntrypointTenantScopeArchTest.gatedTenantTables());
   }
 
   /** Site key to "VERDICT | reason". Lines starting with '#' are comments. */

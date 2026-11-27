@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import io.openaev.architecture.LinkedIdResolutionCatalog.Repositories;
-import io.openaev.config.ProductionActiveTables;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -60,7 +59,7 @@ class LinkedIdResolutionArchTest {
         Scan.of(
             LinkedIdResolutionCatalog.productionClasses(),
             LinkedIdResolutionBaseline.load(),
-            ProductionActiveTables.names(),
+            BackgroundEntrypointTenantScopeArchTest.gatedTenantTables(),
             "io.openaev.database.repository.TagRepository",
             "tags");
     return scan.checks(LINK_DEBT_SIZE, OTHER_SIZE).stream()

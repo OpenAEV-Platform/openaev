@@ -13,18 +13,19 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Reads {@code tenant-isolation-coverage-baseline.txt}, the reasoned list of the active tables that
+ * Reads {@code tenant-isolation-coverage-baseline.txt}, the reasoned list of the gated tables that
  * no test class covers yet. One table per line, {@code <table> | <missing> | <why>}: what the
  * existing tests lack, then why the table is on the list. The reason has at least {@value
- * PinnedActiveTablesBaseline#MIN_WORDS} words, the bar {@link PinnedActiveTablesBaseline} sets.
+ * #MIN_WORDS} words.
  *
- * <p>A line whose table becomes covered or inactive fails the gate, and the number of lines is
- * frozen. An activation never adds a line; a review adds one only when it removes the marker of a
- * class that does not assert the refusal on the table itself.
+ * <p>A line whose table becomes covered or stops being gated fails the gate, and the number of
+ * lines is frozen. A new tenant table never adds a line; a review adds one only when it removes the
+ * marker of a class that does not assert the refusal on the table itself.
  */
 final class TenantIsolationCoverageBaseline {
 
   static final String RESOURCE = "tenant-isolation-coverage-baseline.txt";
+  static final int MIN_WORDS = 6;
 
   private static final Pattern TABLE = Pattern.compile("[a-z][a-z0-9_]*");
 
@@ -80,13 +81,8 @@ final class TenantIsolationCoverageBaseline {
         problems.add(where + "duplicates line " + previous);
       } else if (entry.missing().isEmpty()) {
         problems.add(where + "the second column must say what the existing tests lack");
-      } else if (entry.why().isEmpty()
-          || entry.why().split("\\s+").length < PinnedActiveTablesBaseline.MIN_WORDS) {
-        problems.add(
-            where
-                + "the third column must say why, in at least "
-                + PinnedActiveTablesBaseline.MIN_WORDS
-                + " words");
+      } else if (entry.why().isEmpty() || entry.why().split("\\s+").length < MIN_WORDS) {
+        problems.add(where + "the third column must say why, in at least " + MIN_WORDS + " words");
       }
     }
     return problems;

@@ -7,7 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Scenario;
@@ -44,17 +44,17 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The caller is not an administrator and holds no marking grant, so its clearance is empty while
  * the scenario's tenant carries a marking definition: the two clearances differ, which makes the
- * marking dimension observable. The class runs with the production list of active tables. {@link
- * LaunchScopeProbe} reads both settings of the request transaction right before and right after the
- * launch, inside that same transaction. The launch is a faithful copy: the boundary it crosses is
- * {@code FaithfulCopyTransaction}, which runs {@code toExercise} at system clearance, so the probe
- * wraps that boundary rather than {@code toExercise} itself.
+ * marking dimension observable. {@link LaunchScopeProbe} reads both settings of the request
+ * transaction right before and right after the launch, inside that same transaction. The launch is
+ * a faithful copy: the boundary it crosses is {@code FaithfulCopyTransaction}, which runs {@code
+ * toExercise} at system clearance, so the probe wraps that boundary rather than {@code toExercise}
+ * itself.
  */
 @Transactional
 @Import(ScenarioLaunchKeepsRequestScopeTest.LaunchScopeProbe.class)
 @WithMockUser(isAdmin = false)
 @DisplayName("Launching a simulation from a scenario keeps the request's scope")
-class ScenarioLaunchKeepsRequestScopeTest extends ProductionTablesIntegrationTest {
+class ScenarioLaunchKeepsRequestScopeTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String RUNNING_EXERCISE = "/{scenarioId}/exercise/running";

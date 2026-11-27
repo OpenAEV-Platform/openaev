@@ -15,7 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -45,8 +44,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -59,9 +56,6 @@ import org.springframework.test.web.servlet.ResultActions;
  * loads them inside the scoped transaction to prevent it. Tags are the only lazy association a log
  * serializes beyond bare ids ({@code log_exercise}, {@code log_user}).
  *
- * <p>The tests run with the production list of isolated tables, read from {@code
- * application.properties}, so they follow any later activation.
- *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the tenant-local GUC would stay alive through serialization and MASK the very failure
  * this pins. Seeding, checks and cleanup therefore run in committed transactions opened through
@@ -70,12 +64,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation logs serialize their tags with the production isolation")
 class ExerciseLogTagsSerializationTenantScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    String activeTables = String.join(",", ProductionActiveTables.names());
-    registry.add("openaev.tenant.active-tables", () -> activeTables);
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

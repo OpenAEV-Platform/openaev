@@ -10,7 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -95,7 +95,7 @@ import reactor.core.Disposable;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Scheduler jobs write and read each item in the item's own tenant")
-class SchedulerJobTenantAttributionTest extends ProductionTablesIntegrationTest {
+class SchedulerJobTenantAttributionTest extends IntegrationTest {
 
   private static final String EVERY_MINUTE_CRON = "0 * * * * *";
   private static final String JOB_THREAD = "scheduler-job-under-test";

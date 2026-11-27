@@ -2,20 +2,15 @@ package io.openaev.rest.inject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.Set;
-import java.util.TreeSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Atomic testing by-id reads with {@code injects} isolated on top of the production list. The
- * tenant route keeps working, a selector naming a tenant the caller is not a member of is refused,
- * and a row outside the selector is not found by id.
+ * Atomic testing by-id reads with {@code injects} gated, as every tenant table. The tenant route
+ * works, a selector naming a tenant the caller is not a member of is refused, and a row outside the
+ * selector is not found by id.
  *
  * <p>The inject entity still carries the v1 tenant filter, but the by-id guards ({@code
  * InjectService#findInScope} / {@code #existsInScope}) load by primary key, which that filter does
@@ -27,13 +22,6 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @DisplayName("Atomic testing by-id reads in the request scope, injects isolated")
 class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithInjects(DynamicPropertyRegistry registry) {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("injects");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Nested
   @DisplayName("Tenant route")

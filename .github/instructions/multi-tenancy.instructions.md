@@ -24,10 +24,11 @@ description: "Multi-tenancy conventions: tenant isolation, dual-scope, anti-patt
 ## Read Isolation: the Statement Inspector
 
 No entity declares a Hibernate `@Filter`, and `TenantFilterRemovedArchTest` fails the build when one
-does. Read isolation comes from `TenantStatementInspector` (`can_access_tenant`) for every tenant
-table armed by `openaev.tenant.active-tables=*`, scoped per transaction by a `TxCtx` argument.
+does. Read isolation comes from `TenantStatementInspector` (`can_access_tenant`), scoped per
+transaction by a `TxCtx` argument. The inspector gates every tenant table of the schema, always, except
+the self-isolated tables of `TenantTables`; no property turns a table off.
 
-| | Tenant table (armed by `*`) | Self-isolated table (left out of `*`, reason in `TenantTables`) |
+| | Gated tenant table | Self-isolated table (reason in `TenantTables`) |
 |---|---|---|
 | Read isolation | SQL rewritten by the inspector | None ambient: every query names its tenant |
 | Entrypoint requirement | Every `@Transactional` entrypoint whose call graph reaches the table (directly, via another service, or via an association/join) **must** declare a `TxCtx` parameter | None |
@@ -35,34 +36,33 @@ table armed by `openaev.tenant.active-tables=*`, scoped per transaction by a `Tx
 | Native query safety | Needs a FROM/JOIN shape the inspector already accepts (see `TenantStatementInspectorTest`); a shape it does not recognize fails closed (`TENANT_FILTERING_REFUSED`) | Needs an explicit `WHERE tenant_id` |
 | Background writer | Convert the job to `TenantScopedTransaction` (`openaev-model/…/context/TenantScopedTransaction.java`) so it runs inside a real per-tenant transaction | Not required |
 
-Production arms every tenant table with `*`, so a new tenant table is armed from the day it exists;
-only the self-isolated tables of `TenantTables` are left out. A write names its tenant explicitly:
+The gated set is derived from the schema at startup, so a new tenant table is gated from the day it
+exists; only the self-isolated tables of `TenantTables` are left out. A write names its tenant explicitly:
 the tenant of the owning row, resolved in the API layer and passed as an argument. There is no
 filter to remove.
 
-**Missing `TxCtx` fails silently, not loudly.** If a v2-active table is
+**Missing `TxCtx` fails silently, not loudly.** If a gated table is
 reached without a `TxCtx` in scope, the inspector fail-closes the read: no
 exception, just an empty result. This shipped once — `ExerciseApi#changeExerciseStatus`
 called the same EE-executor-launchability gate as its sibling methods
 (`updateExerciseStart`), which had `TxCtx` wired, but `changeExerciseStatus`
-didn't; `agent.getExecutor()` (an eager `@ManyToOne` on the now-v2-active
+didn't; `agent.getExecutor()` (an eager `@ManyToOne` on the gated
 `executors` table) silently returned null, so the Enterprise Edition license
 check on manual launch never threw. `TenantScopedEntrypointsTxCtxArchTest`
-now enumerates every entrypoint required to carry `TxCtx`; when activating a
-table, walk the *entire* call graph up to every `@RestController` entrypoint
-(not just one hop) and add each one found — see `.claude/skills/activate-tenant-table/SKILL.md`.
+enumerates every entrypoint required to carry `TxCtx`; when a change makes an
+entrypoint reach a tenant table, walk the *entire* call graph up to every
+`@RestController` entrypoint (not just one hop) and add each one found.
 
-A bare `TxCtx` parameter is always safe to add ahead of a table's actual
-activation: it's inert until the table is armed (a new tenant table is armed by `*`), and
-`TxCtxArgumentResolver` defaults to the caller's full authorized tenant set
-when no `@RequireTenantSelector` is present, so it never over- or
-under-scopes an unrelated read.
+A bare `TxCtx` parameter is always safe to add: `TxCtxArgumentResolver`
+defaults to the caller's full authorized tenant set when no
+`@RequireTenantSelector` is present, so it never over- or under-scopes an
+unrelated read.
 
 ## Critical Rules
 
 1. Native `@Query` or JPQL on a **self-isolated table** (`TenantTables.SELF_ISOLATED_TABLES`) has no ambient read isolation → always add `WHERE tenant_id = :tenantId`
 2. Native query on any other tenant table → no `WHERE tenant_id` needed, but the FROM/JOIN shape must already be accepted by `TenantStatementInspector` (see table above)
-3. Every entrypoint whose call graph reaches a **v2-active** table must declare a `TxCtx` parameter — its absence is a silent empty-result regression, not a build/runtime error
+3. Every entrypoint whose call graph reaches a **gated** tenant table must declare a `TxCtx` parameter — its absence is a silent empty-result regression, not a build/runtime error
 4. Never declare a Hibernate `@Filter` or call `enableFilter` / `disableFilter` / `getEnabledFilter`: `TenantFilterRemovedArchTest` fails the build
 5. Never return `tenant_id` in API responses → `@JsonIgnore` on tenant relation
 6. Unique constraints on tenant-scoped entities → composite `(field, tenant_id)`
@@ -71,8 +71,7 @@ under-scopes an unrelated read.
    column is `tenant_id`) must constrain both sides to the same tenant. The id alone is not a
    tenant boundary. `SharedTenantKeyJoinArchTest` fails the build; the shared keys live in
    `shared-tenant-keys.txt` and the reasoned exceptions in `shared-tenant-key-join-waivers.txt`,
-   whose `reaches-active-table:` and `until-active:` reasons are checked against the production
-   activation list, so they expire with it
+   whose `reaches-active-table:` reasons are checked against the tables the inspector gates
 9. A new endpoint on tenant-scoped data is mapped under `TENANT_PREFIX` only, never also under a
    short `/api/...` route: without the tenant in the URI, a write is ambiguous for a user in
    several tenants
@@ -80,9 +79,9 @@ under-scopes an unrelated read.
     `findAllByIdInAndTenantId`) and the tenant of the entity written, never with `findAllById` or
     `getReferenceById`: an id of another tenant is treated like an unknown id. `TagRepository` is the
     model to copy. `LinkedIdResolutionArchTest` fails the build on a call that resolves ids without a
-    tenant on the repository of an active table, outside `linked-id-resolution-baseline.txt`. That
+    tenant on the repository of a gated table, outside `linked-id-resolution-baseline.txt`. That
     file pins the number of calls of each listed method, and its `link` lines are debt that only
-    shrinks. A newly activated table's link sites are converted in the change that activates it.
+    shrinks. A new tenant table's link sites resolve with the tenant in the change that adds it.
     The guard does not see `findById` on a body id, calls through generic helpers, id lookups
     declared under other names (`SecurityPlatformRepository.findAllByIds`,
     `AiTargetRepository.findAiTargetsByIds`, `InjectorContractRepository.findAllByIdOrExternalIdIn`),
@@ -100,18 +99,16 @@ transaction scoped to the tenant of what it handles:
 tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // a transaction scoped to tenantId
 ```
 
-Without that scope, a read on an active table returns no rows (`can_access_tenant` is false when no tenant is set).
+Without that scope, a read on a gated table returns no rows (`can_access_tenant` is false when no tenant is set).
 
 The runner sets the transaction scope only: it sets no thread-local tenant, and off a request the
 thread-local tenant reads as `Tenant.DEFAULT_TENANT_UUID`. So background work meets three conditions:
 
 - every row it writes names its tenant, set from the owning row, or takes it from its parent row
   (`ParentTenant.inherit`). `TenantBaseListener` stamps a row that names no tenant from the ambient
-  tenant: under the production list (`openaev.tenant.active-tables=*`) the insert fails with
-  `unattributed tenant write` when no ambient tenant is set (`TenantBaseListener.manageTenant`). On a
-  list that does not name the table, the listener falls back to `Tenant.DEFAULT_TENANT_UUID` and the
-  row lands in the default tenant with no error; single-tenant deployments never see it, because the
-  fallback is the right tenant. This shipped once: scheduled inject execution resolved another
+  tenant, and the insert fails with `unattributed tenant write` when no ambient tenant is set
+  (`TenantBaseListener.manageTenant`). With a partial table list, such a row lands in the default
+  tenant with no error, and that happened once in production: scheduled inject execution resolved another
   tenant's endpoints and created a customer simulation's expectations against them
   (`InjectsExecutionJob#executeInTenant`);
 - no code it reaches reads the ambient tenant (`TenantContext`, `AmbientTenantBridge`): each such
@@ -125,7 +122,7 @@ thread-local tenant reads as `Tenant.DEFAULT_TENANT_UUID`. So background work me
   notification engine for the deletion of a grant-managed root (a scenario, a simulation, an atomic
   testing). So a write of such a row runs in a one-tenant scope.
 
-A green `findById` proves nothing about scoping on a table outside `active-tables`, and a
+A green `findById` proves nothing about scoping on a self-isolated table, and a
 deliberately cross-tenant sweep must set the tenant explicitly on anything it writes. A cross-tenant
 read goes through `TenantScopedTransaction` with an explicit scope; there is no Hibernate filter to
 disable, and `TenantFilterRemovedArchTest` fails any call that tries.
@@ -147,7 +144,7 @@ writes the listener stamps names their tenant: no runner sets the ambient tenant
 | Background job writing a row that names no tenant, relying on `TenantBaseListener` to stamp it | Name the tenant of every row it writes, from the owning row or its parent (`ParentTenant.inherit`); `TenantScopedJobRunner` sets the transaction scope only, and a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
 | Background write of a row with no tenant column under a scope of several tenants | Run it in a one-tenant scope (`runInTenant`, `TxCtx.forTenant`), so its entity events carry that tenant |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
-| Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
-| A Hibernate `@Filter` or `enableFilter` call on a tenant entity | Leave it out: `*` arms the table and `TenantFilterRemovedArchTest` forbids the filter |
+| Entrypoint reaching a gated table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
+| A Hibernate `@Filter` or `enableFilter` call on a tenant entity | Leave it out: the inspector gates the table and `TenantFilterRemovedArchTest` forbids the filter |
 | New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |
 | `findAllById` / `getReferenceById` on ids named in a request body | `findAllByIdInTenant(ids, tenantId)` with the tenant of the entity written (rule 10) |

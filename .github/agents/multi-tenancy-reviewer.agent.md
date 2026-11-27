@@ -19,7 +19,6 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 3. **Read `.github/instructions/multi-tenancy.instructions.md`** for tenant isolation patterns and anti-patterns
 4. **Read `.github/instructions/security.instructions.md`** for RBAC and tenant isolation rules
 5. **Read `.github/instructions/database.instructions.md`** for schema and migration conventions
-6. **Read `.claude/skills/activate-tenant-table/SKILL.md`** for how a table moves from v1 to v2 (eligibility gates, call-graph inventory) — needed to judge whether a v2 gap is a real regression or expected pre-activation state
 
 ## Review Procedure
 
@@ -33,9 +32,10 @@ Do not maintain a separate copy of these steps here.
 Steps whose order or severity matters (rules in `multi-tenancy.instructions.md`):
 
 - **Step 2b (table classification)** must run before Steps 2, 3, 5: whether
-  a table is in `active-tables` changes what "correct" looks like and what severity a gap
-  gets. Do not apply the explicit `WHERE tenant_id` checklist to an active table, or the
-  `TxCtx` checklist to an inactive one: each produces false positives on the other's table.
+  a table is gated by the inspector or self-isolated (`TenantTables`) changes what "correct" looks
+  like and what severity a gap gets. Do not apply the explicit `WHERE tenant_id` checklist to a gated
+  table, or the `TxCtx` checklist to a self-isolated one: each produces false positives on the other's
+  table.
 - **Step 5 (background contexts)**: [Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope). Flag as 🔴 CRITICAL a background unit
   that reads tenant rows with no transaction scope or writes a row that names no tenant, and as 🟠 HIGH
   a write of a row with no tenant column under a scope of several tenants (its events carry the default
@@ -66,10 +66,10 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | Severity | Criteria | Action |
 |---|---|---|
 | 🔴 **CRITICAL** | Cross-tenant data leak: query returns data from other tenants | `issue (blocking):` — PR must not merge |
-| 🔴 **CRITICAL** | Entrypoint reaching a v2-active table without `TxCtx`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 3 | `issue (blocking):` — silent empty-result regression |
+| 🔴 **CRITICAL** | Entrypoint reaching a gated table without `TxCtx`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 3 | `issue (blocking):` — silent empty-result regression |
 | 🔴 **CRITICAL** | Hibernate `@Filter` or `enableFilter` / `disableFilter` call: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 4 | `issue (blocking):` |
 | 🟠 **HIGH** | Query on a self-isolated table without `WHERE tenant_id`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 1 | `issue (blocking):` no ambient read isolation |
-| 🟠 **HIGH** | Native query shape on a v2-active table: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 2 | `issue (blocking):` — fails closed in production (#7007) |
+| 🟠 **HIGH** | Native query shape on a gated table: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 2 | `issue (blocking):` — fails closed in production (#7007) |
 | 🟠 **HIGH** | Global unique constraint: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 6 | `issue (blocking):` — blocks multi-tenant usage |
 | 🟠 **HIGH** | Dual-scope entity with one service, or unscoped `findAll()` / `findById()`: [Dual-Scope Pattern](../instructions/multi-tenancy.instructions.md#dual-scope-pattern) | `issue (blocking):` — cross-scope data leak risk |
 | 🟠 **HIGH** | Tenant-scoped endpoint also on `/api/...`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 9 | `issue (blocking):` — ambiguous write for a user in several tenants |

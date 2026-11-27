@@ -2,7 +2,7 @@ package io.openaev.service.catalog.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("content_changes read isolation under a tenant scope")
-class ContentChangeIsolationTest extends ProductionTablesIntegrationTest {
+class ContentChangeIsolationTest extends IntegrationTest {
 
   @Autowired private ContentChangeRepository contentChangeRepository;
   @Autowired private TenantScopedTransaction tenantTx;

@@ -7,7 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -51,7 +51,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * was added after the check.
  */
 @DisplayName("Delete of one player from two tenants by concurrent transactions")
-class PlayerDeleteConcurrencyTest extends ProductionTablesIntegrationTest {
+class PlayerDeleteConcurrencyTest extends IntegrationTest {
 
   /** How long a delete waits for the other one between its detach and its check. */
   private static final int MEETING_SECONDS = 3;

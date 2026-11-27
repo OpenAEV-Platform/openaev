@@ -95,9 +95,8 @@ public interface DocumentRepository
 
   /**
    * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
-   * documents by supplying a cross-tenant {@code channelId} (a native query on a table outside
-   * {@code active-tables} has no ambient isolation). Callers must always supply a non-empty tenant
-   * scope.
+   * documents by supplying a cross-tenant {@code channelId} (the ambient scope of the transaction
+   * may hold several tenants). Callers must always supply a non-empty tenant scope.
    */
   @Query(
       value =

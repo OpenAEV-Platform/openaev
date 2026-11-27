@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -35,28 +34,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The simulations and scenarios named in a request body resolve in the tenant of the entity
  * written. The lookup is {@code findAllByIdInTenant(ids, tenantId)}: an id of another tenant is
- * treated like an unknown id even when the request scope holds both tenants. The class arms the
- * production list, so the inspector scopes the lookups the way it does in production; the links are
- * read from the join tables through plain JDBC, which the inspector never rewrites.
+ * treated like an unknown id even when the request scope holds both tenants. The inspector scopes
+ * the lookups the way it does in production; the links are read from the join tables through plain
+ * JDBC, which the inspector never rewrites.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulations and scenarios named in a request resolve in the tenant of the entity")
 class SimulationScenarioLinkedIdResolutionTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String UPSERT = "/upsert";

@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.MarkingCtx;
@@ -76,7 +76,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithoutTenantScope
 @DisplayName("Loads of a user with no scope, with marking_definitions active")
-class UserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
+class UserLoadUnscopedMarkingsTest extends IntegrationTest {
 
   @MockitoBean private UserEventService userEventService;
   @MockitoBean private MailingService mailingService;

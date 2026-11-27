@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous_events and autonomous_directives refuse another tenant's row on a run")
-class AutonomousRunChildRowHttpIsolationTest extends ProductionTablesIntegrationTest {
+class AutonomousRunChildRowHttpIsolationTest extends IntegrationTest {
 
   private static final String RUN_BY_ID =
       TENANT_PREFIX + AutonomousRunApi.AUTONOMOUS_URI.substring("/api".length()) + "/{runId}";

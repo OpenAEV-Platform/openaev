@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.TenantContext;
@@ -73,7 +73,7 @@ import reactor.core.publisher.FluxSink;
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("Stream delivery of a tenant user update after the session is closed")
-public class UserUpdateStreamAfterSessionTest extends ProductionTablesIntegrationTest {
+public class UserUpdateStreamAfterSessionTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;

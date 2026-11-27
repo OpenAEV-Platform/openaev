@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -53,14 +53,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * lookup read zero rows and the response said {@code []}. These routes now map each endpoint to its
  * output inside the transaction.
  *
- * <p>The class runs with the production list of isolated tables. It is deliberately NOT {@code
- * Transactional}: a rolled-back test transaction never commits, so its scope would stay alive
- * through serialization and hide the very failure this pins. Seeding runs in committed transactions
- * scoped to the test tenant, and the tenant and its rows are deleted after each test.
+ * <p>The class is deliberately NOT {@code Transactional}: a rolled-back test transaction never
+ * commits, so its scope would stay alive through serialization and hide the very failure this pins.
+ * Seeding runs in committed transactions scoped to the test tenant, and the tenant and its rows are
+ * deleted after each test.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Endpoint responses keep the tags of each endpoint")
-class EndpointTagsSerializationTenantScopeTest extends ProductionTablesIntegrationTest {
+class EndpointTagsSerializationTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

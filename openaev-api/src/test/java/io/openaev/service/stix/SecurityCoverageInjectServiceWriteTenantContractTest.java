@@ -3,7 +3,7 @@ package io.openaev.service.stix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
@@ -31,10 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code injectors_contracts} is tenant-active and the manual built-in contract id repeats across
  * tenants (#8485), so a caller resolving it for a parent row it already holds (here, the scenario a
  * security-coverage inject is created on) must stay in that parent's own tenant regardless of the
- * ambient scope. This test arms the production active-tables list (not just {@code
- * injectors_contracts} alone, so the class follows production as it activates further tables) and a
- * scope spanning both tenants that hold a copy of the built-in contract, the shape a bare
- * id/external-id lookup cannot resolve, to pin {@code
+ * ambient scope. This test runs with every tenant table gated, as in production, and a scope
+ * spanning both tenants that hold a copy of the built-in contract, the shape a bare id/external-id
+ * lookup cannot resolve, to pin {@code
  * SecurityCoverageInjectService#createdInjectsForScenarioAndSecurityCoverage}'s resolution to the
  * scenario's own tenant.
  */
@@ -42,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "SecurityCoverageInjectService resolves the built-in contract in the scenario's own tenant")
-class SecurityCoverageInjectServiceWriteTenantContractTest extends ProductionTablesIntegrationTest {
+class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTest {
 
   @Autowired private SecurityCoverageInjectService securityCoverageInjectService;
   @Autowired private ScenarioRepository scenarioRepository;

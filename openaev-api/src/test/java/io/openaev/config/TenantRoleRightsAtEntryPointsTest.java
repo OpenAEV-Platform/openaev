@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.config.security.SecurityService;
 import io.openaev.context.TenantContext;
@@ -67,7 +67,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithoutTenantScope
 @DisplayName("Tenant role rights at the authentication entry points, with roles active")
-class TenantRoleRightsAtEntryPointsTest extends ProductionTablesIntegrationTest {
+class TenantRoleRightsAtEntryPointsTest extends IntegrationTest {
 
   /** What the channel list checks ({@code CHANNEL} {@code SEARCH}). */
   private static final Capability GUARD_CAPABILITY = Capability.ACCESS_CHANNELS;

@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Pins decision Q10: a table may stay on tenant isolation <b>v1</b> (a Hibernate {@code @Filter},
- * i.e. absent from {@code openaev.tenant.active-tables}) and be marking-active at the same time.
- * This is what lets marking be activated on {@code assets} and {@code asset_groups} without waiting
- * for their tenant v2 migration.
+ * i.e. a table the tenant inspector does not gate) and be marking-active at the same time. This is
+ * what lets marking be activated on {@code assets} and {@code asset_groups} without waiting for
+ * their tenant v2 migration.
  *
  * <p>The two mechanisms act at different layers — v1 injects its condition while Hibernate
  * <i>generates</i> the SQL, marking rewrites the finished string — so the only way they could
@@ -24,12 +24,11 @@ import org.junit.jupiter.api.Test;
  *
  * <p><b>Synthetic, not config-driven:</b> the inspector below is hand-built with a {@code
  * documents} entry hardcoded as v1 (empty {@link TenantTables}) and marking-active — it does not
- * read the real {@code Document} entity's {@code @Filter} annotation, nor {@code
- * openaev.tenant.active-tables} / {@code openaev.marking.active-tables} from {@code
- * application.properties}. It will keep passing even if {@code documents} is later migrated to
- * tenant v2, since nothing here is wired to that migration. If/when that happens, this class stops
- * describing a real table and should be re-pointed at a table that is still genuinely v1, or have
- * this note updated to say so explicitly.
+ * read the real {@code Document} entity's {@code @Filter} annotation, nor the gated tenant tables /
+ * {@code openaev.marking.active-tables} from {@code application.properties}. It passes even if
+ * {@code documents} is later migrated to tenant v2, since nothing here is wired to that migration.
+ * If/when that happens, this class stops describing a real table and should be re-pointed at a
+ * table that is genuinely v1, or have this note updated to say so explicitly.
  */
 @DisplayName("Marking coexists with tenant isolation v1")
 class MarkingCoexistsWithTenantV1Test {

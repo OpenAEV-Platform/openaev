@@ -3,7 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("AttackPathGraphService resolves the contract in the execution's own tenant")
-class AttackPathGraphServiceExecutionDetailTenantScopeTest extends ProductionTablesIntegrationTest {
+class AttackPathGraphServiceExecutionDetailTenantScopeTest extends IntegrationTest {
 
   private static final String SIM = "SIM-EXEC-DETAIL-TENANT-SCOPE";
   private static final String SHARED_EXTERNAL_ID = "shared-contract-ext";

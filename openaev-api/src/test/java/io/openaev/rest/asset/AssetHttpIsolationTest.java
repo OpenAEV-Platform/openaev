@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -45,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("assets read isolation through the real HTTP endpoints, all three discriminators")
-class AssetHttpIsolationTest extends ProductionTablesIntegrationTest {
+class AssetHttpIsolationTest extends IntegrationTest {
 
   private static final String ENDPOINT_BY_ID = "/api/tenants/{tenantId}/endpoints/{endpointId}";
   private static final String ASSET_BY_ID = "/api/tenants/{tenantId}/assets/{assetId}";

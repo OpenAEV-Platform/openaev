@@ -15,7 +15,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -99,7 +99,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = true)
 @TestInstance(PER_CLASS)
 @DisplayName("A chained inject update notifies its step in the simulation's tenant")
-class WorkflowUpdateEventOutOfScopeCallersTest extends ProductionTablesIntegrationTest {
+class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
 
   private record Seeded(String injectId, String expectationId, String stepId) {}
 

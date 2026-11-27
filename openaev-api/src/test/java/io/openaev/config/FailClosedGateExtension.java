@@ -39,11 +39,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * optionally limited to the tables it names, see {@link #isWaived}); anything else fails, i.e. a
  * genuinely new unscoped production path as tables are onboarded (WS2/WS3).
  *
- * <p><strong>Shadow modes.</strong> A shadow run arms a much wider active-tables list than the one
- * the test classpath declares (which is none at all), so every production method reading a newly
- * gated table is absent from {@code failclosed-baseline.txt} by construction. Failing each test on
- * it reports the same handful of signatures over and over while destroying the other half of what
- * the shadow is for, namely whether the suite passes under activation. So when {@value
+ * <p><strong>Shadow modes.</strong> A shadow run reads the suite as a whole, so a production method
+ * reading a gated table may be absent from {@code failclosed-baseline.txt} by construction. Failing
+ * each test on it reports the same handful of signatures over and over while destroying the other
+ * half of what the shadow is for, namely whether the suite passes under activation. So when {@value
  * #SHADOW_MODE_PROPERTY} arms a mode, the per-test assertion goes inert: the gate accumulates the
  * signatures and writes them to {@value #SHADOW_REPORT_FILE} next to the surefire reports, each
  * marked {@value #NEW_PREFIX} or {@value #KNOWN_PREFIX} against <em>that mode's own</em> stored

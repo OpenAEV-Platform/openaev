@@ -15,7 +15,7 @@ import lombok.Getter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * asset_agent_jobs is v2-active (openaev.tenant.active-tables): isolation runs through {@code
+ * asset_agent_jobs is gated by the statement inspector: isolation runs through {@code
  * TenantStatementInspector} + {@code can_access_tenant}, not the v1 Hibernate filter, so both the
  * filter and {@code TenantBaseListener} are removed here. Every write already sets {@code tenant}
  * explicitly (see {@code AssetAgentJobRepository} callers), so removing the listener's

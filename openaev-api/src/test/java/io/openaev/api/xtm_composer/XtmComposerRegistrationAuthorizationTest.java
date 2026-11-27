@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantScopedTransaction;
@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("XTM Composer registration writes need a platform capability")
-class XtmComposerRegistrationAuthorizationTest extends ProductionTablesIntegrationTest {
+class XtmComposerRegistrationAuthorizationTest extends IntegrationTest {
 
   private static final String REGISTERED_ID = "registered-composer";
   private static final String REGISTERED_KEY = "registered-public-key";

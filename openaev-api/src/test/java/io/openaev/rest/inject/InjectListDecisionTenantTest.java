@@ -24,7 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Capability;
@@ -52,7 +51,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,8 +58,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -85,7 +81,7 @@ import org.springframework.transaction.annotation.Transactional;
  * that stay visible are those of the ambient tenant, which the per-tenant decision and a decision
  * taken in the ambient tenant alone answer the same way. The class arms {@code injects} itself so
  * that it measures the per-tenant decision rather than that narrowing; {@code exercises} and {@code
- * scenarios} are on the production list. The decision itself is pinned by {@code
+ * scenarios} are gated too. The decision itself is pinned by {@code
  * PermissionServiceTenantDecisionTest}, on rows of both tenants.
  */
 @TestInstance(PER_CLASS)
@@ -94,18 +90,6 @@ import org.springframework.transaction.annotation.Transactional;
 class InjectListDecisionTenantTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            String.join(
-                ",",
-                Stream.concat(ProductionActiveTables.names().stream(), Stream.of("injects"))
-                    .distinct()
-                    .toList()));
-  }
 
   @Autowired private MockMvc mvc;
   @MockitoSpyBean private PermissionService permissionService;

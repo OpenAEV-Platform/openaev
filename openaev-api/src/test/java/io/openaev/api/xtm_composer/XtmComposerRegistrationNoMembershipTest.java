@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("XTM Composer registration read by a caller with no tenant membership")
-class XtmComposerRegistrationNoMembershipTest extends ProductionTablesIntegrationTest {
+class XtmComposerRegistrationNoMembershipTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private OpenAEVConfig openAEVConfig;

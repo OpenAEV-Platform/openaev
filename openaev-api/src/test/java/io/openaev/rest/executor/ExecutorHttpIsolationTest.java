@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorUpdateInput;
@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("executors read and write isolation through the real HTTP endpoint")
-class ExecutorHttpIsolationTest extends ProductionTablesIntegrationTest {
+class ExecutorHttpIsolationTest extends IntegrationTest {
 
   private static final String EXECUTOR_BY_ID = "/api/tenants/{tenantId}/executors/{executorId}";
 

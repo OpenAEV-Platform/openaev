@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,7 +43,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @CoversTenantIsolation("notification_events")
 @WithMockUser(isAdmin = true)
 @DisplayName("notification_events refuses another tenant's event under one tenant's scope")
-class NotificationEventScopeIsolationTest extends ProductionTablesIntegrationTest {
+class NotificationEventScopeIsolationTest extends IntegrationTest {
 
   @Autowired private NotificationEventRecordRepository repository;
   @Autowired private TenantScopedTransaction tenantTx;

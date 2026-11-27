@@ -2,7 +2,7 @@ package io.openaev.service.tenants;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("tenant creation writes the contract provisioning rows in the new tenant only")
-class TenantProvisioningRowTenantTest extends ProductionTablesIntegrationTest {
+class TenantProvisioningRowTenantTest extends IntegrationTest {
 
   private static final List<String> PROVISIONED_TABLES =
       List.of("injectors_contracts", "injectors_contracts_domains", "injectors_injector_contracts");

@@ -3,7 +3,7 @@ package io.openaev.runner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
@@ -29,7 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * <p>NOT {@code @Transactional}: the runner opens and owns its transaction.
  */
 @DisplayName("Admin bootstrap with roles active")
-class DualScopeRolesBootTest extends ProductionTablesIntegrationTest {
+class DualScopeRolesBootTest extends IntegrationTest {
 
   private static final String PLATFORM_ADMIN_ROLE_ID =
       AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.roleId();

@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
@@ -40,7 +40,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @DisplayName("Contract search and counts read a contract id once for a caller of several tenants")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiSearchTenantScopeTest extends ProductionTablesIntegrationTest {
+class InjectorContractApiSearchTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

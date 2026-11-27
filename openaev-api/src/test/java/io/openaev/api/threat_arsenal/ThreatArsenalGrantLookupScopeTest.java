@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -50,7 +50,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @DisplayName("Threat arsenal access gate resolves the contract in the request's tenant")
 @WithMockUser
-class ThreatArsenalGrantLookupScopeTest extends ProductionTablesIntegrationTest {
+class ThreatArsenalGrantLookupScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
