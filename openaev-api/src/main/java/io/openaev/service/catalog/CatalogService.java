@@ -6,6 +6,7 @@ import io.openaev.api.catalog.dto.CatalogSyncOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogItem;
+import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogRelease;
 import io.openaev.database.model.catalog.CatalogScenario;
@@ -13,8 +14,10 @@ import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.CatalogReleaseRepository;
 import io.openaev.notification.catalog.CatalogEvents.AddedVersion;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.catalog.scenario.CatalogScenarioService;
 import io.openaev.utils.catalog.SemanticVersion;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -32,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogService {
 
   private final CatalogItemRepository catalogItemRepository;
+  private final CatalogScenarioService catalogScenarioService;
   private final CatalogReleaseRepository catalogReleaseRepository;
   private final CatalogItemMapper catalogItemMapper;
   private final EntityManager entityManager;
@@ -52,7 +56,7 @@ public class CatalogService {
     refuseIfOlder(latest, manifest);
     CatalogRelease release = saveRelease(tenantId, manifest);
     CatalogSyncResult result = saveItems(release, checked, latest == null);
-    removeItemsNotIn(release, manifest);
+    removeItemsNotIn(tenantId, release, manifest);
     markLatestOffered(release);
     eventPublisher.publishEvent(result.toEvent(tenantId));
     return result.toOutput();
@@ -191,17 +195,28 @@ public class CatalogService {
             item.getExternalId(),
             item.getName(),
             item.getVersion(),
-            isNew));
+            isNew,
+            item.getStatus() == CatalogItemStatus.REVOKED));
   }
 
-  private void removeItemsNotIn(CatalogRelease release, CatalogManifest manifest) {
+  // A version a scenario runs or can roll back to stays, unlisted: updating it reads it.
+  private void removeItemsNotIn(String tenantId, CatalogRelease release, CatalogManifest manifest) {
     Set<String> listed = manifest.keys();
-    List<CatalogItem> removed =
-        catalogItemRepository.findAllByReleaseRepository(release.getRepository()).stream()
-            .filter(
-                item ->
-                    !listed.contains(CatalogManifest.key(item.getExternalId(), item.getVersion())))
-            .toList();
+    Set<String> installed =
+        catalogScenarioService.versionKeysInUse(tenantId, release.getRepository());
+    List<CatalogItem> removed = new ArrayList<>();
+    for (CatalogItem item :
+        catalogItemRepository.findAllByReleaseRepository(release.getRepository())) {
+      String key = CatalogManifest.key(item.getExternalId(), item.getVersion());
+      if (listed.contains(key)) {
+        continue;
+      }
+      if (installed.contains(key)) {
+        item.setStatus(CatalogItemStatus.UNLISTED);
+      } else {
+        removed.add(item);
+      }
+    }
     catalogItemRepository.deleteAll(removed);
   }
 

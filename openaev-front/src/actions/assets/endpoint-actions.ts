@@ -1,19 +1,19 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetBulkUpdateInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetBulkUpdateInput, type Endpoint, type EndpointOutput, type MarkedEndpointInput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
 
-export const addEndpointAgentless = (data: EndpointInput) => (dispatch: Dispatch) => {
+export const addEndpointAgentless = (data: MarkedEndpointInput) => (dispatch: Dispatch) => {
   const uri = `${ENDPOINT_URI}/agentless`;
   return postReferential(endpoint, uri, data)(dispatch);
 };
 
 export const updateEndpoint = (
   assetId: EndpointOutput['asset_id'],
-  data: EndpointInput,
+  data: MarkedEndpointInput,
 ) => (dispatch: Dispatch) => {
   const uri = `${ENDPOINT_URI}/${assetId}`;
   return putReferential(endpoint, uri, data)(dispatch);
@@ -44,23 +44,11 @@ export const deleteAsset = (assetId: string) => {
   return simpleDelCall(`/api/assets/${assetId}`);
 };
 
-// Replaces an asset's whole marking set; normalized so the response deep-merges, not replaces.
-export const updateAssetMarkings = (
-  assetId: string,
-  data: AssetUpdateMarkingsInput,
-  // AssetForm passes false here to avoid a second toast for what feels like one save.
-  defaultSuccessBehavior: boolean = true,
-) => (dispatch: Dispatch) => {
-  const uri = `/api/assets/${assetId}/markings`;
-  return putReferential(endpoint, uri, data, defaultSuccessBehavior)(dispatch);
-};
-
 // Bulk delete for the unified inventory: explicit ids or select-all-with-exclusions search input.
 export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
   return simpleDelCall('/api/assets', { data: input });
 };
 
-// Bulk mirror of updateAssetMarkings, same scope as bulkDeleteAssets; empty list clears all markings.
 export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) => {
   return simplePutCall('/api/assets/markings/bulk', input);
 };

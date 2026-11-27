@@ -25,7 +25,6 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -43,7 +42,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
 import io.openaev.api.payload.dto.PayloadRevocationInput;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectDependencyConditions.DependencyMode;
@@ -52,17 +50,16 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
+import io.openaev.database.model.catalog.CatalogItemStatus;
+import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.scenario.ScenarioRevision;
+import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.ContentChangeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioRevisionRepository;
-import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.VariableService;
-import io.openaev.service.catalog.scenario.update.CatalogScenarioUpdateService;
-import io.openaev.service.catalog.scenario.update.InstalledScenario;
-import io.openaev.service.catalog.scenario.update.ScenarioUpdate;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -117,7 +114,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private static final String NEXT_PAYLOAD = "1.4.0";
   private static final String NEXT_PAYLOAD_VERSION = "1.1.0";
   private static final String CHAINED = "2.0.0";
-  private static final String REVOKED = "2.1.0";
+  private static final String REVOKED = "0.9.0";
   private static final String NEW_TITLE = "whoami, verbose";
   private static final String MY_TITLE = "My whoami";
   private static final String TARGET = "10.0.0.1";
@@ -138,7 +135,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioRevisionRepository scenarioRevisionRepository;
-  @Autowired private CatalogScenarioUpdateService catalogScenarioUpdateService;
+  @Autowired private CatalogItemRepository catalogItemRepository;
 
   @BeforeEach
   void publishAndInstall() throws Exception {
@@ -207,6 +204,10 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   }
 
   private void publish(Map<String, byte[]> archives) throws Exception {
+    publish("2026.11.20", archives);
+  }
+
+  private void publish(String release, Map<String, byte[]> archives) throws Exception {
     List<Map<String, Object>> items = new ArrayList<>();
     Map<String, byte[]> files = new LinkedHashMap<>();
     archives.forEach(
@@ -229,7 +230,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
             syncRequest(
                     mapper.writeValueAsBytes(
                         manifest(
-                            "2026.11.20",
+                            release,
                             items,
                             List.of(
                                 payloadVersion(INSTALLED, "VERIFIED", RELEASED),
@@ -298,6 +299,16 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private MockHttpServletRequestBuilder updateRequest(
       Scenario scenario, String version, Map<String, String> choices, Map<String, String> edits)
       throws Exception {
+    return updateRequest(scenario, version, installedVersion(scenario), choices, edits);
+  }
+
+  private MockHttpServletRequestBuilder updateRequest(
+      Scenario scenario,
+      String version,
+      String previewedVersion,
+      Map<String, String> choices,
+      Map<String, String> edits)
+      throws Exception {
     return post(
             TENANT_SCENARIO_URI + "/{scenarioId}/versions/{version}/updates",
             DEFAULT_TENANT_UUID,
@@ -306,7 +317,13 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(
             mapper.writeValueAsString(
-                Map.of("scenario_update_choices", choices, "scenario_update_edits", edits)));
+                Map.of(
+                    "scenario_update_from_version",
+                    previewedVersion,
+                    "scenario_update_choices",
+                    choices,
+                    "scenario_update_edits",
+                    edits)));
   }
 
   private ResultActions rollback(Scenario scenario, String revisionId) throws Exception {
@@ -322,14 +339,17 @@ class ScenarioUpdateApiTest extends IntegrationTest {
         revisionId);
   }
 
-  private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId) {
+  private MockHttpServletRequestBuilder rollbackRequest(Scenario scenario, String revisionId)
+      throws Exception {
     return post(
             TENANT_SCENARIO_URI + "/{scenarioId}/revisions/{revisionId}/rollbacks",
             DEFAULT_TENANT_UUID,
             scenario.getId(),
             revisionId)
         .contentType(MediaType.APPLICATION_JSON)
-        .content("{}");
+        .content(
+            mapper.writeValueAsString(
+                Map.of("scenario_update_from_version", installedVersion(scenario))));
   }
 
   // A revision of a scenario installed by hand, in the given tenant.
@@ -358,6 +378,24 @@ class ScenarioUpdateApiTest extends IntegrationTest {
             .get();
     tenantHelper.attachUserToTenant(reader.getId(), DEFAULT_TENANT_UUID);
     return buildAuthenticationToken(reader);
+  }
+
+  private ResultActions catalogStates(String... scenarioIds) throws Exception {
+    return committed(
+        post(TENANT_SCENARIO_URI + "/catalog-states", DEFAULT_TENANT_UUID)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(Map.of("scenario_ids", List.of(scenarioIds)))));
+  }
+
+  private void revoke(String version) {
+    CatalogScenario item =
+        catalogItemRepository
+            .findVersion(CatalogScenario.class, SCENARIO_ID, version)
+            .orElseThrow();
+    item.setStatus(CatalogItemStatus.REVOKED);
+    catalogItemRepository.save(item);
+    entityManager.flush();
+    entityManager.clear();
   }
 
   private ResultActions revisions(Scenario scenario) throws Exception {
@@ -468,15 +506,15 @@ class ScenarioUpdateApiTest extends IntegrationTest {
               jsonPath("$.scenario_versions[*].scenario_version")
                   .value(
                       contains(
-                          REVOKED,
                           CHAINED,
                           NEXT_PAYLOAD,
                           LINKING_CHALLENGES,
                           RESHAPED,
                           NEWER,
                           SAME_CONTENT,
-                          INSTALLED)))
-          .andExpect(jsonPath("$.scenario_versions[0].scenario_version_status").value("REVOKED"))
+                          INSTALLED,
+                          REVOKED)))
+          .andExpect(jsonPath("$.scenario_versions[7].scenario_version_status").value("REVOKED"))
           .andExpect(
               jsonPath(
                       "$.scenario_versions[?(@.scenario_version_current == true)].scenario_version")
@@ -530,6 +568,70 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           .andExpect(jsonPath("$[0].scenario_revision_user").isNotEmpty())
           .andExpect(jsonPath("$[0].scenario_revision_created_at").isNotEmpty());
     }
+
+    @Test
+    @DisplayName("gives an updated scenario the update to roll back, and nothing to a local one")
+    void given_updatedScenario_should_giveItsLastUpdate() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      Scenario local = ScenarioFixture.getScenario();
+      local.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+      String localId = scenarioRepository.save(local).getId();
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId(), localId);
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.length()").value(1))
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(false))
+          .andExpect(
+              jsonPath(state + ".scenario_catalog_state_last_update.scenario_revision_number")
+                  .value(2))
+          .andExpect(
+              jsonPath(
+                      state
+                          + ".scenario_catalog_state_last_update.scenario_revision_catalog_version")
+                  .value(INSTALLED));
+    }
+
+    @Test
+    @DisplayName("says a scenario runs a revoked version, with no update to roll back")
+    void given_revokedInstalledVersion_should_sayRevoked() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      revoke(INSTALLED);
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId());
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(true))
+          .andExpect(jsonPath(state + ".scenario_catalog_state_last_update").isEmpty());
+    }
+
+    @Test
+    @DisplayName("says a scenario is revoked when its newest version is, whatever version it runs")
+    void given_newestVersionRevoked_should_sayRevoked() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      revoke(CHAINED);
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId());
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(true));
+    }
   }
 
   // -- UPDATE --
@@ -537,6 +639,31 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Updating")
   class Updating {
+
+    @Test
+    @DisplayName("keeps the installed version a release no longer lists, so it can still update")
+    void given_releaseWithoutTheInstalledVersion_should_keepItUnlisted() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      publish("2026.11.21", Map.of(NEWER, scenarioPackage(RELEASED.file(), newer())));
+
+      // Act
+      ResultActions versions =
+          committed(
+              get(
+                  TENANT_SCENARIO_URI + "/{scenarioId}/versions",
+                  DEFAULT_TENANT_UUID,
+                  scenario.getId()));
+
+      // Assert
+      versions
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.scenario_versions[*].scenario_version").value(contains(NEWER, INSTALLED)))
+          .andExpect(jsonPath("$.scenario_versions[1].scenario_version_status").value("UNLISTED"))
+          .andExpect(jsonPath("$.scenario_versions[1].scenario_version_current").value(true));
+      previewUpdate(scenario, NEWER).andExpect(status().isOk());
+    }
 
     @Test
     @DisplayName("shows nothing to change for a version with the same content")
@@ -605,7 +732,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
                           + "')].scenario_change_status")
                   .value("CONFLICT"));
       update(scenario, Map.of())
-          .andExpect(status().isBadRequest())
+          .andExpect(status().isConflict())
           .andExpect(jsonPath("$.message").value(CONFLICT_LEFT));
       update(scenario, Map.of(conflictId, "KEEP_MINE")).andExpect(status().isNoContent());
       assertThat(onlyInject(scenario).getTitle()).isEqualTo(MY_TITLE);
@@ -717,6 +844,25 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "keeps the version before an update that a release drops, so the rollback can update again")
+    void given_releaseWithoutTheVersionBeforeAnUpdate_should_keepItForTheRollback()
+        throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      update(scenario, Map.of()).andExpect(status().isNoContent());
+      String revisionId = revisionId(scenario, ScenarioRevision.Reason.UPDATE);
+      publish("2026.11.21", Map.of(NEWER, scenarioPackage(RELEASED.file(), newer())));
+
+      // Act
+      rollback(scenario, revisionId).andExpect(status().isNoContent());
+
+      // Assert
+      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+      previewUpdate(scenario, NEWER).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("removes the inject, the link and the value a later version brought")
     void given_versionAddingALinkedInject_should_writeItThenRollItBack() throws Exception {
       // Arrange
@@ -815,28 +961,21 @@ class ScenarioUpdateApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("refuses an update when the scenario moved to another version meanwhile")
-    void given_versionChangedMeanwhile_should_refuseTheUpdate() throws Exception {
+    @DisplayName("refuses an update when the scenario moved to another version since the preview")
+    void given_versionChangedSinceThePreview_should_refuseTheUpdate() throws Exception {
       // Arrange
       Scenario scenario = install();
-      ObjectNode empty = JsonNodeFactory.instance.objectNode();
-      ScenarioUpdate stale =
-          new ScenarioUpdate(
-              new InstalledScenario(
-                  scenario.getId(), DEFAULT_TENANT_UUID, SCENARIO_ID, SAME_CONTENT),
-              empty,
-              empty,
-              NEWER,
-              ScenarioRevision.Reason.UPDATE);
+      update(scenario, SAME_CONTENT, Map.of()).andExpect(status().isNoContent());
 
-      // Act & Assert
-      assertThatThrownBy(
-              () ->
-                  catalogScenarioUpdateService.apply(
-                      TxCtx.forTenant(DEFAULT_TENANT_UUID), stale, Map.of(), Map.of(), Map.of()))
-          .isInstanceOf(BadRequestException.class)
-          .hasMessage(CHANGED_MEANWHILE);
-      assertThat(installedVersion(scenario)).isEqualTo(INSTALLED);
+      // Act
+      ResultActions refused =
+          committed(updateRequest(scenario, NEWER, INSTALLED, Map.of(), Map.of()));
+
+      // Assert
+      refused
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(CHANGED_MEANWHILE));
+      assertThat(installedVersion(scenario)).isEqualTo(SAME_CONTENT);
     }
 
     @ParameterizedTest(name = "in another tenant: {0}")

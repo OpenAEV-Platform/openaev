@@ -1,7 +1,6 @@
 import { Checkbox, Chip } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -346,12 +345,9 @@ const Injects: FunctionComponent<Props> = ({
       event.stopPropagation();
       event.preventDefault();
     }
-    if (selectedElements && !R.isEmpty(selectedElements)) {
+    if (Object.keys(selectedElements).length > 0) {
       // Find the indexes of the first and last selected entities
-      let firstIndex = R.findIndex(
-        (n: Inject) => n.inject_id === R.head(Object.values(selectedElements)).inject_id,
-        injects,
-      );
+      let firstIndex = injects.findIndex((n: InjectOutputType) => n.inject_id === Object.values(selectedElements)[0].inject_id);
       if (currentIndex > firstIndex) {
         let entities: InjectOutputType[] = [];
         while (firstIndex <= currentIndex) {
@@ -402,7 +398,7 @@ const Injects: FunctionComponent<Props> = ({
       operationsToPerform.push({
         operation: action.type.toLowerCase(),
         field: action.field,
-        values: R.uniq(action.values.map(n => n.value)),
+        values: [...new Set(action.values.map(n => n.value))],
       } as InjectBulkUpdateOperation); // Cast is necessary because typeof enum don't work with operation and fields
     }
     await injectContext.onBulkUpdateInject({

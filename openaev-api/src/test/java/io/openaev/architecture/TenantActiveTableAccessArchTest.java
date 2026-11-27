@@ -807,7 +807,8 @@ class TenantActiveTableAccessArchTest {
               MarkingDefinitionApi.class,
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
-              // OpenCTI-format import behind MarkingDefinitionApi.importStix, a TxCtx-carrying
+              // OpenCTI-format import behind MarkingDefinitionImporterApi.importStix, a
+              // TxCtx-carrying
               // @Transactional handler: its two reads take the write tenant the handler resolved
               // (findByStixIdAndTenantId, findByTypeAndDefinitionAndTenantId) and creation
               // goes through MarkingDefinitionService.create.
@@ -3444,6 +3445,11 @@ class TenantActiveTableAccessArchTest {
         "keyed by the payload entity"),
     allow(
         io.openaev.rest.payload.service.PayloadService.class,
+        "saveAndRebuildContract",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
         "synchroniseInjectorContractBasedOnPayload",
         "addContractToPayloadsInjectors",
         "joins the injector and the contract on the same tenant"),
@@ -4766,7 +4772,9 @@ class TenantActiveTableAccessArchTest {
               InjectHandler.class,
               // Reached only from the threat arsenal usages endpoint, a read-only transaction
               // that carries a TxCtx and passes the one tenant of its scope to the query:
-              PayloadVersionService.class)
+              PayloadVersionService.class,
+              // Runtime migration, under the migration processor's forTenant scope:
+              io.openaev.processor.core.V20261119_Add_logging_expectation_to_manual_payloads.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectRepository.class)

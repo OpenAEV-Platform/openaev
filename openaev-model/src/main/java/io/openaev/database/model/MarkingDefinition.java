@@ -37,6 +37,10 @@ public class MarkingDefinition implements TenantBase, Auditable {
   public static final String TYPE_TLP = "TLP";
   public static final String TYPE_PAP = "PAP";
 
+  // The width of the type and definition columns.
+  public static final int TYPE_MAX_LENGTH = 255;
+  public static final int DEFINITION_MAX_LENGTH = 255;
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "marking_definition_id")
@@ -45,13 +49,13 @@ public class MarkingDefinition implements TenantBase, Auditable {
   private String id;
 
   @Queryable(filterable = true, searchable = true, sortable = true)
-  @Column(name = "marking_definition_type", nullable = false)
+  @Column(name = "marking_definition_type", nullable = false, length = TYPE_MAX_LENGTH)
   @JsonProperty("marking_definition_type")
   @NotBlank
   private String type;
 
   @Queryable(filterable = true, searchable = true, sortable = true)
-  @Column(name = "marking_definition_definition", nullable = false)
+  @Column(name = "marking_definition_definition", nullable = false, length = DEFINITION_MAX_LENGTH)
   @JsonProperty("marking_definition_definition")
   @NotBlank
   private String definition;

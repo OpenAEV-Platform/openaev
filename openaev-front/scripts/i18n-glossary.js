@@ -3,10 +3,11 @@
    Consumed by i18n-checker.js. */
 import fs from 'node:fs';
 
-import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+import { DEFAULT_LANG } from './constants/Lang.js';
+import { readLangFile, readLangFiles } from './i18n-lang-files.js';
 
 const { globalTerms } = JSON.parse(fs.readFileSync('scripts/i18n-glossary.json', 'utf8'));
-const english = JSON.parse(fs.readFileSync(`src/utils/lang/${DEFAULT_LANG}.json`, 'utf8'));
+const english = readLangFile(DEFAULT_LANG);
 
 // Escaping: a term such as "C++" would make the RegExp throw without it.
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -36,11 +37,8 @@ export const stripGlossaryTerms = value => value.replace(allTermsRe, ' ');
 export const collectGlossaryViolations = () => {
   const violations = [];
 
-  for (const lang of supportedLanguages) {
-    const file = `src/utils/lang/${lang}.json`;
-    if (!fs.existsSync(file)) continue;
-
-    for (const [key, value] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')))) {
+  for (const [lang, translations] of readLangFiles()) {
+    for (const [key, value] of Object.entries(translations)) {
       // The reference is the English value, not the key: technical keys (openaev_caldera…) only carry it there.
       const reference = english[key];
       if (typeof reference !== 'string' || typeof value !== 'string') continue;

@@ -40,6 +40,7 @@ Additional ORM-specific levels:
 | 🔴 **CRITICAL** | Native or bulk write with no compensating update: [Write correctness](../instructions/orm.instructions.md#write-correctness-the-listener-chain) |
 | 🔴 **CRITICAL** | `@Id` / `@IdClass` not covering the real composite key: [Composite keys](../instructions/orm.instructions.md#composite-keys) |
 | 🟠 **HIGH** | Controller returns a JPA `@Entity`: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) |
+| 🟠 **HIGH** | LAZY collection on an `@AuditDiffTracked` entity without `@AuditDiffUnloaded`: [LAZY collections on an audited entity](../instructions/orm.instructions.md#lazy-collections-on-an-audited-entity) |
 | 🟡 **MEDIUM** | `nativeQuery = true` without its one-line justification: [Justify every native query](../instructions/orm.instructions.md#justify-every-native-query) |
 | 🟡 **MEDIUM** | Wall-clock time asserted as a performance gate: [Test methodology](../instructions/orm.instructions.md#test-methodology) |
 | 🟡 **MEDIUM** | `instanceof` on a lazy polymorphic association, or scattered `Hibernate.unproxy()`: [Inheritance and proxies](../instructions/orm.instructions.md#inheritance-and-proxies) |
@@ -55,6 +56,7 @@ This agent has no separate skill; run these steps directly.
 4. **Boundary at the API.** Flag controller methods returning a JPA `@Entity`.
 5. **Test methodology.** Apply [Test methodology](../instructions/orm.instructions.md#test-methodology) to ORM/perf tests.
 6. **Inheritance / proxies.** `grep -rn "Hibernate.unproxy\|instanceof" openaev-api openaev-model`, then apply [Inheritance and proxies](../instructions/orm.instructions.md#inheritance-and-proxies).
+7. **Audited LAZY collections.** For each `@AuditDiffTracked` entity the PR touches, apply [LAZY collections on an audited entity](../instructions/orm.instructions.md#lazy-collections-on-an-audited-entity) to its serialized LAZY collections.
 
 ## What NOT to Flag
 

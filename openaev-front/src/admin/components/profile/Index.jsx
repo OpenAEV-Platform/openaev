@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
 import {
@@ -69,7 +68,7 @@ const Index = () => {
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',
   };
-  const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
+  const userToken = tokens.length > 0 ? tokens[0] : undefined;
   return (
     <div style={{
       width: 900,

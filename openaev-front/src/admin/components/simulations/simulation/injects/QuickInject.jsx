@@ -30,7 +30,7 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
-import { omit } from '../../../../../utils/object';
+import { isEmpty, omit } from '../../../../../utils/object';
 import { ascendBy, descendBy } from '../../../../../utils/Sorting';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
@@ -442,7 +442,7 @@ class QuickInjectComponent extends Component {
         )
         .forEach((field) => {
           const value = values[field.key];
-          if (field.mandatory && R.isEmpty(value)) {
+          if (field.mandatory && isEmpty(value)) {
             errors[field.key] = t('This field is required.');
           }
         });
@@ -741,7 +741,7 @@ class QuickInjectComponent extends Component {
       .filter(f => !builtInFields.includes(f.key) && !f.expectation)
       .forEach((field) => {
         if (field.cardinality && field.cardinality === '1') {
-          let defaultValue = R.head(field.defaultValue);
+          let defaultValue = field.defaultValue[0];
           if (
             field.type === 'textarea'
             && field.richText
@@ -835,7 +835,7 @@ class QuickInjectComponent extends Component {
       .forEach((field) => {
         if (!initialValues[field.key]) {
           if (field.cardinality && field.cardinality === '1') {
-            initialValues[field.key] = R.head(field.defaultValue);
+            initialValues[field.key] = field.defaultValue[0];
           } else {
             initialValues[field.key] = field.defaultValue;
           }

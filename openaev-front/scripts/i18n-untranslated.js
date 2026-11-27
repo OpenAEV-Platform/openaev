@@ -5,11 +5,12 @@
    listed in i18n-loanwords.json ("all" applies to every locale). Consumed by i18n-checker.js. */
 import fs from 'node:fs';
 
-import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+import { DEFAULT_LANG } from './constants/Lang.js';
 import { stripGlossaryTerms } from './i18n-glossary.js';
+import { readLangFile, readLangFiles } from './i18n-lang-files.js';
 
 const loanwords = JSON.parse(fs.readFileSync('scripts/i18n-loanwords.json', 'utf8'));
-const english = JSON.parse(fs.readFileSync(`src/utils/lang/${DEFAULT_LANG}.json`, 'utf8'));
+const english = readLangFile(DEFAULT_LANG);
 
 const PLACEHOLDER_RE = /\{\{[^{}]+\}\}|\{[^{}]+\}|<\/?[a-zA-Z0-9]+\s*\/?>/g;
 
@@ -21,12 +22,9 @@ const isLoanword = (lang, value) => (loanwords.all ?? []).includes(value) || (lo
 export const collectUntranslatedViolations = () => {
   const violations = [];
 
-  for (const lang of supportedLanguages) {
+  for (const [lang, translated] of readLangFiles()) {
     if (lang === DEFAULT_LANG) continue;
-    const file = `src/utils/lang/${lang}.json`;
-    if (!fs.existsSync(file)) continue;
 
-    const translated = JSON.parse(fs.readFileSync(file, 'utf8'));
     for (const [key, enValue] of Object.entries(english)) {
       if (typeof enValue !== 'string') continue;
       // Parity first: keys reaching t() through a variable (backend-provided labels) are invisible

@@ -16,7 +16,7 @@ import {
   type AssetCategory,
   type AssetCriticality,
   type AssetSubCategory,
-  CRITICALITY_OPTIONS,
+  criticalityItems,
   getCategoryDef,
   humanizeEnum,
   subcategoryBelongsTo,
@@ -143,10 +143,6 @@ const BulkClassificationDialog: FunctionComponent<Props> = ({ numberOfSelectedEl
     value: c as string,
     label: t(getCategoryDef(c).label),
   }));
-  const criticalityItems = CRITICALITY_OPTIONS.map(c => ({
-    value: c as string,
-    label: t(humanizeEnum(c)),
-  }));
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -194,7 +190,7 @@ const BulkClassificationDialog: FunctionComponent<Props> = ({ numberOfSelectedEl
             <SelectFieldController
               name="asset_criticality"
               label={t('Criticality')}
-              items={criticalityItems}
+              items={criticalityItems(t)}
               fullWidth
               helperText={t('Impact of a compromise, from Very high (stops the business) to Low (little effect); Unknown when not assessed. Empty: each asset keeps its value.')}
             />

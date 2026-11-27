@@ -2,6 +2,8 @@ package io.openaev.service;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -28,8 +30,9 @@ import org.springframework.stereotype.Component;
  *       and the caller does not reuse an entity loaded before it (now detached).
  * </ul>
  *
- * <p>This is the one HTTP-side door to the system clearance; its callers are an allow-list ({@code
- * FaithfulCopyCallersArchTest}).
+ * <p>This is the door to use when the work must see what the request has just written. Work that
+ * only reads committed data goes through {@code TenantScopedTransaction#executeNew} instead
+ * (ADR-025). Callers of this class are an allow-list ({@code FaithfulCopyCallersArchTest}).
  */
 @Component
 @RequiredArgsConstructor
@@ -72,6 +75,21 @@ public class FaithfulCopyTransaction {
       E cause = (E) failure.getCause();
       throw cause;
     }
+  }
+
+  /**
+   * Resolves ids with every marking of the tenants of {@code ctx} on the current transaction, so
+   * the resolution sees the rows this request has already written but not committed. For a stored
+   * perimeter that must follow what a scope save allows, whatever the writer may see: the ids are
+   * written to stored data and never returned as such, the response being built afterwards under
+   * the user's clearance. The persistence context is cleared on both sides, as for {@link
+   * #execute}.
+   */
+  public List<String> readIds(TxCtx ctx, Supplier<List<String>> resolution) {
+    if (!(ctx instanceof TxCtx.Restricted)) {
+      return resolution.get();
+    }
+    return tenantTx.withSystemClearance(ctx, resolution);
   }
 
   /** Carries a checked exception through the {@link java.util.function.Supplier} of the copy. */

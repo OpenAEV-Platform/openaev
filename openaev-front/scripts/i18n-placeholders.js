@@ -2,24 +2,21 @@
 /* A translation must keep the same placeholders ({x}, {{x}}, ${x}) and tags (<a href='…'>, </a>) as the en.json value,
    and must not contain a literal "undefined" (a known artefact of the auto-translation tool).
    Consumed by i18n-checker.js. */
-import fs from 'node:fs';
-
-import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+import { DEFAULT_LANG } from './constants/Lang.js';
+import { readLangFile, readLangFiles } from './i18n-lang-files.js';
 import tokens from './i18n-tokens.js';
 
-const english = JSON.parse(fs.readFileSync(`src/utils/lang/${DEFAULT_LANG}.json`, 'utf8'));
+const english = readLangFile(DEFAULT_LANG);
 
 const UNDEFINED_RE = /\bundefined\b/;
 
 export const collectPlaceholderViolations = () => {
   const violations = [];
 
-  for (const lang of supportedLanguages) {
+  for (const [lang, translations] of readLangFiles()) {
     if (lang === DEFAULT_LANG) continue;
-    const file = `src/utils/lang/${lang}.json`;
-    if (!fs.existsSync(file)) continue;
 
-    for (const [key, value] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')))) {
+    for (const [key, value] of Object.entries(translations)) {
       const enValue = english[key];
       if (typeof enValue !== 'string' || typeof value !== 'string') continue;
 

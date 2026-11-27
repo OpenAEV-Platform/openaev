@@ -200,6 +200,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#assignable",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
+          "io.openaev.api.marking_definition.MarkingDefinitionExporterApi#exportMarkingDefinitionsCsv",
+          "io.openaev.api.marking_definition.MarkingDefinitionImporterApi#importMarkingDefinitionsCsv",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -741,6 +743,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // to a version or rolled back to a revision.
           "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
           "io.openaev.api.scenario.ScenarioUpdateApi#versions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#catalogStates",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewUpdate",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewRollback",
           "io.openaev.api.scenario.ScenarioUpdateApi#update",

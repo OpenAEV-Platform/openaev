@@ -46,4 +46,16 @@ describe('ScenarioTargetsDrawer', () => {
     // Assert
     expect((screen.getByRole('button', { name: 'Launch now' }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('given_aRefusedSubmit_should_sayWhyInTheDrawer', async () => {
+    // Arrange
+    renderDrawer(false, vi.fn().mockRejectedValue({ message: 'The scenario runs a payload its release does not name' }));
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Launch now' }));
+
+    // Assert
+    expect(await screen.findByText('The scenario runs a payload its release does not name')).toBeTruthy();
+    expect(screen.getByTestId('targets')).toBeTruthy();
+  });
 });

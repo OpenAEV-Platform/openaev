@@ -2095,24 +2095,44 @@
                         "type": "string"
                     },
                     "NUCLEI_TEMPLATES_PARALLELISM": {
-                        "default": 5,
+                        "default": 2,
                         "description": "Maximum number of templates executed in parallel (Nuclei -c / -concurrency).",
                         "type": "integer"
                     },
                     "NUCLEI_HOSTS_PARALLELISM_PER_TEMPLATE": {
-                        "default": 5,
+                        "default": 2,
                         "description": "Maximum number of hosts analyzed in parallel per template (Nuclei -bs / -bulk-size).",
                         "type": "integer"
                     },
                     "NUCLEI_MAX_REQUESTS_PER_SECOND": {
-                        "default": 50,
+                        "default": 25,
                         "description": "Maximum number of requests sent per second (Nuclei -rl / -rate-limit).",
                         "type": "integer"
                     },
                     "NUCLEI_TIMEOUT": {
                         "default": 10,
-                        "description": "Time to wait in seconds before a request times out (Nuclei -timeout).",
+                        "description": "Time to wait in seconds before a single request times out (Nuclei -timeout). Per request only: it does not bound the whole scan, see NUCLEI_SCAN_TIMEOUT.",
                         "type": "integer"
+                    },
+                    "NUCLEI_SCAN_TIMEOUT": {
+                        "default": 540,
+                        "description": "Hard ceiling in seconds for a whole Nuclei scan. When exceeded, the scan process is terminated and the inject is reported as a timeout error. Keep it below the platform's inject execution threshold (inject.execution.threshold.minutes, default 10 minutes) so the injector reports the timeout before the platform marks the inject stale. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_TEMPLATE_UPDATE_TIMEOUT": {
+                        "default": 300,
+                        "description": "Hard ceiling in seconds for a Nuclei template refresh (nuclei -update-templates), at startup and on each periodic refresh. When exceeded, the refresh is terminated and the templates already on disk are used. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_MAX_CONCURRENT_SCANS": {
+                        "default": 5,
+                        "description": "Maximum number of Nuclei scans this injector runs at the same time; extra injects wait for a slot. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_DISABLE_INTERACTSH": {
+                        "default": false,
+                        "description": "Disable Nuclei's interactsh (out-of-band) interaction polling. Enable it in restricted networks where the public interactsh servers are unreachable (out-of-band findings are then skipped). Nuclei -ni / -no-interactsh.",
+                        "type": "boolean"
                     },
                     "NUCLEI_RETRIES": {
                         "default": 1,
@@ -2122,6 +2142,16 @@
                     "NUCLEI_MAX_HOST_ERROR": {
                         "default": 30,
                         "description": "Maximum number of errors for a host before it is skipped from the scan (Nuclei -mhe / -max-host-error).",
+                        "type": "integer"
+                    },
+                    "NUCLEI_TEMPLATE_URL_ALLOWED_DOMAINS": {
+                        "default": "raw.githubusercontent.com",
+                        "description": "Comma-separated allowlist of domains a template_url inject field may be fetched from. A template URL whose host is not in this list is rejected before any download. Not a Nuclei flag.",
+                        "type": "string"
+                    },
+                    "NUCLEI_TEMPLATE_URL_MAX_BYTES": {
+                        "default": 2000000,
+                        "description": "Maximum size in bytes of a template fetched through a template_url inject field. A larger download is rejected. Not a Nuclei flag.",
                         "type": "integer"
                     },
                     "NUCLEI_RESPONSE_SIZE_READ": {
@@ -2311,8 +2341,8 @@
         {
             "title": "SentinelOne",
             "slug": "openaev_sentinelone",
-            "description": "Validate OpenAEV detection and prevention expectations against SentinelOne Singularity by collecting the threats and alerts its EDR raises in response to simulated attacks.",
-            "short_description": "Collect detections from SentinelOne EDR",
+            "description": "Validate OpenAEV detection, prevention and logging expectations against SentinelOne Singularity by collecting the threats and alerts its EDR raises and the raw events its agents record in response to simulated attacks.",
+            "short_description": "Collect detections and raw events from SentinelOne EDR",
             "use_cases": [
                 "Security response"
             ],
@@ -2406,13 +2436,24 @@
                     },
                     "SENTINELONE_ENABLE_DEEP_VISIBILITY_SEARCH": {
                         "default": false,
-                        "description": "Enable deep visibility search for SentinelOne threat searches.",
+                        "description": "Allow the collector to search raw events (Event Search on SaaS, Deep Visibility on self-hosted). Used to validate static-engine detections, and required by SENTINELONE_LOGGING_ENABLED. Needs the Deep Visibility permission and licence.",
                         "type": "boolean"
                     },
                     "SENTINELONE_DISABLE_STRICT_END_DATE": {
                         "default": false,
                         "description": "Disable strict end date enforcement (do not ignore expectations missing an end date).",
                         "type": "boolean"
+                    },
+                    "SENTINELONE_LOGGING_ENABLED": {
+                        "default": false,
+                        "description": "Search raw events to answer LOGGING expectations. Requires LOGGING_EXPECTATION preview feature and SENTINELONE_ENABLE_DEEP_VISIBILITY_SEARCH.",
+                        "type": "boolean"
+                    },
+                    "SENTINELONE_LOGGING_MAX_INTERVAL": {
+                        "default": "PT15M",
+                        "description": "Longest time between two Logging searches of the same expectation (ISO 8601, at most PT1H).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [

@@ -1,9 +1,9 @@
-import * as R from 'ramda';
 import { useMemo } from 'react';
 
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { type ScenariosHelper } from '../../actions/scenarios/scenario-helper';
 import { useHelper } from '../../store';
+import { isEmpty } from '../object';
 import { useAbility } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
@@ -28,7 +28,7 @@ const useScenarioPermissions = (scenarioId: string) => {
       canLaunch,
       canDelete,
       readOnly: !canManage,
-      isLoggedIn: !R.isEmpty(logged),
+      isLoggedIn: !isEmpty(logged),
       isRunning: false,
     };
   }, [ability, scenarioId, logged]);

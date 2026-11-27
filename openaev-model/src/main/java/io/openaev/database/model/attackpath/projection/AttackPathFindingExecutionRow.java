@@ -10,4 +10,5 @@ public record AttackPathFindingExecutionRow(
     String executionId,
     String preventionStatus,
     String detectionStatus,
-    String vulnerabilityStatus) {}
+    String vulnerabilityStatus,
+    String loggingStatus) {}

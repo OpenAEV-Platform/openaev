@@ -1,34 +1,49 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { type ScenarioChangeOutput, type ScenarioUpdateInput, type ScenarioUpdatePreviewOutput } from '../../../../../utils/api-types';
-import { MESSAGING$ } from '../../../../../utils/Environment';
 import { valueText, withStatus } from './scenarioChanges';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
 
 export type ScenarioUpdateChoice = NonNullable<ScenarioUpdateInput['scenario_update_choices']>[string];
 
+interface Refusal {
+  message: string;
+  status?: number;
+}
+
+const refusalOf = (error: {
+  message?: string;
+  status?: number;
+} | false): Refusal => ({
+  message: (error && error.message) || '',
+  status: error ? error.status : undefined,
+});
+
 // The changes an update or a rollback brings, the side chosen or the value typed for each conflict, and applying it.
 const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) => {
   const [preview, setPreview] = useState<ScenarioUpdatePreviewOutput | null>(null);
-  // Why the server refused the preview, empty when it gave no reason.
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [choices, setChoices] = useState<Record<string, ScenarioUpdateChoice>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<Refusal | null>(null);
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setPreview(null);
+    setRefusal(null);
     target.preview()
       .then((previewed) => {
         if (active) setPreview(previewed);
       })
-      .catch((error: { message?: string } | false) => {
-        if (active) setRefusal((error && error.message) || '');
+      .catch((error: Parameters<typeof refusalOf>[0]) => {
+        if (active) setRefusal(refusalOf(error));
       });
     return () => {
       active = false;
     };
-  }, [target]);
+  }, [target, previewKey]);
 
   const changes = useMemo(() => {
     const all = preview?.scenario_update_changes ?? [];
@@ -61,17 +76,16 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
   }));
 
   const apply = () => {
+    if (preview === null) return;
     setApplying(true);
+    setApplyError(null);
     target.apply({
+      scenario_update_from_version: preview.scenario_update_from_version,
       scenario_update_choices: choices,
       scenario_update_edits: Object.fromEntries(Object.entries(edits).filter(([changeId]) => choices[changeId] === 'EDIT')),
     })
-      .then(() => {
-        MESSAGING$.notifySuccess(target.appliedMessage);
-        onApplied();
-      })
-      // The call already shows why it was refused; the dialog stays open to try again.
-      .catch(() => undefined)
+      .then(() => onApplied())
+      .catch((error: Parameters<typeof refusalOf>[0]) => setApplyError(refusalOf(error)))
       .finally(() => setApplying(false));
   };
 
@@ -88,6 +102,14 @@ const useScenarioUpdate = (target: ScenarioUpdateTarget, onApplied: () => void) 
     ready,
     applying,
     apply,
+    applyError,
+    retryPreview: () => setPreviewKey(key => key + 1),
+    showLatestPreview: () => {
+      setApplyError(null);
+      setChoices({});
+      setEdits({});
+      setPreviewKey(key => key + 1);
+    },
   };
 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { omit, pick } from '../../utils/object';
+import { isEmpty, omit, pick } from '../../utils/object';
 
 describe('pick', () => {
   it('given present keys should copy only those keys', () => {
@@ -98,5 +98,39 @@ describe('omit', () => {
     // Assert
     expect(result).toEqual({ a: 1 });
     expect(result).not.toBe(obj);
+  });
+});
+
+describe('isEmpty', () => {
+  it.each([
+    ['an empty string', ''],
+    ['an empty array', []],
+    ['an empty plain object', {}],
+    ['an object without prototype', Object.create(null)],
+  ])('given %s should be empty', (_label, value) => {
+    // Act
+    const result = isEmpty(value);
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a non-empty string', ' '],
+    ['a non-empty array', [undefined]],
+    ['an object with a key', { a: undefined }],
+    ['zero', 0],
+    ['NaN', Number.NaN],
+    ['false', false],
+    ['a Date', new Date(0)],
+    ['a function', () => undefined],
+  ])('given %s should not be empty', (_label, value) => {
+    // Act
+    const result = isEmpty(value);
+
+    // Assert
+    expect(result).toBe(false);
   });
 });

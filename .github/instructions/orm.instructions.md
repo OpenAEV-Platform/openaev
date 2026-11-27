@@ -30,6 +30,14 @@ entity. "Streamed" is behavioral, not an annotation: an entity is streamed when 
 publishes a `BaseEvent` for it (gated by `isListened()`). When you cannot tell, treat the entity as
 streamed and keep the session write.
 
+## LAZY collections on an audited entity
+
+With audit logs enabled, `ModelBaseListener` snapshots an `@AuditDiffTracked` entity on every
+`@PostLoad` by serializing it whole, which loads every LAZY collection it reaches: the LAZY fetch
+does nothing. Mark such a collection `@AuditDiffUnloaded` (see `Group.users`): the load snapshot
+leaves it unread, and the update diff compares it only when the request loaded or replaced it.
+Create and delete snapshots still load it.
+
 ## Justify every native query
 
 Every `nativeQuery = true` must carry a one-line comment stating both halves of the rubric:

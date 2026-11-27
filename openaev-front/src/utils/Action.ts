@@ -22,16 +22,14 @@ export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(u
 
 const buildError = (data: AxiosError) => {
   const errorsExtractor = R.pipe(
-    R.pathOr({}, ['errors', 'children']),
+    (source: { errors?: { children?: object } } | null | undefined) => source?.errors?.children ?? {},
     Object.entries,
-    R.map((elem: unknown) => {
+    (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
       const extractErrorsPipe = R.pipe(
-        R.tail(),
-        R.head(),
-        R.propOr([], 'errors'),
-        R.head(),
+        (child: { errors?: unknown[] } | null | undefined) => child?.errors ?? [],
+        (errors: unknown[]) => errors[0],
       );
-      return [R.head(elem), extractErrorsPipe(elem)];
+      return [elem[0], extractErrorsPipe(elem[1])];
     }),
     Object.fromEntries,
     (errors: Record<string, unknown>) => ({

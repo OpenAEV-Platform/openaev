@@ -1,7 +1,6 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
@@ -34,7 +33,7 @@ const AttackPatternPopover = ({ attackPattern, killChainPhasesMap, onUpdate, onD
   const onSubmitEdit = (data) => {
     const inputValues = {
       ...data,
-      attack_pattern_kill_chain_phases: R.pluck('id', data.attack_pattern_kill_chain_phases),
+      attack_pattern_kill_chain_phases: data.attack_pattern_kill_chain_phases.map(item => item.id),
     };
     return dispatch(updateAttackPattern(attackPattern.attack_pattern_id, inputValues)).then((result) => {
       if (onUpdate) {

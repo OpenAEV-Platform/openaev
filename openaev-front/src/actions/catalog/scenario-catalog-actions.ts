@@ -22,6 +22,9 @@ export const installCatalogScenario = (
 ): Promise<CatalogInstallOutput> => simplePostCall(
   `${catalogVersionUri('scenarios', scenario.catalog_scenario_external_id, scenario.catalog_scenario_version)}/install`,
   input,
+  // No error toast: the install drawer says why it failed.
+  undefined,
+  false,
 ).then(({ data }: { data: CatalogInstallOutput }) => data);
 
 export const installAllCatalogScenarios = (): Promise<CatalogInstallAllOutput> => simplePostCall(`${CATALOG_URI}/scenarios/install-all`)

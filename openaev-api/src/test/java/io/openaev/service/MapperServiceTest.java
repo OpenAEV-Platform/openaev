@@ -549,7 +549,8 @@ public class MapperServiceTest extends IntegrationTest {
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
 
     // Assert
-    assertEquals("text/csv", response.getContentType());
+    assertTrue(response.getContentType().startsWith("text/csv"));
+    assertEquals("UTF-8", response.getCharacterEncoding());
     assertTrue(
         response
             .getHeader("Content-Disposition")

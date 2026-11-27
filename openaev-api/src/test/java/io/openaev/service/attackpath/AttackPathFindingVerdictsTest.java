@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for the per-finding verdict semantics (label mapping, prevented=>detected, worst-of).
+ * The three-bucket cases give no logging status, so their logging verdict stays unknown.
  */
 class AttackPathFindingVerdictsTest {
 
@@ -20,7 +21,7 @@ class AttackPathFindingVerdictsTest {
   @DisplayName("success labels map to success, including the vulnerability inversion")
   void successLabels() {
     assertThat(ofOne("Prevented", "Detected", "Not vulnerable"))
-        .isEqualTo(new Verdicts(SUCCESS, SUCCESS, SUCCESS));
+        .isEqualTo(verdicts(SUCCESS, SUCCESS, SUCCESS));
   }
 
   @Test
@@ -29,21 +30,21 @@ class AttackPathFindingVerdictsTest {
     // A confirmed-exploitable CVE ("Vulnerable") must be red, not grey. Prevention is not success
     // here, so the prevented=>detected rule does not mask the detection failure.
     assertThat(ofOne("Not Prevented", "Not Detected", "Vulnerable"))
-        .isEqualTo(new Verdicts(FAILED, FAILED, FAILED));
+        .isEqualTo(verdicts(FAILED, FAILED, FAILED));
   }
 
   @Test
   @DisplayName("partial labels map to failed")
   void partialLabels() {
     assertThat(ofOne("Partially Prevented", "Partially Detected", "Partially vulnerable"))
-        .isEqualTo(new Verdicts(FAILED, FAILED, FAILED));
+        .isEqualTo(verdicts(FAILED, FAILED, FAILED));
   }
 
   @Test
   @DisplayName("pending, null and unrecognized strings map to unknown")
   void unknownLabels() {
     assertThat(ofOne("Pending", null, "Quarantined"))
-        .isEqualTo(new Verdicts(UNKNOWN, UNKNOWN, UNKNOWN));
+        .isEqualTo(verdicts(UNKNOWN, UNKNOWN, UNKNOWN));
   }
 
   @Test
@@ -78,14 +79,14 @@ class AttackPathFindingVerdictsTest {
       "prevented => detected: a prevented execution's detection is success, overriding failed")
   void preventedImpliesDetected() {
     assertThat(ofOne("Prevented", "Not Detected", "Not vulnerable"))
-        .isEqualTo(new Verdicts(SUCCESS, SUCCESS, SUCCESS));
+        .isEqualTo(verdicts(SUCCESS, SUCCESS, SUCCESS));
   }
 
   @Test
   @DisplayName("Partially Prevented does NOT lift detection")
   void partiallyPreventedDoesNotLiftDetection() {
     assertThat(ofOne("Partially Prevented", "Not Detected", "Not vulnerable"))
-        .isEqualTo(new Verdicts(FAILED, FAILED, SUCCESS));
+        .isEqualTo(verdicts(FAILED, FAILED, SUCCESS));
   }
 
   @Test
@@ -98,7 +99,7 @@ class AttackPathFindingVerdictsTest {
     Verdicts a = ofOne("Prevented", "Not Detected", "Not vulnerable");
     Verdicts b = ofOne("Not Prevented", "Detected", "Not vulnerable");
     assertThat(AttackPathFindingVerdicts.aggregate(List.of(a, b)))
-        .isEqualTo(new Verdicts(FAILED, SUCCESS, SUCCESS));
+        .isEqualTo(verdicts(FAILED, SUCCESS, SUCCESS));
   }
 
   @Test
@@ -111,19 +112,44 @@ class AttackPathFindingVerdictsTest {
 
     assertThat(AttackPathFindingVerdicts.aggregate(List.of(prevented, notPrevented)))
         .as("success + failed -> failed")
-        .isEqualTo(new Verdicts(FAILED, FAILED, FAILED));
+        .isEqualTo(verdicts(FAILED, FAILED, FAILED));
     assertThat(AttackPathFindingVerdicts.aggregate(List.of(notPrevented, noStatus)))
         .as("failed + unknown -> failed (failed outranks unknown)")
-        .isEqualTo(new Verdicts(FAILED, FAILED, FAILED));
+        .isEqualTo(verdicts(FAILED, FAILED, FAILED));
     assertThat(AttackPathFindingVerdicts.aggregate(List.of(prevented, noStatus)))
         .as("success + unknown -> unknown (a finding is never greener than its producers)")
-        .isEqualTo(new Verdicts(UNKNOWN, UNKNOWN, UNKNOWN));
+        .isEqualTo(verdicts(UNKNOWN, UNKNOWN, UNKNOWN));
     assertThat(AttackPathFindingVerdicts.aggregate(List.of(prevented, prevented)))
         .as("all success -> success")
-        .isEqualTo(new Verdicts(SUCCESS, SUCCESS, SUCCESS));
+        .isEqualTo(verdicts(SUCCESS, SUCCESS, SUCCESS));
     assertThat(AttackPathFindingVerdicts.aggregate(List.of()))
         .as("no producers -> all unknown")
         .isEqualTo(Verdicts.UNKNOWN);
+  }
+
+  @Test
+  @DisplayName("logging labels map like the other buckets, and only from the logging slot")
+  void loggingLabels() {
+    assertThat(map("logging", "Logged")).isEqualTo(SUCCESS);
+    assertThat(map("logging", "Not Logged")).isEqualTo(FAILED);
+    assertThat(map("logging", "Partially Logged")).isEqualTo(FAILED);
+    assertThat(map("logging", "Pending")).isEqualTo(UNKNOWN);
+    assertThat(map("logging", "Detected")).isEqualTo(UNKNOWN);
+    assertThat(map("detection", "Logged")).isEqualTo(UNKNOWN);
+  }
+
+  @Test
+  @DisplayName("prevented does NOT lift logging, and logging aggregates worst-of")
+  void loggingIsNotLiftedAndAggregatesWorstOf() {
+    Verdicts preventedNotLogged =
+        AttackPathFindingVerdicts.ofExecution("Prevented", null, null, "Not Logged");
+    Verdicts logged = AttackPathFindingVerdicts.ofExecution(null, null, null, "Logged");
+
+    assertThat(preventedNotLogged.logging()).isEqualTo(FAILED);
+    assertThat(AttackPathFindingVerdicts.aggregate(List.of(logged, logged)).logging())
+        .isEqualTo(SUCCESS);
+    assertThat(AttackPathFindingVerdicts.aggregate(List.of(logged, preventedNotLogged)).logging())
+        .isEqualTo(FAILED);
   }
 
   @Test
@@ -135,16 +161,22 @@ class AttackPathFindingVerdictsTest {
   }
 
   private static Verdicts ofOne(String prevention, String detection, String vulnerability) {
-    return AttackPathFindingVerdicts.ofExecution(prevention, detection, vulnerability);
+    return AttackPathFindingVerdicts.ofExecution(prevention, detection, vulnerability, null);
+  }
+
+  private static Verdicts verdicts(Verdict prevention, Verdict detection, Verdict vulnerability) {
+    return new Verdicts(prevention, detection, vulnerability, UNKNOWN);
   }
 
   // Maps a single bucket by routing through ofExecution and reading the matching field, so the test
   // never re-implements the mapping.
   private static Verdict map(String bucket, String raw) {
     return switch (bucket) {
-      case "prevention" -> AttackPathFindingVerdicts.ofExecution(raw, null, null).prevention();
-      case "detection" -> AttackPathFindingVerdicts.ofExecution(null, raw, null).detection();
-      default -> AttackPathFindingVerdicts.ofExecution(null, null, raw).vulnerability();
+      case "prevention" ->
+          AttackPathFindingVerdicts.ofExecution(raw, null, null, null).prevention();
+      case "detection" -> AttackPathFindingVerdicts.ofExecution(null, raw, null, null).detection();
+      case "logging" -> AttackPathFindingVerdicts.ofExecution(null, null, null, raw).logging();
+      default -> AttackPathFindingVerdicts.ofExecution(null, null, raw, null).vulnerability();
     };
   }
 }

@@ -486,6 +486,9 @@ Remarks:
 
 Create new tasks if big issues are found.
 
+**Decision**: [ADR-025](../../../adr/ADR-025-marking-on-chaining-stored-asset-references.md) (marking on chaining's
+stored asset references, and when to use `executeNew` or `withSystemClearance`).
+
 ## Chunk 8 — Asset not targeted
 
 Size: S.
