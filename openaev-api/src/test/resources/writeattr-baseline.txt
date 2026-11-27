@@ -16,8 +16,8 @@
 # the write from the request's write scope, or add it here with a reason. Wrong-tenant writes that
 # are real defects are NOT waived here; they are tracked as findings in the task report.
 #
-# Lines starting with # and blank lines are ignored. Frozen from one full run of the API suite with the
-# nightly shadow arguments (both detectors on), which is where the gate runs; a line never produced
+# Lines starting with # and blank lines are ignored. Frozen from one full run of the API suite with
+# both detectors on, which is how every API shard of the pull request CI runs; a line never produced
 # again is reported at shutdown with a [WRITEATTR-STALE] marker.
 #
 # Every signature below was traced to the test and production path that produced it. None is a live
@@ -131,12 +131,6 @@ injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.In
 collector_types DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_email_templates DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_landing_pages DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
-
-# --- Produced under a per-class table list narrower than production's (CweHttpIsolationTest with
-# cwes alone, so the bulk insert reached the default tenant's collector). Every test runs with every
-# tenant table gated, so a full run with both detectors is expected to report this line stale;
-# remove it then.
-collectors DEFAULT io.openaev.rest.vulnerability.VulnerabilityApi.bulkInsertVulnerabilitiesForCollector
 
 # --- Produced only by the detector's own attribution tests, which drive a production frame under a
 # scope that does not contain the written tenant to prove the write is still attributed after a
