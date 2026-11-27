@@ -49,14 +49,16 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalo
   };
   const updatable = canUpdate && !!newerVersion && newerVersion !== installedVersion;
   const revoked = !!catalogState?.scenario_catalog_state_revoked;
-  const banner = updatable && (
+  const banner = (revoked || updatable) && (
     <CardBanner
       severity={revoked ? 'error' : 'info'}
       icon={revoked ? 'ban' : undefined}
-      action={{
-        label: t('Update'),
-        onClick: openUpdate,
-      }}
+      action={updatable
+        ? {
+            label: t('Update'),
+            onClick: openUpdate,
+          }
+        : undefined}
     >
       {revoked ? t('Version revoked') : t('Update available')}
     </CardBanner>

@@ -2,16 +2,15 @@ package io.openaev.service.catalog.scenario.update;
 
 import static java.util.stream.Collectors.toSet;
 
-import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogRevocations;
 import io.openaev.service.scenario.ScenarioService;
 import java.util.HashMap;
 import java.util.List;
@@ -67,7 +66,7 @@ public class InstalledScenarioService {
     if (installed.isEmpty()) {
       return Map.of();
     }
-    Set<String> revoked = revokedKeys(installed);
+    CatalogRevocations revocations = revocations(installed);
     Map<String, NumberedRevision> lastUpdates =
         scenarioRevisionService.lastUpdates(
             tenantId, installed.stream().map(RawCatalogInstalledScenario::getScenarioId).toList());
@@ -76,22 +75,17 @@ public class InstalledScenarioService {
       states.put(
           scenario.getScenarioId(),
           new ScenarioCatalogState(
-              revoked.contains(
-                  CatalogManifest.key(scenario.getExternalId(), scenario.getVersion())),
+              revocations.revokes(scenario.getExternalId(), scenario.getVersion()),
               lastUpdates.get(scenario.getScenarioId())));
     }
     return states;
   }
 
-  private Set<String> revokedKeys(List<RawCatalogInstalledScenario> installed) {
-    return catalogListService
-        .versions(
+  private CatalogRevocations revocations(List<RawCatalogInstalledScenario> installed) {
+    return CatalogRevocations.of(
+        catalogListService.versions(
             CatalogScenario.class,
-            installed.stream().map(RawCatalogInstalledScenario::getExternalId).toList())
-        .stream()
-        .filter(version -> version.getStatus() == CatalogItemStatus.REVOKED)
-        .map(version -> CatalogManifest.key(version.getExternalId(), version.getVersion()))
-        .collect(toSet());
+            installed.stream().map(RawCatalogInstalledScenario::getExternalId).toList()));
   }
 
   private InstalledScenario installedScenario(TxCtx ctx, String scenarioId) {
