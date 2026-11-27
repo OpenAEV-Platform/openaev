@@ -23,6 +23,8 @@ Key checks: N+1 queries, `@Fetch(FetchMode.SUBSELECT)` on collections, `FetchTyp
 
 Key checks: layering (Controller → Service → Repository, never skip), JPA entities never returned from controllers (use DTOs), `@Transactional` self-call (Spring proxy bypass), no new code in `openaev-framework` (deprecated), no new code in `io.openaev.rest` (legacy — use `io.openaev.api` instead), backend EE-only behavior explicitly marked with `@AccessControl(..., isEnterpriseEdition = true)` so Enterprise Edition validation is enforced.
 
+Check that the application architecture layers are respected. Flag infractions found in existing code that was not introduced in the reviewed patch, and advise to either fix or open an issue (search for an existing issue first where possible). 
+
 ## Multi-Tenancy
 
 > Full rules: [multi-tenancy.instructions.md](multi-tenancy.instructions.md)

@@ -28,9 +28,9 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 | Layer | Does | Never |
 |---|---|---|
-| API (`io.openaev.api.*`) | validate (`@Valid`), map Input → entity/args, call **one** service method, map result → Output | inject a repository, hold a business rule, catch or translate an exception, chain service calls with logic in between. Absolutely NO SQL.|
-| Service | business rules, transactions; calls other services and **its own** repository | return an `*Output`, build HTTP (`ResponseEntity`, `ResponseStatusException`, servlet types), inject another aggregate's repository. Absolutely NO SQL. |
-| Repository | data access | be injected outside its owning service. Any SQL goes in the layer EXCLUSIVELY. |
+| API (`io.openaev.api.*`) | validate (`@Valid`), map Input → entity/args, call **one** service method, map result → Output | inject a repository, hold a business rule, catch or translate an exception, chain service calls with logic in between.|
+| Service | business rules, transactions; calls other services and **its own** repository | return an `*Output`, build HTTP (`ResponseEntity`, `ResponseStatusException`, servlet types), inject another aggregate's repository. |
+| Repository | data access | be injected outside its owning service. Any SQL and variants (e.g. JPQL, including Criteria API specifications) goes in this layer. Flyway migration files are the only exception, though they live in their own dedicated package (io.openaev.migration). |
 | Entity | state + JPA mapping | business logic (see Entities) |
 | Utils | static methods | hold state |
 
