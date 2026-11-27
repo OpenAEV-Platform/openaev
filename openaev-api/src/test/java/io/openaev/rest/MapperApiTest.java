@@ -61,6 +61,8 @@ import org.springframework.util.ResourceUtils;
 @ExtendWith(MockitoExtension.class)
 public class MapperApiTest extends IntegrationTest {
 
+  private static final String SCOPE_TENANT = "tenant-test";
+
   private MockMvc mvc;
 
   @Mock private ImportMapperRepository importMapperRepository;
@@ -90,7 +92,7 @@ public class MapperApiTest extends IntegrationTest {
     mvc =
         MockMvcBuilders.standaloneSetup(mapperApi)
             .setCustomArgumentResolvers(
-                new TxCtxTestArgumentResolver(TxCtx.forTenant("tenant-test")))
+                new TxCtxTestArgumentResolver(TxCtx.forTenant(SCOPE_TENANT)))
             .build();
   }
 
@@ -283,7 +285,7 @@ public class MapperApiTest extends IntegrationTest {
     when(injectImportService.importInjectIntoScenarioFromXLS(
             any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
-    when(mapperService.createImportMapper(any())).thenReturn(importMapper);
+    when(mapperService.createImportMapper(any(), eq(SCOPE_TENANT))).thenReturn(importMapper);
 
     // -- EXECUTE --
     String response =
@@ -301,5 +303,6 @@ public class MapperApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
+    verify(mapperService).createImportMapper(any(), eq(SCOPE_TENANT));
   }
 }
