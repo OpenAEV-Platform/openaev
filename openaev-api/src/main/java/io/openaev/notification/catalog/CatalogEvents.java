@@ -17,7 +17,8 @@ public final class CatalogEvents {
       String externalId,
       String name,
       String version,
-      boolean isNew) {}
+      boolean isNew,
+      boolean revoked) {}
 
   public record CatalogReleaseApplied(
       String tenantId,

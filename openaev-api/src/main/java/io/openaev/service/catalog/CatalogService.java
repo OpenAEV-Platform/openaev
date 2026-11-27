@@ -195,7 +195,8 @@ public class CatalogService {
             item.getExternalId(),
             item.getName(),
             item.getVersion(),
-            isNew));
+            isNew,
+            item.getStatus() == CatalogItemStatus.REVOKED));
   }
 
   // A version a scenario runs or can roll back to stays, unlisted: updating it reads it.
