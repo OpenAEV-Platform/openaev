@@ -286,24 +286,6 @@ DELETE /api/assets/{assetId}/links/{linkedAssetId}/{linkType}
 - **Body** of `POST`: `{"linked_asset_id": "<asset-uuid>", "asset_link_type": "LOGGED_ON"}`. Adding a link that exists returns it unchanged.
 - **Errors**: `400` for a link to the Asset itself or to an Asset of another Tenant, `404` when either Asset (or, on `DELETE`, the link) is not found.
 - **Access**: `GET` needs the right to read the Asset, `POST` and `DELETE` the right to manage it. `GET` lists the links that start or end on the Asset; deleting an Asset deletes its links.
-- **Origin**: each link carries `asset_link_origin` (`MANUAL`, `AGENT`, `COLLECTOR`, `SYNC`) and `asset_link_last_seen_at`, the last time an automatic source reported it. When an OpenAEV agent registers, the account it runs as (`agent_executed_by_user`, also matched without its `DOMAIN\` or `@domain` part) is looked up among the IDENTITY Assets of the endpoint's Tenant: a single match gets a `LOGGED_ON` link to the endpoint with origin `AGENT`, refreshed at each registration. System accounts (`root`, `NT AUTHORITY\SYSTEM`) are never linked. A person always wins: adding by hand a link an agent reported makes it `MANUAL`, an agent never changes a manual link, and deleting an automatic link keeps it hidden so the next registration does not restore it (adding it by hand brings it back).
-
-## Asset owners
-
-A person or a Team owns an Asset as business owner (`OWNED_BY`) or technical owner (`MANAGED_BY`); an Asset can have several owners. Part of the exploration graph preview feature like the Asset links (`404` while `EXPLORATION_GRAPH` is off); the graph draws `OWNED_BY` and `MANAGED_BY` edges from the Asset to the person or Team. Each endpoint is also available under the Tenant prefix.
-
-```http
-GET /api/assets/{assetId}/owners
-POST /api/assets/{assetId}/owners
-DELETE /api/assets/{assetId}/owners/{ownerId}
-GET /api/users/{userId}/owned-assets
-GET /api/teams/{teamId}/owned-assets
-```
-
-- **Body** of `POST`: `{"asset_owner_user_id": "<user-uuid>", "asset_owner_role": "OWNED_BY"}` or `{"asset_owner_team_id": "<team-uuid>", "asset_owner_role": "MANAGED_BY"}`, with an optional `asset_owner_source` (`MANUAL` by default, `COLLECTOR` or `SYNC` for an automated writer). Adding an owner that exists returns it unchanged.
-- **Output**: `asset_owner_id`, `asset_id`, `asset_name`, `asset_owner_kind` (`USER` or `TEAM`), `asset_owner_user_id` or `asset_owner_team_id`, `asset_owner_name`, `asset_owner_role`, `asset_owner_source`, `asset_owner_created_at`.
-- **Errors**: `400` when the body names neither or both of a person and a Team, a person who is not a member of the Asset's Tenant, or a Team of another Tenant; `404` when the Asset, the Team or (on `DELETE`) the owner is not found.
-- **Access and scope**: the same as the Asset links; an owner follows the markings of its Asset. Deleting the Asset, the person or the Team deletes the owner.
 
 ## Asset bulk update
 
@@ -314,7 +296,7 @@ PUT /api/assets/bulk
 ```
 
 - **Selection**: `asset_ids_to_process`, or `search_pagination_input` with `asset_ids_to_ignore`.
-- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_tags_to_add`. A field left out is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
+- **Body**: `asset_category`, `asset_subcategory`, `asset_url`, `asset_criticality`, `asset_internet_facing` (`true` or `false`), `asset_tags_to_add`. A field left out (or null) is unchanged; tags are added to the existing ones, never replaced. A category change with no subcategory clears a subcategory that no longer belongs to the new category.
 - **Errors**: `400` when nothing is to be updated, for a subcategory without a category, or for a subcategory outside its category; `404` when a tag id is unknown in the Tenant. Nothing is written on an error.
 - **Access**: the right to manage Assets.
 - **Example**, reclassify every Asset carrying a tag:

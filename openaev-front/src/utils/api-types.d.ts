@@ -395,6 +395,8 @@ export interface AiTargetInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  /** @uniqueItems true */
+  asset_markings?: string[];
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
@@ -728,6 +730,8 @@ export interface AssetBulkUpdateInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_ids_to_ignore?: string[];
   asset_ids_to_process?: string[];
+  /** Sets the internet-facing flag of every selected asset; null leaves it unchanged */
+  asset_internet_facing?: boolean | null;
   /** Must belong to asset_category; requires asset_category */
   asset_subcategory?:
     | "SERVER"
@@ -953,9 +957,6 @@ export interface AssetLinkInput {
 export interface AssetLinkOutput {
   /** @format date-time */
   asset_link_created_at?: string;
-  /** @format date-time */
-  asset_link_last_seen_at?: string;
-  asset_link_origin?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
   asset_link_source_id?: string;
   asset_link_source_name?: string;
   asset_link_source_type?: string;
@@ -969,24 +970,6 @@ export interface AssetLinkOutput {
     | "LOGGED_ON"
     | "RUNS_ON"
     | "USES";
-}
-
-export interface AssetMarkingsOutput {
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * Markings currently carried by the asset
-   * @uniqueItems true
-   */
-  asset_markings?: string[];
-  /**
-   * Asset name
-   * @minLength 1
-   */
-  asset_name: string;
 }
 
 export interface AssetOptionOutput {
@@ -1156,27 +1139,6 @@ export interface AssetOutput {
   is_static?: boolean;
 }
 
-export interface AssetOwnerInput {
-  asset_owner_role: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
-}
-
-export interface AssetOwnerOutput {
-  asset_id?: string;
-  asset_name?: string;
-  /** @format date-time */
-  asset_owner_created_at?: string;
-  asset_owner_id?: string;
-  asset_owner_kind?: string;
-  asset_owner_name?: string;
-  asset_owner_role?: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
-}
-
 /** Frozen asset composing a launched simulation's scope rule (display only). */
 export interface AssetSnapshotOutput {
   /**
@@ -1190,10 +1152,6 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
-}
-
-export interface AssetUpdateMarkingsInput {
-  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -1412,6 +1370,7 @@ export interface AttackPathExecutionDetailDTO {
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
+  loggingStatus?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
@@ -1452,6 +1411,7 @@ export interface AttackPathFindingPageDTO {
 
 export interface AttackPathFindingVerdictsDTO {
   detection?: string;
+  logging?: string;
   prevention?: string;
   vulnerability?: string;
 }
@@ -6956,8 +6916,6 @@ export interface GraphEdgeOutput {
     | "IN_TEAM"
     | "TEAM_OF"
     | "LINKED_TO"
-    | "OWNED_BY"
-    | "MANAGED_BY"
     | "ATTACK_STEP";
 }
 
@@ -8960,6 +8918,149 @@ export interface MapperConditionOutput {
   )[];
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
+}
+
+export interface MarkedEndpointInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
+  asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
+  /** @uniqueItems true */
+  asset_markings?: string[];
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "EMAIL_SECURITY"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
+  asset_tags?: string[];
+  asset_url?: string | null;
+  endpoint_agent_version?: string;
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
+  /** True if the endpoint is in an End of Life state */
+  endpoint_is_eol?: boolean;
+  endpoint_platform?:
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown";
 }
 
 export interface MarkingDefinitionInput {
@@ -12134,6 +12235,8 @@ export interface ResultDistribution {
 export interface RevokedInjectOutput {
   /** @minLength 1 */
   inject_action_id: string;
+  /** @minLength 1 */
+  inject_action_name: string;
   /** @minLength 1 */
   inject_id: string;
   /** @minLength 1 */
