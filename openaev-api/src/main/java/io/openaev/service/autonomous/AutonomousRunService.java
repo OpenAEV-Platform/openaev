@@ -2340,10 +2340,9 @@ public class AutonomousRunService {
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
     AutonomousRun saved = runRepository.save(run);
     // This callback arrives on the legacy non-prefixed route where the v1 TenantContext is never
-    // set and falls back to the DEFAULT tenant. The ambient tenant is still set for the isolated
-    // transactions below because they reach reads keyed by TenantContext explicitly
-    // (WorkflowService#resolveValueLabel, ScopeService#getValidPlayers). It is the run's own
-    // tenant, the same run-authoritative scope @RunTenantScope already gives the v2 GUC, so a run
+    // set and falls back to the DEFAULT tenant. The isolated transactions below run with the
+    // ambient tenant set to the run's own tenant, the same run-authoritative scope @RunTenantScope
+    // gives the v2 GUC; the scope rule label and player reads take the workflow's tenant, so a run
     // owned by a non-default tenant mirrors its scope and never matches nothing silently. Restored
     // in finally: the operator (tenant-prefixed) route carries the caller's tenant in this
     // thread-local and must get it back, and a pooled request thread must not carry the run tenant

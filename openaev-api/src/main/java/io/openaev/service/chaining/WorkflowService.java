@@ -9,7 +9,6 @@ import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -1317,7 +1316,7 @@ public class WorkflowService {
             && existingRule.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
             && !hiddenRuleIds.contains(ruleId)
             && hasRuleChanged(existingRule, ruleInput)) {
-          updateScopeRule(existingRule, ruleInput);
+          updateScopeRule(existingRule, ruleInput, workflow);
           changed = true;
         }
       }
@@ -1416,7 +1415,8 @@ public class WorkflowService {
         || !Objects.equals(existing.getRuleValue(), input.getRuleValue());
   }
 
-  private void updateScopeRule(WorkflowScopeRule existing, WorkflowScopeRuleInput input) {
+  private void updateScopeRule(
+      WorkflowScopeRule existing, WorkflowScopeRuleInput input, Workflow workflow) {
     existing.setSelectedMode(input.getSelectedMode());
     existing.setRuleSource(input.getRuleSource());
     existing.setRuleValue(input.getRuleValue());
@@ -1425,7 +1425,7 @@ public class WorkflowService {
     // renames), but never wipe a previously captured label: if the asset was deleted (resolution
     // returns null), an unrelated field change (e.g. toggling allow/deny mode) must keep the last
     // known name so the deleted-asset UX fallback still works.
-    String resolvedLabel = resolveValueLabel(input);
+    String resolvedLabel = resolveValueLabel(input, workflow);
     if (resolvedLabel != null) {
       existing.setRuleValueLabel(resolvedLabel);
     }
@@ -1436,7 +1436,7 @@ public class WorkflowService {
         .selectedMode(input.getSelectedMode())
         .ruleSource(input.getRuleSource())
         .ruleValue(input.getRuleValue())
-        .ruleValueLabel(resolveValueLabel(input))
+        .ruleValueLabel(resolveValueLabel(input, workflow))
         .valueType(detectValueType(input))
         .workflow(workflow)
         .build();
@@ -1447,16 +1447,16 @@ public class WorkflowService {
    * scope rule (asset / group name, team name, or player name-or-email), so a past run's scope
    * stays readable after the referenced object is deleted.
    *
-   * <p>The lookup is tenant-scoped on purpose: a plain {@code findById} on a user-supplied id reads
-   * in the scope of the transaction, which may hold several tenants, so it can snapshot (and later
-   * expose) another tenant's name. Ids that do not resolve within the caller's tenant - or MANUAL /
-   * CSV rules - stay {@code null}.
+   * <p>The lookup runs in the tenant of the workflow the rule is written on: a plain {@code
+   * findById} on a user-supplied id reads in the scope of the transaction, which may hold several
+   * tenants, so it can snapshot (and later expose) another tenant's name. Ids that do not resolve
+   * within the workflow's tenant, and MANUAL / CSV rules, stay {@code null}.
    */
-  private String resolveValueLabel(WorkflowScopeRuleInput input) {
+  private String resolveValueLabel(WorkflowScopeRuleInput input, Workflow workflow) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
       return null;
     }
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
     if (!hasText(tenantId)) {
       return null;
     }
