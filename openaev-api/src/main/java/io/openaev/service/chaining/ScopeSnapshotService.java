@@ -2,7 +2,6 @@ package io.openaev.service.chaining;
 
 import static io.openaev.service.chaining.WorkflowEndService.WORKFLOW_END_CAUSE_BY_DELETION;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -65,7 +64,8 @@ public class ScopeSnapshotService {
     workflowRun.getWorkflowScopeRules().addAll(buildSecurityPlatformRules(workflowRun, tenantId));
     List<WorkflowScopeRule> rules = new ArrayList<>(workflowRun.getWorkflowScopeRules());
     List<ScopeRuleSnapshot> photos =
-        atSystemClearance(tenantId, () -> rules.stream().map(this::buildSnapshot).toList());
+        atSystemClearance(
+            tenantId, () -> rules.stream().map(rule -> buildSnapshot(rule, tenantId)).toList());
     for (int i = 0; i < rules.size(); i++) {
       rules.get(i).setSnapshotStart(photos.get(i));
     }
@@ -84,9 +84,10 @@ public class ScopeSnapshotService {
   public void freezeEnd(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     if (WORKFLOW_END_CAUSE_BY_DELETION.contains(cause)) return;
     List<WorkflowScopeRule> rules = new ArrayList<>(workflowRun.getWorkflowScopeRules());
+    String tenantId = tenantIdOf(workflowRun);
     List<ScopeRuleSnapshot> photos =
         atSystemClearance(
-            tenantIdOf(workflowRun), () -> rules.stream().map(this::buildEndSnapshot).toList());
+            tenantId, () -> rules.stream().map(rule -> buildEndSnapshot(rule, tenantId)).toList());
     for (int i = 0; i < rules.size(); i++) {
       rules.get(i).setSnapshotEnd(photos.get(i));
     }
@@ -107,7 +108,16 @@ public class ScopeSnapshotService {
     return tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
   }
 
+  /** The tenant a stored rule belongs to; a rule copied for a launch has none until it is saved. */
+  private static String tenantIdOf(WorkflowScopeRule rule) {
+    return rule.getTenant() != null ? rule.getTenant().getId() : null;
+  }
+
+  /** The run's own tenant, else its simulation's; null for a run built with neither. */
   private static String tenantIdOf(Workflow workflowRun) {
+    if (workflowRun.getTenant() != null) {
+      return workflowRun.getTenant().getId();
+    }
     Exercise simulation = workflowRun.getSimulation();
     return simulation == null || simulation.getTenant() == null
         ? null
@@ -321,6 +331,14 @@ public class ScopeSnapshotService {
    * already runs inside a transaction (the freeze paths) or a read-scoped request (the mapper).
    */
   public ScopeRuleSnapshot buildCurrentSnapshot(WorkflowScopeRule rule) {
+    return buildCurrentSnapshot(rule, tenantIdOf(rule));
+  }
+
+  /**
+   * {@link #buildCurrentSnapshot(WorkflowScopeRule)}, with the team and player read in {@code
+   * tenantId}.
+   */
+  private ScopeRuleSnapshot buildCurrentSnapshot(WorkflowScopeRule rule, String tenantId) {
     return switch (rule.getRuleSource()) {
       case ASSET -> resolveAssetSnapshot(rule.getRuleValue());
       case ASSET_GROUP -> resolveAssetGroupSnapshot(rule.getRuleValue());
@@ -328,8 +346,8 @@ public class ScopeSnapshotService {
       // Audience rules resolve to human-readable labels (team name / player name-or-email) so a
       // launched simulation's scope never displays a raw id, and a rename / deletion mid-run is
       // derivable exactly like an asset's.
-      case TEAM -> resolveTeamSnapshot(rule.getRuleValue());
-      case PLAYER -> resolvePlayerSnapshot(rule.getRuleValue());
+      case TEAM -> resolveTeamSnapshot(rule.getRuleValue(), tenantId);
+      case PLAYER -> resolvePlayerSnapshot(rule.getRuleValue(), tenantId);
       // MANUAL / CSV: the value is the label itself and can never be "deleted".
       case MANUAL, CSV -> ScopeRuleSnapshot.builder().label(rule.getRuleValue()).build();
       default -> ScopeRuleSnapshot.builder().label(rule.getRuleValue()).build();
@@ -340,8 +358,8 @@ public class ScopeSnapshotService {
    * Launch-time build: like {@link #buildCurrentSnapshot} but degrades a missing entity to its raw
    * id (workaround) instead of null, so the launch photo always carries at least a label.
    */
-  private ScopeRuleSnapshot buildSnapshot(WorkflowScopeRule rule) {
-    ScopeRuleSnapshot resolved = buildCurrentSnapshot(rule);
+  private ScopeRuleSnapshot buildSnapshot(WorkflowScopeRule rule, String tenantId) {
+    ScopeRuleSnapshot resolved = buildCurrentSnapshot(rule, tenantId);
     return resolved != null
         ? resolved
         : ScopeRuleSnapshot.builder().label(rule.getRuleValue()).build();
@@ -352,8 +370,8 @@ public class ScopeSnapshotService {
    * carrying the last known (launch) label, so the end reference exists (lifecycle: the run HAS
    * ended) while the deletion stays derivable as {@code DELETED_DURING_EXECUTION}.
    */
-  private ScopeRuleSnapshot buildEndSnapshot(WorkflowScopeRule rule) {
-    ScopeRuleSnapshot resolved = buildCurrentSnapshot(rule);
+  private ScopeRuleSnapshot buildEndSnapshot(WorkflowScopeRule rule, String tenantId) {
+    ScopeRuleSnapshot resolved = buildCurrentSnapshot(rule, tenantId);
     if (resolved != null) {
       return resolved;
     }
@@ -402,17 +420,15 @@ public class ScopeSnapshotService {
     }
   }
 
-  private ScopeRuleSnapshot resolveTeamSnapshot(String teamId) {
+  private ScopeRuleSnapshot resolveTeamSnapshot(String teamId, String tenantId) {
     return teamRepository
-        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(teamId, tenantId)
         .map(team -> ScopeRuleSnapshot.builder().label(team.getName()).build())
         .orElse(null);
   }
 
-  private ScopeRuleSnapshot resolvePlayerSnapshot(String userId) {
-    return userRepository
-        .findAllByIdInAndTenantId(List.of(userId), TenantContext.getCurrentTenant())
-        .stream()
+  private ScopeRuleSnapshot resolvePlayerSnapshot(String userId, String tenantId) {
+    return userRepository.findAllByIdInAndTenantId(List.of(userId), tenantId).stream()
         .findFirst()
         .map(user -> ScopeRuleSnapshot.builder().label(user.getNameOrEmail()).build())
         .orElse(null);

@@ -5,12 +5,13 @@ import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ThreatArsenalInformationDrawer from '../../../../admin/components/threat_arsenal/ThreatArsenalInformationDrawer';
-import { type PayloadUsagesOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
-import { anAction, aUsage, aVersion, renderInApp, someUsages } from './threatArsenalTestUtils';
+import { type PayloadVersionOutput } from '../../../../utils/api-types';
+import { anAction, aVersion, renderInApp } from './threatArsenalTestUtils';
 
 const mocks = vi.hoisted(() => ({
   can: vi.fn(),
   versions: vi.fn(),
+  counts: vi.fn(),
   usages: vi.fn(),
   customization: vi.fn(),
   catalogue: vi.fn(),
@@ -21,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => true }));
 vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: mocks.can }) }));
 vi.mock('../../../../admin/components/threat_arsenal/versions/usePayloadVersions', () => ({ default: mocks.versions }));
+vi.mock('../../../../admin/components/threat_arsenal/versions/usages/useUsageCounts', () => ({ default: mocks.counts }));
 vi.mock('../../../../admin/components/threat_arsenal/versions/usages/useUsagesByVersion', () => ({ default: mocks.usages }));
 vi.mock('../../../../admin/components/threat_arsenal/customization/useCustomization', () => ({ default: mocks.customization }));
 vi.mock('../../../../admin/components/threat_arsenal/catalog/useCatalogPayloadVersions', () => ({ default: mocks.catalogue }));
@@ -55,9 +57,10 @@ const latest = aVersion({
 });
 const older = aVersion();
 
-const loaded = (versions: PayloadVersionOutput[], usages: Record<string, PayloadUsagesOutput>) => {
+const loaded = (versions: PayloadVersionOutput[], counts: Record<string, number>) => {
   mocks.versions.mockReturnValue(versions);
-  mocks.usages.mockReturnValue(usages);
+  mocks.counts.mockReturnValue(counts);
+  mocks.usages.mockReturnValue({});
 };
 
 describe('ThreatArsenalInformationDrawer', () => {
@@ -70,8 +73,8 @@ describe('ThreatArsenalInformationDrawer', () => {
       loading: false,
     });
     loaded([latest, older], {
-      'payload-v2': someUsages([aUsage()]),
-      'payload-v1': someUsages([aUsage()], 2),
+      'payload-v2': 1,
+      'payload-v1': 3,
     });
   });
 

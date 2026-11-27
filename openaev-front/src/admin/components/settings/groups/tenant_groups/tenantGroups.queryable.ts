@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import type { Header } from '../../../../../components/common/SortHeadersList';
 import ItemMarkings from '../../../../../components/ItemMarkings';
-import type { Group, SortField } from '../../../../../utils/api-types';
+import type { SortField, TenantGroupOutput } from '../../../../../utils/api-types';
 
 // Local Storage
 export const LOCAL_STORAGE_KEY_TENANT_GROUP = 'tenant_groups';
@@ -41,13 +41,13 @@ export const getTenantGroupHeaders: (
       field: FIELD_NAME,
       label: t('Name'),
       isSortable: true,
-      value: (group: Group) => group.group_name,
+      value: (group: TenantGroupOutput) => group.group_name,
     },
     {
       field: FIELD_DESCRIPTION,
       label: t('Description'),
       isSortable: false,
-      value: (group: Group) => group.group_description || '-',
+      value: (group: TenantGroupOutput) => group.group_description || '-',
     },
   ];
   if (options?.markingEnabled) {
@@ -55,14 +55,14 @@ export const getTenantGroupHeaders: (
       field: FIELD_MARKINGS,
       label: t('Markings'),
       isSortable: false,
-      value: (group: Group) => createElement(ItemMarkings, { markingIds: group.group_markings }),
+      value: (group: TenantGroupOutput) => createElement(ItemMarkings, { markingIds: group.group_markings }),
     });
   }
   headers.push({
     field: FIELD_DEFAULT_ASSIGN,
     label: t('Auto assign'),
     isSortable: false,
-    value: (group: Group) => group.group_default_user_assign
+    value: (group: TenantGroupOutput) => group.group_default_user_assign
       ? createElement(CheckCircleOutlined, { fontSize: 'small' })
       : '-',
   });
@@ -71,7 +71,7 @@ export const getTenantGroupHeaders: (
       field: FIELD_AUTO_NEW_MARKING,
       label: t('Auto assign new markings'),
       isSortable: false,
-      value: (group: Group) => group.group_auto_new_marking
+      value: (group: TenantGroupOutput) => group.group_auto_new_marking
         ? createElement(CheckCircleOutlined, { fontSize: 'small' })
         : '-',
     });

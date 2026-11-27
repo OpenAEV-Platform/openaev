@@ -49,7 +49,7 @@ public class TenantRoleService {
       @NotNull final Set<Capability> capabilities) {
     String id = UUID.randomUUID().toString();
     assertCanAssignInTenant(tenantId, capabilities);
-    ReservedKeyValidator.validateRoleId(id);
+    ReservedKeyValidator.validateRoleId(id, tenantId);
     return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
   }
 
@@ -145,7 +145,7 @@ public class TenantRoleService {
       @NotNull final Set<Capability> capabilities) {
     Set<Capability> scopedCapabilities = Capability.filterForTenantRole(capabilities);
     assertCanAssignInTenant(tenantId, scopedCapabilities);
-    ReservedKeyValidator.validateRoleId(roleId);
+    ReservedKeyValidator.validateRoleId(roleId, tenantId);
     return updateRoleInternal(roleId, roleName, roleDescription, scopedCapabilities, tenantId);
   }
 
@@ -183,7 +183,7 @@ public class TenantRoleService {
 
   public void delete(@NotBlank final String tenantId, @NotBlank final String roleId) {
     Role role = loadInTenants(roleId, List.of(tenantId));
-    ReservedKeyValidator.validateRoleId(role.getId());
+    ReservedKeyValidator.validateRoleId(role.getId(), tenantId);
     groupRepository.findAllByRoles(role).forEach(group -> group.getRoles().remove(role));
     roleRepository.delete(role);
   }

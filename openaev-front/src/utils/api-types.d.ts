@@ -6882,23 +6882,6 @@ export interface GlobalScoreBySimulationEndDate {
   simulation_end_date: string;
 }
 
-export interface Grant {
-  grant_group?: string;
-  /** @minLength 1 */
-  grant_id: string;
-  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_resource?: string;
-  grant_resource_type?:
-    | "SCENARIO"
-    | "SIMULATION"
-    | "ATOMIC_TESTING"
-    | "AUTONOMOUS_RUN"
-    | "THREAT_ARSENAL"
-    | "PAYLOAD"
-    | "UNKNOWN";
-  listened?: boolean;
-}
-
 export interface GraphEdgeOutput {
   edge_id: string;
   edge_result?: "SUCCESS" | "PENDING" | "FAILED";
@@ -7010,21 +6993,6 @@ export interface GraphStartingPointOutput {
 
 export interface GraphStartingPointsOutput {
   starting_points: GraphStartingPointOutput[];
-}
-
-export interface Group {
-  group_auto_new_marking?: boolean;
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  group_grants?: Grant[];
-  /** @minLength 1 */
-  group_id: string;
-  group_markings?: string[];
-  /** @minLength 1 */
-  group_name: string;
-  group_roles?: string[];
-  group_users?: string[];
-  listened?: boolean;
 }
 
 export interface GroupGrantInput {
@@ -7190,6 +7158,31 @@ export interface ImportPostSummary {
   available_sheets: string[];
   /** @minLength 1 */
   import_id: string;
+}
+
+export interface ImportReport {
+  import_columns: string[];
+  /** @format int32 */
+  import_created: number;
+  /** @format int32 */
+  import_ignored: number;
+  import_rows: ImportReportRow[];
+  /** @format int32 */
+  import_skipped: number;
+}
+
+export interface ImportReportRow {
+  import_row_params: Record<string, string>;
+  /** @format int32 */
+  import_row_position: number;
+  import_row_reason?:
+    | "MISSING_FIELD"
+    | "VALUE_TOO_LONG"
+    | "INVALID_VALUE"
+    | "CONFLICT"
+    | "INSUFFICIENT_ACCESS";
+  import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
+  import_row_values: Record<string, string>;
 }
 
 export interface ImportResult {
@@ -9069,14 +9062,20 @@ export interface MarkingDefinitionInput {
    * @pattern ^#[0-9a-fA-F]{6}$
    */
   marking_definition_color: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_definition: string;
   /**
    * @format int32
    * @min 0
    */
   marking_definition_order: number;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_type: string;
 }
 
@@ -9988,25 +9987,6 @@ export interface PageFullTextSearchResult {
   totalPages?: number;
 }
 
-export interface PageGroup {
-  content?: Group[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageInjectResultOutput {
   content?: InjectResultOutput[];
   empty?: boolean;
@@ -10541,6 +10521,25 @@ export interface PageTagRuleOutput {
 
 export interface PageTeamOutput {
   content?: TeamOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageTenantGroupOutput {
+  content?: TenantGroupOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -11126,6 +11125,13 @@ export interface PayloadUpsertInput {
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
+}
+
+export interface PayloadUsageCountOutput {
+  /** @minLength 1 */
+  payload_id: string;
+  /** @format int64 */
+  payload_usage_count: number;
 }
 
 export interface PayloadUsageMoveInput {
@@ -12583,6 +12589,7 @@ export interface ScenarioBulkProcessingInput {
 
 export interface ScenarioCatalogStateOutput {
   scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_newer_version?: string;
   scenario_catalog_state_revoked: boolean;
 }
 
@@ -14167,6 +14174,22 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupGrantOutput {
+  grant_group?: string;
+  /** @minLength 1 */
+  grant_id: string;
+  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
+}
+
 export interface TenantGroupMarkingsOutput {
   group_auto_new_marking?: boolean;
   /**
@@ -14184,6 +14207,21 @@ export interface TenantGroupMarkingsOutput {
    * @minLength 1
    */
   group_name: string;
+}
+
+export interface TenantGroupOutput {
+  group_auto_new_marking?: boolean;
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  group_grants?: TenantGroupGrantOutput[];
+  /** @minLength 1 */
+  group_id: string;
+  /** @uniqueItems true */
+  group_markings?: string[];
+  /** @minLength 1 */
+  group_name: string;
+  group_roles?: string[];
+  group_users?: string[];
 }
 
 export interface TenantInput {

@@ -93,8 +93,7 @@ public class CatalogScenarioService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
-    return scenarioService.installedFromCatalog(tenantId).stream()
-        .filter(installed -> externalIds.contains(installed.getExternalId()))
+    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
         .collect(
             Collectors.toMap(
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
@@ -105,9 +104,7 @@ public class CatalogScenarioService {
   @Transactional(readOnly = true)
   public Set<String> versionKeysInUse(String tenantId, String repository) {
     List<RawCatalogInstalledScenario> installed =
-        scenarioService.installedFromCatalog(tenantId).stream()
-            .filter(scenario -> repository.equals(scenario.getRepository()))
-            .toList();
+        scenarioService.installedFromCatalog(tenantId, repository);
     if (installed.isEmpty()) {
       return Set.of();
     }

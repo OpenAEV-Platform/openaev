@@ -30,7 +30,8 @@ public class BulkInjectService {
 
   public List<Inject> bulkUpdateWithMonitoring(TxCtx ctx, InjectBulkUpdateInputs input) {
     List<Inject> injectsToUpdate = resolveTargets(ctx, input);
-    String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
+    String operationId =
+        bulkOperationMonitor.start(ctx, "update", "injects", injectsToUpdate.size());
     try {
       List<Inject> updated =
           BulkOperationContext.runSuppressed(
@@ -48,7 +49,8 @@ public class BulkInjectService {
   public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkProcessingInput input) {
     List<Inject> injectsToDelete = injectService.getInjectsToDeleteWithLinks(ctx, input);
     refuseMissingTargets(input, injectsToDelete);
-    String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
+    String operationId =
+        bulkOperationMonitor.start(ctx, "delete", "injects", injectsToDelete.size());
     try {
       List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
       BulkOperationContext.runSuppressed(

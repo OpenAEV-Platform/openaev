@@ -1,6 +1,5 @@
 package io.openaev.service.account;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
 import java.util.ArrayList;
@@ -56,12 +55,7 @@ public final class ReservedKeyValidator {
     }
   }
 
-  /** Throws BadRequestException if the role id is reserved for system use. */
-  public static void validateRoleId(String uuid) {
-    validateRoleId(uuid, TenantContext.getCurrentTenant());
-  }
-
-  /** Same, for the given tenant rather than the thread-local one. */
+  /** Throws BadRequestException if the role id is reserved for system use in this tenant. */
   public static void validateRoleId(String uuid, String tenantId) {
     List<String> idsReserved =
         RESERVED_ROLE_ID.stream()

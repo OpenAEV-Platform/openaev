@@ -15,7 +15,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import { GROUP_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
-import { type Group, type SessionOutput, type UserInput, type UserOutput } from '../../../../utils/api-types';
+import { type SessionOutput, type TenantGroupOutput, type UserInput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -39,7 +39,7 @@ const UserDetail = () => {
   const [user, setUser] = useState<UserOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [sessions, setSessions] = useState<SessionOutput[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<TenantGroupOutput[]>([]);
 
   const loadSessions = useCallback(() => {
     fetchUserSessions(userId).then(response => setSessions(response.data as SessionOutput[]));
@@ -63,7 +63,7 @@ const UserDetail = () => {
       if (canManageSessions) {
         loadSessions();
       }
-      fetchAllGroups().then(response => setGroups((response.data?.content ?? []) as Group[]));
+      fetchAllGroups().then(response => setGroups((response.data?.content ?? []) as TenantGroupOutput[]));
     }
   }, [userId, isPlatform, canManageSessions, loadUser, loadSessions]);
 

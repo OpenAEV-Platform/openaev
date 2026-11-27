@@ -35,7 +35,7 @@ import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import useScenarioUpdatesAvailable from '../card/useScenarioUpdatesAvailable';
+import useScenarioCatalogStates from '../card/useScenarioCatalogStates';
 import { scenarioCategoryLabel } from '../constants';
 import useScenarioLaunch from '../launch/useScenarioLaunch';
 import ScenariosHero from '../page/ScenariosHero';
@@ -102,12 +102,11 @@ const ScenariosAvailable = () => {
     fetchFacetCounts: fetchCatalogScenarioFacetCounts,
   });
   const { queryableHelpers, searchPaginationInput } = catalog;
-  const [updatesKey, setUpdatesKey] = useState(0);
-  const updates = useScenarioUpdatesAvailable(updatesKey);
+  const catalogStates = useScenarioCatalogStates(catalog.items.flatMap(item => item.catalog_scenario_installed_scenario_id ?? []));
   const [updating, setUpdating] = useState<ScenarioUpdateTarget | null>(null);
   const updateOf = (scenario: CatalogScenarioOutput) => {
     const installedId = scenario.catalog_scenario_installed_scenario_id;
-    if (!canInstall || !installedId || !updates.has(installedId)) return undefined;
+    if (!canInstall || !installedId || !catalogStates[installedId]?.scenario_catalog_state_newer_version) return undefined;
     // The dialog names the version installed now: read from the scenario's versions.
     return () => fetchScenarioVersions(installedId)
       .then((versions) => {
@@ -120,7 +119,6 @@ const ScenariosAvailable = () => {
   const updated = () => {
     const scenarioId = updating?.scenarioId;
     setUpdating(null);
-    setUpdatesKey(key => key + 1);
     catalog.reload();
     if (scenarioId) navigate(scenarioUrl(scenarioId));
   };
@@ -203,7 +201,7 @@ const ScenariosAvailable = () => {
   return (
     <>
       <MarketplaceBrowser
-        hero={<ScenariosHero updatesAvailable={updates.size} />}
+        hero={<ScenariosHero />}
         tabs={<MarketplaceCatalogTabs active="available" baseUrl={SCENARIO_BASE_URL} />}
         sidebar={(
           <MarketplaceFacetSidebar

@@ -1,6 +1,5 @@
 import { ControlPointOutlined, EmojiEventsOutlined } from '@mui/icons-material';
 import { Box, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -102,7 +101,7 @@ const InjectAddChallenges: FunctionComponent<Props> = ({
         .indexOf(keyword.toLowerCase()) !== -1;
   const filteredChallenges = challenges
     .filter((n: Challenge) => tags.length === 0
-      || tags.map(item => item.id).some((filter: string) => R.includes(filter, n.challenge_tags)))
+      || tags.map(item => item.id).some((filter: string) => n.challenge_tags!.includes(filter)))
     .filter((n: Challenge) => filterByKeyword(n))
     .slice(0, 20);
 

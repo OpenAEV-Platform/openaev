@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
 import { collectGlossaryViolations, reportGlossaryViolations } from './i18n-glossary.js';
+import { collectOrderViolations, reportOrderViolations } from './i18n-order.js';
 import { collectPlaceholderViolations, reportPlaceholderViolations } from './i18n-placeholders.js';
 import { collectUntranslatedViolations, reportUntranslatedViolations } from './i18n-untranslated.js';
 
@@ -98,11 +99,16 @@ const run = () => {
   if (placeholderViolations.length) {
     reportPlaceholderViolations(placeholderViolations);
   }
+  const orderViolations = collectOrderViolations();
+  if (orderViolations.length) {
+    reportOrderViolations(orderViolations);
+  }
 
   if (Object.keys(missingKeys).length
     || glossaryViolations.length
     || untranslatedViolations.length
-    || placeholderViolations.length) {
+    || placeholderViolations.length
+    || orderViolations.length) {
     process.exit(1);
   }
   process.exit(0);

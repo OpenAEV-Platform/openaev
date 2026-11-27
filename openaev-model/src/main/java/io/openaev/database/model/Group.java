@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.AuditDiffTracked;
+import io.openaev.annotation.AuditDiffUnloaded;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -68,8 +69,13 @@ public class Group implements DualScopeBase {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Grant> grants = new ArrayList<>();
 
+  /**
+   * LAZY: {@code User.groups} is EAGER, so an EAGER side here too would load, with any user, every
+   * member of its groups, then their groups, and so on. The audit snapshots of a load leave it
+   * unloaded for the same reason ({@link AuditDiffUnloaded}).
+   */
   @Schema(implementation = String[].class)
-  @ManyToMany(fetch = FetchType.EAGER)
+  @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_groups",
       joinColumns = @JoinColumn(name = "group_id"),
@@ -77,6 +83,7 @@ public class Group implements DualScopeBase {
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_users")
   @Fetch(value = FetchMode.SUBSELECT)
+  @AuditDiffUnloaded
   private List<User> users = new ArrayList<>();
 
   @Schema(implementation = String[].class)
@@ -103,8 +110,8 @@ public class Group implements DualScopeBase {
    * followed by {@code MarkingClearanceCacheManager#evictForUsers}: the cached clearance is pure
    * set containment and never re-consults this table, so a stale entry fails <b>open</b>.
    *
-   * <p>EAGER + SUBSELECT to match {@link #users} and {@link #roles}: one extra query per batch of
-   * groups, and the collection is serialized with the group.
+   * <p>EAGER + SUBSELECT to match {@link #roles}: one extra query per batch of groups, and the
+   * collection is serialized with the group.
    */
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.EAGER)

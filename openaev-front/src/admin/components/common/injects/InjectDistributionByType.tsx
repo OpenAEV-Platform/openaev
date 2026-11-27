@@ -33,7 +33,7 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const injectsByType = R.pipe(
     (injectsList: InjectStore[]) => injectsList.filter((n: InjectStore) => n.inject_sent_at !== null),
-    (list: InjectStore[]) => Object.groupBy(list, R.prop('inject_type')),
+    (list: InjectStore[]) => Object.groupBy(list, item => String(item.inject_type)),
     Object.entries,
     (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => ({
       inject_type: n[0],

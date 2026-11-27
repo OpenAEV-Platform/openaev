@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.integration.ManagerFactory;
@@ -83,15 +82,12 @@ public class ManagerIntegrationsSyncJob implements Job {
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> {
-            // TenantBaseListener stamps the tenant of every persisted row from TenantContext
-            TenantContext.setCurrentTenant(tenantId);
             managerFactory.getManager(tenantId).monitorIntegrations();
             return null;
           });
     } catch (Exception e) {
       log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
     } finally {
-      TenantContext.clearCurrentTenant();
       long tenantDuration = System.currentTimeMillis() - tenantStart;
       if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD
           && shouldLogSlowTenantExecution(tenantId)) {

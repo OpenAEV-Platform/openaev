@@ -807,7 +807,8 @@ class TenantActiveTableAccessArchTest {
               MarkingDefinitionApi.class,
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
-              // OpenCTI-format import behind MarkingDefinitionApi.importStix, a TxCtx-carrying
+              // OpenCTI-format import behind MarkingDefinitionImporterApi.importStix, a
+              // TxCtx-carrying
               // @Transactional handler: its two reads take the write tenant the handler resolved
               // (findByStixIdAndTenantId, findByTypeAndDefinitionAndTenantId) and creation
               // goes through MarkingDefinitionService.create.
@@ -4769,8 +4770,9 @@ class TenantActiveTableAccessArchTest {
               ProductInventoryMetricCollector.class,
               // Background indexing fetch path, under the sweep's allTenants() scope:
               InjectHandler.class,
-              // Reached only from the threat arsenal usages endpoint, a read-only transaction
-              // that carries a TxCtx and passes the one tenant of its scope to the query:
+              // Reached only from the threat arsenal usages and usage counts endpoints, read-only
+              // transactions that carry a TxCtx and pass the one tenant of their scope to the
+              // query:
               PayloadVersionService.class,
               // Runtime migration, under the migration processor's forTenant scope:
               io.openaev.processor.core.V20261119_Add_logging_expectation_to_manual_payloads.class)

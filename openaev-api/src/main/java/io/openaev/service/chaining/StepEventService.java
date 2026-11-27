@@ -42,12 +42,10 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * {@code TransactionTemplate}. This sets the v2 GUC ({@code app.current_tenants}), scoping the
    * tenant-active tables the run writes (e.g. {@code attackpath_execution}).
    *
-   * <p>The GUC alone is not enough here: rows the listener stamps and tenant-keyed lookups take
-   * their tenant from the thread-local {@link TenantContext}, not from the GUC. Each consumer
-   * therefore also sets {@link TenantContext} to the run's tenant for the duration of the event
-   * (set-then-finally-clear on the pooled worker thread), mirroring the background scheduler jobs
-   * (e.g. {@code ScenarioExecutionJob}). Both scopes carry the same tenant and cohabit: the
-   * primitive scopes the reads, {@link TenantContext} is the tenant the listener stamps.
+   * <p>Each consumer also sets {@link TenantContext} to the run's tenant for the duration of the
+   * event (set-then-finally-clear on the pooled worker thread), for the code it reaches that reads
+   * the ambient tenant. Both scopes carry the same tenant: the primitive scopes the reads, {@link
+   * TenantContext} serves the ambient readers.
    */
   private final TenantScopedTransaction tenantTx;
 
@@ -74,10 +72,10 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     // #6357: the chaining worker thread carries no tenant scope, so the event is scoped to its
     // run's tenant on both mechanisms. The v2 transaction scope covers the tenant-active tables the
     // run reads and writes (injector contracts, endpoints and assets, attack path executions), and
-    // TenantContext covers the code that still reads the ambient tenant. TenantContext is set on
-    // the pooled worker thread and cleared in finally so it never leaks to the next event (mirrors
-    // ScenarioExecutionJob). A null tenantId (legacy/in-flight message) falls back to the default
-    // tenant. Per-event scoping keeps a failing event from rolling the rest of the batch back.
+    // TenantContext covers the code that reads the ambient tenant. TenantContext is set on the
+    // pooled worker thread and cleared in finally so it never leaks to the next event. A null
+    // tenantId (legacy/in-flight message) falls back to the default tenant. Per-event scoping
+    // stops a failing event from rolling the rest of the batch back.
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
     TenantContext.setCurrentTenant(tenantId);
@@ -179,7 +177,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * steps ending at the same time sees the other ended, and a failed evaluation never puts a step
    * back to READY or RUN. A failed evaluation is tried again, each time in a new transaction, up to
    * the retry count of the chaining configuration: no later event may come to evaluate the run. A
-   * failure left is logged; nothing is thrown. The caller has set the tenant on the thread.
+   * failure left is logged; nothing is thrown. The evaluation runs in a transaction scoped to
+   * {@code tenantId}, which is all it needs: it reads no ambient tenant.
    *
    * @param workflowRun the workflow run to evaluate, or {@code null} for none
    * @param tenantId the tenant of the run

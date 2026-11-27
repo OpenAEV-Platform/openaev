@@ -2,7 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.raw.RawInstalledPayloadVersion;
-import io.openaev.database.raw.RawOlderVersionUsages;
+import io.openaev.database.raw.RawOtherVersionAction;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
@@ -40,42 +40,25 @@ public interface PayloadIdentityRepository extends JpaRepository<PayloadIdentity
   // -- OLDER VERSIONS IN USE --
 
   /**
-   * Of these actions, how many injects and chained steps still run another version of their
-   * payload, unless they were kept there for this version.
+   * Of these actions, the actions of the other versions of their payload, unless the older versions
+   * were kept for this one.
    */
-  // Native: shares the usage rules of the inject and step native queries; a read.
+  // Native: joins two versions of one identity, each to its action; a read.
   @Query(
       value =
           """
-          SELECT ic.injector_contract_id AS actionId,
-            (SELECT COUNT(*) FROM injects i WHERE i.tenant_id = :tenantId AND \s"""
-              + InjectRepository.OUTSIDE_SIMULATIONS
-              + " AND i.inject_injector_contract IN ("
-              + OTHER_VERSION_ACTIONS
-              + ")) + (SELECT COUNT(*) "
-              + StepRepository.SCENARIO_STEP_TEMPLATES
-              + " AND "
-              + StepRepository.STEP_CONTRACT_ID
-              + " IN ("
-              + OTHER_VERSION_ACTIONS
-              + """
-              )) AS usages
+          SELECT ic.injector_contract_id AS actionId, vc.injector_contract_id AS otherVersionActionId
           FROM injectors_contracts ic
           JOIN payloads p ON p.payload_id = ic.injector_contract_payload AND p.tenant_id = ic.tenant_id
           JOIN payload_identities pi ON pi.payload_identity_id = p.payload_identity
+          JOIN payloads v ON v.payload_identity = p.payload_identity AND v.tenant_id = p.tenant_id
+            AND v.payload_id <> p.payload_id
+          JOIN injectors_contracts vc
+            ON vc.injector_contract_payload = v.payload_id AND vc.tenant_id = v.tenant_id
           WHERE ic.tenant_id = :tenantId AND ic.injector_contract_id IN (:actionIds)
             AND (pi.payload_identity_older_versions_kept_for IS NULL
               OR pi.payload_identity_older_versions_kept_for <> p.payload_id)""",
       nativeQuery = true)
-  List<RawOlderVersionUsages> countOlderVersionUsagesByTenantId(
+  List<RawOtherVersionAction> findOtherVersionActionsByTenantId(
       @Param("tenantId") String tenantId, @Param("actionIds") Collection<String> actionIds);
-
-  /** The actions of the other versions of the payload of `p`. */
-  String OTHER_VERSION_ACTIONS =
-      """
-      SELECT vc.injector_contract_id FROM payloads v
-      JOIN injectors_contracts vc
-        ON vc.injector_contract_payload = v.payload_id AND vc.tenant_id = v.tenant_id
-      WHERE v.tenant_id = :tenantId AND v.payload_identity = p.payload_identity
-        AND v.payload_id <> p.payload_id""";
 }
