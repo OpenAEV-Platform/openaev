@@ -477,13 +477,17 @@ public class BatchQueueService<T extends Queueable> {
   /**
    * Publish a stringified object of type T into the queue
    *
+   * <p>{@link Math#floorMod} rather than {@code %}: {@code hashCode()} is signed, so with more than
+   * one publisher about half of the elements indexed the channel list with -1 and threw {@code
+   * ArrayIndexOutOfBoundsException}, losing the publish.
+   *
    * @param element the T object to publish
    * @throws IOException in case of error during the publish
    */
   public void publish(T element) throws IOException {
     try {
       publisherChannels
-          .get(element.hashCode() % publisherChannels.size())
+          .get(Math.floorMod(element.hashCode(), publisherChannels.size()))
           .basicPublish(
               exchangeName, routingKey, null, mapper.writeValueAsString(element).getBytes());
     } catch (IOException e) {
@@ -513,12 +517,16 @@ public class BatchQueueService<T extends Queueable> {
   /**
    * Get the id of the worker depending on the key of the element and the number of workers
    *
+   * <p>{@link Math#floorMod} rather than {@code %}: {@code String.hashCode()} is signed, so the
+   * truncated remainder is negative for about half of the keys and named a worker the queue map was
+   * never built with.
+   *
    * @param element the element that we need to process
    * @return the id of the worker
    */
   private int groupByKey(T element) {
     if (element.getUniqueElementKey() != null && !element.getUniqueElementKey().isEmpty()) {
-      return element.getUniqueElementKey().hashCode() % queueConfig.getWorkerNumber();
+      return Math.floorMod(element.getUniqueElementKey().hashCode(), queueConfig.getWorkerNumber());
     }
     return 0;
   }
