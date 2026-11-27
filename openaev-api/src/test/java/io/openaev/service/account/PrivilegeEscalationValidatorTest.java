@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 class PrivilegeEscalationValidatorTest {
 
   private static final String TENANT_ID = "tenant-1";
+  private static final String OTHER_TENANT_ID = "tenant-2";
   private static final String RESOURCE_ID = "scenario-1";
 
   @AfterEach
@@ -29,11 +30,13 @@ class PrivilegeEscalationValidatorTest {
     TenantContext.clearCurrentTenant();
   }
 
-  private static User userInTenantGroup(Set<Capability> roleCapabilities, List<Grant> grants) {
+  /** {@code tenantId == null} builds a platform-scoped group (tenant IS NULL). */
+  private static User userInGroup(
+      String tenantId, Set<Capability> roleCapabilities, List<Grant> grants) {
     Role role = new Role();
     role.setCapabilities(roleCapabilities);
     Group group = new Group();
-    group.setTenant(new Tenant(TENANT_ID));
+    group.setTenant(tenantId == null ? null : new Tenant(tenantId));
     group.setRoles(List.of(role));
     group.setGrants(grants);
     User user = new User();
@@ -41,6 +44,11 @@ class PrivilegeEscalationValidatorTest {
     return user;
   }
 
+  /**
+   * Backs both {@code TenantGroupService.addGrant} and {@code .removeGrant}: both resolve to this
+   * one static check, under the same {@code permissionService.inTenant(tenantId, ...)} wrapper, so
+   * exercising the guard here covers granting and revoking alike.
+   */
   @Nested
   @DisplayName("assertCanAssignGrant")
   class AssertCanAssignGrant {
@@ -52,7 +60,7 @@ class PrivilegeEscalationValidatorTest {
         given_userHoldingTenantBypassThroughAGroup_should_notThrow_evenWithoutAnyGrantOnTheResource() {
       // Arrange
       TenantContext.setCurrentTenant(TENANT_ID);
-      User user = userInTenantGroup(Set.of(Capability.BYPASS), List.of());
+      User user = userInGroup(TENANT_ID, Set.of(Capability.BYPASS), List.of());
 
       // Act / Assert
       assertThatCode(
@@ -63,11 +71,42 @@ class PrivilegeEscalationValidatorTest {
     }
 
     @Test
+    @DisplayName("given_userHoldingPlatformBypass_should_notThrow_regardlessOfTheAmbientTenant")
+    void given_userHoldingPlatformBypass_should_notThrow_regardlessOfTheAmbientTenant() {
+      // Arrange: a platform group (tenant IS NULL) stays visible under any ambient tenant
+      TenantContext.setCurrentTenant(OTHER_TENANT_ID);
+      User user = userInGroup(null, Set.of(Capability.BYPASS), List.of());
+
+      // Act / Assert
+      assertThatCode(
+              () ->
+                  PrivilegeEscalationValidator.assertCanAssignGrant(
+                      user, GRANT_TYPE.LAUNCHER, RESOURCE_ID))
+          .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName(
+        "given_userHoldingBypassOnlyInADifferentTenant_should_throw_evenWithNoOwnGrantRequired")
+    void given_userHoldingBypassOnlyInADifferentTenant_should_throw_evenWithNoOwnGrantRequired() {
+      // Arrange: the BYPASS group belongs to OTHER_TENANT_ID, the assignment happens in TENANT_ID
+      TenantContext.setCurrentTenant(TENANT_ID);
+      User user = userInGroup(OTHER_TENANT_ID, Set.of(Capability.BYPASS), List.of());
+
+      // Act / Assert
+      assertThatThrownBy(
+              () ->
+                  PrivilegeEscalationValidator.assertCanAssignGrant(
+                      user, GRANT_TYPE.OBSERVER, RESOURCE_ID))
+          .isInstanceOf(PrivilegeGrantException.class);
+    }
+
+    @Test
     @DisplayName("given_userWithNoGrantAndNoBypass_should_throw")
     void given_userWithNoGrantAndNoBypass_should_throw() {
       // Arrange
       TenantContext.setCurrentTenant(TENANT_ID);
-      User user = userInTenantGroup(Set.of(Capability.ACCESS_ASSESSMENT), List.of());
+      User user = userInGroup(TENANT_ID, Set.of(Capability.ACCESS_ASSESSMENT), List.of());
 
       // Act / Assert
       assertThatThrownBy(
@@ -85,7 +124,7 @@ class PrivilegeEscalationValidatorTest {
       Grant ownGrant = new Grant();
       ownGrant.setName(GRANT_TYPE.OBSERVER);
       ownGrant.setResourceId(RESOURCE_ID);
-      User user = userInTenantGroup(Set.of(), List.of(ownGrant));
+      User user = userInGroup(TENANT_ID, Set.of(), List.of(ownGrant));
 
       // Act / Assert
       assertThatThrownBy(
