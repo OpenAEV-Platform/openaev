@@ -1,7 +1,9 @@
 package io.openaev.executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
@@ -9,12 +11,17 @@ import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.rest.inject.form.InjectExecutionAction;
+import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
+import java.io.IOException;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 @ExtendWith(MockitoExtension.class)
 class ExecutorServiceTest {
@@ -35,6 +43,12 @@ class ExecutorServiceTest {
   @Mock private ExecutorMapper executorMapper;
   @Mock private CatalogConnectorMapper catalogConnectorMapper;
   @Mock private EndpointService endpointService;
+
+  @Mock
+  private ObjectProvider<InjectExecutionCallbackService> injectExecutionCallbackServiceProvider;
+
+  @Mock private TenantScopedJobRunner tenantScopedJobRunner;
+  @Mock private InjectExecutionCallbackService injectExecutionCallbackService;
   @InjectMocks private ExecutorService executorService;
 
   @BeforeEach
@@ -209,6 +223,56 @@ class ExecutorServiceTest {
       verify(connectorInstanceService, never()).deleteById(any());
       verify(endpointService).removeSourceTagsForExecutor("exec-manual", "tenant-001");
       verify(executorRepository).deleteByExecutorId("exec-manual");
+    }
+  }
+
+  @Nested
+  @DisplayName("reportSendFailure - the agent's execution ends in error")
+  class ReportSendFailure {
+
+    @BeforeEach
+    void runInTheTenant() {
+      doAnswer(
+              invocation -> {
+                invocation.<Runnable>getArgument(1).run();
+                return null;
+              })
+          .when(tenantScopedJobRunner)
+          .runInTenant(eq("tenant-001"), any(Runnable.class));
+      when(injectExecutionCallbackServiceProvider.getObject())
+          .thenReturn(injectExecutionCallbackService);
+    }
+
+    @Test
+    @DisplayName("Given a send failure, the agent's execution completes in error with the reason")
+    void given_sendFailure_should_completeAgentExecutionInError() throws Exception {
+      // Act
+      executorService.reportSendFailure("tenant-001", "inject-1", "agent-1", "Device offline");
+
+      // Assert
+      ArgumentCaptor<InjectExecutionInput> input =
+          ArgumentCaptor.forClass(InjectExecutionInput.class);
+      verify(injectExecutionCallbackService)
+          .injectExecutionCallback(eq("agent-1"), eq("inject-1"), input.capture());
+      assertThat(input.getValue().getStatus()).isEqualTo("ERROR");
+      assertThat(input.getValue().getAction()).isEqualTo(InjectExecutionAction.complete);
+      assertThat(input.getValue().getMessage()).isEqualTo("Device offline");
+    }
+
+    @Test
+    @DisplayName("Given the report itself fails, the failure is logged and not thrown")
+    void given_reportFails_should_notThrow() throws Exception {
+      // Arrange
+      doThrow(new IOException("down"))
+          .when(injectExecutionCallbackService)
+          .injectExecutionCallback(any(), any(), any());
+
+      // Act & Assert
+      assertThatCode(
+              () ->
+                  executorService.reportSendFailure(
+                      "tenant-001", "inject-1", "agent-1", "Device offline"))
+          .doesNotThrowAnyException();
     }
   }
 }
