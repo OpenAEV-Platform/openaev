@@ -41,10 +41,19 @@ Nodes and edges are colored to convey the outcome at a glance:
 |-------|---------|
 | Green | Prevented on all endpoints |
 | Orange | Detected, or prevented/detected on only part of the endpoints |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| Yellow | Logged only: a security tool recorded the attack, but nothing blocked or detected it |
+{%- endif %}
 | Red | Neither prevented nor detected |
 | Highlighted node | Chokepoint — the most exposed endpoint (highest weighted Finding count) |
 | Highlighted edge | Event link — a Finding that triggered the next Action in the chain |
 | Primary-colored path | Selected attack path — the path currently highlighted after clicking a node or table row |
+
+{% if feature_visible("LOGGING_EXPECTATION") %}
+With Logging, a node takes the worst color of its executions, from worst to best: red, yellow, orange, green. Red then
+means the attack was not prevented, detected or logged, and the legend and the execution status say so ("Not
+Logged").
+{% endif %}
 
 A legend in the bottom-left corner of the graph recalls this color and shape key at any time; it starts collapsed
 (showing only the verdict-color dots) and expands on click, and automatically collapses again whenever you open a
@@ -122,6 +131,9 @@ The legend in the bottom-left corner recalls every shape and color used on the m
 - **Pill** = Finding cluster (grouped Findings); expand it the same way.
 - **Circle** = an individual Finding (or endpoint, once expanded).
 - **Green / Orange / Red** = the verdict colors described above (Prevented / Detected or partial / Neither).
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+- **Yellow** = Logged only.
+{%- endif %}
 - **Highlighted (violet) node** = a chokepoint.
 - **Highlighted edge** = an Event link — the causal connection between a Finding and the next Action it triggered.
 - **Primary-colored path** = the attack path currently selected (after clicking a node, a chokepoint, or a table

@@ -86,7 +86,7 @@ A single Expectation can receive multiple validation results for the same Inject
 When automated result retrieval is not possible (e.g., non-technical Injects), record results manually:
 
 1. Open the Inject result page.
-2. On the Expectation card, click **Add a result**: the **shield** icon for Detection, Prevention, and Vulnerability Expectations, the **clipboard** icon for Manual, Challenge, and Article Expectations.
+2. On the Expectation card, click **Add a result**: the **shield** icon for Detection, Prevention{% if feature_visible("LOGGING_EXPECTATION") %}, Logging{% endif %}, and Vulnerability Expectations, the **clipboard** icon for Manual, Challenge, and Article Expectations.
 3. Fill in the result form and save.
 
 For Manual, Challenge, and Article Expectations, the **Add a result** button stays available after a score is set, so you can change the score later. The new result replaces the previous one.
@@ -99,6 +99,9 @@ When the score is set depends on the Expectation type:
 
 - **Detection and Prevention**: OpenAEV settles the Expectation as soon as one result reaches the expected score. OpenAEV does not wait for the other security platforms. A result they send later is still recorded but cannot lower the score.
 - **Detection and Prevention without a success**: OpenAEV waits until every expected security platform has answered, then keeps the highest score. If the Expectation expires first, OpenAEV marks the missing results as failed.
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+- **Logging**: same rules as Detection and Prevention. One "Logged" result is enough, and an expired Expectation is marked "Not Logged".
+{%- endif %}
 - **Vulnerability**: OpenAEV settles the Expectation as soon as one source reports the Asset as vulnerable. OpenAEV does not wait for the other sources, because none of them can make the Asset less vulnerable.
 - **Vulnerability without a finding**: OpenAEV waits until every expected source has answered "Not vulnerable". If the Expectation expires first, OpenAEV marks the missing results as "Not vulnerable": no finding means the Asset is not vulnerable.
 
@@ -111,6 +114,19 @@ When the score is set depends on the Expectation type:
 Only security platform Collectors can fulfill Detection and Prevention Expectations. When the Inject executes, OpenAEV checks for a Collector linked to one of the expected security platform types (any type if none is selected). If there is none, OpenAEV marks the Expectation as failed (score 0) at once instead of waiting for its expiration. Its result card shows **No automated security platform detected**.
 
 This check runs only when the Inject executes. Vulnerability Expectations are not affected.
+
+{% if feature_visible("LOGGING_EXPECTATION") %}
+Logging Expectations follow the same check, but only count the Collectors that declare Logging. A Collector that does
+not search raw events is never waited on, so it cannot turn an Expectation into "Not Logged". See
+[Collectors](../../../integrations/collectors/collectors.md) for the Collectors that fill Logging Expectations.
+
+### Logging on existing Injects
+
+The first time Logging is available on the platform, OpenAEV adds a Logging Expectation to the Payloads created by
+hand that expect Detection or Prevention, and to the Injects and chaining steps that use them. Logging takes
+the security platforms of the Detection Expectation. Imported Payloads and external Injectors get Logging when their
+Collector or Injector supports it. Past results do not change: only the Expectations of the next runs do.
+{% endif %}
 
 ## Status propagation
 

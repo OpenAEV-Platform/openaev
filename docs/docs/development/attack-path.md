@@ -65,6 +65,7 @@ erDiagram
         varchar target_ip
         text prevention_status
         text detection_status
+        text logging_status
         timestamp executed_at
         text command "short; Read A skips it too"
         text terminal_output "heavy, TOASTed, never read by the graph"
@@ -204,6 +205,18 @@ An endpoint takes the **worst-case** severity of the executions targeting it (`R
 In full mode the service computes this per execution and folds to the worst; in collapsed mode the
 `GROUP BY` counts, per endpoint, the executions that are RED and those that are ORANGE (null-safe: a
 missing status counts as "not prevented" / "not detected"), and the worst non-zero bucket wins.
+
+{% if feature_visible("LOGGING_EXPECTATION") %}
+With the Logging expectation, `attackpath_execution_logging_status` stores the logging result of each
+execution and a fourth severity sits between ORANGE and RED:
+
+- **YELLOW** — logged only: the security tool recorded the attack, without blocking or detecting it.
+- **RED** then means not prevented, detected or logged.
+
+The order becomes `RED > YELLOW > ORANGE > GREEN`, and the collapsed `GROUP BY` also counts the YELLOW
+executions. An execution recorded before the column existed has no logging status and counts as not
+logged.
+{% endif %}
 
 ## 6. Tenant isolation (multi-tenancy v2)
 
