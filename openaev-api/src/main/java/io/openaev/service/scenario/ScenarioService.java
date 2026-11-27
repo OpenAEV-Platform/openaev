@@ -936,10 +936,27 @@ public class ScenarioService {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
-  /** The scenarios of the tenant installed from the catalogue, with the version each runs. */
+  /**
+   * The scenarios of the tenant installed from these catalogue items, with the version each runs.
+   */
   @Transactional(readOnly = true)
-  public List<RawCatalogInstalledScenario> installedFromCatalog(String tenantId) {
-    return scenarioRepository.findInstalledFromCatalog(tenantId);
+  public List<RawCatalogInstalledScenario> installedFromCatalog(
+      String tenantId, Collection<String> externalIds) {
+    return scenarioRepository.findInstalledFromCatalogByTenantIdAndExternalIdIn(
+        tenantId, externalIds);
+  }
+
+  @Transactional(readOnly = true)
+  public List<RawCatalogInstalledScenario> installedFromCatalog(
+      String tenantId, String repository) {
+    return scenarioRepository.findInstalledFromCatalogByTenantIdAndRepository(tenantId, repository);
+  }
+
+  /** Of these scenarios, the ones installed from the catalogue. */
+  @Transactional(readOnly = true)
+  public List<RawCatalogInstalledScenario> installedFromCatalogAmong(
+      String tenantId, Collection<String> scenarioIds) {
+    return scenarioRepository.findInstalledFromCatalogByTenantIdAndIdIn(tenantId, scenarioIds);
   }
 
   // -- EXPORT --

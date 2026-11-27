@@ -1,7 +1,5 @@
 package io.openaev.service.catalog.scenario.update;
 
-import static java.util.stream.Collectors.toSet;
-
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.catalog.CatalogScenario;
@@ -15,7 +13,6 @@ import io.openaev.service.scenario.ScenarioService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,14 +52,13 @@ public class InstalledScenarioService {
   @Transactional(readOnly = true)
   public Map<String, ScenarioCatalogState> catalogStates(
       TxCtx ctx, String tenantId, List<String> scenarioIds) {
-    Set<String> readable =
-        scenarioService.scenarios(ctx, scenarioIds).stream()
-            .map(ScenarioSimple::getId)
-            .collect(toSet());
+    List<String> readable =
+        scenarioService.scenarios(ctx, scenarioIds).stream().map(ScenarioSimple::getId).toList();
+    if (readable.isEmpty()) {
+      return Map.of();
+    }
     List<RawCatalogInstalledScenario> installed =
-        scenarioService.installedFromCatalog(tenantId).stream()
-            .filter(scenario -> readable.contains(scenario.getScenarioId()))
-            .toList();
+        scenarioService.installedFromCatalogAmong(tenantId, readable);
     if (installed.isEmpty()) {
       return Map.of();
     }

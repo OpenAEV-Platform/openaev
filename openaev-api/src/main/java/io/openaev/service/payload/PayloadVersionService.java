@@ -13,7 +13,7 @@ import io.openaev.database.model.Step;
 import io.openaev.database.model.User;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.model.payload.PayloadRevocation;
-import io.openaev.database.raw.RawOlderVersionUsages;
+import io.openaev.database.raw.RawOtherVersionAction;
 import io.openaev.database.raw.RawScenarioUsageCount;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
@@ -232,10 +232,23 @@ public class PayloadVersionService {
     if (actionIds.isEmpty()) {
       return Map.of();
     }
-    return payloadIdentityRepository.countOlderVersionUsagesByTenantId(tenantId, actionIds).stream()
-        .filter(action -> action.getUsages() > 0)
-        .collect(
-            Collectors.toMap(RawOlderVersionUsages::getActionId, RawOlderVersionUsages::getUsages));
+    Map<String, List<String>> cardsOfOtherVersion =
+        payloadIdentityRepository.findOtherVersionActionsByTenantId(tenantId, actionIds).stream()
+            .collect(
+                Collectors.groupingBy(
+                    RawOtherVersionAction::getOtherVersionActionId,
+                    Collectors.mapping(RawOtherVersionAction::getActionId, Collectors.toList())));
+    if (cardsOfOtherVersion.isEmpty()) {
+      return Map.of();
+    }
+    return injectRepository
+        .countUsagesByTenantIdAndActionIds(tenantId, cardsOfOtherVersion.keySet())
+        .stream()
+        .flatMap(
+            count ->
+                cardsOfOtherVersion.get(count.getActionId()).stream()
+                    .map(card -> Map.entry(card, count.getUsageCount())))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Long::sum));
   }
 
   // -- UPDATE --
