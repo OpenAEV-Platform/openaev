@@ -106,6 +106,11 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
     return token;
   }
 
+  @Transactional
+  public void syncRole(TxCtx ctx, String tenantId) {
+    ensureWellKnownRole(ctx, tenantId);
+  }
+
   /** Replaces the tenant's catalog connector token and returns the new one. */
   @Transactional
   public String rotateTokenForTenant(String tenantId) {
