@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.ImplantCommand;
@@ -26,8 +27,7 @@ import org.springframework.stereotype.Service;
 public class SentinelOneExecutorContextService
     extends BatchExecutorContextService<SentinelOneAction> {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;
-  private static final ImplantCommand IMPLANT_COMMAND =
-      new ImplantCommand(ImplantCommand.ArchSource.AGENT, null);
+  private static final ImplantCommand IMPLANT_COMMAND = new ImplantCommand(ArchSource.AGENT, null);
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;

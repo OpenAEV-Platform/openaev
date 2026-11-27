@@ -10,6 +10,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.ImplantCommand;
@@ -32,7 +33,7 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
   // Windows uses the scheduled-task launch: MDE Live Response terminates the session process tree
   // on teardown, so the implant must run from a detached SYSTEM task to report its traces.
   private static final ImplantCommand IMPLANT_COMMAND =
-      new ImplantCommand(ImplantCommand.ArchSource.ENDPOINT, MDE_EXECUTOR_NAME);
+      new ImplantCommand(ArchSource.ENDPOINT, MDE_EXECUTOR_NAME);
 
   // MDE allows 10 Live Response calls per minute.
   private static final Duration BATCH_INTERVAL = Duration.ofMinutes(1);

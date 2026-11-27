@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.ImplantCommand;
@@ -31,8 +32,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
   public static final String SERVICE_NAME = TANIUM_EXECUTOR_NAME;
-  private static final ImplantCommand IMPLANT_COMMAND =
-      new ImplantCommand(ImplantCommand.ArchSource.AGENT, null);
+  private static final ImplantCommand IMPLANT_COMMAND = new ImplantCommand(ArchSource.AGENT, null);
 
   @Override
   public void launchExecutorSubprocess(

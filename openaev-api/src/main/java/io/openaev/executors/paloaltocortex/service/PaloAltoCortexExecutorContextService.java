@@ -9,6 +9,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.ImplantCommand;
@@ -30,7 +31,7 @@ public class PaloAltoCortexExecutorContextService
     extends BatchExecutorContextService<PaloAltoCortexAction> {
   public static final String SERVICE_NAME = PALOALTOCORTEX_EXECUTOR_NAME;
   private static final ImplantCommand IMPLANT_COMMAND =
-      new ImplantCommand(ImplantCommand.ArchSource.ENDPOINT, PALOALTOCORTEX_EXECUTOR_NAME);
+      new ImplantCommand(ArchSource.ENDPOINT, PALOALTOCORTEX_EXECUTOR_NAME);
 
   private final PaloAltoCortexExecutorConfig config;
   private final PaloAltoCortexExecutorClient client;

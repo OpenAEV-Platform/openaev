@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.ImplantCommand;
@@ -27,7 +28,7 @@ public class CrowdStrikeExecutorContextService
     extends BatchExecutorContextService<CrowdStrikeAction> {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
   private static final ImplantCommand IMPLANT_COMMAND =
-      new ImplantCommand(ImplantCommand.ArchSource.ENDPOINT, null);
+      new ImplantCommand(ArchSource.ENDPOINT, null);
 
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;

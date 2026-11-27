@@ -1,11 +1,12 @@
 package io.openaev.executors;
 
-import static io.openaev.executors.ExecutorHelper.*;
+import static io.openaev.executors.ExecutorHelper.IMPLANT_BASE_NAME;
+import static io.openaev.executors.ExecutorHelper.IMPLANT_LOCATION_UNIX;
+import static io.openaev.executors.ExecutorHelper.IMPLANT_LOCATION_WINDOWS;
+import static io.openaev.executors.ExecutorHelper.replaceArgs;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Agent;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Endpoint.PLATFORM_ARCH;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
@@ -21,41 +22,6 @@ import java.util.regex.Matcher;
  *     whose Windows template differs (scheduled-task launch); {@code null} otherwise
  */
 public record ImplantCommand(ArchSource archSource, String windowsTemplatePrefix) {
-
-  public enum ArchSource {
-    /** The architecture the EDR reported at sync. */
-    AGENT {
-      @Override
-      String templateArch(Agent agent) {
-        return ((Endpoint) agent.getAsset()).getArch().name();
-      }
-
-      @Override
-      String adapt(String template, PLATFORM_TYPE platform) {
-        return template;
-      }
-    },
-    /** The EDR does not report it: the command detects it on the endpoint before downloading. */
-    ENDPOINT {
-      @Override
-      String templateArch(Agent agent) {
-        return PLATFORM_ARCH.x86_64.name();
-      }
-
-      @Override
-      String adapt(String template, PLATFORM_TYPE platform) {
-        String x86 = PLATFORM_ARCH.x86_64.name();
-        // The backtick escapes the "?" that follows the architecture in the Windows download URL
-        return platform == PLATFORM_TYPE.Windows
-            ? WINDOWS_ARCH + template.replace(x86, ARCH_VARIABLE + "`")
-            : UNIX_ARCH + template.replace(x86, ARCH_VARIABLE);
-      }
-    };
-
-    abstract String templateArch(Agent agent);
-
-    abstract String adapt(String template, PLATFORM_TYPE platform);
-  }
 
   public String build(
       OpenAEVConfig config,
