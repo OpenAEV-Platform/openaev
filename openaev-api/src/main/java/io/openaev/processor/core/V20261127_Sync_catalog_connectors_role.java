@@ -1,6 +1,5 @@
 package io.openaev.processor.core;
 
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.DataPackService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
@@ -31,7 +30,7 @@ public class V20261127_Sync_catalog_connectors_role extends RuntimeMigration {
     if (connectorInstanceService.findOpenAevTokenConfigurations(tenant.getId()).isEmpty()) {
       return true; // nothing deployed from the catalog: the role is created at the first deployment
     }
-    catalogConnectorPrivilegeService.syncRole(TxCtx.forTenant(tenant.getId()), tenant.getId());
+    catalogConnectorPrivilegeService.syncRole(tenant.getId());
     return true;
   }
 }

@@ -107,8 +107,8 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
   }
 
   @Transactional
-  public void syncRole(TxCtx ctx, String tenantId) {
-    ensureWellKnownRole(ctx, tenantId);
+  public void syncRole(String tenantId) {
+    ensureWellKnownRole(TxCtx.forTenant(tenantId), tenantId);
   }
 
   /** Replaces the tenant's catalog connector token and returns the new one. */
