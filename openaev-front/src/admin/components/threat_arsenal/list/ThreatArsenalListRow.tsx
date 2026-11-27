@@ -11,6 +11,7 @@ import PlatformIcon from '../../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import InjectIcon from '../../common/injects/InjectIcon';
 import PayloadStatusComponent from '../../payloads/PayloadStatusComponent';
+import { type OpenedTab } from '../hook/useOpenedAction';
 import ThreatArsenalActionPopover from '../ThreatArsenalActionPopover';
 import { isShownRevoked } from '../utils/threatArsenalStatusUtils';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
@@ -25,7 +26,7 @@ interface Props {
   onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
   onDelete: () => void;
-  onShowVersions: (action: ThreatArsenalAction) => void;
+  onShowVersions: (action: ThreatArsenalAction, tab?: OpenedTab) => void;
 }
 
 const ThreatArsenalListRow: FunctionComponent<Props> = ({

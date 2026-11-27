@@ -1,4 +1,3 @@
-import * as R from 'ramda';
 import { type ReactNode, useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { Subject, timer } from 'rxjs';
@@ -62,7 +61,7 @@ export const isDemoInstance = (settings: PlatformSettings) => {
 export const XTM_HUB_DEFAULT_URL = 'https://hub.filigran.io';
 
 // Network
-const isEmptyPath = R.isNil(window.BASE_PATH) || R.isEmpty(window.BASE_PATH);
+const isEmptyPath = !window.BASE_PATH;
 const contextPath = isEmptyPath || window.BASE_PATH === '/' ? '' : window.BASE_PATH;
 export const APP_BASE_PATH = isEmptyPath || contextPath?.startsWith('/') ? contextPath : `/${contextPath}`;
 
@@ -134,6 +133,6 @@ export const exportData = <T extends object>(
           inject_content: JSON.stringify(entry.inject_content),
         };
       }
-      return R.mapObjIndexed(escape, entry) as Record<string, string | undefined>;
+      return Object.fromEntries(Object.entries(entry).map(([key, value]) => [key, escape(value)])) as Record<string, string | undefined>;
     });
 };

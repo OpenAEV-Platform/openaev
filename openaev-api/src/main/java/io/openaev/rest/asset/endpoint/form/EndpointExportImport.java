@@ -59,4 +59,8 @@ public class EndpointExportImport {
   @CsvBindByName(column = "asset_url")
   @CsvBindByPosition(position = 11)
   private String url;
+
+  @CsvBindByName(column = "asset_internet_facing")
+  @CsvBindByPosition(position = 12)
+  private Boolean internetFacing;
 }

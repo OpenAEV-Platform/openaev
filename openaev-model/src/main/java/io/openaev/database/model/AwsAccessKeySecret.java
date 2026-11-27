@@ -4,7 +4,6 @@ import static io.openaev.database.model.Secret.SECRET_TYPE.AWS_ACCESS_KEY_VALUE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -16,7 +15,6 @@ import lombok.ToString;
 @Setter
 @Entity
 @DiscriminatorValue(AWS_ACCESS_KEY_VALUE)
-@EntityListeners(ModelBaseListener.class)
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true, onlyExplicitlyIncluded = true)
 public class AwsAccessKeySecret extends Secret {

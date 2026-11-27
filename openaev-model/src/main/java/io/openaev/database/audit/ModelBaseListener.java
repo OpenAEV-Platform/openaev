@@ -1,19 +1,35 @@
 package io.openaev.database.audit;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import io.openaev.annotation.AuditDiffTracked;
+import io.openaev.annotation.AuditDiffUnloaded;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.hibernate.collection.spi.PersistentCollection;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * JPA entity listener that publishes lifecycle events for database entities.
@@ -67,6 +83,9 @@ public class ModelBaseListener {
   private final AuditLogProperties auditLogProperties;
   private final ApplicationEventPublisher appPublisher;
 
+  /** {@link #mapper} with not-loaded {@link AuditDiffUnloaded} collections left unloaded. */
+  private volatile ObjectMapper unloadedSafeMapper;
+
   // -- Standard lifecycle events --
 
   /**
@@ -80,7 +99,10 @@ public class ModelBaseListener {
     if (instance.getId() == null) return;
     try {
       registerCleanupIfNeeded();
-      AuditLogContext.storeBefore(instance.getId(), buildSnapshot(instance));
+      Map<String, Object> before = buildSnapshot(unloadedSafeMapper(), instance);
+      // Kept unread: the update snapshot reads their members only if the update touches them.
+      before.putAll(notLoadedCollections(instance));
+      AuditLogContext.storeBefore(instance.getId(), before);
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to store before-snapshot for {}: {}",
@@ -106,7 +128,7 @@ public class ModelBaseListener {
     if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
-      Map<String, Object> snapshot = buildSnapshot(instance);
+      Map<String, Object> snapshot = buildSnapshot(mapper, instance);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
@@ -125,7 +147,8 @@ public class ModelBaseListener {
    *
    * <p>The "before" state is taken from the {@link AuditLogContext} snapshot captured at
    * {@code @PostLoad} time. If no before-snapshot exists (entity was created in this transaction),
-   * the snapshot is skipped.
+   * the snapshot is skipped. An {@link AuditDiffUnloaded} collection is compared only if the update
+   * loaded or replaced it, against its members at load.
    */
   @PreUpdate
   void preUpdateForDiff(Object base) {
@@ -134,11 +157,14 @@ public class ModelBaseListener {
     try {
       Map<String, Object> before = AuditLogContext.getBefore(instance.getId());
       if (before == null) return;
-      Map<String, Object> after = buildSnapshot(instance);
+      Map<String, Object> after = buildSnapshot(unloadedSafeMapper(), instance);
+      Map<String, Object> resolved = resolveNotLoaded(before, after);
+      // A later flush of this entity in the transaction compares with the same members at load.
+      AuditLogContext.storeBefore(instance.getId(), resolved);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
-              instance.getClass().getSimpleName(), "update", before, after));
+              instance.getClass().getSimpleName(), "update", withoutNotLoaded(resolved), after));
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to capture update-snapshot for {}: {}",
@@ -178,7 +204,7 @@ public class ModelBaseListener {
     if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
-      Map<String, Object> snapshot = buildSnapshot(instance);
+      Map<String, Object> snapshot = buildSnapshot(mapper, instance);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
@@ -229,11 +255,125 @@ public class ModelBaseListener {
   /**
    * Serializes an entity to a {@code Map<String,Object>} using the same Jackson configuration as
    * the REST API (respects {@code @JsonIgnore}, {@code @JsonProperty}, custom serializers, etc.).
+   * The create and delete snapshots pass {@link #mapper}, which loads every collection; the load
+   * and update snapshots pass {@link #unloadedSafeMapper()}.
    */
-  private Map<String, Object> buildSnapshot(Base entity) {
+  private Map<String, Object> buildSnapshot(ObjectMapper snapshotMapper, Base entity) {
     // Let serialization failures propagate so callers skip storing/using a broken snapshot.
-    return mapper.convertValue(
-        mapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
+    return snapshotMapper.convertValue(
+        snapshotMapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
+  }
+
+  private ObjectMapper unloadedSafeMapper() {
+    ObjectMapper safeMapper = unloadedSafeMapper;
+    if (safeMapper == null) {
+      safeMapper =
+          mapper
+              .copy()
+              .registerModule(new SimpleModule().setSerializerModifier(new UnloadedModifier()));
+      unloadedSafeMapper = safeMapper;
+    }
+    return safeMapper;
+  }
+
+  /** Wraps the writer of each {@link AuditDiffUnloaded} property. */
+  private static final class UnloadedModifier extends BeanSerializerModifier {
+    @Override
+    public List<BeanPropertyWriter> changeProperties(
+        SerializationConfig config, BeanDescription beanDesc, List<BeanPropertyWriter> writers) {
+      writers.replaceAll(
+          writer ->
+              writer.getAnnotation(AuditDiffUnloaded.class) != null
+                  ? new UnloadedWriter(writer)
+                  : writer);
+      return writers;
+    }
+  }
+
+  /**
+   * The {@link AuditDiffUnloaded} collections of the entity that are not loaded, by JSON name. The
+   * load snapshot keeps them as is, without loading them.
+   */
+  private static Map<String, Object> notLoadedCollections(Base entity) {
+    Map<String, Object> notLoaded = new LinkedHashMap<>();
+    ReflectionUtils.doWithFields(
+        entity.getClass(),
+        field -> {
+          ReflectionUtils.makeAccessible(field);
+          Object value = field.get(entity);
+          if (value != null && !Hibernate.isInitialized(value)) {
+            notLoaded.put(jsonName(field), value);
+          }
+        },
+        field -> field.isAnnotationPresent(AuditDiffUnloaded.class));
+    return notLoaded;
+  }
+
+  private static String jsonName(Field field) {
+    JsonProperty property = field.getAnnotation(JsonProperty.class);
+    return property != null && !property.value().isEmpty() ? property.value() : field.getName();
+  }
+
+  /**
+   * Replaces each collection kept unread by the load snapshot with its member ids at load, when the
+   * update loaded or replaced it (only such a collection reaches the after snapshot). An untouched
+   * one stays as is, never loaded, for a later update in the transaction.
+   */
+  private static Map<String, Object> resolveNotLoaded(
+      Map<String, Object> before, Map<String, Object> after) {
+    Map<String, Object> resolved = new LinkedHashMap<>(before);
+    before.forEach(
+        (name, value) -> {
+          if (value instanceof PersistentCollection<?> atLoad && after.containsKey(name)) {
+            List<String> ids = idsAtLoad(atLoad);
+            if (ids != null) {
+              resolved.put(name, ids);
+            } else {
+              // Members at load unknown: the field stays out of the diff rather than show a guess.
+              after.remove(name);
+            }
+          }
+        });
+    return resolved;
+  }
+
+  /** The before snapshot without the collections still unread, which stay out of the diff. */
+  private static Map<String, Object> withoutNotLoaded(Map<String, Object> resolved) {
+    Map<String, Object> before = new LinkedHashMap<>(resolved);
+    before.values().removeIf(PersistentCollection.class::isInstance);
+    return before;
+  }
+
+  /**
+   * Member ids of the collection as loaded from the database: its stored snapshot ignores the
+   * changes made since. A collection replaced without being read is loaded here, so only for an
+   * update that replaced it. {@code null} when Hibernate no longer holds that snapshot.
+   */
+  private static List<String> idsAtLoad(PersistentCollection<?> atLoad) {
+    Hibernate.initialize(atLoad);
+    Object stored = atLoad.getStoredSnapshot();
+    if (stored == null) {
+      return null;
+    }
+    Collection<?> members = stored instanceof Map<?, ?> map ? map.values() : (Collection<?>) stored;
+    return members.stream().map(member -> ((Base) member).getId()).toList();
+  }
+
+  /** Leaves out a not-loaded collection instead of loading it. */
+  private static final class UnloadedWriter extends BeanPropertyWriter {
+    UnloadedWriter(BeanPropertyWriter base) {
+      super(base);
+    }
+
+    @Override
+    public void serializeAsField(Object bean, JsonGenerator gen, SerializerProvider prov)
+        throws Exception {
+      Object value = get(bean);
+      if (value != null && !Hibernate.isInitialized(value)) {
+        return;
+      }
+      super.serializeAsField(bean, gen, prov);
+    }
   }
 
   private boolean shouldCaptureAuditDiff(Object entity) {

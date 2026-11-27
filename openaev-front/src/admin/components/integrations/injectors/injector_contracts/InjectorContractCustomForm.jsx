@@ -3,7 +3,6 @@ import { RichTextEditor } from '@filigran/rich-text-editor';
 import { Grid, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { Field, Form } from 'react-final-form';
 
@@ -45,7 +44,7 @@ const InjectorContractForm = (props) => {
           ? (
               <RichTextEditor
                 variant="outlined"
-                data={(!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue) ?? ''}
+                data={fields[field.key]?.defaultValue ?? field.defaultValue ?? ''}
                 onChange={(_, editor) => {
                   setFields({
                     ...fields,
@@ -59,7 +58,7 @@ const InjectorContractForm = (props) => {
                 multiline={true}
                 rows={10}
                 style={{ marginTop: 5 }}
-                value={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
+                value={fields[field.key]?.defaultValue ?? field.defaultValue}
                 onChange={event => setFields({
                   ...fields,
                   [field.key]: { defaultValue: event.target.value },
@@ -71,7 +70,7 @@ const InjectorContractForm = (props) => {
           <TextFieldFds
             type="number"
             style={{ marginTop: 5 }}
-            value={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
+            value={fields[field.key]?.defaultValue ?? field.defaultValue}
             onChange={event => setFields({
               ...fields,
               [field.key]: { defaultValue: event.target.value },
@@ -82,7 +81,7 @@ const InjectorContractForm = (props) => {
         return (
           <TextFieldFds
             style={{ marginTop: 5 }}
-            value={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
+            value={fields[field.key]?.defaultValue ?? field.defaultValue}
             onChange={event => setFields({
               ...fields,
               [field.key]: { defaultValue: event.target.value },
@@ -165,7 +164,7 @@ const InjectorContractForm = (props) => {
                     </Typography>
 
                     <Switch
-                      checked={!R.isNil(fields[field.key]?.readOnly) ? fields[field.key].readOnly : field.readOnly}
+                      checked={fields[field.key]?.readOnly ?? field.readOnly}
                       onCheckedChange={checked => setFields({
                         ...fields,
                         [field.key]: { readOnly: checked === true },

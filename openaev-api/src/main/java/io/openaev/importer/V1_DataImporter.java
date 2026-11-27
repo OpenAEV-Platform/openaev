@@ -188,18 +188,24 @@ public class V1_DataImporter implements Importer {
           Optional<InjectorContract> contractOpt =
               injectorContractRepository.findByContractIdAndTenant(
                   contract, TenantContext.getCurrentTenant());
-          if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
-            break;
-          }
-          List<String> docArgKeys =
-              contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> PrimitiveType.Document == arg.getType())
-                  .map(PayloadArgument::getKey)
-                  .toList();
-          if (docArgKeys.isEmpty()) {
+          if (contractOpt.isEmpty()) {
             break;
           }
           ObjectNode contentNode = (ObjectNode) mapper.readTree(content);
+          injectorContractContentUtils.remapImportedReferenceFields(
+              contractOpt.get(),
+              contentNode,
+              oldId ->
+                  baseIds.get(oldId) instanceof Tag tag
+                      ? Optional.of(tag.getId())
+                      : Optional.empty());
+          List<String> docArgKeys =
+              contractOpt.get().getPayload() == null
+                  ? List.of()
+                  : contractOpt.get().getPayload().getArguments().stream()
+                      .filter(arg -> PrimitiveType.Document == arg.getType())
+                      .map(PayloadArgument::getKey)
+                      .toList();
           for (String key : docArgKeys) {
             JsonNode valueNode = contentNode.get(key);
             if (valueNode != null && valueNode.isTextual()) {
@@ -3064,7 +3070,7 @@ public class V1_DataImporter implements Importer {
    * <ul>
    *   <li>(b) its injector type ({@code injector_contract_injector_type}) is present but no
    *       injector of that type exists on the target ({@link
-   *       InjectorService#injectorTypeExists(String)}); or
+   *       InjectorService#injectorTypeExists(String, String)}); or
    *   <li>(a) its injector contract is neither already present on the target for the current tenant
    *       ({@code existsByContractIdAndTenant} / previously resolved) nor resolvable read-only from
    *       the payload external id ({@link #resolveInjectorContractReadOnly}).
@@ -3095,17 +3101,19 @@ public class V1_DataImporter implements Importer {
 
     String injectTitle = getTextValue(dataJson, "inject_title");
 
+    // The import's write tenant answers every question below: the injector type and the contract
+    // id are looked up in the tenant the step is imported into, whatever the ambient tenant of the
+    // request is.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+
     // (b) Injector of the referenced type must exist on the target instance.
     String injectorType = extractInjectorType(injectContractNode);
-    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType)) {
+    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType, writeTenant)) {
       return Optional.of(
           new SkippedWorkflowStep(SkippedWorkflowStepType.INJECTOR, injectTitle, injectorType));
     }
 
     // (a) Injector contract must already exist on the target or be resolvable read-only.
-    // The import's write tenant answers both questions: the contract id is looked up in the tenant
-    // the step is imported into, whatever the ambient tenant of the request is.
-    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     String injectorContractId = extractInjectorContractId(injectContractNode);
     boolean alreadyResolvable =
         (hasText(injectorContractId)

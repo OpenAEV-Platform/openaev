@@ -30,7 +30,8 @@ import OldTextField from '../../../../../components/fields/OldTextField';
 import inject18n from '../../../../../components/i18n';
 import ItemBoolean from '../../../../../components/ItemBoolean';
 import ItemTags from '../../../../../components/ItemTags';
-import { omit } from '../../../../../utils/object';
+import { isEmpty, omit } from '../../../../../utils/object';
+import { ascendBy, descendBy } from '../../../../../utils/Sorting';
 import { secondsFromToNow } from '../../../../../utils/Time';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
@@ -441,7 +442,7 @@ class QuickInjectComponent extends Component {
         )
         .forEach((field) => {
           const value = values[field.key];
-          if (field.mandatory && R.isEmpty(value)) {
+          if (field.mandatory && isEmpty(value)) {
             errors[field.key] = t('This field is required.');
           }
         });
@@ -740,7 +741,7 @@ class QuickInjectComponent extends Component {
       .filter(f => !builtInFields.includes(f.key) && !f.expectation)
       .forEach((field) => {
         if (field.cardinality && field.cardinality === '1') {
-          let defaultValue = R.head(field.defaultValue);
+          let defaultValue = field.defaultValue[0];
           if (
             field.type === 'textarea'
             && field.richText
@@ -795,11 +796,7 @@ class QuickInjectComponent extends Component {
     const teams = teamsIds
       .map(a => teamsMap[a])
       .filter(a => a !== undefined);
-    const sortTeams = R.sortWith(
-      teamsOrderAsc
-        ? [R.ascend(R.prop(teamsSortBy))]
-        : [R.descend(R.prop(teamsSortBy))],
-    );
+    const sortTeams = items => items.toSorted(teamsOrderAsc ? ascendBy(teamsSortBy) : descendBy(teamsSortBy));
     const sortedTeams = sortTeams(teams);
     const hasTeams = injectorContract.fields
       .map(f => f.key)
@@ -814,11 +811,7 @@ class QuickInjectComponent extends Component {
         : undefined))
       .filter(d => d !== undefined);
     const attachedDocs = docs.filter(n => n.document_attached);
-    const sortDocuments = R.sortWith(
-      documentsOrderAsc
-        ? [R.ascend(R.prop(documentsSortBy))]
-        : [R.descend(R.prop(documentsSortBy))],
-    );
+    const sortDocuments = items => items.toSorted(documentsOrderAsc ? ascendBy(documentsSortBy) : descendBy(documentsSortBy));
     const sortedDocuments = sortDocuments(docs);
     const hasAttachments = injectorContract.fields
       .map(f => f.key)
@@ -842,7 +835,7 @@ class QuickInjectComponent extends Component {
       .forEach((field) => {
         if (!initialValues[field.key]) {
           if (field.cardinality && field.cardinality === '1') {
-            initialValues[field.key] = R.head(field.defaultValue);
+            initialValues[field.key] = field.defaultValue[0];
           } else {
             initialValues[field.key] = field.defaultValue;
           }

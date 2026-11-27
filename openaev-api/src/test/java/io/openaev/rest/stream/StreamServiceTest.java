@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -91,10 +92,15 @@ public class StreamServiceTest {
 
   @BeforeEach
   public void setup() throws Exception {
+    // The consumer's rights are read in its tenant, as the real service enters it.
+    when(permissionService.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                new AmbientTenantBridge()
+                    .callInTenant(invocation.getArgument(0), invocation.getArgument(1)));
     // Marking filtering is opt-in per test: by default every reader sees everything.
-    when(streamClearanceService.isFiltering()).thenReturn(true);
     when(streamClearanceService.clearanceFor(any(), any())).thenReturn(MarkingCtx.all());
-    when(streamVisibilityService.visibilityOf(any(), any()))
+    when(streamVisibilityService.visibilityOrUnresolved(any(), any()))
         .thenReturn(StreamVisibility.UNFILTERED);
 
     // mock consumer
@@ -686,6 +692,37 @@ public class StreamServiceTest {
     verify(sink, never()).next(any());
   }
 
+  @Test
+  public void given_bulkOperationWithNoTenant_should_reachEveryTenantStreamOfItsLauncher()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+    FluxSink<Object> sinkOfTenantB =
+        registerConsumerOfTenant("launcher-session-b", OTHER_TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA).next(any());
+    verify(sinkOfTenantB).next(any());
+    verify(mockSink).next(any());
+  }
+
+  @Test
+  public void given_bulkOperationWithNoTenant_when_consumerIsNotOwner_should_notReceiveIt()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("launcher-session-a", TENANT_ID);
+
+    // Act
+    streamService.listenBulkOperation(new BulkOperationEvent(bulkOperation(null, OTHER_USER_ID)));
+
+    // Assert
+    verify(sinkOfTenantA, never()).next(any());
+    verify(mockSink, never()).next(any());
+  }
+
   private static BulkOperation bulkOperation(String tenantId, String userId) {
     return new BulkOperation(
         "bulk-operation-id",
@@ -743,7 +780,7 @@ public class StreamServiceTest {
     StreamVisibility visibility = mock(StreamVisibility.class);
     when(visibility.visibleUnder(any())).thenReturn(true);
     when(visibility.visibleUnder(AMBER)).thenReturn(false);
-    when(streamVisibilityService.visibilityOf(any(), any())).thenReturn(visibility);
+    when(streamVisibilityService.visibilityOrUnresolved(any(), any())).thenReturn(visibility);
     return visibility;
   }
 
@@ -783,7 +820,7 @@ public class StreamServiceTest {
     // Assert
     verify(mockSink, never()).next(any());
     verify(adminSink).next(any());
-    verify(streamVisibilityService, times(1)).visibilityOf(any(), any());
+    verify(streamVisibilityService, times(1)).visibilityOrUnresolved(any(), any());
   }
 
   @Test
@@ -806,19 +843,19 @@ public class StreamServiceTest {
     streamService.listenDatabaseUpdate(event);
 
     // Assert
-    verify(streamVisibilityService).visibilityOf(event, TENANT_ID);
+    verify(streamVisibilityService).visibilityOrUnresolved(event, TENANT_ID);
     verify(streamClearanceService).clearanceFor(mockUser, TENANT_ID);
     verify(mockSink, never()).next(any());
   }
 
   @Test
-  public void given_markingFeatureOff_should_readNeitherTheMarkingsNorTheClearance() {
-    // Arrange
+  public void given_unfilteredVisibility_should_readNeitherTheMarkingsNorTheClearance() {
+    // Arrange: StreamVisibilityServiceTest covers isFiltering() gating the read itself; here
+    // only the downstream effect of an unfiltered visibility on the stream matters.
     Endpoint endpoint = restrictedEndpoint();
     stubRead(mockUser, endpoint, true);
-    hiddenFromAmber();
-    readerHolds(mockUser, AMBER);
-    when(streamClearanceService.isFiltering()).thenReturn(false);
+    when(streamVisibilityService.visibilityOrUnresolved(any(), any()))
+        .thenReturn(StreamVisibility.UNFILTERED);
 
     // Act
     streamService.listenDatabaseUpdate(
@@ -826,7 +863,6 @@ public class StreamServiceTest {
 
     // Assert
     verify(mockSink).next(any());
-    verify(streamVisibilityService, never()).visibilityOf(any(), any());
     verify(streamClearanceService, never()).clearanceFor(any(), any());
   }
 
@@ -847,7 +883,7 @@ public class StreamServiceTest {
     streamService.listenDatabaseUpdate(event);
 
     // Assert
-    verify(streamVisibilityService).visibilityOf(event, TENANT_ID);
+    verify(streamVisibilityService).visibilityOrUnresolved(event, TENANT_ID);
   }
 
   @Test
@@ -917,7 +953,7 @@ public class StreamServiceTest {
     when(visibility.filtersPayload()).thenReturn(true);
     ObjectNode amberPayload = jsonMapper.createObjectNode().put("inject_title", "for amber");
     when(visibility.payloadFor(AMBER)).thenReturn(amberPayload);
-    when(streamVisibilityService.visibilityOf(any(), any())).thenReturn(visibility);
+    when(streamVisibilityService.visibilityOrUnresolved(any(), any())).thenReturn(visibility);
     readerHolds(mockUser, AMBER);
     readerHolds(admin, MarkingCtx.all());
 
@@ -966,8 +1002,10 @@ public class StreamServiceTest {
     Endpoint endpoint = restrictedEndpoint();
     stubRead(mockUser, endpoint, true);
     stubRead(admin, endpoint, true);
-    when(streamVisibilityService.visibilityOf(any(), any()))
-        .thenThrow(new IllegalStateException("database down"));
+    // StreamVisibilityService.visibilityOrUnresolved() never throws: a read failure fails closed
+    // to unresolved() internally (see StreamVisibilityServiceTest).
+    when(streamVisibilityService.visibilityOrUnresolved(any(), any()))
+        .thenReturn(StreamVisibility.unresolved());
     readerHolds(mockUser, AMBER);
     readerHolds(admin, MarkingCtx.all());
 
@@ -1120,7 +1158,13 @@ public class StreamServiceTest {
     // Arrange: a non-admin consumer whose only right is READ on this simulation — the case that
     // proves the gate consults grants instead of falling back to "admins only".
     FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
-    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(true);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID))
+        .thenAnswer(
+            invocation -> {
+              // The check reads the grants of the consumer's tenant, not the default tenant.
+              assertEquals(TENANT_ID, TenantContext.getCurrentTenant());
+              return true;
+            });
 
     // Act
     streamService.listenAttackPathVersion(

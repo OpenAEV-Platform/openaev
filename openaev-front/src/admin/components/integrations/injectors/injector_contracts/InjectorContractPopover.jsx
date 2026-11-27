@@ -1,7 +1,6 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
@@ -58,10 +57,10 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
       label: { en: data.injector_contract_name },
       fields: injectorContractContent.fields.map((field) => {
         const newField = { ...field };
-        if (!R.isNil(fields[field.key]?.readOnly)) {
+        if (fields[field.key]?.readOnly != null) {
           newField.readOnly = fields[field.key]?.readOnly;
         }
-        if (!R.isNil(fields[field.key]?.defaultValue)) {
+        if (fields[field.key]?.defaultValue != null) {
           newField.defaultValue = field.cardinality === '1' ? fields[field.key]?.defaultValue : [fields[field.key]?.defaultValue];
         }
         return newField;
@@ -70,7 +69,7 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
 
     const inputValues = {
       contract_labels: { en: data.injector_contract_name },
-      contract_attack_patterns_ids: R.pluck('id', data.injector_contract_attack_patterns),
+      contract_attack_patterns_ids: data.injector_contract_attack_patterns.map(item => item.id),
       contract_content: JSON.stringify(newInjectorContractContent),
       contract_domains: data.injector_contract_domains.map((d) => {
         return {

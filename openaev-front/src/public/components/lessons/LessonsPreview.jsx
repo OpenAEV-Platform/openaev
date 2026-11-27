@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { Form } from 'react-final-form';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -11,6 +10,7 @@ import OldTextField from '../../../components/fields/OldTextField';
 import SliderField from '../../../components/fields/SliderField';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
+import { ascendBy } from '../../../utils/Sorting';
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -47,11 +47,7 @@ const LessonsPreview = (props) => {
 
   const validate = (values) => {
     const errors = {};
-    const requiredFields = R.flatten(
-      lessonsQuestions.map(question => [
-        `${question.lessonsquestion_id}_score`,
-      ]),
-    );
+    const requiredFields = lessonsQuestions.map(question => `${question.lessonsquestion_id}_score`);
     requiredFields.forEach((field) => {
       if (!values[field]) {
         errors[field] = t('This field is required.');
@@ -61,12 +57,8 @@ const LessonsPreview = (props) => {
   };
   const submitForm = () => {
   };
-  const sortCategories = R.sortWith([
-    R.ascend(R.prop('lessons_category_order')),
-  ]);
-  const sortQuestions = R.sortWith([
-    R.ascend(R.prop('lessons_question_order')),
-  ]);
+  const sortCategories = items => items.toSorted(ascendBy('lessons_category_order'));
+  const sortQuestions = items => items.toSorted(ascendBy('lessons_question_order'));
   const sortedCategories = sortCategories(lessonsCategories);
   const initialValues = {};
   if (source) {

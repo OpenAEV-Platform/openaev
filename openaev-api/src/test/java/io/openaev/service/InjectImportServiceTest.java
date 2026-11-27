@@ -483,7 +483,7 @@ public class InjectImportServiceTest {
           new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
       MultipartFile file = mock(MultipartFile.class);
       when(file.getOriginalFilename()).thenReturn("injects.xlsx");
-      when(file.getSize()).thenReturn(25L * 1000 * 1000);
+      when(file.getSize()).thenReturn(25L * 1000 * 1000 + 1);
 
       // -------- Act & Assert --------
       assertThrows(FileTooBigException.class, () -> service.storeXlsFileForImport(file));

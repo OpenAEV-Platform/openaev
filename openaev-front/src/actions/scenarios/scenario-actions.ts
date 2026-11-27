@@ -80,8 +80,8 @@ export const updateScenario = (
   return putReferential(scenario, uri, data)(dispatch);
 };
 
-export const deleteScenario = (scenarioId: Scenario['scenario_id'], keepFindings = false) => (dispatch: Dispatch) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}${keepFindings ? '?keep_findings=true' : ''}`;
+export const deleteScenario = (scenarioId: Scenario['scenario_id']) => (dispatch: Dispatch) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}`;
   return delReferential(uri, scenario.key, scenarioId)(dispatch);
 };
 
@@ -127,7 +127,7 @@ export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) =>
 export const fetchScenarioLaunchCheck = (scenarioId: string): Promise<ScenarioLaunchCheckOutput> => simpleCall(`${SCENARIO_URI}/${scenarioId}/launch-check`)
   .then(({ data }: { data: ScenarioLaunchCheckOutput }) => data);
 
-export const launchScenario = (scenarioId: string, targets?: ScenarioTargetsInput): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/exercise/running`, targets)
+export const launchScenario = (scenarioId: string, targets?: ScenarioTargetsInput, notifyError = true): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/exercise/running`, targets, undefined, notifyError)
   .then(({ data }: { data: ScenarioLaunchOutput }) => data);
 
 // -- TEAMS --

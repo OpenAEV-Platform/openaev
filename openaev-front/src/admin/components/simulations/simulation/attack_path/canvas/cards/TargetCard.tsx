@@ -8,6 +8,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip, { type TooltipRow } from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import attackPathStatusColor, { attackPathChokepointColor, attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData, displayIp } from '../../attack-path-flow-helpers';
+import { useAttackPathShowsLogging } from '../../attack-path-logging-context';
 import { buildCardSx, buildIconBoxSx, CAPTION_SX, EYEBROW_SX, TITLE_SX } from './card-styles';
 
 interface Props {
@@ -27,6 +28,7 @@ const KIND_ICONS: Record<string, typeof Groups> = {
 const TargetCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const showsLogging = useAttackPathShowsLogging();
 
   const counts = data.findingCounts;
   const total = counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : 0;
@@ -34,7 +36,7 @@ const TargetCard = ({ data, selected = false }: Props) => {
   const accent = knownNoFindings ? theme.palette.text.disabled : attackPathStatusColor(theme, data.status);
   const chokepointColor = attackPathChokepointColor(theme);
   const isChokepoint = data.chokepointRank !== undefined;
-  const statusText = knownNoFindings ? t('No findings') : t(attackPathStatusLabel(data.status));
+  const statusText = knownNoFindings ? t('No findings') : t(attackPathStatusLabel(data.status, showsLogging));
 
   const entityKind = data.entityKind ?? '';
   const KindIcon = KIND_ICONS[entityKind] ?? ComputerOutlined;

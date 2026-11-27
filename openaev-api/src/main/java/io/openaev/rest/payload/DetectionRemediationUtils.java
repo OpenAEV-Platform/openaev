@@ -2,7 +2,6 @@ package io.openaev.rest.payload;
 
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
@@ -60,11 +59,13 @@ public class DetectionRemediationUtils {
       boolean copyId) {
     BeanUtils.copyProperties(input, newDetectionRemediation, "id");
 
-    // Tenant-guarded lookup: the platform id comes from the request body, so scope it explicitly
-    // instead of relying on the Hibernate tenant filter being active on this thread.
+    // The platform id comes from the request body: it resolves in the tenant of the payload the
+    // rule is written on, so an id of another tenant is an unknown id.
     SecurityPlatform securityPlatform =
         securityPlatformRepository
-            .findByIdAndTenantId(input.getSecurityPlatformId(), TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(
+                input.getSecurityPlatformId(),
+                newDetectionRemediation.getPayload().getTenant().getId())
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(

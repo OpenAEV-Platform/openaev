@@ -46,9 +46,9 @@ public class FindingMapper {
 
   /**
    * Group-wide impact counts of a finding, resolved by the service and handed over as one value so
-   * four positional {@code long} arguments cannot be silently swapped.
+   * three positional {@code long} arguments cannot be silently swapped.
    */
-  public record FindingImpactCounts(long assets, long teams, long users, long assetGroups) {}
+  public record FindingImpactCounts(long assets, long teams, long users) {}
 
   /**
    * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
@@ -67,13 +67,18 @@ public class FindingMapper {
         .id(finding.getId())
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
+        .firstSeen(
+            seen != null
+                ? seen.getFirstSeen()
+                : Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate()))
+        .lastSeen(
+            seen != null
+                ? seen.getLastSeen()
+                : Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate()))
         .occurrences(seen != null ? seen.getOccurrences() : 1)
         .assetsCount(counts.assets())
         .teamsCount(counts.teams())
         .usersCount(counts.users())
-        .assetGroupsCount(counts.assetGroups())
         .build();
   }
 
@@ -91,12 +96,13 @@ public class FindingMapper {
         .field(occurrence.map(FindingOccurrence::getField).orElse(null))
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .labels(finding.getLabels())
         .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .injectId(inject.map(Inject::getId).orElse(null))
         .creationDate(finding.getCreationDate())
         .updateDate(finding.getUpdateDate())
+        .firstSeen(firstSeenOf(finding))
+        .lastSeen(lastSeenOf(finding))
         .status(finding.getStatus())
         .lastTested(finding.getLastTested())
         .statusInjectId(finding.getStatusInjectId())
@@ -117,24 +123,36 @@ public class FindingMapper {
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
     return toAggregatedFindingOutput(
-        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate());
+        finding,
+        relatedAssets,
+        finding.getCreationDate(),
+        finding.getUpdateDate(),
+        firstSeenOf(finding),
+        lastSeenOf(finding));
   }
 
   /**
    * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is the
    * most recent occurrence in the group (greatest {@code updateDate}, tie-broken by smallest id -
-   * see {@code FindingSpecification.distinctTypeValueWithFilter}), so its own {@code updateDate}
-   * already matches the group last seen; its {@code creationDate}, however, is that single
-   * occurrence's, so callers must still pass the group-wide first/last seen explicitly.
+   * see {@code FindingSpecification.distinctTypeValueWithFilter}); its own dates are that single
+   * occurrence's, so callers pass the group-wide row times (earliest creation, latest write) and
+   * the group-wide detection times (first and last seen) explicitly.
    */
   public AggregatedFindingOutput toAggregatedFindingOutput(
-      Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
+      Finding finding,
+      List<Asset> relatedAssets,
+      Instant createdAt,
+      Instant updatedAt,
+      Instant firstSeen,
+      Instant lastSeen) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValueDisplay())
         .type(finding.getType())
-        .creationDate(firstSeen)
-        .updateDate(lastSeen)
+        .creationDate(createdAt)
+        .updateDate(updatedAt)
+        .firstSeen(firstSeen)
+        .lastSeen(lastSeen)
         // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
         // assets), so no instanceof Endpoint filtering here.
         .assets(
@@ -152,6 +170,8 @@ public class FindingMapper {
         .value(finding.getValueDisplay())
         .type(finding.getType())
         .updateDate(finding.getUpdateDate())
+        .firstSeen(firstSeenOf(finding))
+        .lastSeen(lastSeenOf(finding))
         .assets(
             finding.getAssets().stream()
                 .map(asset -> endpointMapper.toEndpointSimple(asset))
@@ -188,6 +208,22 @@ public class FindingMapper {
                 .collect(Collectors.toSet()))
         .creationDate(finding.getCreationDate())
         .build();
+  }
+
+  /**
+   * First detection of a finding row: its first seen, or its creation time when the detection time
+   * is unknown (rows written before first/last seen existed). Same rule as the summary aggregate.
+   */
+  public static Instant firstSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getFirstSeen()).orElse(finding.getCreationDate());
+  }
+
+  /**
+   * Last detection of a finding row: its last seen, or its last write time when the detection time
+   * is unknown. Never the write time when a detection time exists: any write moves it.
+   */
+  public static Instant lastSeenOf(Finding finding) {
+    return Optional.ofNullable(finding.getLastSeen()).orElse(finding.getUpdateDate());
   }
 
   private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {

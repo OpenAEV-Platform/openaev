@@ -1,10 +1,11 @@
 package io.openaev.service.catalog.scenario;
 
+import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawCatalogInstalledScenario;
 import io.openaev.database.repository.ScenarioIdentityRepository;
@@ -13,7 +14,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.ImportService;
 import io.openaev.service.catalog.CatalogOffer;
-import io.openaev.service.catalog.event.CatalogChangePublisher;
+import io.openaev.service.catalog.event.ContentChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
 import io.openaev.service.catalog.scenario.update.ScenarioRevisionService;
@@ -51,7 +52,7 @@ public class CatalogScenarioService {
   private final CatalogPayloadService catalogPayloadService;
   private final List<CatalogScenarioTypeInstall<?>> typeInstalls;
   private final OrganizationService organizationService;
-  private final CatalogChangePublisher changePublisher;
+  private final ContentChangePublisher changePublisher;
   private final ScenarioRevisionService scenarioRevisionService;
 
   // -- CREATE --
@@ -70,7 +71,7 @@ public class CatalogScenarioService {
       byte[] archive,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
       ScenarioInstallChoice choice,
-      CatalogHistory.Mode mode)
+      ContentChange.Mode mode)
       throws Exception {
     ScenarioIdentity identity = uninstalledIdentity(tenantId, released);
     Set<String> payloadIds = installPayloads(ctx, tenantId, payloadFiles, mode);
@@ -80,7 +81,7 @@ public class CatalogScenarioService {
     typeInstall.apply(scenario, choiceFor(typeInstall, choice));
     markInstalled(scenario, identity, tenantId, released);
     scenarioRevisionService.keepInstalled(scenario);
-    changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
+    changePublisher.changed(scenario, ContentChange.Action.INSTALL, mode);
     return scenario;
   }
 
@@ -92,12 +93,35 @@ public class CatalogScenarioService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
-    return scenarioService.installedFromCatalog(tenantId, externalIds).stream()
+    return scenarioService.installedFromCatalog(tenantId).stream()
+        .filter(installed -> externalIds.contains(installed.getExternalId()))
         .collect(
             Collectors.toMap(
                 installed -> CatalogOffer.key(installed.getRepository(), installed.getExternalId()),
                 RawCatalogInstalledScenario::getScenarioId,
                 (first, other) -> first));
+  }
+
+  @Transactional(readOnly = true)
+  public Set<String> versionKeysInUse(String tenantId, String repository) {
+    List<RawCatalogInstalledScenario> installed =
+        scenarioService.installedFromCatalog(tenantId).stream()
+            .filter(scenario -> repository.equals(scenario.getRepository()))
+            .toList();
+    if (installed.isEmpty()) {
+      return Set.of();
+    }
+    Map<String, Set<String>> revisionVersions =
+        scenarioRevisionService.catalogVersions(
+            tenantId, installed.stream().map(RawCatalogInstalledScenario::getScenarioId).toList());
+    return installed.stream()
+        .flatMap(
+            scenario ->
+                Stream.concat(
+                        Stream.of(scenario.getVersion()),
+                        revisionVersions.getOrDefault(scenario.getScenarioId(), Set.of()).stream())
+                    .map(version -> CatalogManifest.key(scenario.getExternalId(), version)))
+        .collect(Collectors.toSet());
   }
 
   /** The key of every catalogue scenario the tenant ever installed: an identity is kept. */
@@ -137,7 +161,7 @@ public class CatalogScenarioService {
       TxCtx ctx,
       String tenantId,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      CatalogHistory.Mode mode) {
+      ContentChange.Mode mode) {
     return payloadFiles.entrySet().stream()
         .map(
             file ->

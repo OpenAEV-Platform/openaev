@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIO_URI } from '../../../../../../actions/scenarios/scenario-actions';
 import ScenarioVersions from '../../../../../../admin/components/scenarios/scenario/versions/ScenarioVersions';
-import { type CatalogHistoryOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
+import { type ContentChangeOutput, type ScenarioChangeOutput, type ScenarioRevisionOutput, type ScenarioUpdatePreviewOutput, type ScenarioVersionsOutput } from '../../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../../utils/Environment';
 import { setNotifyErrorHandler } from '../../../../../../utils/error/errorHandlerUtil';
 
@@ -43,6 +43,8 @@ vi.mock('../../../../../../components/i18n', async (importOriginal) => {
     useFormatter: () => ({
       t: (message: string, values?: Record<string, string>) => message.replace(/\{(\w+)\}/g, (_, key: string) => values?.[key] ?? key),
       nsdt: (date: string) => `time ${date}`,
+      fsd: (date: string) => `day ${date}`,
+      ft: (date: string) => `at ${date}`,
     }),
   };
 });
@@ -135,6 +137,7 @@ const change = (id: string, status: ScenarioChangeOutput['scenario_change_status
 const preview = (changes: ScenarioChangeOutput[]): ScenarioUpdatePreviewOutput => ({
   scenario_update_changelogs: [],
   scenario_update_changes: changes,
+  scenario_update_from_version: '1.0.0',
   scenario_update_payloads_to_install: [],
   scenario_update_revoked_payloads: [],
   scenario_update_lost_dependencies: [],
@@ -175,15 +178,22 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
   }],
 };
 
-const history: CatalogHistoryOutput[] = [{
-  catalog_history_id: 'history-1',
-  catalog_history_action: 'UPDATE',
-  catalog_history_mode: 'MANUAL',
-  catalog_history_version: '1.1.0',
-  catalog_history_user: 'Alice',
-  catalog_history_created_at: '2026-11-04',
+const history: ContentChangeOutput[] = [{
+  content_change_id: 'history-1',
+  content_change_action: 'UPDATE',
+  content_change_mode: 'MANUAL',
+  content_change_version: '1.1.0',
+  content_change_user: 'Alice',
+  content_change_created_at: '2026-11-04',
 }];
 
+const HISTORY_SEARCH = `${SCENARIO}/history/search`;
+const servedHistory = () => Promise.resolve({
+  data: {
+    content: history,
+    totalElements: history.length,
+  },
+});
 const serve = (responses: Record<string, unknown>) => mocks.simpleCall.mockImplementation((uri: string) => Promise.resolve({ data: responses[uri] ?? [] }));
 
 const renderVersions = () => render(<ScenarioVersions />);
@@ -198,12 +208,11 @@ describe('ScenarioVersions', () => {
 
   beforeEach(() => {
     mocks.canManage.mockReturnValue(true);
-    mocks.simplePostCall.mockResolvedValue({ data: {} });
+    mocks.simplePostCall.mockImplementation((uri: string) => (uri === HISTORY_SEARCH ? servedHistory() : Promise.resolve({ data: {} })));
     notifySuccess.mockImplementation(() => undefined);
     serve({
       [`${SCENARIO}/versions`]: versions,
       [`${SCENARIO}/revisions`]: revisions,
-      [`${SCENARIO}/history`]: history,
       [`${SCENARIO}/versions/1.1.0/preview`]: updatePreview,
       [`${SCENARIO}/revisions/revision-3/preview`]: preview([]),
     });
@@ -253,6 +262,7 @@ describe('ScenarioVersions', () => {
   it('given_dataStillLoading_should_showPlaceholders', async () => {
     // Arrange
     mocks.simpleCall.mockImplementation(() => new Promise(() => {}));
+    mocks.simplePostCall.mockImplementation(() => new Promise(() => {}));
 
     // Act
     renderVersions();
@@ -296,24 +306,27 @@ describe('ScenarioVersions', () => {
     const removedConflict = within(dialog).getByRole('radiogroup', { name: 'Inject “Warn” · Removed in v1.1.0, changed by you' });
     const apply = within(dialog).getByRole('button', { name: 'Update' });
     expect(dialog).toHaveAccessibleName('Update to Filigran v1.1.0');
-    expect(within(dialog).getByText('Changes from Filigran: 1')).toBeInTheDocument();
-    expect(within(dialog).getByText('Your edits kept: 1')).toBeInTheDocument();
-    expect(within(dialog).getByText('Conflicts to decide: 3')).toBeInTheDocument();
-    expect(within(dialog).getByText('Injects added: 1')).toBeInTheDocument();
-    expect(within(dialog).getByText('Choose only for the conflicts. Everything else is merged for you.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The content moves to Filigran v1.1.0. You can roll back later from Versions.')).toBeInTheDocument();
+    // What changes, open: the version, the notes, the injects added and the diff named on both sides.
+    expect(within(dialog).getByText('What changes (2)')).toBeInTheDocument();
+    expect(within(dialog).getByText('Version: v1.0.0 → v1.1.0')).toBeInTheDocument();
     expect(within(dialog).getByText('Nmap v1.1.0')).toBeInTheDocument();
-    expect(within(dialog).getByText('Filigran changed things you edited. Pick which version to keep for each.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Conflicts (3)')).toBeInTheDocument();
-    expect(within(dialog).getByText('What\'s new in Filigran v1.1.0')).toBeInTheDocument();
     expect(within(dialog).getByText('New scan')).toBeInTheDocument();
     expect(within(dialog).getByText('Will be added')).toBeInTheDocument();
     expect(within(dialog).getByText('Inject “Mail”')).toBeInTheDocument();
-    expect(within(dialog).getByText('New in v1.1.0 · Needs targets')).toBeInTheDocument();
-    expect(within(dialog).getAllByRole('group', { name: 'Changes' })).toHaveLength(2);
+    expect(within(dialog).getByText('New in v1.1.0')).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('group', { name: 'Changes' })).toHaveLength(1);
     expect(within(dialog).getByRole('group', { name: 'Scenario · Description · 1 lines added, 1 lines removed' })).toBeInTheDocument();
-    expect(within(dialog).getByText('Your edits — the update keeps them')).toBeInTheDocument();
-    expect(within(dialog).getByText('Before · Filigran v1.0.0')).toBeInTheDocument();
-    expect(within(dialog).getByText('After · your edit')).toBeInTheDocument();
+    expect(within(dialog).getByText('Now · v1.0.0 with your edits')).toBeInTheDocument();
+    expect(within(dialog).getByText('After the update · v1.1.0')).toBeInTheDocument();
+    // What stays, closed: the user's own edits and the rest, summed up.
+    expect(within(dialog).getByText('What stays (2)')).toBeInTheDocument();
+    expect(within(dialog).getByText('1 edit of yours, targets, teams, schedule and tags')).toBeInTheDocument();
+    // What the user has to do: the conflicts, the targets to add, what to check.
+    expect(within(dialog).getByText('What you need to do (5)')).toBeInTheDocument();
+    expect(within(dialog).getByText('Filigran changed things you edited. Pick which version to keep for each.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Conflicts (3)')).toBeInTheDocument();
+    expect(within(dialog).getByText('After: add targets to 1 new inject.')).toBeInTheDocument();
     expect(within(dialog).getByText('Some injects lose a dependency: check them after applying.')).toBeInTheDocument();
     expect(apply).toBeDisabled();
 
@@ -331,29 +344,34 @@ describe('ScenarioVersions', () => {
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {
         'inject:a/title': 'EDIT',
         'scenario/name': 'KEEP_MINE',
         'inject:b': 'TAKE_APPLIED',
       },
       scenario_update_edits: { 'inject:a/title': 'nmap -Pn' },
-    });
-    expect(notifySuccess).toHaveBeenCalledWith('Scenario updated to v1.1.0');
+    }, undefined, false);
+    // The message after it carries the way back (a Roll back link).
+    expect(notifySuccess).toHaveBeenCalledTimes(1);
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/versions`)).toHaveLength(2);
-    expect(mocks.simpleCall.mock.calls.filter(([uri]) => uri === `${SCENARIO}/history`)).toHaveLength(2);
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri === HISTORY_SEARCH)).toHaveLength(2);
   });
 
-  it('given_anUpdateRefused_should_showWhyAndKeepTheDialogOpen', async () => {
+  it.each([
+    [500, 'The update didn\'t apply. Nothing was changed.', 'Try again, or contact your administrator if it keeps failing.', 'Try again'],
+    [400, 'The update didn\'t apply. Nothing was changed.', 'Refused', undefined],
+    [409, 'The scenario changed since this preview. Nothing was changed.', 'See the latest preview before applying.', 'Show the latest preview'],
+  ])('given_anUpdateRefused_should_showOnlyTheErrorAndWhatToDo (%s)', async (status, title, description, next) => {
     // Arrange
     const notifyError = vi.fn();
     setNotifyErrorHandler(notifyError);
-    const refusal = {
-      status: 400,
-      message: 'The scenario changed since the preview',
-    };
-    mocks.post.mockRejectedValueOnce(refusal);
-    mocks.simplePostCall.mockImplementationOnce(mocks.realSimplePostCall);
+    mocks.post.mockRejectedValueOnce({
+      status,
+      message: 'Refused',
+    });
+    mocks.simplePostCall.mockImplementation((uri: string, ...rest: unknown[]) => (uri === HISTORY_SEARCH ? servedHistory() : mocks.realSimplePostCall(uri, ...rest)));
     renderVersions();
     const dialog = await open('Update');
     await within(dialog).findByRole('radiogroup', { name: 'Inject “Scan” · Title' });
@@ -363,9 +381,14 @@ describe('ScenarioVersions', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
 
     // Assert
-    await waitFor(() => expect(notifyError).toHaveBeenCalledWith(refusal));
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Update' })).toBeEnabled());
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const failed = await screen.findByText(title);
+    expect(failed).toBeInTheDocument();
+    expect(screen.getByText(description)).toBeInTheDocument();
+    expect(screen.queryByText('What changes (2)')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(Try again|Show the latest preview)$/ })?.textContent).toBe(next);
+    // The footer's Close, beside the dialog's own close cross.
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(2);
+    expect(notifyError).not.toHaveBeenCalled();
     expect(notifySuccess).not.toHaveBeenCalled();
     expect(mocks.dispatch).not.toHaveBeenCalled();
   });
@@ -373,7 +396,7 @@ describe('ScenarioVersions', () => {
   it.each([
     ['Update', 'Update'],
     ['Roll back to this revision', 'Roll back'],
-  ])('given_aPreviewRefused_should_showWhyInsteadOfLoading (%s)', async (action, applyLabel) => {
+  ])('given_aPreviewRefused_should_showWhyInsteadOfLoading (%s)', async (action) => {
     // Arrange
     const refusal = 'This scenario was installed before updates were supported: it cannot be updated or rolled back';
     renderVersions();
@@ -384,14 +407,31 @@ describe('ScenarioVersions', () => {
     });
 
     // Act
-    const dialog = await open(action);
+    await open(action);
+
+    // Assert: a warning, the server's reason under it, and only Close: the same request would be refused again.
+    const failed = await screen.findByRole('dialog');
+    expect(await within(failed).findByText('The preview didn\'t load. Nothing was changed.')).toBeInTheDocument();
+    expect(within(failed).getByText(refusal)).toBeInTheDocument();
+    expect(failed.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
+    expect(within(failed).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    fireEvent.click(within(failed).getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('given_aPreviewThatFailedToLoad_should_offerToTryAgain', async () => {
+    // Arrange
+    renderVersions();
+    await screen.findAllByRole('button', { name: 'Update' });
+    mocks.simpleCall.mockRejectedValueOnce({ status: 500 });
+
+    // Act
+    await open('Update');
 
     // Assert
-    expect(await within(dialog).findByText(refusal)).toBeInTheDocument();
-    expect(dialog.querySelector('[class*="animate-spin"]')).not.toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: applyLabel })).toBeDisabled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const failed = await screen.findByRole('dialog');
+    expect(await within(failed).findByText('Try again, or contact your administrator if it keeps failing.')).toBeInTheDocument();
+    expect(within(failed).getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 
   it('given_anEditStarted_should_markTheEditButtonPressed', async () => {
@@ -444,13 +484,14 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/versions/1.1.0/updates`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {
         'inject:a/title': 'TAKE_APPLIED',
         'scenario/name': 'TAKE_APPLIED',
         'inject:b': 'TAKE_APPLIED',
       },
       scenario_update_edits: {},
-    }));
+    }, undefined, false));
   });
 
   it('given_aRevisionWithNothingToChoose_should_rollBackToIt', async () => {
@@ -458,18 +499,20 @@ describe('ScenarioVersions', () => {
     renderVersions();
     const dialog = await open('Roll back to this revision');
     expect(dialog).toHaveAccessibleName('Roll back to revision #3');
-    expect(await within(dialog).findByText('Nothing changes in the content.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Nothing to decide. Review the details or apply.')).toBeInTheDocument();
+    expect(await within(dialog).findByText('The content goes back to revision #3 (v1.0.0, day 2026-11-03). You can roll back later from Versions.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Nothing in the content changes.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Nothing to decide before applying.')).toBeInTheDocument();
 
     // Act
     fireEvent.click(within(dialog).getByRole('button', { name: 'Roll back' }));
 
     // Assert
-    await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Scenario rolled back'));
+    await waitFor(() => expect(notifySuccess).toHaveBeenCalledTimes(1));
     expect(mocks.simplePostCall).toHaveBeenCalledWith(`${SCENARIO}/revisions/revision-3/rollbacks`, {
+      scenario_update_from_version: '1.0.0',
       scenario_update_choices: {},
       scenario_update_edits: {},
-    });
+    }, undefined, false);
   });
 
   it('given_aPreviewStillLoading_should_closeOnCancelWithoutApplying', async () => {
@@ -485,6 +528,6 @@ describe('ScenarioVersions', () => {
 
     // Assert
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(mocks.simplePostCall).not.toHaveBeenCalled();
+    expect(mocks.simplePostCall.mock.calls.filter(([uri]) => uri !== HISTORY_SEARCH)).toHaveLength(0);
   });
 });

@@ -339,7 +339,7 @@ final class PlatformRowWriters {
           new TenantRowWriter(
               io.openaev.service.TenantGroupService.class,
               "grantMissingMarkings",
-              List.of(Group.class, List.class),
+              List.of(Group.class, java.util.Collection.class),
               "saves the group it is given, already a tenant row: the caller holds it"),
           new TenantRowWriter(
               io.openaev.service.TenantGroupService.class,

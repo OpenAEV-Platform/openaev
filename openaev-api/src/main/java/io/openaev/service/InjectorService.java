@@ -4,7 +4,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -244,12 +243,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Checks whether at least one injector of the given type exists for the current tenant. Multiple
+   * Checks whether at least one injector of the given type exists in the given tenant. Multiple
    * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
-  public boolean injectorTypeExists(@NotBlank final String injectorType) {
-    return injectorRepository.existsByTypeAndTenantId(
-        injectorType, TenantContext.getCurrentTenant());
+  public boolean injectorTypeExists(
+      @NotBlank final String injectorType, @NotBlank final String tenantId) {
+    return injectorRepository.existsByTypeAndTenantId(injectorType, tenantId);
   }
 
   /**

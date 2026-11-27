@@ -125,28 +125,6 @@ After injects are generated:
 
 - Finally, the **Scenario will execute** according to its configured schedule.
 
-## Read-only first build and run order
-
-By default a Scenario built from a Security Coverage runs on its schedule, as described above.
-One tenant setting, off by default, changes that:
-
-- **Read-only first** (`coverage_scenario_read_only_first`): only the Injects whose Injector
-  contract or Payload is marked **read-only** are enabled. Read-only means the Inject only reads
-  its target (a version, a protocol negotiation, a permission listing) and changes nothing on it.
-  When at least one Inject is not read-only, the schedule from the Security Coverage is left
-  unset, so the Scenario does not run on its own. A Scenario with only read-only Injects keeps its
-  schedule.
-
-A user with the right to launch the Scenario starts it as any other Scenario: enable the held
-Injects, then set the schedule (`PUT /api/scenarios/{scenarioId}/recurrence`, which records who
-scheduled it). Once a user has scheduled it, later updates of the Security Coverage leave its
-Injects and schedule as the user left them. The order in which target Asset Groups are tested is
-set with the start delay of each Inject (`inject_depends_duration`).
-
-The setting is read and written with
-`GET` and `PUT /api/tenants/{tenantId}/tenant-settings/coverage-scenarios` (see the
-[REST API reference](../../../reference/apis/rest-api.md#coverage-scenario-read-only-first)).
-
 ## Execution and reporting back to OpenCTI
 
 Once the scenario is finalized and scheduled:

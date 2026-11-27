@@ -40,6 +40,7 @@ import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
@@ -215,7 +216,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
 import io.openaev.rest.finding.FindingSearchApi;
 import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.finding.FindingWriter;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
@@ -345,8 +345,6 @@ import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.xtm.counterpart.LocalObjectService;
 import io.openaev.xtmhub.XtmHubService;
 import io.openaev.xtmone.XtmOneHealthSnapshot;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -358,7 +356,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -507,7 +504,7 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
           "injectors_injector_contracts",
-          "catalog_history",
+          "content_changes",
           "scenario_identities",
           "payload_revocations",
           "exercises",
@@ -520,15 +517,7 @@ class TenantActiveTableAccessArchTest {
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    }
-    Set<String> active =
-        Arrays.stream(props.getProperty("openaev.tenant.active-tables", "").split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toSet());
+    Set<String> active = ProductionActiveTables.names();
     assertTrue(
         GUARDED_TABLES.containsAll(active),
         "every table in openaev.tenant.active-tables needs a guard in this test; missing: "
@@ -818,7 +807,8 @@ class TenantActiveTableAccessArchTest {
               MarkingDefinitionApi.class,
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
-              // OpenCTI-format import behind MarkingDefinitionApi.importStix, a TxCtx-carrying
+              // OpenCTI-format import behind MarkingDefinitionImporterApi.importStix, a
+              // TxCtx-carrying
               // @Transactional handler: its two reads take the write tenant the handler resolved
               // (findByStixIdAndTenantId, findByTypeAndDefinitionAndTenantId) and creation
               // goes through MarkingDefinitionService.create.
@@ -937,7 +927,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Force-initializes the article documents inside the scoped read transaction
-              // (ChannelService.withDocumentLinksInitialized) so the open-in-view serialization of
+              // (ChannelService.withLinksInitialized) so the open-in-view serialization of
               // the channel reader cannot return an empty list:
               io.openaev.service.ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, resolving and rebinding the
@@ -971,9 +961,6 @@ class TenantActiveTableAccessArchTest {
               // serializes it; ExerciseService holds the initializer and the duplication copy:
               ExerciseApi.class,
               ExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the exercise inside the request transaction:
               ChannelApi.class,
@@ -1007,9 +994,6 @@ class TenantActiveTableAccessArchTest {
               // Scenario-to-simulation copy, reached from the TxCtx-carrying launch handlers, the
               // autonomous run's tenant transaction and the per-tenant scheduled scenario job:
               ScenarioToExerciseService.class,
-              // Force-initializes the parent documents of the channel reader inside the scoped
-              // read transaction (ChannelService.withDocumentLinksInitialized):
-              ChannelService.class,
               // Article write paths on TxCtx-carrying endpoints, linking the article documents to
               // the scenario inside the request transaction:
               ChannelApi.class,
@@ -1748,7 +1732,6 @@ class TenantActiveTableAccessArchTest {
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
-              FindingWriter.class,
               FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.
@@ -1765,10 +1748,6 @@ class TenantActiveTableAccessArchTest {
               // One pass after an upgrade over every tenant's findings, each batch in
               // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
               FindingValueDisplayBackfill.class,
-              // Opt-in keep_findings on delete: Propagation.MANDATORY, so it only joins the
-              // tenant-scoped transaction of the delete entry point that calls it (pinned by
-              // DeleteKeepFindingsApiTest).
-              io.openaev.service.finding.FindingDetachService.class,
               // Re-test on demand: reached only from FindingApi#retestFindings, a TxCtx-carrying
               // @Transactional handler, with the one tenant of its scope; every read names it.
               io.openaev.service.finding.FindingRetestService.class,
@@ -2943,7 +2922,7 @@ class TenantActiveTableAccessArchTest {
               // tenant of its TxCtx-carrying threat arsenal version endpoints:
               PayloadVersionService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
-              io.openaev.service.catalog.event.CatalogChangePublisher.class,
+              io.openaev.service.catalog.event.ContentChangePublisher.class,
               // Subquery of the Available tab search, run by CatalogPayloadOfferService:
               io.openaev.database.specification.CatalogItemSpecification.class)
           .should()
@@ -3462,6 +3441,11 @@ class TenantActiveTableAccessArchTest {
     allow(
         io.openaev.rest.payload.service.PayloadService.class,
         "synchroniseInjectorContractBasedOnPayload",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "saveAndRebuildContract",
         "findInjectorContractByPayload",
         "keyed by the payload entity"),
     allow(
@@ -4585,19 +4569,19 @@ class TenantActiveTableAccessArchTest {
   }
 
   @ArchTest
-  static final ArchRule catalog_history_repository_access_is_reviewed =
+  static final ArchRule content_changes_repository_access_is_reviewed =
       noClasses()
           .that()
           .doNotBelongToAnyOf(
               // Written by the catalogue events, inside the scoped transaction that raises them:
-              io.openaev.service.catalog.event.CatalogHistoryListener.class,
+              io.openaev.service.catalog.event.ContentChangeListener.class,
               // Read by tenant, inside the scoped transaction of the history routes:
-              io.openaev.service.catalog.history.CatalogHistoryService.class)
+              io.openaev.service.catalog.history.ContentHistoryService.class)
           .should()
           .dependOnClassesThat()
-          .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
+          .areAssignableTo(io.openaev.database.repository.ContentChangeRepository.class)
           .because(
-              "catalog_history is tenant-active: an accessor without a tenant scope silently"
+              "content_changes is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
@@ -4788,7 +4772,9 @@ class TenantActiveTableAccessArchTest {
               InjectHandler.class,
               // Reached only from the threat arsenal usages endpoint, a read-only transaction
               // that carries a TxCtx and passes the one tenant of its scope to the query:
-              PayloadVersionService.class)
+              PayloadVersionService.class,
+              // Runtime migration, under the migration processor's forTenant scope:
+              io.openaev.processor.core.V20261119_Add_logging_expectation_to_manual_payloads.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(InjectRepository.class)
@@ -4815,7 +4801,11 @@ class TenantActiveTableAccessArchTest {
               io.openaev.execution.ExecutionExecutorService.class,
               ExecutorService.class,
               // Retention: each batch deletes under TxCtx.allTenants() through the primitive:
-              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class)
+              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class,
+              // The reader's inject status: one read of the COMPLETE traces of a page of injects,
+              // in the scoped transaction of the TxCtx-carrying inject search and attack path
+              // endpoints, whose marking scope also hides the traces above the reader's clearance:
+              io.openaev.service.InjectVisibleStatusService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.ExecutionTraceRepository.class)
@@ -4863,7 +4853,10 @@ class TenantActiveTableAccessArchTest {
               // transaction of the inject's own tenant - the same transaction
               // execution_traces_repository_access_is_reviewed already trusts for
               // ExecutionExecutorService/ExecutorService's trace writes:
-              AgentUtils.class)
+              AgentUtils.class,
+              // The reader's status of one inject, from the traces of a status the inject and
+              // execution-log endpoints loaded in their TxCtx-carrying scoped transaction:
+              io.openaev.service.InjectVisibleStatusService.class)
           .should(callOrReferenceMethod(InjectStatus.class, "getTraces"))
           .because(
               "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"

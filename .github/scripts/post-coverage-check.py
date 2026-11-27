@@ -7,7 +7,8 @@ fails, this check run says, in words, which one, with the tool output and how to
 that passed is left out. When the pull request is behind main, the fix it gives for a drop is a
 rebase. When both rules pass, it posts nothing, unless an earlier run on the same commit posted a
 failure: a passing check then replaces it. It is posted with the PR checks app, like the PR title check, so it shows as its own check
-on the pull request.
+on the pull request. When the pull request waives the rules (coverage-exemption.py), the failed
+rules are still listed, as neutral, with the reason it gives.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -20,7 +21,11 @@ import os
 import re
 import subprocess
 
-NAME = "Backend Coverage (advisory)"
+NAME = "Backend Coverage"
+WAIVE = """\
+This check blocks the merge. A change that cannot be tested can waive the rules: write \
+`Coverage exempt: <why>` on its own line in the pull request description, then re-run the failed \
+jobs of the CI run."""
 # GitHub caps a check run summary at 65535 characters; the tool output is cut well before that.
 MAX_LOG = 20000
 
@@ -141,6 +146,9 @@ def main() -> int:
     parser.add_argument("--patch-log", required=True, help="output of check-patch-coverage.py")
     parser.add_argument("--project-outcome", required=True, help="outcome of the drop step")
     parser.add_argument("--project-log", required=True, help="output of check-coverage-drop.py")
+    parser.add_argument(
+        "--exempt-reason", default="", help="reason the pull request gives to waive the rules"
+    )
     args = parser.parse_args()
 
     titles, sections = [], []
@@ -158,11 +166,19 @@ def main() -> int:
         return 0
 
     # The PR checks list shows about 100 characters of "name — title": the figures come first.
+    if args.exempt_reason:
+        post(
+            args.sha,
+            "neutral",
+            " · ".join(titles + ["waived"]),
+            "\n".join(sections + [f"The pull request waives these rules: {args.exempt_reason}"]),
+        )
+        return 0
     post(
         args.sha,
         "failure",
         " · ".join(titles),
-        "\n".join(sections + ["This check is advisory for now: it does not block the merge."]),
+        "\n".join(sections + [WAIVE]),
     )
     return 0
 

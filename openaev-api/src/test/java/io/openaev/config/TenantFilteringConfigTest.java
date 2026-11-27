@@ -72,10 +72,11 @@ class TenantFilteringConfigTest {
     // diverge (a new tenant_id join table lands, or the inventory lists something bogus) an
     // until-active waiver could be rejected wrongly or never expire under '*'. This assertion is
     // the honesty check named by the inventory file; it fails the build on any divergence.
-    Set<String> fromSchema =
+    TenantTables armedBySchema =
         TenantFilteringConfig.deriveFromSchema(dataSource)
-            .restrictTo(List.of(TenantTables.ALL_STRICT))
-            .strict();
+            .restrictTo(List.of(TenantTables.ALL_STRICT));
+    Set<String> fromSchema = new TreeSet<>(armedBySchema.strict());
+    fromSchema.addAll(armedBySchema.dualScope());
     Set<String> fromGuard = BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables();
     assertEquals(
         fromSchema,
@@ -99,11 +100,15 @@ class TenantFilteringConfigTest {
     TenantTables armed = schema.restrictTo(followsProduction);
 
     // Assert
+    TenantTables wildcard = schema.restrictTo(List.of(TenantTables.ALL_STRICT));
     assertEquals(
-        schema.restrictTo(List.of(TenantTables.ALL_STRICT)).strict(),
+        wildcard.strict(),
         armed.strict(),
         "the list the reader returns under '*' must arm the strict tables '*' arms");
-    assertTrue(armed.dualScope().isEmpty(), "'*' arms no dual-scope table");
+    assertEquals(
+        wildcard.dualScope(),
+        armed.dualScope(),
+        "the list the reader returns under '*' must arm the dual-scope tables '*' arms");
   }
 
   @Test
@@ -206,5 +211,135 @@ class TenantFilteringConfigTest {
         "expected the metamodel to expose the tenant entities, got " + marked.size());
     assertTrue(fromModel.strict().contains("documents"), "sanity: a known strict table is present");
     assertTrue(fromModel.dualScope().contains("groups"), "sanity: a known dual table is present");
+  }
+
+  /**
+   * The 80 tables the production list named explicitly before it became {@code *}. Frozen here so
+   * that every one of them stays armed under the wildcard: the schema these tests run on is the one
+   * Flyway builds, the same one production runs on. A table added after the wildcard is armed by it
+   * and is not named here, so this list must never be extended.
+   */
+  private static final Set<String> TABLES_LISTED_BEFORE_THE_WILDCARD =
+      Set.of(
+          "agents",
+          "asset_agent_jobs",
+          "asset_groups",
+          "assets",
+          "attackpath_execution",
+          "attackpath_execution_collector",
+          "attackpath_execution_remediation",
+          "attackpath_finding",
+          "attack_patterns",
+          "autonomous_directives",
+          "autonomous_events",
+          "autonomous_objective_templates",
+          "autonomous_runs",
+          "catalog_items",
+          "catalog_releases",
+          "challenges",
+          "channels",
+          "collectors",
+          "collector_types",
+          "conditions",
+          "connector_instances",
+          "content_changes",
+          "custom_dashboards",
+          "custom_domains",
+          "cwes",
+          "datapacks",
+          "documents",
+          "domains",
+          "execution_traces",
+          "executors",
+          "exercises",
+          "findings",
+          "groups",
+          "import_mappers",
+          "injector_contract_tags",
+          "injectors",
+          "injectors_contracts",
+          "injectors_contracts_attack_patterns",
+          "injectors_contracts_domains",
+          "injectors_contracts_vulnerabilities",
+          "injectors_injector_contracts",
+          "injects",
+          "kill_chain_phases",
+          "lessons_templates",
+          "marking_definitions",
+          "mitigations",
+          "notification_events",
+          "notifications",
+          "notification_triggers",
+          "notifiers",
+          "organizations",
+          "parameters",
+          "payload_identities",
+          "payload_revocations",
+          "payloads",
+          "phishing_email_templates",
+          "phishing_landing_pages",
+          "phishing_results",
+          "reporting_generations",
+          "reportings",
+          "reporting_schedules",
+          "roles",
+          "scenario_identities",
+          "scenario_revisions",
+          "scenarios",
+          "scope_variables",
+          "secret_references",
+          "secrets",
+          "security_coverages",
+          "steps",
+          "steps_delay_queue",
+          "tag_rules",
+          "tags",
+          "teams",
+          "tenant_xtmhub_registrations",
+          "vulnerabilities",
+          "widgets",
+          "workflows",
+          "workflow_scope_rules",
+          "workflow_states");
+
+  @Test
+  @DisplayName("given the live schema, '*' should arm every table production listed before it")
+  void given_liveSchema_should_wildcardArmEveryTableProductionListedBefore() {
+    // Arrange
+    TenantTables schema = TenantFilteringConfig.deriveFromSchema(dataSource);
+
+    // Act
+    TenantTables armed = schema.restrictTo(List.of(TenantTables.ALL_STRICT));
+    Set<String> armedFromSchema = new TreeSet<>(armed.strict());
+    armedFromSchema.addAll(armed.dualScope());
+
+    // Assert
+    assertEquals(80, TABLES_LISTED_BEFORE_THE_WILDCARD.size(), "the frozen list is the 80 tables");
+    assertTrue(
+        armedFromSchema.containsAll(TABLES_LISTED_BEFORE_THE_WILDCARD),
+        "'*' on the live schema must arm every table the explicit list armed; missing: "
+            + missingFrom(armedFromSchema));
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables()
+            .containsAll(TABLES_LISTED_BEFORE_THE_WILDCARD),
+        "the arch guards' DB-less expansion of '*' must arm every table of the same list");
+  }
+
+  private static Set<String> missingFrom(Set<String> armed) {
+    Set<String> missing = new TreeSet<>(TABLES_LISTED_BEFORE_THE_WILDCARD);
+    missing.removeAll(armed);
+    return missing;
+  }
+
+  @Test
+  @DisplayName("given the live schema, the startup bean should accept '*' and arm the anchors")
+  void given_liveSchema_should_startupBeanAcceptWildcard() {
+    // Act
+    TenantTables armed =
+        new TenantFilteringConfig().tenantTables(dataSource, List.of(TenantTables.ALL_STRICT));
+
+    // Assert
+    assertTrue(armed.strict().containsAll(Set.of("injects", "exercises", "scenarios", "findings")));
+    assertTrue(armed.dualScope().contains("roles"));
   }
 }

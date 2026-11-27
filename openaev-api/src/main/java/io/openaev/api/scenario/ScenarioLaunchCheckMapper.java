@@ -27,9 +27,8 @@ public class ScenarioLaunchCheckMapper {
   }
 
   private static RevokedInjectOutput toRevokedOutput(Inject inject) {
+    InjectorContract contract = inject.getInjectorContract().orElseThrow();
     return new RevokedInjectOutput(
-        inject.getId(),
-        inject.getTitle(),
-        inject.getInjectorContract().map(InjectorContract::getId).orElseThrow());
+        inject.getId(), inject.getTitle(), contract.getId(), contract.getPayload().getName());
   }
 }

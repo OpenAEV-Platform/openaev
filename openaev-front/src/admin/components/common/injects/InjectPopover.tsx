@@ -1,4 +1,4 @@
-import { Button, Checkbox } from '@filigran/design-system';
+import { Button } from '@filigran/design-system';
 import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
@@ -83,7 +83,6 @@ const InjectPopover: FunctionComponent<Props> = ({
   } = useContext(InjectTestContext);
 
   const [openDelete, setOpenDelete] = useState(false);
-  const [keepFindings, setKeepFindings] = useState(false);
   const [duplicate, setDuplicate] = useState(false);
   const [openTest, setOpenTest] = useState(false);
   const [openEnable, setOpenEnable] = useState(false);
@@ -118,13 +117,12 @@ const InjectPopover: FunctionComponent<Props> = ({
   };
 
   const handleOpenDelete = () => {
-    setKeepFindings(false);
     setOpenDelete(true);
   };
   const handleCloseDelete = () => setOpenDelete(false);
 
   const submitDelete = () => {
-    onDeleteInject(inject.inject_id, keepFindings).then(() => {
+    onDeleteInject(inject.inject_id).then(() => {
       onDelete?.(inject.inject_id);
       handleCloseDelete();
     });
@@ -310,15 +308,6 @@ const InjectPopover: FunctionComponent<Props> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this inject:')} ${inject.inject_title} ?`}
-        extraContent={(
-          <div className="mt-4">
-            <Checkbox
-              checked={keepFindings}
-              label={t('Keep the findings it produced, detached from it')}
-              onCheckedChange={checked => setKeepFindings(checked === true)}
-            />
-          </div>
-        )}
       />
       <DialogTest
         open={openTest}

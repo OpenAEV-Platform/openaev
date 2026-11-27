@@ -45,4 +45,12 @@ public class ConnectorInstanceOutput {
   @JsonProperty("connector_instance_is_in_reboot_loop")
   @JsonInclude(NON_NULL)
   private Boolean inRebootLoop;
+
+  @Schema(
+      description =
+          "Digest of the image the container runs (algo:hex), as last reported by the composer;"
+              + " absent when unknown")
+  @JsonProperty("connector_instance_image_digest")
+  @JsonInclude(NON_NULL)
+  private String imageDigest;
 }

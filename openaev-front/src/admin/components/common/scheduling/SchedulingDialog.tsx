@@ -19,10 +19,28 @@ import {
   generateWeeklyCronExpression,
 } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
-import { minutesInFuture, toUtcMidnightIso } from '../../../../utils/Time';
+import { minutesInFuture, toUtcMidnightIso, utcMidnightToLocalDay } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const MS_PER_HOUR = 1000 * 60 * 60;
+const MS_PER_DAY = MS_PER_HOUR * 24;
+
+// The form keeps each date as the UTC midnight of the day the user sees, so a
+// day never depends on the browser's time zone while it is edited. The API gets
+// real instants instead: the start of that day in the user's own time zone.
+
+/** Today in the user's time zone, written the way the form stores a day. */
+const todayInForm = () => toUtcMidnightIso(new Date());
+
+/** The day an instant falls on in the user's time zone, written the way the form stores a day. */
+const instantToFormDay = (instant: string) => toUtcMidnightIso(new Date(instant));
+
+/** The start of a form day in the user's time zone, as the instant the API expects. */
+const formDayToInstant = (day: string, plusDays = 0) => utcMidnightToLocalDay(day, plusDays).toISOString();
+
+/** Whether a saved start and end bound a one-shot schedule: a single day, which lasts 25 hours when the clocks go back, hence the extra hour. */
+const isOneDayWindow = (start?: string | null, end?: string | null) => !!start && !!end
+  && new Date(end).getTime() - new Date(start).getTime() <= MS_PER_DAY + MS_PER_HOUR;
 
 type Frequency = 'noRepeat' | 'hourly' | 'daily' | 'weekly' | 'monthly';
 
@@ -77,7 +95,7 @@ const defaultFormValues = (): SchedulingFormValues => {
   const inTwoMinutes = new Date(minutesInFuture(2).toISOString());
   return {
     frequency: 'daily',
-    startDate: new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString(),
+    startDate: todayInForm(),
     endDate: null,
     hour: inTwoMinutes.getHours(),
     minute: inTwoMinutes.getMinutes(),
@@ -127,7 +145,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
           // A one-shot occurrence scheduled today must be at least a couple of
           // minutes in the future.
           if (data.frequency === 'noRepeat'
-            && new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() === new Date(data.startDate).getTime()) {
+            && new Date(todayInForm()).getTime() === new Date(data.startDate).getTime()) {
             const occurrence = new Date();
             occurrence.setHours(data.hour, data.minute, 0, 0);
             return occurrence.getTime() > new Date(new Date(minutesInFuture(2).toISOString()).setSeconds(0, 0)).getTime();
@@ -150,7 +168,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
           path: ['endDate'],
         },
       ).refine(
-        data => new Date(data.startDate).getTime() >= new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime(),
+        data => new Date(data.startDate).getTime() >= new Date(todayInForm()).getTime(),
         {
           message: t('Start date should be at least today'),
           path: ['startDate'],
@@ -169,16 +187,15 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
       const isHourly = existingHandler.getHours()?.getRecurrence() !== undefined;
       const time = existingHandler.getRecurrenceTime();
       // A one-shot schedule is stored as a daily cron bounded to a single day.
-      const isOnce = !!initialValues.recurrenceStart && !!initialValues.recurrenceEnd
-        && new Date(initialValues.recurrenceEnd).getTime() - new Date(initialValues.recurrenceStart).getTime() <= MS_PER_DAY
+      const isOnce = isOneDayWindow(initialValues.recurrenceStart, initialValues.recurrenceEnd)
         && existingHandler.getRecurrenceMagnitude() === 'daily';
       const monthlyRecurrence = existingHandler.getMonthlyRecurrence();
       const defaults = defaultFormValues();
       reset({
         ...defaults,
         frequency: isOnce ? 'noRepeat' : (existingHandler.getRecurrenceMagnitude() as Frequency),
-        startDate: initialValues.recurrenceStart || defaults.startDate,
-        endDate: isOnce ? null : (initialValues.recurrenceEnd || null),
+        startDate: initialValues.recurrenceStart ? instantToFormDay(initialValues.recurrenceStart) : defaults.startDate,
+        endDate: !isOnce && initialValues.recurrenceEnd ? instantToFormDay(initialValues.recurrenceEnd) : null,
         hour: time.hour ?? defaults.hour,
         minute: time.minute ?? defaults.minute,
         interval: isHourly ? Number(existingHandler.getHours()?.getRecurrence()) || 1 : 1,
@@ -201,7 +218,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
         const time = new Date();
         time.setHours(values.hour, values.minute, 0, 0);
         return t('Runs once on {date} at {time}', {
-          date: fld(values.startDate),
+          date: fld(utcMidnightToLocalDay(values.startDate)),
           time: time.toLocaleTimeString(locale, {
             hour: '2-digit',
             minute: '2-digit',
@@ -210,9 +227,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
       }
       let sentence = CronParser.parse(buildCronExpression(values)).toHumanReadableString(locale);
       if (values.endDate) {
-        sentence += ` ${t('recurrence_from')} ${fld(values.startDate)} ${t('recurrence_to')} ${fld(values.endDate)}`;
+        sentence += ` ${t('recurrence_from')} ${fld(utcMidnightToLocalDay(values.startDate))} ${t('recurrence_to')} ${fld(utcMidnightToLocalDay(values.endDate))}`;
       } else {
-        sentence += ` ${t('recurrence_starting_from')} ${fld(values.startDate)}`;
+        sentence += ` ${t('recurrence_starting_from')} ${fld(utcMidnightToLocalDay(values.startDate))}`;
       }
       return sentence;
     } catch {
@@ -222,12 +239,21 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
 
   const submit = (data: SchedulingFormValues) => {
     const cron = buildCronExpression(data);
-    const start = data.startDate;
+    // A date the user left as it was keeps its saved instant: rebuilding it from
+    // this browser's midnight would move a schedule saved from another time zone.
+    const { recurrenceStart: savedStart, recurrenceEnd: savedEnd } = initialValues;
+    const savedOnce = isOneDayWindow(savedStart, savedEnd);
+    const startKept = !!savedStart && data.startDate === instantToFormDay(savedStart);
+    const start = startKept && savedStart ? savedStart : formDayToInstant(data.startDate);
     // A one-shot schedule is bounded to the day after its start so the
     // backend self-clears it once fired.
-    const end = data.frequency === 'noRepeat'
-      ? new Date(new Date(data.startDate).setUTCHours(24, 0, 0, 0)).toISOString()
-      : data.endDate || undefined;
+    let end: string | undefined;
+    if (data.frequency === 'noRepeat') {
+      end = startKept && savedOnce && savedEnd ? savedEnd : formDayToInstant(data.startDate, 1);
+    } else if (data.endDate) {
+      const endKept = !savedOnce && !!savedEnd && data.endDate === instantToFormDay(savedEnd);
+      end = endKept && savedEnd ? savedEnd : formDayToInstant(data.endDate);
+    }
     onSubmit(CronParser.parse(cron), start, end);
   };
 
@@ -441,8 +467,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   control={control}
                   name="startDate"
                   label={t('Start date')}
-                  minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+                  minDate={utcMidnightToLocalDay(todayInForm())}
                   toStorage={toUtcMidnightIso}
+                  fromStorage={utcMidnightToLocalDay}
                   onAccept={() => clearErrors(['hour', 'minute'])}
                 />
                 {frequency !== 'noRepeat' && (
@@ -450,8 +477,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     control={control}
                     name="endDate"
                     label={t('End date (optional)')}
-                    minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
+                    minDate={utcMidnightToLocalDay(todayInForm(), 1)}
                     toStorage={toUtcMidnightIso}
+                    fromStorage={utcMidnightToLocalDay}
                   />
                 )}
               </Box>

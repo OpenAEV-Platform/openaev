@@ -26,7 +26,7 @@ class CreateAttackPatternComponent extends Component {
   onSubmit(data) {
     const inputValues = {
       ...data,
-      attack_pattern_kill_chain_phases: R.pluck('id', data.attack_pattern_kill_chain_phases),
+      attack_pattern_kill_chain_phases: data.attack_pattern_kill_chain_phases.map(item => item.id),
     };
     return this.props
       .addAttackPattern(inputValues)

@@ -310,7 +310,7 @@ const Endpoints = () => {
           // Not sortable: markings are stored as a text[] on the row, not a joinable column.
           isSortable: false,
           value: (endpoint: EndpointOutput) => (
-            <ItemMarkings markingIds={endpoint.asset_markings} />
+            <ItemMarkings markingIds={endpoint.asset_markings} limit={1} />
           ),
         }]
       : []),

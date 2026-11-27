@@ -142,6 +142,7 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
   @Autowired private UserRepository userRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private AttackPathAccessControl attackPathAccessControl;
+  @Autowired private PermissionService permissionService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private JdbcTemplate jdbc;
@@ -539,9 +540,14 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
     grants.add(id);
   }
 
-  private static PermissionService permissionsGrantingEverything() {
+  /** Grants every check, and reads the consumer's rights in its tenant as the real service does. */
+  private PermissionService permissionsGrantingEverything() {
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+    when(permissions.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
     return permissions;
   }
 
@@ -557,9 +563,9 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
       Disposable subscription) {}
 
   /**
-   * Subscribes the way a client does: the tenant and the principal are the ones of the subscribing
-   * thread. The default tenant is the fallback of a thread with no tenant, as for {@code
-   * /api/stream}.
+   * Subscribes the way a client does: the principal is the one of the subscribing thread, the
+   * tenant the one the stream API names, the default tenant for {@code /api/stream}. The thread
+   * carries no ambient tenant.
    */
   private Consumer subscribe(String name, String tenantId, User user) {
     List<JsonNode> received = new CopyOnWriteArrayList<>();
@@ -572,13 +578,13 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
                 null,
                 List.of()));
     TenantContext.clearCurrentTenant();
-    if (!Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
-      TenantContext.setCurrentTenant(tenantId);
-    }
+    assertFalse(
+        TenantContext.hasCurrentTenant(),
+        "The subscription starts with no ambient tenant: the stream API names the tenant");
     try {
       Disposable subscription =
           stream
-              .makeDataFlux(name + "-" + UUID.randomUUID())
+              .makeDataFlux(name + "-" + UUID.randomUUID(), tenantId)
               .subscribe(
                   sent -> {
                     @SuppressWarnings("unchecked")
@@ -1893,7 +1899,7 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
   /** A user carries no marking: its events are not filtered. */
   private static StreamVisibilityService unfilteredMarkings() {
     StreamVisibilityService markings = mock(StreamVisibilityService.class);
-    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    when(markings.visibilityOrUnresolved(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
     return markings;
   }
 }

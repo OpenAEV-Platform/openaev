@@ -227,6 +227,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
     'asset_tags',
     'endpoint_platform',
     'endpoint_arch',
+    'endpoint_is_eol',
   ];
   // endpoint_platform / endpoint_arch are single-value enums: their only valid
   // operator is 'eq' (the filter UI exposes eq/not_eq/empty/not_empty - 'contains'

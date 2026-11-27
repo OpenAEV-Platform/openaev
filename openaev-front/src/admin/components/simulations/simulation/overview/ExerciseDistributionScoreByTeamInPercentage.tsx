@@ -10,6 +10,7 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../../utils/SampleCharts';
+import { descendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -28,14 +29,16 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
   }));
 
   const teamsByPercentScore = R.pipe(
-    R.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null),
-    R.groupBy((n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
-    R.toPairs,
+    (expectationsList: InjectExpectationOutput[]) => expectationsList.filter((n: InjectExpectationOutput) => !!n.inject_expectation_team && n.inject_expectation_user === null),
+    (list: InjectExpectationOutput[]) => Object.groupBy(list, (n: InjectExpectationOutput) => n.inject_expectation_team ?? ''),
+    Object.entries,
     // A team shows up once at least one of its expectations has been evaluated
-    R.filter(([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null)),
-    R.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
-      const reachedScore = R.sum(expectations.map(e => e.inject_expectation_score ?? 0));
-      const expectedScore = R.sum(expectations.map(e => e.inject_expectation_expected_score));
+    (pairs: [string, InjectExpectationOutput[]][]) => pairs.filter(
+      ([, expectations]: [string, InjectExpectationOutput[]]) => expectations.some(e => e.inject_expectation_score != null),
+    ),
+    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map(([teamId, expectations]: [string, InjectExpectationOutput[]]) => {
+      const reachedScore = expectations.map(e => e.inject_expectation_score ?? 0).reduce((acc, value) => acc + value, 0);
+      const expectedScore = expectations.map(e => e.inject_expectation_expected_score).reduce((acc, value) => acc + value, 0);
       return {
         ...teamsMap[teamId],
         team_total_percent_score: Math.round((reachedScore * 100) / (expectedScore || 1)),
@@ -45,8 +48,7 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
 
   const teamsColors = computeTeamsColors(teams, theme);
   const sortedTeamsByPercentScore = R.pipe(
-    R.sortWith([R.descend(R.prop('team_total_percent_score'))]),
-    R.take(10),
+    (items: Array<Team & { team_total_percent_score: number }>) => items.toSorted(descendBy('team_total_percent_score')).slice(0, 10),
   )(teamsByPercentScore || []);
   const percentScoreByTeamData = [
     {

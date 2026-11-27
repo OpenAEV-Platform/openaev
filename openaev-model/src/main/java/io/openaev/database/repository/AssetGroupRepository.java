@@ -35,9 +35,8 @@ public interface AssetGroupRepository
 
   /**
    * The asset groups targeted by the inject, without loading the inject. Native so the join goes
-   * through {@code injects_asset_groups} and never roots on {@code Inject}, whose v1 {@code
-   * tenantFilter} would resolve the default tenant on the non-prefixed implant routes. The groups
-   * are scoped by the transaction's {@code TxCtx} (v2-active {@code asset_groups}).
+   * through {@code injects_asset_groups} and never roots on {@code Inject}. The groups are scoped
+   * by the transaction's {@code TxCtx} (v2-active {@code asset_groups}).
    */
   @Query(
       value =

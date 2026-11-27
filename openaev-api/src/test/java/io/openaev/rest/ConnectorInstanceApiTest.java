@@ -129,9 +129,16 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
+    return getConnectorInstance(Tenant.DEFAULT_TENANT_UUID, catalogConnector, configurationsValues);
+  }
+
+  private ConnectorInstancePersisted getConnectorInstance(
+      String tenantId,
+      CatalogConnector catalogConnector,
+      Set<ConnectorInstanceConfiguration> configurationsValues) {
     ConnectorInstanceComposer.Composer builder =
         connectorInstanceComposer
-            .forConnectorInstance(createDefaultConnectorInstance())
+            .forConnectorInstance(createDefaultConnectorInstance(tenantId))
             .withCatalogConnector(catalogConnectorComposer.forCatalogConnector(catalogConnector));
     for (ConnectorInstanceConfiguration configValue : configurationsValues) {
       builder =
@@ -835,6 +842,29 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     assertThatJson(response).inPath("$.connector_instance_started_at").isPresent();
     assertThatJson(response).inPath("$.connector_instance_restart_count").isEqualTo(3);
     assertThatJson(response).inPath("$.connector_instance_is_in_reboot_loop").isEqualTo(true);
+    // No digest reported yet: the field is absent, not null
+    assertThatJson(response).inPath("$.connector_instance_image_digest").isAbsent();
+  }
+
+  @Test
+  @DisplayName("Given a reported image digest should expose it in the connector instance read")
+  void givenReportedImageDigest_shouldExposeItInTheRead() throws Exception {
+    CatalogConnector catalogConnector = getCatalogConnector();
+    ConnectorInstancePersisted instance = getConnectorInstance(catalogConnector, new HashSet<>());
+    String digest = "sha256:" + "b".repeat(64);
+    instance.setImageDigest(digest);
+    connectorInstanceRepository.save(instance);
+    String response =
+        mvc.perform(
+                get(CONNECTOR_INSTANCE_URI + "/" + instance.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThatJson(response).inPath("$.connector_instance_image_digest").isEqualTo(digest);
   }
 
   @Test
@@ -1335,7 +1365,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();
@@ -1364,7 +1394,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();
@@ -1404,7 +1434,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       CatalogConnector catalogConnector = getCatalogConnector();
       ConnectorInstancePersisted connectorInstance =
-          getConnectorInstance(catalogConnector, new HashSet<>());
+          getConnectorInstance(tenantX.getId(), catalogConnector, new HashSet<>());
 
       entityManager.flush();
       entityManager.clear();

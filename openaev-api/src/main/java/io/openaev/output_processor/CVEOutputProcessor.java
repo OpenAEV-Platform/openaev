@@ -7,8 +7,6 @@ import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.service.InjectExpectationService;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -54,21 +52,5 @@ public class CVEOutputProcessor extends FindingCapableOutputProcessor {
   @Override
   public String toFindingValue(JsonNode jsonNode) {
     return buildString(jsonNode, ID);
-  }
-
-  @Override
-  public List<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
-    if (assetIdNode == null) {
-      return Collections.emptyList();
-    }
-    if (assetIdNode.isArray()) {
-      List<String> result = new ArrayList<>();
-      for (JsonNode idNode : assetIdNode) {
-        result.add(idNode.asText());
-      }
-      return result;
-    }
-    return List.of(assetIdNode.asText());
   }
 }

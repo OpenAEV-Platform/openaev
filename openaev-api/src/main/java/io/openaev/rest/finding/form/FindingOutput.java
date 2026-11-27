@@ -54,11 +54,6 @@ public class FindingOutput {
   @NotBlank
   private String value;
 
-  @Deprecated
-  @Schema(description = "Deprecated, kept for backward compatibility", deprecated = true)
-  @JsonProperty("finding_labels")
-  private String[] labels;
-
   @Schema(description = "Finding name")
   @JsonProperty("finding_name")
   private String name;
@@ -71,15 +66,35 @@ public class FindingOutput {
   @JsonProperty("finding_inject_id")
   private String injectId;
 
-  @Schema(description = "First time the finding was seen")
+  @Schema(
+      description =
+          "When the finding row was created. A storage time, not a detection: read"
+              + " finding_first_seen for that.")
   @JsonProperty("finding_created_at")
   @NotNull
   private Instant creationDate;
 
-  @Schema(description = "Last time the finding was seen")
+  @Schema(
+      description =
+          "When the finding row was last written. Any write moves it (status, asset link,"
+              + " migration): read finding_last_seen for the last detection.")
   @JsonProperty("finding_updated_at")
   @NotNull
   private Instant updateDate;
+
+  @Schema(
+      description =
+          "First time the finding was detected; the creation time when the detection time is"
+              + " unknown")
+  @JsonProperty("finding_first_seen")
+  private Instant firstSeen;
+
+  @Schema(
+      description =
+          "Last time the finding was detected; the last write time when the detection time is"
+              + " unknown")
+  @JsonProperty("finding_last_seen")
+  private Instant lastSeen;
 
   @Schema(description = "Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED")
   @JsonProperty("finding_status")

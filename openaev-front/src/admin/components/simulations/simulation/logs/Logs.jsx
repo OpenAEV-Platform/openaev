@@ -2,7 +2,6 @@ import { Paper } from '@filigran/design-system';
 import { ExpandMoreOutlined, NoteAltOutlined, RateReviewOutlined } from '@mui/icons-material';
 import { Box, ButtonBase, Collapse, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
@@ -66,7 +65,7 @@ const Logs = () => {
   const submitCreateLog = (data, action) => {
     const inputValues = {
       ...data,
-      log_tags: R.pluck('id', data.log_tags),
+      log_tags: data.log_tags.map(item => item.id),
     };
     return dispatch(addLog(exerciseId, inputValues)).then((result) => {
       if (result.result) {

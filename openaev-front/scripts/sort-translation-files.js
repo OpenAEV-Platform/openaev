@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { compareKeys } from './i18n-order.js';
+
 function sortJSONKeys(json) {
-  const sortedKeys = Object.keys(json).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const sortedKeys = Object.keys(json).sort(compareKeys);
   const sortedJSON = {};
   sortedKeys.forEach((key) => {
     sortedJSON[key] = json[key];

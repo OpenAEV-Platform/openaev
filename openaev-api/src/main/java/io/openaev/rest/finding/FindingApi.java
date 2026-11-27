@@ -62,7 +62,8 @@ public class FindingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingOutput> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
-    return ResponseEntity.ok(this.findingMapper.toFindingOutput(this.findingService.finding(id)));
+    return ResponseEntity.ok(
+        this.findingMapper.toFindingOutput(this.findingService.finding(ctx, id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
@@ -73,7 +74,7 @@ public class FindingApi extends RestBehavior {
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingSummaryOutput> findingSummary(
       TxCtx ctx, @PathVariable @NotNull final String id) {
-    return ResponseEntity.ok(this.findingService.findingSummary(id));
+    return ResponseEntity.ok(this.findingService.findingSummary(ctx, id));
   }
 
   // -- LIFECYCLE --

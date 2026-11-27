@@ -52,11 +52,12 @@ public final class ProductionActiveTables {
 
   /**
    * The tables an activation list arms, lowercased and sorted. An explicit list arms what it names.
-   * The terminal {@value TenantTables#ALL_STRICT} arms every strict table but the self-isolated
-   * ones, so it is returned expanded, the way {@link TenantTables#restrictTo} resolves it, and
-   * never as the token itself: a caller comparing table names, or adding its own tables on top,
-   * then reads and registers the tables the statement inspector gates in production. A {@code *}
-   * beside other tables is refused, as production refuses it at startup.
+   * The terminal {@value TenantTables#ALL_STRICT} arms every tenant table, dual-scope ones
+   * included, but the self-isolated ones, so it comes back expanded, the way {@link
+   * TenantTables#restrictTo} resolves it, and never as the token itself: a caller comparing table
+   * names, or adding its own tables on top, then reads and registers the tables the statement
+   * inspector gates in production. A {@code *} beside other tables is refused, as production
+   * refuses it at startup.
    *
    * <p>That is the inspector's table set, not the write-attribution check's. Under {@code *},
    * {@code TenantBaseListener} refuses an unattributed write on every entity it listens to, the

@@ -46,7 +46,7 @@ class LogPopoverComponent extends Component {
   onSubmitEdit(data) {
     const inputValues = {
       ...data,
-      log_tags: R.pluck('id', data.log_tags),
+      log_tags: data.log_tags.map(item => item.id),
     };
     return this.props
       .updateLog(this.props.exerciseId, this.props.log.log_id, inputValues)

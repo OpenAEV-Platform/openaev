@@ -31,6 +31,7 @@ interface BaseProps {
   options: Option[];
   onInputChange: (search: string) => void;
   required?: boolean;
+  disabled?: boolean;
   error?: boolean;
   helperText?: string;
 }
@@ -50,7 +51,7 @@ interface MultipleProps extends BaseProps {
 type Props = SingleProps | MultipleProps;
 
 const SearchAutocompleteField: FunctionComponent<Props> = (props) => {
-  const { label, labelPosition, labelWidth, placeholder, options, onInputChange, required = false, error = false, helperText } = props;
+  const { label, labelPosition, labelWidth, placeholder, options, onInputChange, required = false, disabled = false, error = false, helperText } = props;
   const { t } = useFormatter();
 
   const selected = useMemo(() => {
@@ -88,6 +89,7 @@ const SearchAutocompleteField: FunctionComponent<Props> = (props) => {
         }
       }}
       required={required}
+      disabled={disabled}
       error={error}
       labelPosition={labelPosition}
     >

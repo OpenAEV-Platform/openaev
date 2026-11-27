@@ -16,6 +16,7 @@ import Loader from '../../../../../components/Loader';
 import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
 import { HUMAN_EXPECTATION_TYPES } from '../../../common/injects/expectations/Expectation';
@@ -39,10 +40,10 @@ const Validations = () => {
   const handleSearch = value => setKeyword(value);
   const handleAddTag = (value) => {
     if (value) {
-      setTags(R.uniq(R.append(value, tags)));
+      setTags(tags.some(tag => tag.id === value.id) ? tags : [...tags, value]);
     }
   };
-  const handleRemoveTag = value => setTags(R.filter(n => n.id !== value, tags));
+  const handleRemoveTag = value => setTags(tags.filter(n => n.id !== value));
   // Fetching data
   const {
     exercise,
@@ -66,22 +67,29 @@ const Validations = () => {
       || (n.inject_expectation_inject?.inject_description || '')
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
-  const sort = R.sortWith([R.descend(R.prop('inject_expectation_created_at'))]);
+  const sort = items => items.toSorted(descendBy('inject_expectation_created_at'));
   const sortedInjectExpectations = R.pipe(
-    R.uniqBy(R.prop('inject_expectation_id')),
-    R.map(n => ({
+    (expectations) => {
+      // keeps the first expectation of each id
+      const seenIds = new Set();
+      return expectations.filter((n) => {
+        if (seenIds.has(n.inject_expectation_id)) return false;
+        seenIds.add(n.inject_expectation_id);
+        return true;
+      });
+    },
+    expectations => expectations.map(n => ({
       ...n,
       inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
     })),
-    R.filter(n => HUMAN_EXPECTATION_TYPES.includes((n.inject_expectation_type).toUpperCase())),
-    R.filter(
+    expectations => expectations.filter(n => HUMAN_EXPECTATION_TYPES.includes((n.inject_expectation_type).toUpperCase())),
+    expectations => expectations.filter(
       n => tags.length === 0
-        || R.any(
-          filter => R.includes(filter, n.inject_expectation_inject?.inject_tags),
-          R.pluck('id', tags),
+        || tags.map(tag => tag.id).some(
+          filter => n.inject_expectation_inject?.inject_tags.includes(filter),
         ),
     ),
-    R.filter(filterByKeyword),
+    expectations => expectations.filter(n => filterByKeyword(n)),
     sort,
   )(injectExpectations);
 

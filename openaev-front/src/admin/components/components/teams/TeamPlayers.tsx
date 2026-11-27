@@ -1,6 +1,5 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, EmailOutlined, KeyOutlined, PersonOutlined, SmartphoneOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,6 +17,8 @@ import { type Organization, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
+import { ascendBy, descendBy } from '../../../../utils/Sorting';
+import { isEmptyField } from '../../../../utils/utils';
 import { TeamContext } from '../../common/Context';
 import TagsFilter from '../../common/filters/TagsFilter';
 import { type UserStore } from '../../teams/players/Player';
@@ -173,16 +174,20 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
     || (user.user_lastname || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_phone || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
     || (user.user_organization || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
-  const sort = R.sortWith(
-    orderAsc ? [R.ascend(R.prop(sortBy))] : [R.descend(R.prop(sortBy))],
-  );
+  // The organization column displays the organization name, so it sorts by that name rather than by its id
+  const organizationName = (user: UserStoreExtended) => (user.user_organization
+    ? organizationsMap?.[user.user_organization]?.organization_name
+    : undefined) ?? '';
+  const compareByOrganization = (a: UserStoreExtended, b: UserStoreExtended) => organizationName(a).localeCompare(organizationName(b));
+  const sortKey = sortBy as keyof UserStoreExtended;
+  const compareByKey = orderAsc ? ascendBy<UserStoreExtended>(sortKey) : descendBy<UserStoreExtended>(sortKey);
+  const compareUsers = sortBy === 'user_organization'
+    ? (a: UserStoreExtended, b: UserStoreExtended) => (orderAsc ? compareByOrganization(a, b) : compareByOrganization(b, a))
+    : compareByKey;
   const sortedUsers: UserStoreExtended[] = users
     .filter(u => !!u)
     .filter((user: UserStore) => tags.length === 0
-      || R.any(
-        (filter: Option['id']) => R.includes(filter, user.user_tags),
-        R.pluck('id', tags),
-      )).filter(filterByKeyword)
+      || tags.map(item => item.id).some((filter: Option['id']) => user.user_tags!.includes(filter))).filter(filterByKeyword)
     .map((user: UserStore) => {
       if (checkUserEnabled) {
         return ({
@@ -192,7 +197,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
       }
       return user;
     })
-    .sort(sort);
+    .sort(compareUsers);
 
   const sortHeader = (field: string, label: string, isSortable: boolean) => {
     const sortComponent = orderAsc
@@ -227,7 +232,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
     <Drawer
       open
       handleClose={handleClose}
-      title={R.propOr('-', 'team_name', team)}
+      title={team?.team_name ?? '-'}
     >
       <>
         <Box
@@ -303,7 +308,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                   {sortHeader('user_email', 'Email address', true)}
                   {sortHeader('user_options', 'Options', false)}
                   {sortHeader('user_organization', 'Organization', true)}
-                  {sortHeader('user_tags', 'Tags', true)}
+                  {sortHeader('user_tags', 'Tags', false)}
                 </>
               )}
             />
@@ -355,48 +360,45 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                       className={classes.bodyItem}
                       style={inlineStyles.user_options}
                     >
-                      {R.isNil(user.user_email)
-                        || R.isEmpty(user.user_email) ? (
-                            <EmailOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <EmailOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
-                      {R.isNil(user.user_pgp_key)
-                        || R.isEmpty(user.user_pgp_key) ? (
-                            <KeyOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <KeyOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
-                      {R.isNil(user.user_phone)
-                        || R.isEmpty(user.user_phone) ? (
-                            <SmartphoneOutlined
-                              color="warning"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          ) : (
-                            <SmartphoneOutlined
-                              color="success"
-                              fontSize="small"
-                              className={classes.icon}
-                            />
-                          )}
+                      {isEmptyField(user.user_email) ? (
+                        <EmailOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <EmailOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
+                      {isEmptyField(user.user_pgp_key) ? (
+                        <KeyOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <KeyOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
+                      {isEmptyField(user.user_phone) ? (
+                        <SmartphoneOutlined
+                          color="warning"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      ) : (
+                        <SmartphoneOutlined
+                          color="success"
+                          fontSize="small"
+                          className={classes.icon}
+                        />
+                      )}
                     </div>
                     <div
                       className={classes.bodyItem}

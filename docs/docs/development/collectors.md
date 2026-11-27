@@ -66,7 +66,7 @@ A signature is a way to find an attack in an alert. The main ones are:
 
 For reference implementations, see the [CrowdStrike](https://github.com/OpenAEV-Platform/collectors/tree/main/crowdstrike), [Microsoft Defender](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-defender) and [Microsoft Sentinel](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-sentinel) Collectors.
 {% if feature_visible("LOGGING_EXPECTATION") %}
-For logging expectations, see the [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector.
+For logging expectations, see the [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) and [SentinelOne](https://github.com/OpenAEV-Platform/collectors/tree/main/sentinelone) Collectors.
 {% endif %}
 
 ## What's next?

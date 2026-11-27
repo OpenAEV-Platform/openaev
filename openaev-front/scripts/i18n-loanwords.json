@@ -154,6 +154,7 @@
     "Pipe",
     "Port",
     "Ports",
+    "Position",
     "Proxy",
     "Radial",
     "Regex",
@@ -194,7 +195,8 @@
     "Revision #{number}",
     "Revision",
     "Variable {key}",
-    "Argument {key}"
+    "Argument {key}",
+    "Version: v{from} → v{to}"
   ],
   "es": [
     "{count} roles",
@@ -338,6 +340,7 @@
     "Phishing",
     "Port",
     "Ports",
+    "Position",
     "posture",
     "Proxy",
     "Question",

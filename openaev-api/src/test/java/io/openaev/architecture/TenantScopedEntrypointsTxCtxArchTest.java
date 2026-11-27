@@ -200,6 +200,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#assignable",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
+          "io.openaev.api.marking_definition.MarkingDefinitionExporterApi#exportMarkingDefinitionsCsv",
+          "io.openaev.api.marking_definition.MarkingDefinitionImporterApi#importMarkingDefinitionsCsv",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -704,7 +706,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.user.PlayerApi#bulkDeletePlayers",
           "io.openaev.rest.user.TenantUserApi#create",
           "io.openaev.rest.user.TenantUserApi#delete",
-          // payloads, payload_identities, catalog_items, catalog_history: catalogue installs.
+          // payloads, payload_identities, catalog_items, content_changes: catalogue installs.
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
@@ -726,20 +728,22 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.payload.PayloadRevocationApi#lift",
           // injects, steps: moving the usages of a payload version to another version.
           "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
-          // catalog_history: the History tabs of an action and of a scenario.
-          "io.openaev.api.catalog.CatalogHistoryApi#payloadHistory",
-          "io.openaev.api.catalog.CatalogHistoryApi#scenarioHistory",
+          // content_changes: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.ContentHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.ContentHistoryApi#scenarioHistory",
           // payloads, payload_identities: customized copies of Filigran payloads.
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
           "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
           // payload_identities, injects, steps: the injects left on an older version.
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#changes",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
           "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions",
           // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated
           // to a version or rolled back to a revision.
           "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
           "io.openaev.api.scenario.ScenarioUpdateApi#versions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#catalogStates",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewUpdate",
           "io.openaev.api.scenario.ScenarioUpdateApi#previewRollback",
           "io.openaev.api.scenario.ScenarioUpdateApi#update",

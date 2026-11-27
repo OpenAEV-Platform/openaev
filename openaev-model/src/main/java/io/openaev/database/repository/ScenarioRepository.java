@@ -440,9 +440,8 @@ public interface ScenarioRepository
   boolean existsByCatalogIdentityId(String identityId);
 
   @Query(
-      "SELECT i.repository AS repository, i.externalId AS externalId, s.id AS scenarioId"
-          + " FROM Scenario s JOIN s.catalogIdentity i"
-          + " WHERE s.tenant.id = :tenantId AND i.externalId IN :externalIds")
-  List<RawCatalogInstalledScenario> findInstalledFromCatalog(
-      @Param("tenantId") String tenantId, @Param("externalIds") Collection<String> externalIds);
+      "SELECT i.repository AS repository, i.externalId AS externalId,"
+          + " s.catalogVersion AS version, s.id AS scenarioId"
+          + " FROM Scenario s JOIN s.catalogIdentity i WHERE s.tenant.id = :tenantId")
+  List<RawCatalogInstalledScenario> findInstalledFromCatalog(@Param("tenantId") String tenantId);
 }

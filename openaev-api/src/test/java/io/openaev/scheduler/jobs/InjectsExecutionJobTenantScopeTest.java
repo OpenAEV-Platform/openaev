@@ -57,8 +57,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Scheduled inject execution must carry the inject's tenant in BOTH scopes: the v2 primitive and
- * the v1 thread-local {@link TenantContext}, which {@code HibernateFilterTransactionAspect} turns
- * into the Hibernate {@code tenantFilter}.
+ * the v1 thread-local {@link TenantContext}, which the listener and tenant-keyed lookups read.
  *
  * <p>Regression: only the primitive was set, so {@link TenantContext#getCurrentTenant()} fell back
  * to the DEFAULT tenant on the executor thread. Everything the execution resolves through a

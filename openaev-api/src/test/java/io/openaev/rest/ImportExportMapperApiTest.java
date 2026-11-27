@@ -17,6 +17,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.utils.CsvType;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.io.File;
@@ -128,12 +129,57 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     assertEquals("titi", endpoints.getFirst().getName());
     assertEquals("ransomware", tag.get().getName());
     assertEquals("#8fd671", tag.get().getColor());
+    // a file in the older format, without the asset_internet_facing column, leaves it unknown
+    assertNull(endpoints.getFirst().getInternetFacing());
 
     inDefaultTenant(
         () -> {
           endpointRepository.deleteAll();
           tagRepository.deleteById(tag.get().getId());
         });
+  }
+
+  @DisplayName("Export then import of endpoints keeps the internet-facing flag")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void testExportImportRoundTripKeepsInternetFacing() throws Exception {
+    // -- PREPARE --
+    inDefaultTenant(() -> endpointRepository.deleteAll());
+    Endpoint facing = EndpointFixture.createEndpoint();
+    facing.setName("internet-facing-round-trip");
+    facing.setMacAddresses(EndpointMapper.setMacAddresses(EndpointFixture.MAC_ADDRESSES));
+    facing.setInternetFacing(true);
+    inDefaultTenant(() -> endpointRepository.save(facing));
+
+    byte[] exported =
+        this.mvc
+            .perform(
+                MockMvcRequestBuilders.post("/api/mappers/export/csv?csvType=" + CsvType.ENDPOINTS)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(new SearchPaginationInput()))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+    inDefaultTenant(() -> endpointRepository.deleteAll());
+
+    // -- EXECUTE --
+    this.mvc
+        .perform(
+            MockMvcRequestBuilders.multipart("/api/mappers/import/csv?csvType=" + CsvType.ENDPOINTS)
+                .file(new MockMultipartFile("file", "endpoints.csv", "text/csv", exported))
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    List<Endpoint> endpoints =
+        inDefaultTenant(() -> StreamHelper.fromIterable(endpointRepository.findAll()));
+    assertEquals(1, endpoints.size());
+    assertEquals("internet-facing-round-trip", endpoints.getFirst().getName());
+    assertEquals(Boolean.TRUE, endpoints.getFirst().getInternetFacing());
+
+    inDefaultTenant(() -> endpointRepository.deleteAll());
   }
 
   @DisplayName("Test testing an import csv with unknown csv type")

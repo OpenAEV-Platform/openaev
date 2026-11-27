@@ -21,7 +21,8 @@ import useThreatArsenalCardBanner from './useThreatArsenalCardBanner';
 
 interface Props {
   action: ThreatArsenalAction;
-  olderVersionsInUse: boolean;
+  // How many injects still run an older version of its payload.
+  olderUsages: number;
   onSelect: () => void;
   onUpdate: (result: ThreatArsenalAction, replacedId?: string) => void;
   onDuplicate: (result: ThreatArsenalAction) => void;
@@ -32,7 +33,7 @@ interface Props {
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
-  olderVersionsInUse,
+  olderUsages,
   onSelect,
   onUpdate,
   onDuplicate,
@@ -55,7 +56,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const status = getActionStatus(action);
   const statusLabel = getStatusLabel(status);
   const platforms = action.action_platforms ?? [];
-  const banner = useThreatArsenalCardBanner(action, olderVersionsInUse, onShowVersions);
+  const banner = useThreatArsenalCardBanner(action, olderUsages, onShowVersions);
 
   return (
     <MarketplaceCard

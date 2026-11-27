@@ -113,6 +113,10 @@ recompute it. The `TIMEOUT` trace keeps its status, and `It reported later, see 
 its message. The traces the Agent sends afterwards, its final report included, are added to the execution details
 as they were sent: they change neither the Inject status nor its end date.
 
+The suffix is only added to a `TIMEOUT` trace OpenAEV wrote itself (execution threshold or simulation timeout). When
+an Injector or an Agent reports a `TIMEOUT` completion of its own, for example a scanner stopped at its own time
+limit, that trace is its report: the traces it sends afterwards (such as its signature) leave the message as sent.
+
 ### `TIMEOUT` on an Asset shown as active
 
 The Agent status and the `TIMEOUT` trace measure different things:

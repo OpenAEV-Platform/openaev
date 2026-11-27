@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.scenario.ScenarioIdentity;
@@ -179,8 +178,6 @@ public class ScenarioService {
   // Lazy for the same cycle: PermissionService reaches AutonomousRunService.
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
-
-  private final io.openaev.service.finding.FindingDetachService findingDetachService;
 
   // -- CREATE --
 
@@ -580,16 +577,6 @@ public class ScenarioService {
   // -- READ --
 
   /**
-   * Loads a scenario in the current tenant. For work that runs without a request scope and sets the
-   * ambient tenant itself; a request uses {@link #scenario(TxCtx, String)}.
-   */
-  public Scenario scenario(@NotBlank final String scenarioId) {
-    return this.scenarioRepository
-        .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-        .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
-  }
-
-  /**
    * Looks a scenario up by id inside the request's tenant scope: the path tenant on the tenant
    * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
    * The v1 ambient tenant is set only on the tenant route, so it does not carry the request scope
@@ -826,30 +813,15 @@ public class ScenarioService {
     }
   }
 
+  /** Deletes a scenario found inside the request's tenant scope. */
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    deleteScenarioInScope(ctx, scenarioId, false);
-  }
-
-  /**
-   * Deletes a scenario found inside the request's tenant scope.
-   *
-   * @param keepFindings true keeps the findings its injects produced, detached from them; false
-   *     (the default) deletes them with the scenario
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteScenario(
-      @NotNull final TxCtx ctx, @NotBlank final String scenarioId, final boolean keepFindings) {
-    deleteScenarioInScope(ctx, scenarioId, keepFindings);
+    deleteScenarioInScope(ctx, scenarioId);
   }
 
   // Non-transactional body shared by both @Transactional entry points (no self-invocation).
-  private void deleteScenarioInScope(
-      final TxCtx ctx, final String scenarioId, final boolean keepFindings) {
+  private void deleteScenarioInScope(final TxCtx ctx, final String scenarioId) {
     existsInScope(ctx, scenarioId);
-    if (keepFindings) {
-      this.findingDetachService.detachFromScenarios(List.of(scenarioId));
-    }
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -941,9 +913,6 @@ public class ScenarioService {
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
               chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
-              if (input.isKeepFindings()) {
-                this.findingDetachService.detachFromScenarios(chunk);
-              }
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
@@ -956,11 +925,10 @@ public class ScenarioService {
     return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
-  /** The scenarios of the tenant installed from these catalogue items. */
+  /** The scenarios of the tenant installed from the catalogue, with the version each runs. */
   @Transactional(readOnly = true)
-  public List<RawCatalogInstalledScenario> installedFromCatalog(
-      String tenantId, Collection<String> externalIds) {
-    return scenarioRepository.findInstalledFromCatalog(tenantId, externalIds);
+  public List<RawCatalogInstalledScenario> installedFromCatalog(String tenantId) {
+    return scenarioRepository.findInstalledFromCatalog(tenantId);
   }
 
   // -- EXPORT --
@@ -1485,15 +1453,6 @@ public class ScenarioService {
   }
 
   /**
-   * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
-   * work that runs without a request scope. No production code calls it: it stays for its tests.
-   */
-  @Transactional
-  public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
-    return copyScenarioContent(scenarioId);
-  }
-
-  /**
    * The metadata copy itself, of a scenario found inside the request's tenant scope. Free of
    * {@code @Transactional} so both public entry points can call it without tripping the Spring
    * self-invocation trap; they are the ones carrying the transaction. Package-private so it can be
@@ -1504,17 +1463,6 @@ public class ScenarioService {
       throw new ElementNotFoundException();
     }
     return copyScenarioContent(scenario(ctx, scenarioId));
-  }
-
-  /** The metadata copy of a scenario of the current tenant, for work without a request scope. */
-  Scenario copyScenarioContent(@NotBlank String scenarioId) {
-    if (StringUtils.isBlank(scenarioId)) {
-      throw new ElementNotFoundException();
-    }
-    return copyScenarioContent(
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow());
   }
 
   private Scenario copyScenarioContent(@NotNull Scenario scenarioOrigin) {

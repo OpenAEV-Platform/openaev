@@ -87,7 +87,8 @@ export const InjectorExecutionStatusBadge = ({ injectId }: { injectId: string })
 
 // An inject-level status the backend cannot still change under us: anything else (a run in flight, or
 // a status the graph snapshot froze before it settled) is refined by this component's own fetch.
-const TERMINAL_INJECT_STATUSES = new Set(['EXECUTED', 'PARTIAL', 'ERROR']);
+// NOT_VISIBLE is the status of a closed inject whose agents are all above the reader's clearance.
+const TERMINAL_INJECT_STATUSES = new Set(['EXECUTED', 'PARTIAL', 'ERROR', 'NOT_VISIBLE']);
 
 // One execution row (endpoint/injector panel list). The graph row now ships this execution's inject,
 // payload and inject-level status (see AttackPathGraphService#applyExecutionStatuses), so a network

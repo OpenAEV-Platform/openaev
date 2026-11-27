@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
+import io.openaev.database.model.ExecutionTraceStatus;
 import java.util.List;
 
 public class ExecutionTraceFixture {
@@ -22,6 +23,11 @@ public class ExecutionTraceFixture {
   public static ExecutionTrace createDefaultExecutionTraceCompleteWithIdentifiers(
       List<String> identifiers) {
     return ExecutionTrace.getNewSuccessTrace("Success", ExecutionTraceAction.COMPLETE, identifiers);
+  }
+
+  public static ExecutionTrace createExecutionTraceComplete(ExecutionTraceStatus status) {
+    return new ExecutionTrace(
+        null, status, List.of(), "Complete", ExecutionTraceAction.COMPLETE, null, null);
   }
 
   public static ExecutionTrace createDefaultExecutionTraceError() {

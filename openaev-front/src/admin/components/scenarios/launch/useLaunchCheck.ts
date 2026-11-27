@@ -18,6 +18,8 @@ export interface LaunchCheck {
   blocking: number;
   // What lets the launch start but makes injects fail.
   failing: number;
+  // Nothing fails but the injects on a revoked version: the count is theirs.
+  onlyRevokedInjectsFail: boolean;
 }
 
 const toLaunchCheck = (check: ScenarioLaunchCheckOutput, healthchecks: HealthCheck[]): LaunchCheck => {
@@ -37,15 +39,18 @@ const toLaunchCheck = (check: ScenarioLaunchCheckOutput, healthchecks: HealthChe
     scopeBlocked,
     blocking: (untargeted.length > 0 ? 1 : 0) + check.launch_check_missing_requirements.length + (scopeBlocked ? 1 : 0),
     failing: (revokedByAction.length > 0 ? 1 : 0) + warnings.length,
+    onlyRevokedInjectsFail: revokedByAction.length > 0 && warnings.length === 0,
   };
 };
 
 // Everything that stops a scenario from launching, or makes its injects fail, read again on demand.
-const useLaunchCheck = (scenarioId: string) => {
+// Without a scenario nothing loads: the caller shares a check loaded elsewhere.
+const useLaunchCheck = (scenarioId: string | null) => {
   const [launchCheck, setLaunchCheck] = useState<LaunchCheck | null>(null);
   const [checking, setChecking] = useState(false);
 
   const load = () => {
+    if (!scenarioId) return;
     setChecking(true);
     Promise.all([
       fetchScenarioLaunchCheck(scenarioId),
@@ -64,5 +69,8 @@ const useLaunchCheck = (scenarioId: string) => {
     checkAgain: load,
   };
 };
+
+// One check shared by the scenario header's button and the launch check it opens.
+export type LaunchCheckState = ReturnType<typeof useLaunchCheck>;
 
 export default useLaunchCheck;

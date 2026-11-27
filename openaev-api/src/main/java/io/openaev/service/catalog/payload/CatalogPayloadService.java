@@ -10,7 +10,7 @@ import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadType;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.catalog.ContentChange;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.raw.RawInstalledPayloadVersion;
 import io.openaev.database.repository.PayloadIdentityRepository;
@@ -23,7 +23,7 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.catalog.CatalogOffer;
-import io.openaev.service.catalog.event.CatalogChangePublisher;
+import io.openaev.service.catalog.event.ContentChangePublisher;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadContentHashService;
@@ -62,7 +62,7 @@ public class CatalogPayloadService {
   private final DomainService domainService;
   private final OrganizationService organizationService;
   private final ObjectMapper mapper;
-  private final CatalogChangePublisher changePublisher;
+  private final ContentChangePublisher changePublisher;
   private final DetectionRemediationService detectionRemediationService;
 
   // -- CREATE --
@@ -77,7 +77,7 @@ public class CatalogPayloadService {
       String tenantId,
       InstallablePayloadVersion released,
       byte[] file,
-      CatalogHistory.Mode mode) {
+      ContentChange.Mode mode) {
     PayloadIdentity identity = catalogueIdentity(tenantId, released);
     List<Payload> versions = payloadRepository.findAllByIdentityId(identity.getId());
     if (installedVersion(identity, versions, released).isPresent()) {
@@ -93,7 +93,7 @@ public class CatalogPayloadService {
       String tenantId,
       InstallablePayloadVersion released,
       byte[] file,
-      CatalogHistory.Mode mode) {
+      ContentChange.Mode mode) {
     PayloadIdentity identity = catalogueIdentity(tenantId, released);
     List<Payload> versions = payloadRepository.findAllByIdentityId(identity.getId());
     return installedVersion(identity, versions, released)
@@ -139,7 +139,7 @@ public class CatalogPayloadService {
     versions.forEach(
         version ->
             changePublisher.changed(
-                version, CatalogHistory.Action.UNINSTALL, CatalogHistory.Mode.MANUAL));
+                version, ContentChange.Action.UNINSTALL, ContentChange.Mode.MANUAL));
   }
 
   // -- STEPS --
@@ -161,14 +161,14 @@ public class CatalogPayloadService {
       List<Payload> versions,
       InstallablePayloadVersion released,
       byte[] file,
-      CatalogHistory.Mode mode) {
+      ContentChange.Mode mode) {
     Payload payload =
         version(versions, released)
             .orElseGet(() -> createVersion(ctx, tenantId, identity, versions, released, file));
     identity.setLatestVersion(highest(versions, payload));
     // Creating the version's contract clears the session: the identity is saved again.
     payloadIdentityRepository.save(identity);
-    changePublisher.changed(payload, CatalogHistory.Action.INSTALL, mode);
+    changePublisher.changed(payload, ContentChange.Action.INSTALL, mode);
     return payload;
   }
 

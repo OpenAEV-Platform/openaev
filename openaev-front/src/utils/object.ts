@@ -19,3 +19,14 @@ export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly
   });
   return result as Omit<T, K>;
 };
+
+// `null` and `undefined` are not empty: use isEmptyField for that
+export const isEmpty = (value: unknown): boolean => {
+  if (typeof value === 'string' || Array.isArray(value)) {
+    return value.length === 0;
+  }
+  if (Object.prototype.toString.call(value) === '[object Object]') {
+    return Object.keys(value as object).length === 0;
+  }
+  return false;
+};

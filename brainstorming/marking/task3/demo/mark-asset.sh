@@ -59,41 +59,42 @@ names=()
 while IFS= read -r n; do names+=("$n"); done < <(normalize_names "$@")
 
 if is_clear_request "${names[@]+"${names[@]}"}"; then
-  PAYLOAD='{"asset_markings":[]}'
+  MARKINGS_JSON='{"marking_ids":[]}'
   WANTED="(none - clearing every marking)"
 else
   [ ${#names[@]} -gt 0 ] || die "no marking names given"
-  resolved="$(resolve_markings asset_markings "${names[@]}")" || die "$resolved"
-  PAYLOAD="$(echo "$resolved" | head -1)"
+  resolved="$(resolve_markings marking_ids "${names[@]}")" || die "$resolved"
+  MARKINGS_JSON="$(echo "$resolved" | head -1)"
   WANTED="$(echo "$resolved" | tail -1)"
 fi
+PAYLOAD="{\"asset_ids_to_process\":[\"${ASSET_ID}\"],${MARKINGS_JSON#\{}"
 
 echo "asset    ${ASSET_ID}"
 echo "markings ${WANTED}"
 
 response="$(curl -s -w '\n%{http_code}' "${admin[@]}" -X PUT \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/${ASSET_ID}/markings" \
+  "${OPENAEV_URL}/api/tenants/${TENANT}/assets/markings/bulk" \
   -d "$PAYLOAD")"
 code="$(echo "$response" | tail -1)"
 body="$(echo "$response" | sed '$d')"
 
 case "$code" in
   200)
-    echo "$body" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-print(f'\033[32mOK\033[0m {d[\"asset_name\"]} now carries {len(d.get(\"asset_markings\") or [])} marking(s)')"
+    case "$body" in
+      *"$ASSET_ID"*) echo -e "\033[32mOK\033[0m ${ASSET_ID} now carries: ${WANTED}" ;;
+      *) die "no such asset in tenant ${TENANT}.
+      Note this is also what you get for an asset marked ABOVE your clearance:
+      filtering happens below authorization, so the two are indistinguishable
+      on purpose. As admin that should not apply, so suspect the id, or pass
+      --tenant <tenant-id> if the asset lives on another tenant." ;;
+    esac
     ;;
   403)
     die "403 - refused. A caller may only assign markings inside its own clearance
       (MarkingEscalationValidator), and only markings defined in this tenant."
     ;;
   404)
-    die "404 - no such asset in tenant ${TENANT}.
-      Note this is also what you get for an asset marked ABOVE your clearance:
-      filtering happens below authorization, so the two are indistinguishable
-      on purpose. As admin that should not apply, so suspect the id, or pass
-      --tenant <tenant-id> if the asset lives on another tenant."
+    die "404 - one or more markings are not defined in tenant ${TENANT}."
     ;;
   *)
     die "HTTP ${code}

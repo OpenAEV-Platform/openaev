@@ -1,6 +1,7 @@
 package io.openaev.api.asset;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asStringJson;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -8,12 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
-import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -22,6 +24,9 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
+import io.openaev.rest.asset.endpoint.form.EndpointInput;
+import io.openaev.utils.fixtures.AiTargetFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -32,6 +37,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,8 +51,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * {@code PUT /api/assets/{id}/markings} — design step 3.3, the write path that puts a label on a
- * row.
+ * Asset markings, written with the asset itself or in bulk — design step 3.3, the write paths that
+ * put a label on a row.
  *
  * <p>The caller is deliberately <b>not</b> an admin: an admin resolves to the whole tenant scale
  * and would pass the escalation guard for the wrong reason, making every negative case below
@@ -64,6 +70,12 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
   private static final String ASSET_URI = "/api/assets";
   private static final String TENANT_ASSET_URI = "/api/tenants/{tenantId}/assets";
+  private static final String ENDPOINT_CREATE_URI = "/api/tenants/{tenantId}/endpoints/agentless";
+  private static final String AI_TARGET_CREATE_URI = "/api/tenants/{tenantId}/ai_targets";
+  private static final String AI_TARGET_UPDATE_URI =
+      "/api/tenants/{tenantId}/ai_targets/{aiTargetId}";
+  private static final String ENDPOINT_UPDATE_URI =
+      "/api/tenants/{tenantId}/endpoints/{endpointId}";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -131,16 +143,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
   @Nested
   @DisplayName("assigning a marking")
   class Assigning {
-
-    @Test
-    @DisplayName("given a marking the caller holds, should write it to the asset")
-    void given_heldMarking_should_writeIt() throws Exception {
-      // -- ACT --
-      assignMarkings(List.of(green.getId())).andExpect(status().is2xxSuccessful());
-
-      // -- ASSERT --
-      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
-    }
 
     @Test
     @DisplayName("given a marking the caller does not hold, should refuse with 403")
@@ -330,15 +332,138 @@ class AssetMarkingsApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("creating an asset with markings")
+  class Creating {
+
+    @Test
+    @DisplayName("given a marking the caller holds, should create the endpoint already marked")
+    void given_heldMarking_should_createMarkedEndpoint() throws Exception {
+      // -- ACT --
+      String body =
+          createAsset(ENDPOINT_CREATE_URI, endpointInput(), List.of(green.getId()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertArrayEquals(
+          new String[] {green.getId()}, storedMarkings(JsonPath.read(body, "$.asset_id")));
+    }
+
+    @Test
+    @DisplayName("given a marking the caller holds, should create the AI target already marked")
+    void given_heldMarking_should_createMarkedAiTarget() throws Exception {
+      // -- ACT --
+      String body =
+          createAsset(
+                  AI_TARGET_CREATE_URI,
+                  AiTargetFixture.createDefaultAiTargetInput("asset-markings"),
+                  List.of(green.getId()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertArrayEquals(
+          new String[] {green.getId()}, storedMarkings(JsonPath.read(body, "$.asset_id")));
+    }
+
+    @Test
+    @DisplayName("given a marking the caller does not hold, should refuse and create nothing")
+    void given_unheldMarking_should_forbidAndCreateNothing() throws Exception {
+      // -- ARRANGE --
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      createAsset(ENDPOINT_CREATE_URI, input, List.of(red.getId()))
+          .andExpect(status().isForbidden());
+
+      // -- ASSERT --
+      assertEquals(0, assetsNamed(input.getName()));
+    }
+  }
+
+  @Nested
+  @DisplayName("updating an asset with markings")
+  class Updating {
+
+    @Test
+    @DisplayName("given changed markings, should update the endpoint and its markings together")
+    void given_changedMarkings_should_updateEndpointAndMarkings() throws Exception {
+      // -- ARRANGE --
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(1, assetsNamed(input.getName()));
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given changed markings, should update the AI target and its markings together")
+    void given_changedMarkings_should_updateAiTargetAndMarkings() throws Exception {
+      // -- ARRANGE --
+      AiTargetInput input = AiTargetFixture.createDefaultAiTargetInput("asset-markings");
+      String aiTargetId =
+          JsonPath.read(
+              createAsset(AI_TARGET_CREATE_URI, input, List.of())
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.asset_id");
+
+      // -- ACT --
+      updateAsset(AI_TARGET_UPDATE_URI, aiTargetId, input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings(aiTargetId));
+    }
+
+    @Test
+    @DisplayName(
+        "given unchanged markings and no MANAGE_MARKING_ASSIGNMENT, should update the endpoint")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unchangedMarkingsWithoutCapability_should_updateEndpoint() throws Exception {
+      // -- ARRANGE --
+      storeMarkings(green.getId());
+      EndpointInput input = endpointInput();
+
+      // -- ACT --
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), input, List.of(green.getId()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(1, assetsNamed(input.getName()));
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+
+    @Test
+    @DisplayName("given no markings in the request, should keep the endpoint's markings")
+    void given_noMarkings_should_keepMarkings() throws Exception {
+      // -- ARRANGE --
+      storeMarkings(green.getId());
+
+      // -- ACT --
+      updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), endpointInput(), null)
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertArrayEquals(new String[] {green.getId()}, storedMarkings());
+    }
+  }
+
   // -- HELPERS --
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
-    return mvc.perform(
-        put(TENANT_ASSET_URI + "/{assetId}/markings", tenantId, asset.getId())
-            .content(asJsonString(new AssetUpdateMarkingsInput(markingIds)))
-            .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.APPLICATION_JSON)
-            .with(csrf()));
+    return updateAsset(ENDPOINT_UPDATE_URI, asset.getId(), endpointInput(), markingIds);
   }
 
   private ResultActions bulkReplaceMarkings(List<String> assetIds, List<String> markingIds)
@@ -354,14 +479,63 @@ class AssetMarkingsApiTest extends IntegrationTest {
             .with(csrf()));
   }
 
+  private ResultActions createAsset(String uri, Object input, List<String> markingIds)
+      throws Exception {
+    return mvc.perform(
+        post(uri, tenantId)
+            .content(withMarkings(input, markingIds))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  private ResultActions updateAsset(
+      String uri, String assetId, Object input, List<String> markingIds) throws Exception {
+    return mvc.perform(
+        put(uri, tenantId, assetId)
+            .content(withMarkings(input, markingIds))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
+  private static String withMarkings(Object input, List<String> markingIds) {
+    Map<String, Object> body = asStringJson(asJsonString(input), Map.class);
+    if (markingIds != null) {
+      body.put("asset_markings", markingIds);
+    }
+    return asJsonString(body);
+  }
+
+  private static EndpointInput endpointInput() {
+    EndpointInput input = EndpointFixture.createWindowsEndpointInput(List.of());
+    input.setName("asset-markings-" + uniqueDefinition());
+    return input;
+  }
+
+  private void storeMarkings(String... markingIds) {
+    entityManager.flush();
+    jdbc.update(
+        "UPDATE assets SET marking_ids = ? WHERE asset_id = ?", (Object) markingIds, asset.getId());
+    entityManager.clear();
+  }
+
+  private int assetsNamed(String name) {
+    entityManager.flush();
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM assets WHERE asset_name = ?", Integer.class, name);
+  }
+
   /** Ground truth: what actually reached the column, bypassing Hibernate's first-level cache. */
   private String[] storedMarkings() {
+    return storedMarkings(asset.getId());
+  }
+
+  private String[] storedMarkings(String assetId) {
     entityManager.flush();
     java.sql.Array array =
         jdbc.queryForObject(
-            "SELECT marking_ids FROM assets WHERE asset_id = ?",
-            java.sql.Array.class,
-            asset.getId());
+            "SELECT marking_ids FROM assets WHERE asset_id = ?", java.sql.Array.class, assetId);
     if (array == null) {
       return new String[0];
     }

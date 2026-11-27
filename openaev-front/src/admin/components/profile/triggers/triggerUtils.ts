@@ -23,7 +23,7 @@ export const TRIGGER_RESOURCE_TYPES: TriggerResourceTypeOption[] = [
     entityPrefix: 'scenario',
     label: 'Scenario',
     eventTypes: [...LIFECYCLE_EVENT_TYPES, 'SCORE_DEGRADATION'],
-    catalogEventTypes: ['PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION'],
+    catalogEventTypes: ['REVOKED', 'PAYLOAD_REVOKED', 'NEW_PAYLOAD_VERSION'],
   },
   {
     value: 'SIMULATION',

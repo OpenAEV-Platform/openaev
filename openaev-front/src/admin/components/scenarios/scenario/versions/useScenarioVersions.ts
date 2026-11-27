@@ -1,32 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { fetchScenarioHistory, fetchScenarioRevisions, fetchScenarioVersions } from '../../../../../actions/scenarios/scenario-update-actions';
-import useCatalogHistory from '../../../../../components/common/catalog_history/useCatalogHistory';
+import { fetchScenarioRevisions, fetchScenarioVersions, searchScenarioHistory } from '../../../../../actions/scenarios/scenario-update-actions';
+import useContentHistory from '../../../../../components/common/content_history/useContentHistory';
 import { type ScenarioRevisionOutput, type ScenarioVersionsOutput } from '../../../../../utils/api-types';
+import useLoadedOnKey from '../../../../../utils/hooks/useLoadedOnKey';
 
-// The catalogue versions of a scenario, the revisions it kept and its history, reloaded after an update or a rollback; null while they load.
+// The catalogue versions of a scenario, the revisions it kept and its history, reloaded after an update or a rollback; null while they load or when they failed.
 const useScenarioVersions = (scenarioId: string) => {
-  const [versions, setVersions] = useState<ScenarioVersionsOutput | null>(null);
-  const [revisions, setRevisions] = useState<ScenarioRevisionOutput[] | null>(null);
   const [loads, setLoads] = useState(0);
-  const history = useCatalogHistory(fetchScenarioHistory, scenarioId, loads);
-
-  const load = useCallback(() => {
-    fetchScenarioVersions(scenarioId).then(setVersions);
-    fetchScenarioRevisions(scenarioId).then(setRevisions);
-  }, [scenarioId]);
-  useEffect(load, [load]);
-
-  const reload = () => {
-    load();
-    setLoads(count => count + 1);
-  };
+  const key = `${scenarioId}#${loads}`;
+  const versions = useLoadedOnKey<ScenarioVersionsOutput | null>(key, () => fetchScenarioVersions(scenarioId), null);
+  const revisions = useLoadedOnKey<ScenarioRevisionOutput[] | null>(key, () => fetchScenarioRevisions(scenarioId), null);
+  const history = useContentHistory(searchScenarioHistory, scenarioId, loads);
 
   return {
-    versions,
-    revisions,
+    versions: versions.value,
+    revisions: revisions.value,
+    failed: (!versions.loading && versions.value === null) || (!revisions.loading && revisions.value === null),
     history,
-    reload,
+    reload: () => setLoads(count => count + 1),
   };
 };
 

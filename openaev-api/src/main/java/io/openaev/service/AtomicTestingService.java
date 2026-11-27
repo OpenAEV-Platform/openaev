@@ -18,7 +18,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.form.InjectBulkDeleteInput;
+import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -239,16 +239,11 @@ public class AtomicTestingService {
     return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
-  /**
-   * Deletes an atomic testing.
-   *
-   * @param keepFindings true keeps the findings it produced, detached from it; false (the default)
-   *     deletes them with the atomic testing
-   */
-  public void deleteAtomicTesting(TxCtx ctx, String injectId, boolean keepFindings) {
+  /** Deletes an atomic testing. */
+  public void deleteAtomicTesting(TxCtx ctx, String injectId) {
     // Verify the inject exists inside the request's tenant scope before deleting
     findInject(ctx, injectId);
-    injectService.delete(injectId, keepFindings);
+    injectService.delete(injectId);
   }
 
   /**
@@ -264,7 +259,7 @@ public class AtomicTestingService {
    *     progress events.
    * @return the list of deleted inject ids
    */
-  public List<String> bulkDelete(final TxCtx ctx, @NotNull final InjectBulkDeleteInput input) {
+  public List<String> bulkDelete(final TxCtx ctx, @NotNull final InjectBulkProcessingInput input) {
     // The generic inject specification is unrestricted when no simulation/scenario id is given:
     // constrain it to atomic testings only so a select-all can never touch simulation or scenario
     // injects.
@@ -280,10 +275,7 @@ public class AtomicTestingService {
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx,
-        "atomic testings",
-        injectIdsToDelete,
-        ids -> injectService.deleteAllByIds(ctx, ids, input.isKeepFindings()));
+        ctx, "atomic testings", injectIdsToDelete, ids -> injectService.deleteAllByIds(ctx, ids));
   }
 
   // -- ACTIONS --
