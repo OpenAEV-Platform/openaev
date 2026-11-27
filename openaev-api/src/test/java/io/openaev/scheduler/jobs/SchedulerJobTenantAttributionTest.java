@@ -34,6 +34,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.email.EmailContract;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.service.PermissionService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.StreamService;
@@ -46,6 +47,7 @@ import io.openaev.service.stream.StreamClearanceService;
 import io.openaev.service.stream.StreamMarkingRules;
 import io.openaev.service.stream.StreamVisibility;
 import io.openaev.service.stream.StreamVisibilityService;
+import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -58,6 +60,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import org.hibernate.Hibernate;
@@ -98,7 +103,8 @@ class SchedulerJobTenantAttributionTest extends ProductionTablesIntegrationTest 
   @Autowired private ScenarioExecutionJob scenarioExecutionJob;
   @Autowired private AtomicTestingExecutionJob atomicTestingExecutionJob;
   @Autowired private AgentInactivityMonitorJob agentInactivityMonitorJob;
-  @Autowired private ManagerIntegrationsSyncJob managerIntegrationsSyncJob;
+  @Autowired private ManagerFactory managerFactory;
+  @Autowired private TenantService tenantService;
   @Autowired private InjectRepository injectRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private EndpointRepository endpointRepository;
@@ -684,6 +690,33 @@ class SchedulerJobTenantAttributionTest extends ProductionTablesIntegrationTest 
   @DisplayName("ManagerIntegrationsSyncJob")
   class IntegrationsSync {
 
+    private static final Duration SYNC_BOUND = Duration.ofSeconds(60);
+
+    private ExecutorService syncExecutor;
+    private ManagerIntegrationsSyncJob job;
+
+    /**
+     * The job's code with an executor the test owns, so the test can wait for the sync of every
+     * tenant the job hands off, and not only for the tenant it asserts on.
+     */
+    @BeforeEach
+    void ownTheSyncExecutor() {
+      syncExecutor = Executors.newFixedThreadPool(2);
+      job = new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, syncExecutor);
+    }
+
+    /**
+     * Runs before the outer sweep deletes the tenants, also when the test fails, so no sync writes
+     * into a tenant being deleted or into the next test.
+     */
+    @AfterEach
+    void awaitEverySync() throws InterruptedException {
+      if (!awaitEverySubmittedSync()) {
+        syncExecutor.shutdownNow();
+        throw new AssertionError("a tenant sync outlived " + SYNC_BOUND);
+      }
+    }
+
     @Test
     @DisplayName(
         "given a tenant with no integration yet, should register its built-in injectors in that"
@@ -692,16 +725,18 @@ class SchedulerJobTenantAttributionTest extends ProductionTablesIntegrationTest 
         throws Exception {
       // Arrange: the second tenant, seeded with no integration
 
-      // Act: the job hands each tenant to its own executor; wait for the second tenant's pass
-      onBareThreadWithNoAmbientTenant(() -> managerIntegrationsSyncJob.execute(null));
-      Instant deadline = Instant.now().plus(Duration.ofSeconds(60));
-      while (emailInjectorCount(tenantB) == 0 && Instant.now().isBefore(deadline)) {
-        Thread.sleep(250);
-      }
+      // Act: the job hands each tenant to the executor; wait for every tenant's pass
+      onBareThreadWithNoAmbientTenant(() -> job.execute(null));
+      assertThat(awaitEverySubmittedSync()).as("every tenant sync ends").isTrue();
 
       // Assert
       assertThat(emailInjectorCount(tenantB)).isEqualTo(1L);
       assertThat(emailInjectorCount(DEFAULT_TENANT_UUID)).isEqualTo(1L);
+    }
+
+    private boolean awaitEverySubmittedSync() throws InterruptedException {
+      syncExecutor.shutdown();
+      return syncExecutor.awaitTermination(SYNC_BOUND.toSeconds(), TimeUnit.SECONDS);
     }
 
     private long emailInjectorCount(String tenantId) {
