@@ -45,11 +45,10 @@ interface Props { mode: ReviewMode }
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 /**
- * The review tab of the Threat Arsenal (To review for approvers, My changes for authors) and the
- * custom views saved from it. Same page as the Active tab: the Hero and the tabs, the side filters on
+ * The review tab of the Threat Arsenal (To review for approvers, My changes for authors). Same page as the Active tab: the Hero and the tabs, the side filters on
  * the left (the Active tab's, plus new action or new version, source and who submitted it), the search
  * above the same cards grouped into New actions and New versions. A built-in tab: its filters can be
- * changed while looking, never saved (custom views are saved filters of the Active tab). In My
+ * changed while looking, never saved. In My
  * changes the New actions group ends with "+ New action". Opening a card shows its Versions tab, where
  * the version is decided.
  */

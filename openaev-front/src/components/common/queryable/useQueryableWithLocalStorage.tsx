@@ -133,15 +133,6 @@ const sanitizeForStorage = (input: SearchPaginationInput): SearchPaginationInput
   page: 0,
 });
 
-/** Forgets what a list stored under this key, so its next mount starts from its initial input. */
-export const clearQueryableStorage = (localStorageKey: string) => {
-  try {
-    window.localStorage.removeItem(`${getCurrentTenantId()}:${localStorageKey}`);
-  } catch {
-    // Storage unavailable: nothing was stored.
-  }
-};
-
 export const useQueryableWithLocalStorage = (localStorageKey: string, initSearchPaginationInput: Partial<SearchPaginationInput>) => {
   const [searchParams] = useSearchParams();
   const finalSearchPaginationInput: SearchPaginationInput = buildSearchPagination(initSearchPaginationInput);
