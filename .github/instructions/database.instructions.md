@@ -38,9 +38,9 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 ## Multi-tenancy
 
 - `TenantContext.getCurrentTenant()` — ThreadLocal
-- No Hibernate `@Filter` on any entity (`TenantFilterRemovedArchTest`): read isolation is the statement inspector, for the tables in `openaev.tenant.active-tables`
+- No Hibernate `@Filter` on any entity (`TenantFilterRemovedArchTest`): read isolation is the statement inspector, for every tenant table except the self-isolated ones of `TenantTables`
 - `TenantBaseListener`: auto-sets tenant on `@PrePersist`, asserts immutability on `@PreUpdate`
-- A query on a table outside `active-tables` has no ambient isolation: add `WHERE tenant_id = :tenantId`
+- A native query on a gated table is rewritten by the inspector. A query on a self-isolated table (`TenantTables.SELF_ISOLATED_TABLES`) has no ambient isolation: add `WHERE tenant_id = :tenantId`
 
 ### Dual-Scope Entities (Settings, User, Role, Group)
 

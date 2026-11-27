@@ -4,8 +4,8 @@ description: >-
   Generates a v2 tenant-isolation test for a given table, modeled on the real
   ImportMapperHttpIsolationTest (pilot PR #6255). Proves through the real HTTP
   endpoints that tenant-scoped rows never leak between tenants. Use when a
-  table is being activated on multi-tenancy v2 (openaev.tenant.active-tables)
-  or when an activable table has no isolation test yet.
+  gated tenant table has no isolation test yet, or when a new tenant table is
+  added.
 ---
 
 # Generate a v2 Tenant Isolation Test
@@ -17,26 +17,14 @@ reason; the reasons are written down so a hand-written test does not drift.
 
 Full code templates: [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
 
-This skill pairs with:
-- the `activate-tenant-table` skill
-  (`.claude/skills/activate-tenant-table/SKILL.md`): its isolation-test phase
-  produces exactly this file, first red, then green as the wiring lands;
-- the tenant isolation coverage gate (`TenantIsolationCoverageArchTest`): this
-  file carries `@CoversTenantIsolation("{table}")`, and the build fails when an
-  active table has no marked class. The class must be a runnable test on the
-  real stack that declares the table in its activation list (a `probe` pin that
-  includes it, or a `@DynamicPropertySource` registering
-  `ProductionActiveTables.names()`: a class that declares nothing is not armed
-  by the gating CI run), seed two tenants and assert a cross-tenant refusal
-  (read, write or delete) on the table itself, not through a parent row.
-
-Three architecture tests guard the activation list; each answers one question:
-
-| Test | Question |
-|---|---|
-| `TenantTableActivationCoverageArchTest` | Is the table active or deferred? |
-| `PinnedActiveTablesArchTest` | Does a class's activation list follow production? |
-| `TenantIsolationCoverageArchTest` | Does each active table have a marked test that meets the bar? |
+This skill pairs with the tenant isolation coverage gate
+(`TenantIsolationCoverageArchTest`): this file carries
+`@CoversTenantIsolation("{table}")`, and the build fails when a gated tenant
+table has no marked class and no line in
+`tenant-isolation-coverage-baseline.txt`. The class must be a runnable test on
+the real stack (every test runs with every tenant table gated but the
+self-isolated ones), seed two tenants and assert a cross-tenant refusal (read,
+write or delete) on the table itself, not through a parent row.
 
 ## v1 is gone from this skill
 
@@ -51,7 +39,7 @@ them in a review, they are v1 leftovers:
   test tries to redefine it. One tenant per test method, always.
 
 Existing v1 `TenantIsolation` nested classes keep running; do not migrate them
-with this skill. This skill only generates tests for v2 activations. The v1
+with this skill. This skill only generates v2 isolation tests. The v1
 recipe lives in git history if ever needed.
 
 ## Step 0 — Probe the table and the API (do not ask, derive)
@@ -119,8 +107,8 @@ would test a path that cannot work.
 | Ground-truth reads in raw JDBC on the test's own connection | the inspector only rewrites Hibernate-emitted SQL; raw JDBC sees the table unfiltered. This is how the test proves a cross-tenant write really did not happen, and that a hidden row really exists. `entityManager.flush()` first, so pending scoped writes reach the database. |
 | Cross-tenant DELETE asserts 2xx and a surviving row, not 404 | the inspector adds `can_access_tenant` to the DELETE's WHERE; the statement matches no row and succeeds. Expecting 404 is v1 reasoning and fails on correct v2 code. |
 | Cross-tenant UPDATE asserts 404 | the handler looks the row up first inside the scope; the lookup finds nothing. |
-| A `@DynamicPropertySource` registering `ProductionActiveTables.names()` plus `{table}` | activates the table for this test only, before the production go-live, on top of every table production already isolates, so the flow under test reads its other tables the way production does. The test classpath keeps the allowlist empty on purpose; never add the table to test-wide properties. A narrower list is a pin: `PinnedActiveTablesArchTest` fails until it is declared, with its reason, in `pinned-active-tables-baseline.txt`. |
-| Dedicated test file, not a nested class in `*ApiTest` | the property source is class-level and forks the Spring context. On `*ApiTest` it would impose the activated context on every unrelated test in the class. This diverges from the old nested-class convention deliberately. |
+| No property and no `@DynamicPropertySource` for the table | the inspector gates every tenant table in every test, as in production. There is nothing to arm. |
+| Dedicated test file, not a nested class in `*ApiTest` | one file per table is what `@CoversTenantIsolation` marks, and the two-tenant seed stays out of unrelated tests. |
 | Admin user is fine for the isolation cases | the scope comes from tenant membership, never from the isAdmin flag. The non-admin proof exists once at plumbing level (`ImportMapperNonAdminIsolationTest`, `TenantSelectorMembershipTest` for the 403); per-table tests do not re-prove it. |
 
 On boilerplate: the seed stays a native insert (see the rule above), but the
@@ -142,10 +130,6 @@ Know which failures mean what:
   `@RequestMapping`), every path-route request 404s, including the ones that
   should be 200. Never trust a green negative case while a positive case is red.
   Adding that mapping is part of the activation wiring (model: `MapperApi`).
-- the header-route case stays red while the v1 `@Filter` is still on the
-  entity (v1 falls back to the default tenant on the plain route and its
-  predicate contradicts v2's). `@Disabled` it with a comment naming the
-  go-live, exactly like the pilot did; the activation go-live re-enables it.
 - the "create with no selector → 400" case is the reliable attribution red: it
   stays red until `TenantWriteScopeResolver` is wired. The attribution-under-
   path case may already be green before wiring: on `/api/tenants/{id}/...`
@@ -161,19 +145,7 @@ Two rules the validation run on `kill_chain_phases` proved the hard way:
   query: the inspector rewrites the latter, so its result flips with the
   transaction's scope and reads differently before and after wiring.
 
-Keep the raw red output: the activation workflow requires it as evidence.
-
-## Context cost
-
-Spring keys a cached context on, among other things, the set of
-`@DynamicPropertySource` methods that apply to the class, not on the values
-they register. A class that declares its own registration method therefore
-gets its own context, even when it registers exactly what another class does;
-that is the price of following the production list per class, keep it. Copying
-the same value, or a shared constant, into several classes shares nothing, and
-a hard-coded value is a pin `PinnedActiveTablesArchTest` reports. Classes that
-must share a context inherit one registration method from a common superclass,
-so their method sets are equal.
+Save the raw red output: it is the evidence of the red.
 
 ## Run
 

@@ -40,7 +40,7 @@ package io.openaev.rest.{domain};
 // imports: same set as ImportMapperHttpIsolationTest, with io.openaev.architecture.CoversTenantIsolation
 
 /**
- * End-to-end proof that, with {table} activated, the tenant scope set from the
+ * End-to-end proof that, with {table} gated, the tenant scope set from the
  * request isolates the table through the real {Api} endpoints.
  *
  * <p>Each test stays on a single tenant path: the per-request scope is set once
@@ -51,13 +51,6 @@ package io.openaev.rest.{domain};
 @CoversTenantIsolation("{table}")
 @DisplayName("{table} read and write isolation through the real HTTP endpoint")
 class {Entity}HttpIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWith{Entity}(DynamicPropertyRegistry registry) {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("{table}");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   private static final String BY_ID = "/api/tenants/{tenantId}/{entities}/{entityId}";
 
@@ -174,10 +167,6 @@ void searchUnderTenantAReturnsOnlyA() throws Exception {
 @Test
 @DisplayName("via the X-Tenant-Ids header (no path tenant): search returns A's row and not B's")
 void searchViaHeaderReturnsOnlyA() throws Exception {
-  // While the v1 @Filter is still on the entity, this case fails (v1 falls back
-  // to the default tenant on the plain route and contradicts v2's predicate).
-  // @Disabled it with a comment naming the go-live, like the pilot did; the
-  // activation go-live re-enables it.
   String body = asJsonString(PaginationFixture.getDefault().textSearch("").build());
   String response =
       mvc.perform(
@@ -308,8 +297,8 @@ would depend on the scope.
 void upsertOfKeySeededInBCreatesARowForA() throws Exception {
   // rowB was seeded with the same business key in tenant B during setup.
   // Requires tenant-aware unique constraints on the business key; a
-  // unique-violation failure here means the schema prep was skipped
-  // (see the activate-tenant-table skill, PR #6594, gate 0.3).
+  // unique-violation failure here means the unique constraint on the key is not
+  // composite with tenant_id (database.instructions.md, Business Keys).
   mvc.perform(post("/api/tenants/{tenantId}/{entities}/upsert", tenantA)
           .contentType(MediaType.APPLICATION_JSON)
           .content(asJsonString(upsertInput("shared-key"))).with(csrf()))

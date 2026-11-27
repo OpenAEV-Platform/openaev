@@ -1,6 +1,7 @@
 ---
 name: activate-tenant-table
 description: >-
+  Retired: the inspector gates every tenant table, so no table is left to activate.
   Activates one table on multi-tenancy v2 (statement inspector + can_access_tenant),
   test-first, following the import_mappers pilot (PR #6255). Use when asked to switch
   a table from v1 @Filter isolation to v2. Covers HTTP paths and, since the background
@@ -9,6 +10,8 @@ description: >-
   TDD isolation tests, write attribution, the background conversion, the one-commit
   go-live, and the full regression pass.
 ---
+
+> **Retired.** The statement inspector gates every tenant table except the self-isolated ones of `TenantTables`, at every start, and `openaev.tenant.active-tables` is ignored: there is no table left to activate. The rest of this file is the record of the rationale that code comments cite.
 
 # Activate a Table on Multi-Tenancy v2
 
