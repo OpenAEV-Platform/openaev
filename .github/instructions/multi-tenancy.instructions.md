@@ -89,8 +89,6 @@ under-scopes an unrelated read.
     `deleteAllById`, `findAll(Specification)` or `entityManager.find`: a reviewer reads for them.
 11. A cache key includes the tenant id
 
-<a id="background-threads-carry-both-scopes"></a>
-
 ## Background Threads Carry Their Transaction Scope
 
 On an HTTP request `TenantInterceptor` sets the thread-local `TenantContext`, and
