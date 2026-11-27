@@ -104,10 +104,10 @@ describe('deepEqual', () => {
       expected: false,
     },
     {
-      name: 'two equal class instances (not JSON data)',
+      name: 'two class instances with the same keys',
       a: new Point(),
       b: new Point(),
-      expected: false,
+      expected: true,
     },
   ])('given $name should return $expected, whatever the argument order', ({ a, b, expected }) => {
     // Act

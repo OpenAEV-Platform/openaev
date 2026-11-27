@@ -30,15 +30,15 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
   const teamsColors = computeTeamsColors(teams, theme);
 
   const scoredTeamExpectations = injectExpectations.filter(
-    (n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null,
+    (n: InjectExpectationOutput) => n.inject_expectation_score != null && n.inject_expectation_team && n.inject_expectation_user === null,
   );
   const expectationsByTeam = Object.groupBy(scoredTeamExpectations, (item: InjectExpectationOutput) => String(item.inject_expectation_team));
-  const teamsScores = Object.entries(expectationsByTeam).map(([teamId, expectations]) => {
+  const teamsScores = Object.entries(expectationsByTeam).map(([teamId, expectations = []]) => {
     let cumulation = 0;
     return {
       name: teamsMap[teamId]?.team_name,
       color: teamsColors[teamId],
-      data: expectations!.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
+      data: expectations.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
         cumulation += i.inject_expectation_score ?? 0;
         return {
           x: i.inject_expectation_updated_at,

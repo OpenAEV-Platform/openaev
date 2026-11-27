@@ -35,8 +35,8 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
     inject_expectation_inject: injectsMap[n.inject_expectation_inject as string] || {},
   }));
   const expectationsByContract = Object.groupBy(expectationsWithInject, injectorContractKey);
-  const injectsTypesScores = Object.entries(expectationsByContract).map(([, expectations]) => {
-    const sortedExpectations = expectations!.toSorted(ascendBy('inject_expectation_updated_at'));
+  const injectsTypesScores = Object.entries(expectationsByContract).map(([, expectations = []]) => {
+    const sortedExpectations = expectations.toSorted(ascendBy('inject_expectation_updated_at'));
     const contract = sortedExpectations[0].inject_expectation_inject.inject_injector_contract;
     let cumulation = 0;
     return {

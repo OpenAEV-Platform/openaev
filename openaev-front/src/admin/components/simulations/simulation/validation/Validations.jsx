@@ -77,12 +77,10 @@ const Validations = () => {
     ...n,
     inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
   }));
-  const humanExpectations = expectationsWithInject.filter(n => HUMAN_EXPECTATION_TYPES.includes((n.inject_expectation_type).toUpperCase()));
+  const humanExpectations = expectationsWithInject.filter(n => HUMAN_EXPECTATION_TYPES.includes(n.inject_expectation_type.toUpperCase()));
   const taggedExpectations = humanExpectations.filter(
     n => tags.length === 0
-      || tags.map(tag => tag.id).some(
-        filter => n.inject_expectation_inject?.inject_tags.includes(filter),
-      ),
+      || tags.some(tag => n.inject_expectation_inject?.inject_tags.includes(tag.id)),
   );
   const matchingExpectations = taggedExpectations.filter(n => filterByKeyword(n));
   const sortedInjectExpectations = matchingExpectations.toSorted(descendBy('inject_expectation_created_at'));

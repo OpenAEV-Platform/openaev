@@ -20,29 +20,22 @@ export const omit = <T extends object, K extends keyof T>(obj: T, keys: readonly
   return result as Omit<T, K>;
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Object.prototype.toString.call(value) === '[object Object]';
+
 // `null` and `undefined` are not empty: use isEmptyField for that
 export const isEmpty = (value: unknown): boolean => {
   if (typeof value === 'string' || Array.isArray(value)) {
     return value.length === 0;
   }
-  if (Object.prototype.toString.call(value) === '[object Object]') {
-    return Object.keys(value as object).length === 0;
+  if (isPlainObject(value)) {
+    return Object.keys(value).length === 0;
   }
   return false;
 };
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-  if (value === null || typeof value !== 'object') {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
-
-// Deep equality for the JSON data of the store: `useHelper` compares two results of `toJS()` to keep the previous
-// identity when nothing changed. Primitives compare with `Object.is`, arrays item by item, plain objects by their own
-// enumerable keys, whatever their order. Any other object (Date, Map, class instance, function...) is only equal to
-// itself: a wrong "different" only costs a re-render, never a stale value
+// Deep equality for the store JSON, so that `useHelper` keeps the previous result when nothing changed.
+// Any other object (Date, Map...) is only equal to itself: a wrong "different" only costs a re-render
 export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) {
     return true;

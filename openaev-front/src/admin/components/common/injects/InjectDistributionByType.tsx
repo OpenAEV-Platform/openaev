@@ -32,9 +32,9 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const sentInjects = injects.filter((n: InjectStore) => n.inject_sent_at !== null);
   const sentInjectsByType = Object.groupBy(sentInjects, (item: InjectStore) => String(item.inject_type));
-  const injectsByTypeCount = Object.entries(sentInjectsByType).map((n: [string, InjectStore[] | undefined]) => ({
-    inject_type: n[0],
-    number: n[1]!.length,
+  const injectsByTypeCount = Object.entries(sentInjectsByType).map(([injectType, typeInjects = []]) => ({
+    inject_type: injectType,
+    number: typeInjects.length,
   }));
   const injectsByType = injectsByTypeCount.toSorted(descendBy('number')) as Array<InjectStore & { number: number }>;
   const injectsByInjectorContractData = [
