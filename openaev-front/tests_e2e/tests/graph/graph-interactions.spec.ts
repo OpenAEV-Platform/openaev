@@ -49,8 +49,13 @@ const positions = (page: Page) => page.locator('.react-flow__node').evaluateAll(
   nodes.map(n => [(n as HTMLElement).dataset.id, (n as HTMLElement).style.transform]),
 )));
 
-/** Waits until the nodes stop moving (two reads a beat apart agree) and answers where they are. */
+/**
+ * Waits until the nodes stop moving and answers where they are. The canvas is busy while a move plays; two
+ * reads a beat apart must then agree. Two reads alone can agree halfway through a move when the browser
+ * skips animation frames (WebKit on a loaded arm64 runner).
+ */
 const settled = async (page: Page) => {
+  await expect(page.getByTestId('graph-canvas')).not.toHaveAttribute('aria-busy', 'true');
   let last = '';
   await expect.poll(async () => {
     const now = await positions(page);
