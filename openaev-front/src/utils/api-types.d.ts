@@ -957,9 +957,6 @@ export interface AssetLinkInput {
 export interface AssetLinkOutput {
   /** @format date-time */
   asset_link_created_at?: string;
-  /** @format date-time */
-  asset_link_last_seen_at?: string;
-  asset_link_origin?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
   asset_link_source_id?: string;
   asset_link_source_name?: string;
   asset_link_source_type?: string;
@@ -1140,27 +1137,6 @@ export interface AssetOutput {
     | "Unknown";
   /** Whether the asset belongs to the asset group statically or dynamically */
   is_static?: boolean;
-}
-
-export interface AssetOwnerInput {
-  asset_owner_role: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
-}
-
-export interface AssetOwnerOutput {
-  asset_id?: string;
-  asset_name?: string;
-  /** @format date-time */
-  asset_owner_created_at?: string;
-  asset_owner_id?: string;
-  asset_owner_kind?: string;
-  asset_owner_name?: string;
-  asset_owner_role?: "OWNED_BY" | "MANAGED_BY";
-  asset_owner_source?: "MANUAL" | "COLLECTOR" | "SYNC" | "AGENT";
-  asset_owner_team_id?: string;
-  asset_owner_user_id?: string;
 }
 
 /** Frozen asset composing a launched simulation's scope rule (display only). */
@@ -6940,8 +6916,6 @@ export interface GraphEdgeOutput {
     | "IN_TEAM"
     | "TEAM_OF"
     | "LINKED_TO"
-    | "OWNED_BY"
-    | "MANAGED_BY"
     | "ATTACK_STEP";
 }
 
@@ -7216,6 +7190,31 @@ export interface ImportPostSummary {
   available_sheets: string[];
   /** @minLength 1 */
   import_id: string;
+}
+
+export interface ImportReport {
+  import_columns: string[];
+  /** @format int32 */
+  import_created: number;
+  /** @format int32 */
+  import_ignored: number;
+  import_rows: ImportReportRow[];
+  /** @format int32 */
+  import_skipped: number;
+}
+
+export interface ImportReportRow {
+  import_row_params: Record<string, string>;
+  /** @format int32 */
+  import_row_position: number;
+  import_row_reason?:
+    | "MISSING_FIELD"
+    | "VALUE_TOO_LONG"
+    | "INVALID_VALUE"
+    | "CONFLICT"
+    | "INSUFFICIENT_ACCESS";
+  import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
+  import_row_values: Record<string, string>;
 }
 
 export interface ImportResult {
@@ -9095,14 +9094,20 @@ export interface MarkingDefinitionInput {
    * @pattern ^#[0-9a-fA-F]{6}$
    */
   marking_definition_color: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_definition: string;
   /**
    * @format int32
    * @min 0
    */
   marking_definition_order: number;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_type: string;
 }
 
