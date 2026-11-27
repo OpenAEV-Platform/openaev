@@ -1,7 +1,6 @@
 package io.openaev.rest.asset.ai_targets;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
@@ -11,11 +10,10 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AiTargetRepository;
-import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.asset.AiTargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
@@ -43,7 +41,7 @@ public class AiTargetApi {
 
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AiTargetRepository aiTargetRepository;
-  private final TagRepository tagRepository;
+  private final AiTargetService aiTargetService;
 
   /** Restricts any search to AI target assets, on top of the caller-provided specification. */
   private Specification<Asset> aiTargetCategory() {
@@ -58,16 +56,6 @@ public class AiTargetApi {
    */
   private static Asset withTagsInitialized(Asset aiTarget) {
     Hibernate.initialize(aiTarget.getTags());
-    return aiTarget;
-  }
-
-  private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
-    aiTarget.setUpdateAttributes(input);
-    aiTarget.setCategory(AssetCategory.AI_TARGET);
-    aiTarget.setTags(
-        iterableToSet(
-            this.tagRepository.findAllByIdInTenant(
-                input.getTagIds(), aiTarget.getTenant().getId())));
     return aiTarget;
   }
 
@@ -87,9 +75,7 @@ public class AiTargetApi {
     // An AI target is a third discriminator of the assets table, alongside endpoint and security
     // platform: the owning tenant is resolved from the request scope rather than left to the v1
     // listener's thread-local.
-    Asset aiTarget = new Asset();
-    aiTarget.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
-    return this.aiTargetRepository.save(prepareAiTarget(aiTarget, input));
+    return aiTargetService.createAiTarget(writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @GetMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
@@ -122,11 +108,7 @@ public class AiTargetApi {
       TxCtx ctx,
       @PathVariable @NotBlank final String aiTargetId,
       @Valid @RequestBody final AiTargetInput input) {
-    Asset aiTarget =
-        this.aiTargetRepository
-            .findAiTargetById(aiTargetId)
-            .orElseThrow(ElementNotFoundException::new);
-    return this.aiTargetRepository.save(prepareAiTarget(aiTarget, input));
+    return aiTargetService.updateAiTarget(aiTargetId, input);
   }
 
   @DeleteMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})

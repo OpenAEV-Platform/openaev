@@ -147,6 +147,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
   @Autowired private SecretReferenceRepository secretReferenceRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
@@ -501,6 +502,84 @@ class InjectApiTest extends IntegrationTest {
               .getContentAsString();
 
       assertThatJson(response).node("message").isEqualTo("CREDENTIAL_NOT_FOUND");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("The credential of an AI target of the inject should be resolved")
+    void given_aiTargetCredentialOfInject_should_resolveIt() throws Exception {
+      // Arrange
+      CredentialSecretReference aiTargetCredential = saveApiTokenCredential();
+      inject.setAssets(new ArrayList<>(List.of(saveAiTarget(aiTargetCredential))));
+      injectRepository.save(inject);
+      input.setAttachmentId(aiTargetCredential.getId());
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forApiToken("sk-test"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("type").isEqualTo("API_TOKEN");
+      assertThatJson(response).node("value.api_token").isEqualTo("sk-test");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("The credential of an AI target outside the inject should be not found")
+    void given_aiTargetCredentialOutsideInject_should_returnNotFound() throws Exception {
+      // Arrange
+      CredentialSecretReference aiTargetCredential = saveApiTokenCredential();
+      saveAiTarget(aiTargetCredential);
+      input.setAttachmentId(aiTargetCredential.getId());
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_NOT_FOUND");
+    }
+
+    private CredentialSecretReference saveApiTokenCredential() {
+      CredentialSecretReference credential =
+          CredentialSecretReferenceFixture.getCredentialSecretReference(
+              CredentialSecretReference.CREDENTIAL_TYPE.API,
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.API_TOKEN);
+      credential.setName("LLM token");
+      credential.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
+      return secretReferenceRepository.save(credential);
+    }
+
+    private Asset saveAiTarget(CredentialSecretReference credential) {
+      Asset aiTarget = AssetFixture.createDefaultAsset("LLM");
+      aiTarget.setCategory(AssetCategory.AI_TARGET);
+      aiTarget.setAiTargetCredential(credential);
+      return assetRepository.save(aiTarget);
     }
 
     @Test

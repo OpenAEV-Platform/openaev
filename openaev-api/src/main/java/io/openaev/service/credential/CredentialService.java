@@ -117,6 +117,15 @@ public class CredentialService {
                             HashSecret.HASH_ALGORITHM.NTLM.name()))
                     .build())),
         new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.API,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.API_TOKEN,
+            List.of(
+                CredentialContractField.builder()
+                    .fieldName("credential_api_token")
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build())),
+        new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
             List.of(
@@ -659,7 +668,8 @@ public class CredentialService {
         input.gcpCustomOauthAccessToken(),
         input.azureAuthorityHostUri(),
         input.azureScope(),
-        azureRequestsCertificate);
+        azureRequestsCertificate,
+        input.credentialApiToken());
   }
 
   /**

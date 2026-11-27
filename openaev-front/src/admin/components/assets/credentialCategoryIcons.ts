@@ -1,4 +1,4 @@
-import { VpnKeyOutlined } from '@mui/icons-material';
+import { KeyOutlined, VpnKeyOutlined } from '@mui/icons-material';
 import { type SvgIconProps } from '@mui/material';
 import { Aws, GoogleCloud, MicrosoftAzure } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
@@ -8,6 +8,7 @@ const CREDENTIAL_CATEGORY_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   CLOUD_AWS: Aws,
   CLOUD_AZURE: MicrosoftAzure,
   CLOUD_GCP: GoogleCloud,
+  API: KeyOutlined,
 };
 
 export default CREDENTIAL_CATEGORY_ICONS;

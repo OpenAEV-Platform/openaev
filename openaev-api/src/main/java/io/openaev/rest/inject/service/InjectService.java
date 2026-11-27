@@ -2141,14 +2141,17 @@ public class InjectService {
   }
 
   /**
-   * Creates and stores a fresh authorisation code when the inject carries secret references.
+   * Creates and stores a fresh authorisation code when the injector may resolve credentials.
    *
-   * @param executableInject the executable inject to check for secret references
-   * @return the raw authorisation code, or {@code null} when the inject has no secret references
+   * @param executableInject the executable inject to check for credentials
+   * @return the raw authorisation code, or {@code null} when there is no credential to resolve
    */
   public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
-    if (executableInject.getSecretReferenceIds() == null
-        || executableInject.getSecretReferenceIds().isEmpty()) {
+    if (executableInject.getAssetsToExecute() == null) {
+      executableInject.cacheAssetsToExecute(
+          resolveAssetsToExecuteByClearance(executableInject.getInjection().getInject()));
+    }
+    if (executableInject.credentialReferenceIds(executableInject.getAssetsToExecute()).isEmpty()) {
       return null;
     }
     Inject inject = executableInject.getInjection().getInject();
@@ -2193,7 +2196,9 @@ public class InjectService {
   private SecretReference getResolvableInjectSecretReferenceOrThrow(
       Inject inject, String attachmentId) {
     SecretReference secretReference =
-        inject.getSecretReferences().stream()
+        Stream.concat(
+                inject.getSecretReferences().stream(),
+                AssetToExecute.aiTargetCredentials(resolveAllAssetsToExecute(inject)))
             .filter(ref -> ref.getId().equals(attachmentId))
             .findFirst()
             .orElseThrow(() -> new CredentialResolutionException(CREDENTIAL_NOT_FOUND));

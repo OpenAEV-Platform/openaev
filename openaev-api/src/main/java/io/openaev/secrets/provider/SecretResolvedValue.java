@@ -147,6 +147,10 @@ public record SecretResolvedValue(
             gcpCustomOauthAccessToken));
   }
 
+  public static SecretResolvedValue forApiToken(String apiToken) {
+    return new SecretResolvedValue(Secret.SECRET_TYPE.API_TOKEN, new Value.ApiToken(apiToken));
+  }
+
   public sealed interface Value
       permits Value.UsernamePassword,
           Value.Hash,
@@ -155,7 +159,11 @@ public record SecretResolvedValue(
           Value.AzureServicePrincipal,
           Value.AzureManagedIdentity,
           Value.GcpServiceAccount,
-          Value.GcpOAuth2 {
+          Value.GcpOAuth2,
+          Value.ApiToken {
+
+    @JsonInclude(NON_NULL)
+    record ApiToken(@JsonProperty("api_token") String apiToken) implements Value {}
 
     @JsonInclude(NON_NULL)
     record UsernamePassword(

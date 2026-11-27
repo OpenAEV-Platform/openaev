@@ -13,6 +13,7 @@ import markingIdSetsEqual from '../../../../utils/markings';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { zodImplement } from '../../../../utils/Zod';
 import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
+import AiTargetCredentialField from './AiTargetCredentialField';
 
 // Markings are not part of AiTargetInput: like endpoints, they live on a dedicated, more
 // heavily-guarded endpoint (PUT /api/assets/{id}/markings) rather than the generic asset update,
@@ -96,7 +97,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
     ai_target_endpoint: '',
     ai_target_model: '',
     ai_target_system_prompt: '',
-    ai_target_token: '',
+    ai_target_credential: null,
     asset_criticality: 'UNKNOWN',
     asset_description: '',
     asset_tags: [],
@@ -125,7 +126,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         ai_target_endpoint: z.string().optional().nullable(),
         ai_target_model: z.string().optional().nullable(),
         ai_target_system_prompt: z.string().optional().nullable(),
-        ai_target_token: z.string().optional().nullable(),
+        ai_target_credential: z.string().optional().nullable(),
         ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
         asset_criticality: z.enum(['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
         asset_description: z.string().optional(),
@@ -286,16 +287,12 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_system_prompt?.message}
         {...register('ai_target_system_prompt')}
       />
-      <TextFieldFds
-        type="password"
-        label={t('API token (optional)')}
-        style={{ marginTop: 20 }}
-        error={!!errors.ai_target_token}
-        helperText={
-          errors.ai_target_token?.message
-          ?? t('Credential used to reach the target. Leave empty for targets that require no authentication.')
-        }
-        {...register('ai_target_token')}
+      <Controller
+        control={control}
+        name="ai_target_credential"
+        render={({ field }) => (
+          <AiTargetCredentialField value={field.value} onChange={field.onChange} disabled={isSubmitting} />
+        )}
       />
       <TextFieldFds
         multiline

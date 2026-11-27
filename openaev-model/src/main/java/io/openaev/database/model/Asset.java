@@ -15,6 +15,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -374,20 +375,19 @@ public class Asset implements TenantBase, Marked {
   /**
    * Free-form, provider-specific configuration for an AI target (extra generation parameters,
    * custom headers, tool / MCP definitions, agent routing, ...). Never put the credential here -
-   * use {@link #aiTargetToken}.
+   * use {@link #aiTargetCredential}.
    */
   @Type(JsonType.class)
   @Column(name = "ai_target_configuration", columnDefinition = "jsonb")
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
-  /**
-   * Optional credential used to reach an AI target, provisioned on the asset itself (set manually
-   * or by a collector). May be empty for targets that require no authentication.
-   */
-  @Column(name = "ai_target_token")
-  @JsonProperty("ai_target_token")
-  private String aiTargetToken;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "ai_target_credential_id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("ai_target_credential")
+  @Schema(type = "string")
+  private CredentialSecretReference aiTargetCredential;
 
   /**
    * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,

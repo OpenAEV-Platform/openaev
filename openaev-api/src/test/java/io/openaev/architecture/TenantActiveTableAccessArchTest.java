@@ -1068,7 +1068,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.rest.asset_group.AssetGroupApi.class,
               io.openaev.rest.document.DocumentApi.class,
               io.openaev.rest.challenge.ChallengeApi.class,
-              io.openaev.rest.asset.ai_targets.AiTargetApi.class,
               io.openaev.rest.asset.security_platforms.SecurityPlatformApi.class,
               // Services behind the entrypoints above and import/export paths using explicit
               // tenant-scoped tag lookups:
@@ -1078,6 +1077,7 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.scenario.ScenarioService.class,
               io.openaev.rest.user.PlayerService.class,
               io.openaev.service.EndpointService.class,
+              io.openaev.service.asset.AiTargetService.class,
               // Bulk asset update: resolves the tags to add with findAllByIdInTenant(ids, tenantId)
               // in the caller's write tenant.
               io.openaev.service.AssetService.class,

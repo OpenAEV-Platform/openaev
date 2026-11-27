@@ -101,6 +101,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       case AWS_ACCESS_KEY, AWS_ASSUME_ROLE -> CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS;
       case GCP_SERVICE_ACCOUNT, GCP_OAUTH2 -> CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP;
       case USERNAME_PASSWORD, HASH -> CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY;
+      case API_TOKEN -> CredentialSecretReference.CREDENTIAL_TYPE.API;
     };
   }
 
