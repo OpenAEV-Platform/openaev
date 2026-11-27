@@ -2,6 +2,7 @@ package io.openaev.integration.impl.collector;
 
 import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -35,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-@DisplayName("LocalSecretsProviderIntegration tests")
+@DisplayName("ExpirationManagerIntegration tests")
 public class ExpirationManagerIntegrationTest {
 
   @Autowired private ComponentRequestEngine componentRequestEngine;
@@ -45,7 +47,7 @@ public class ExpirationManagerIntegrationTest {
   @Autowired private ThreadPoolTaskScheduler threadPoolTaskScheduler;
   @Autowired private CollectorService collectorService;
   @Autowired private ExpectationsExpirationManagerService expectationsExpirationManagerService;
-  @Autowired private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
+  @MockitoSpyBean private ExpectationsExpirationManagerConfig expectationsExpirationManagerConfig;
   @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   private ExpirationManagerIntegrationFactory getFactory() {
@@ -66,11 +68,13 @@ public class ExpirationManagerIntegrationTest {
   class IntegrationLifecycle {
 
     @Test
-    @DisplayName("Factory initialization reports the local autostart instance")
-    void given_initializedFactory_should_reportAutostartInstance() throws Exception {
+    @DisplayName(
+        "When expiration manager is enable, factory reports the local autostart instance in started state")
+    void given_initializedFactory_should_reportAutostartInstanceStarted() throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
       factory.initialise(Tenant.DEFAULT_TENANT_UUID);
+      when(expectationsExpirationManagerConfig.isEnable()).thenReturn(true);
 
       // Act
       List<ConnectorInstance> instances = factory.findRelatedInstances("test-tenant");
@@ -86,6 +90,53 @@ public class ExpirationManagerIntegrationTest {
                       COLLECTOR_ID,
                       factory.getClass().getCanonicalName(),
                       ConnectorType.COLLECTOR)));
+      assertThat(instances)
+          .singleElement()
+          .satisfies(
+              instance ->
+                  assertThat(instance.getCurrentStatus())
+                      // all autostart instances begin as stopped; requested state prompts the
+                      // engine to start it
+                      .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped))
+          .satisfies(
+              instance ->
+                  assertThat(instance.getRequestedStatus())
+                      .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting));
+    }
+
+    @Test
+    @DisplayName(
+        "When expiration manager is disabled, factory reports the local autostart instance in stopped state")
+    void given_initializedFactory_should_reportAutostartInstanceStopped() throws Exception {
+      // Arrange
+      IntegrationFactory factory = getFactory();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
+      when(expectationsExpirationManagerConfig.isEnable()).thenReturn(false);
+
+      // Act
+      List<ConnectorInstance> instances = factory.findRelatedInstances("test-tenant");
+
+      // Assert
+      assertThat(instances).hasSize(1);
+      assertThat(instances)
+          .usingComparatorForType(
+              Comparator.comparing(ConnectorInstance::getId), ConnectorInstance.class)
+          .hasSameElementsAs(
+              List.of(
+                  connectorInstanceService.createAutostartInstance(
+                      COLLECTOR_ID,
+                      factory.getClass().getCanonicalName(),
+                      ConnectorType.COLLECTOR)));
+      assertThat(instances)
+          .singleElement()
+          .satisfies(
+              instance ->
+                  assertThat(instance.getCurrentStatus())
+                      .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped))
+          .satisfies(
+              instance ->
+                  assertThat(instance.getRequestedStatus())
+                      .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping));
     }
 
     @Test
@@ -95,6 +146,7 @@ public class ExpirationManagerIntegrationTest {
       // Arrange
       IntegrationFactory factory = getFactory();
       factory.initialise(Tenant.DEFAULT_TENANT_UUID);
+      when(expectationsExpirationManagerConfig.isEnable()).thenReturn(true);
 
       // Act
       List<Integration> integrations =

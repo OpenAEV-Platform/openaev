@@ -84,9 +84,17 @@ public class ExpirationManagerIntegrationFactory extends BuiltinIntegrationFacto
 
   @Override
   public List<ConnectorInstance> findRelatedInstances(String tenantId) {
-    return List.of(
+    ConnectorInstance instance =
         connectorInstanceService.createAutostartInstance(
-            COLLECTOR_ID, this.getClassName(), ConnectorType.COLLECTOR));
+            COLLECTOR_ID, this.getClassName(), ConnectorType.COLLECTOR);
+
+    // disable the integration in case the settings disable the associated functionality
+    if (!expectationsExpirationManagerConfig.isEnable()) {
+      instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
+      instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    }
+
+    return List.of(instance);
   }
 
   @Override

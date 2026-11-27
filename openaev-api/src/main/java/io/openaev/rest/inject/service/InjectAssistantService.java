@@ -374,9 +374,11 @@ public class InjectAssistantService {
     }
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
+      InjectorContract cloned = ic.clone();
+      injectorContractContentUtils.resetExpirationTimesInContractContent(cloned);
       Inject inject =
           injectService.buildTechnicalInject(
-              ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
+              cloned, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
       // Set the targets in the inject based on the field types in the contract's content.fields.
       // Fields of type "asset-group" take priority, because tag rules are directly associated with
       // asset groups.
@@ -473,9 +475,11 @@ public class InjectAssistantService {
     return injectorContracts.stream()
         .map(
             ic -> {
+              InjectorContract cloned = ic.clone();
+              injectorContractContentUtils.resetExpirationTimesInContractContent(cloned);
               Inject inject =
                   injectService.buildTechnicalInject(
-                      ic, attackPattern.getExternalId(), attackPattern.getName());
+                      cloned, attackPattern.getExternalId(), attackPattern.getName());
               inject.setAssetGroups(assetGroups);
               inject.setAssets(endpoints.stream().map(Asset.class::cast).toList());
               return inject;

@@ -44,15 +44,6 @@ export const computeConnectorLiveliness = (connector: ConnectorOutput): Connecto
   const external = connector.isExternal === true;
   const nowIso = new Date().toISOString();
 
-  if (!external && connector.isExisting) {
-    return {
-      started: true,
-      healthy: true,
-      lastSeen: nowIso,
-      builtIn: true,
-    };
-  }
-
   if (connector.connectorInstance != null) {
     const started = connector.connectorInstance.connector_instance_current_status === 'started';
     if (!started) {
@@ -80,6 +71,8 @@ export const computeConnectorLiveliness = (connector: ConnectorOutput): Connecto
     };
   }
 
+  // no instance cases
+
   if (external) {
     const live = isHeartbeatFresh(heartbeat);
     return {
@@ -87,6 +80,15 @@ export const computeConnectorLiveliness = (connector: ConnectorOutput): Connecto
       healthy: live,
       lastSeen: live ? heartbeat : undefined,
       builtIn: false,
+    };
+  }
+
+  if (!external && connector.isExisting) {
+    return {
+      started: true,
+      healthy: true,
+      lastSeen: nowIso,
+      builtIn: true,
     };
   }
 
