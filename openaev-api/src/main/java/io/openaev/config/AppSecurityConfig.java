@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import static io.openaev.api.xtmhub.XtmHubApi.TENANT_XTMHUB_JWKS_URI;
 import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
@@ -165,6 +166,8 @@ public class AppSecurityConfig {
                     .requestMatchers("/api/me/confirm-email-change/**")
                     .permitAll()
                     .requestMatchers("/xtm/auth/jwks")
+                    .permitAll()
+                    .requestMatchers(TENANT_XTMHUB_JWKS_URI)
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()

@@ -3,16 +3,20 @@ package io.openaev.api.xtmhub;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.jwks.JwkOutput;
+import io.openaev.api.jwks.JwksOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.xtmhub.XtmHubKeyService;
 import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,8 +32,10 @@ public class XtmHubApi extends RestBehavior {
 
   public static final String XTMHUB_URI = "/api/xtmhub";
   public static final String TENANT_XTMHUB_URI = TENANT_PREFIX + "/xtmhub";
+  public static final String TENANT_XTMHUB_JWKS_URI = TENANT_XTMHUB_URI + "/jwks";
 
   private final XtmHubService xtmHubService;
+  private final XtmHubKeyService xtmHubKeyService;
   private final XtmHubRegistrationMapper xtmHubRegistrationMapper;
 
   @GetMapping(
@@ -129,5 +135,28 @@ public class XtmHubApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Boolean contactUs(TxCtx ctx, @Valid @RequestBody XtmHubContactUsInput request) {
     return this.xtmHubService.contactUs(request.getMessage());
+  }
+
+  @GetMapping(value = TENANT_XTMHUB_JWKS_URI, produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "Get the XTM Hub public key of a tenant",
+      description = "Public key that verifies the assertions this instance signs for a tenant")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "JWK Set with the public key"),
+    @ApiResponse(responseCode = "404", description = "Unknown or deleted tenant"),
+    @ApiResponse(
+        responseCode = "500",
+        description =
+            "The xtm_hub_key_version setting is malformed or the encryption key is too short")
+  })
+  // Public: XTM Hub fetches it without credentials to check the key a SaaS host holds for a tenant.
+  @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
+  public ResponseEntity<JwksOutput> jwks(TxCtx ctx, @PathVariable String tenantId) {
+    // An id of anyone: a quiet 404, not an exception RestBehavior would log with its stack trace.
+    return xtmHubKeyService
+        .tenantPublicJwk(tenantId)
+        .map(jwk -> ResponseEntity.ok(new JwksOutput(List.of(JwkOutput.from(jwk)))))
+        .orElseGet(() -> ResponseEntity.notFound().build());
   }
 }
