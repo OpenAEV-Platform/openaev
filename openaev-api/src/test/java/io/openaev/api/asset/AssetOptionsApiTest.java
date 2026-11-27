@@ -206,6 +206,7 @@ class AssetOptionsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Unknown ids resolve to an empty list")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_unknownIds_should_returnEmptyList() throws Exception {
       String response =
           mvc.perform(

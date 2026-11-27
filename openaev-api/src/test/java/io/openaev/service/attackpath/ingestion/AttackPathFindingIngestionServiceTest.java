@@ -35,7 +35,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,8 +50,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * scoped read. Deliberately not {@code @Transactional}: the copy commits in its own scoped
  * transaction, so the rows must outlive any test transaction (explicit cleanup instead).
  */
-@TestPropertySource(
-    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: copyFindings copies findings onto the snapshot per endpoint")
 class AttackPathFindingIngestionServiceTest extends IntegrationTest {

@@ -60,7 +60,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -81,7 +80,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * also asserts the tenant the row carried when it was handed to the session to persist, which is
  * before the listener runs: only an explicit attribution by the caller can set it there.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=exercises,scenarios")
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario create paths attribute their own tenant")
 class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {

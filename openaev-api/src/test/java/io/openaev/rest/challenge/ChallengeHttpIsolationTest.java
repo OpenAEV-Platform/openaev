@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
 @WithMockUser(isAdmin = true)
 @DisplayName("challenges read and write isolation through the real HTTP endpoint")
 class ChallengeHttpIsolationTest extends IntegrationTest {

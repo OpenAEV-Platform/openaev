@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
  * in teardown.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("A document delete removes the object under the owning tenant, not the ambient path")
 class DocumentDeleteFileScopeTest extends IntegrationTest {

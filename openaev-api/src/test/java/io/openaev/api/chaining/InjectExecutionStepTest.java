@@ -62,7 +62,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -76,7 +75,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 // statement inspector under the run's tenant scope, not by the removed v1 @Filter. The attachment
 // tests below arm the inspector and set that scope with setScopeOnCurrentTransaction, mirroring how
 // the production queue run (TenantScopedTransaction.forTenant) scopes the same JPQL query.
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 public class InjectExecutionStepTest extends IntegrationTest {
 
   @MockitoBean private InjectorContractService injectorContractService;
@@ -665,7 +663,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     otherInjector.linkContract(otherContractSaved);
     injectorRepository.save(otherInjector);
     entityManager.flush();
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
+    // The caller belongs to both tenants and names neither, so the request scope holds both.
+    tenantTx.setScopeOnCurrentTransaction(
+        TxCtx.forTenants(List.of(currentTenantId, otherTenant.getId())));
 
     doReturn(otherContractSaved)
         .when(injectorContractService)

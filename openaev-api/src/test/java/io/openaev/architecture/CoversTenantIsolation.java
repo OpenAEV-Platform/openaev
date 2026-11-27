@@ -17,11 +17,11 @@ import java.lang.annotation.Target;
  * <ul>
  *   <li>it is a runnable test: not abstract, not disabled, with a test method;
  *   <li>it runs on the real stack: Postgres and the statement inspector, not a mock of either;
- *   <li>it declares an activation list that holds the table: a {@code probe} pin (see {@code
+ *   <li>it runs with an activation list that holds the table: the test profile's list, which every
+ *       class that declares nothing runs on, a {@code probe} pin (see {@code
  *       pinned-active-tables-baseline.txt}) that includes it, or a {@code DynamicPropertySource}
- *       registering {@code ProductionActiveTables.names()}. A class that declares nothing is not
- *       armed by the gating CI run, and a class recorded there as {@code drifts} or {@code control}
- *       does not count;
+ *       registering {@code ProductionActiveTables.names()}. A class recorded there as {@code
+ *       drifts} or {@code control} does not count;
  *   <li>it seeds two tenants and asserts a cross-tenant refusal (read, write or delete) on the
  *       table: a caller scoped to one tenant is refused the other tenant's row of that table, and
  *       the refusal is not reached through a parent row or by another mechanism.

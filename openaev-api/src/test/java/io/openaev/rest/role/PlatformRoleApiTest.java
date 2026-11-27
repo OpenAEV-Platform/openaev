@@ -438,7 +438,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
   class Delete {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given DELETE_PLATFORM_USERS_GROUPS_AND_ROLES, should delete a platform role")
     void given_deletePlatform_should_deleteRole() throws Exception {
       // -------- Arrange --------
@@ -464,7 +466,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES},
+        autoJoinDefaultTenant = true)
     @DisplayName(
         "Given DELETE_PLATFORM_USERS_GROUPS_AND_ROLES, should delete a role still attached to a group")
     void given_deletePlatform_should_deleteRoleAttachedToGroup() throws Exception {

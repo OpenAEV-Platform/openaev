@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -48,7 +47,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * mask the very failure the payload assertions pin. Seeding therefore goes through an
  * auto-committing {@link JdbcTemplate} and is removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("POST /challenges/find bulk-loads challenge documents in a single scoped query")
 class ChallengeFindBulkDocumentsTest extends IntegrationTest {

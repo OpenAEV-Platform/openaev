@@ -26,7 +26,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -42,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
  * rewrites the ground-truth read.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injects")
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject import inserts write the tenant of the parent, not the ambient one")
 class InjectImportSaveTenantTest extends IntegrationTest {

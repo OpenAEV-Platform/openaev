@@ -42,13 +42,13 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * PinnedActiveTablesArchTest}: the one annotation that sets the key ({@link
  * PinnedActiveTablesCatalog#declarations}), or what its {@code DynamicPropertySource} methods
  * register ({@link PinnedActiveTablesCatalog#dynamicRegistrations}), on the class, its supertypes
- * and its enclosing classes. A class that declares nothing covers nothing: the default run of the
- * gating CI declares no active tables, and the shadow runs that arm the production list report
- * without failing the workflow, so only a declaration of the class itself proves the table is armed
- * when the class runs. A class that sets the key twice, both ways, in a registration the scan
- * cannot evaluate, or with {@code *} has no list the gate can read and covers nothing. The shapes
- * the catalog cannot see (property files, profiles, {@code DynamicPropertyRegistrar}) are listed in
- * the "Not seen" paragraph of {@link PinnedActiveTablesCatalog}.
+ * and its enclosing classes. A class that declares nothing runs on the test profile's list ({@link
+ * ProductionActiveTables#testProfileNames}), which {@code TestProfileActiveTablesTest} holds equal
+ * to production's. A class that sets the key twice, both ways, in a registration the scan cannot
+ * evaluate, or with {@code *} has no list the gate can read and covers nothing, and neither has a
+ * class that declares nothing while the profile arms none. The shapes the catalog cannot see
+ * (property files other than the profile's, other profiles, {@code DynamicPropertyRegistrar}) are
+ * listed in the "Not seen" paragraph of {@link PinnedActiveTablesCatalog}.
  *
  * <p>A runnable test is a class that is not abstract and not {@link Disabled} (nor a {@link Nested}
  * class of a disabled class), with a method Jupiter runs as a test (not private, not static) that
@@ -83,7 +83,8 @@ class TenantIsolationCoverageArchTest {
             TenantIsolationCoverageBaseline.load(),
             PinnedActiveTablesBaseline.load(),
             ProductionActiveTables.names(),
-            TenantTables.selfIsolatedTables());
+            TenantTables.selfIsolatedTables(),
+            ProductionActiveTables.testProfileNames());
     return scan.checks(BASELINE_SIZE).stream()
         .map(
             check ->
@@ -120,7 +121,8 @@ class TenantIsolationCoverageArchTest {
       List<TenantIsolationCoverageBaseline.Entry> baseline,
       List<PinnedActiveTablesBaseline.Entry> pins,
       Set<String> production,
-      Set<String> selfIsolated) {
+      Set<String> selfIsolated,
+      Set<String> profile) {
 
     record Check(String name, String guidance, Supplier<List<String>> found) {}
 
@@ -137,13 +139,28 @@ class TenantIsolationCoverageArchTest {
         List<PinnedActiveTablesBaseline.Entry> pins,
         Set<String> production,
         Set<String> selfIsolated) {
+      return of(classes, baseline, pins, production, selfIsolated, Set.of());
+    }
+
+    /**
+     * {@code profile} is the list the test profile arms for a class that declares none: empty when
+     * the profile arms nothing, which is the default run of a test classpath with no list.
+     */
+    static Scan of(
+        List<Class<?>> classes,
+        List<TenantIsolationCoverageBaseline.Entry> baseline,
+        List<PinnedActiveTablesBaseline.Entry> pins,
+        Set<String> production,
+        Set<String> selfIsolated,
+        Set<String> profile) {
       return new Scan(
           classes,
           PinnedActiveTablesCatalog.dynamicRegistrations(classes),
           baseline,
           pins,
           production,
-          selfIsolated);
+          selfIsolated,
+          profile);
     }
 
     /**
@@ -170,11 +187,10 @@ class TenantIsolationCoverageArchTest {
               this::markedButNotActive),
           new Check(
               "should find each marked class runnable, with its tables in the effective list",
-              "These classes are not runnable tests, declare no activation list, carry a marker for"
-                  + " a table their effective list does not hold, or have a list the gate cannot"
-                  + " read. A class with no declaration is not armed in the gating CI run: register"
-                  + " ProductionActiveTables.names() in a @DynamicPropertySource, or pin the table."
-                  + " Otherwise move the marker to a class that is armed",
+              "These classes are not runnable tests, carry a marker for a table their effective list"
+                  + " does not hold, or have a list the gate cannot read. A class with no"
+                  + " declaration runs on the test profile's list: add the table to it, or move the"
+                  + " marker to a class that is armed",
               this::markedOutsideTheEffectiveList),
           new Check(
               "should find no marked class that the pinned-list baseline records as drifts or"
@@ -432,10 +448,10 @@ class TenantIsolationCoverageArchTest {
     }
 
     /**
-     * The activation list a marked class declares, read the way Spring resolves the key: what its
-     * registration gives, else its one annotation. A class that declares nothing, sets the key
-     * twice, or in an annotation and a registration, or lists {@code *}, has no list the gate can
-     * read.
+     * The activation list a marked class runs with, read the way Spring resolves the key: what its
+     * registration gives, else its one annotation, else the test profile's list. A class that sets
+     * the key twice, or in an annotation and a registration, or lists {@code *}, has no list the
+     * gate can read, and neither has a class that declares nothing while the profile arms none.
      */
     Effective effective(Class<?> type) {
       List<Declaration> declarations = PinnedActiveTablesCatalog.declarations(type);
@@ -468,9 +484,12 @@ class TenantIsolationCoverageArchTest {
         Declaration only = declarations.get(0);
         return declared(only.tables(), only.site());
       }
+      if (!profile.isEmpty()) {
+        return declared(profile, "the test profile");
+      }
       return Effective.unreadable(
-          "declares no activation list, so the gating CI run arms no table for it; register"
-              + " ProductionActiveTables.names() in a @DynamicPropertySource");
+          "declares no activation list and the test profile arms none, so the run arms no table"
+              + " for it; register ProductionActiveTables.names() in a @DynamicPropertySource");
     }
 
     private static Effective declared(Set<String> tables, String site) {

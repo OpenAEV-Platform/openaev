@@ -21,7 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
  * (no tenant_id) and is shared by both tenants' instances.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @WithMockUser(isAdmin = true)
 @DisplayName("catalog-connector instance_deployed_count is scoped to the caller's tenant")
 class CatalogConnectorApiTenantIsolationTest extends IntegrationTest {

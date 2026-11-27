@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -56,14 +57,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=organizations,tags")
 @DisplayName("Organization HTTP tenant isolation")
 class OrganizationHttpIsolationTest extends IntegrationTest {
 
@@ -347,6 +346,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
           .andExpect(status().isForbidden());
     }
 
+    @ExpectsEmptyScopeReads("a caller with no membership reads no organization")
     @Test
     @DisplayName("Missing memberships never grant access to the default tenant")
     void given_noMembership_should_rejectIdAccess() throws Exception {
@@ -588,27 +588,33 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
       }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"none", "plain", "header"})
+    @Test
     @DisplayName("Unprefixed collections never expose an unauthorized ambient default tenant")
-    void given_defaultOutsideScope_should_hideItInAllCollections(String route) throws Exception {
+    void given_defaultOutsideScope_should_hideItInAllCollections() throws Exception {
       // Arrange
-      if (!route.equals("none")) {
-        tenantHelper.attachCurrentUserToTenant(tenantA.getId());
-      }
+      tenantHelper.attachCurrentUserToTenant(tenantA.getId());
 
-      // Act & Assert
+      // Act & Assert: with no selector the v2 scope is the caller's authorized tenants (A here),
+      // the same scope as the X-Tenant-Ids header selecting A, so both requests see the same rows
       for (var request : collectionRequests(ORGANIZATION_URI)) {
-        String result = response(scoped(request, route));
-        // Never the ambient default tenant the caller is not a member of, never another tenant.
-        assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
-        // Without a selector the v2 scope is the caller's authorized tenants (A here), like the
-        // X-Tenant-Ids header selecting A: the authorized tenant stays visible.
-        if (route.equals("none")) {
-          assertThat(result).doesNotContain(organizationA.getId());
-        } else {
+        for (String result : List.of(response(request), response(scoped(request, "header")))) {
+          // Never the ambient default tenant the caller is not a member of, never another tenant.
+          assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
           assertThat(result).contains(organizationA.getId());
         }
+      }
+    }
+
+    @ExpectsEmptyScopeReads("a caller with no membership lists no organization")
+    @Test
+    @DisplayName("Unprefixed collections show nothing to a caller with no membership")
+    void given_noMembership_should_listNoOrganizationInAllCollections() throws Exception {
+      // Act & Assert
+      for (var request : collectionRequests(ORGANIZATION_URI)) {
+        String result = response(request);
+        assertThat(result)
+            .doesNotContain(
+                organizationA.getId(), organizationB.getId(), defaultOrganization.getId());
       }
     }
 

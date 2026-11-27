@@ -241,7 +241,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Get global score for exercises")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void getGlobalScoreForExercises() throws Exception {
       Exercise exercise1 = ExerciseFixture.createDefaultCrisisExercise();
       Exercise exercise1Saved = exerciseRepository.save(exercise1);

@@ -53,7 +53,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -73,9 +72,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * independently of any test transaction anyway), so cleanup below is explicit.
  */
 @CoversTenantIsolation({"attackpath_execution_collector", "attackpath_execution_remediation"})
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=attackpath_execution_collector,attackpath_execution_remediation")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "attackpath_execution_collector / attackpath_execution_remediation read isolation at the"
@@ -305,6 +301,8 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
 
   private record SeededRun(String executionId, String stepId) {}
 
+  private record Graph(Endpoint endpoint, Agent agent, Inject inject, Step step) {}
+
   /**
    * Builds one endpoint/agent/payload/remediation graph under the given tenant and drives both
    * production write paths against it: {@code onRun} for the execution + remediation snapshot rows,
@@ -318,60 +316,77 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
     String suffix = suffixPrefix + "-" + UUID.randomUUID();
     TenantContext.setCurrentTenant(tenant.getId());
 
-    Endpoint endpoint = EndpointFixture.createEndpoint("corp-dc-" + suffix);
-    endpoint.setHostname("corp-dc-" + suffix);
-    endpoint.setIps(new String[] {"10.0.0.5"});
-    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
-    endpoint.setTenant(tenant);
+    // The graph is written in the scope of the tenant that owns it, in one transaction.
+    Graph graph =
+        tenantTx.execute(
+            TxCtx.forTenant(tenant.getId()),
+            () -> {
+              Endpoint endpoint = EndpointFixture.createEndpoint("corp-dc-" + suffix);
+              endpoint.setHostname("corp-dc-" + suffix);
+              endpoint.setIps(new String[] {"10.0.0.5"});
+              endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
+              endpoint.setTenant(tenant);
 
-    Agent agent =
-        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
-    agent.setId("agt-" + suffix);
-    agent.setAsset(endpoint);
-    agent.setExecutedByUser("agent-" + suffix);
-    endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
+              Agent agent =
+                  AgentFixture.createDefaultAgentSession(
+                      executorFixture.getDefaultExecutor(tenant.getId()));
+              agent.setId("agt-" + suffix);
+              agent.setAsset(endpoint);
+              agent.setExecutedByUser("agent-" + suffix);
+              endpointComposer
+                  .forEndpoint(endpoint)
+                  .withAgent(agentComposer.forAgent(agent))
+                  .persist();
 
-    var remediation = DetectionRemediationFixture.createDefaultDetectionRemediation();
-    remediation.setValues("remediation values " + suffix);
-    Payload payload =
-        payloadComposer
-            .forPayload(PayloadFixture.createDefaultCommand())
-            .withDetectionRemediation(
-                detectionRemediationComposer
-                    .forDetectionRemediation(remediation)
-                    .withSecurityPlatform(
-                        securityPlatformComposer.forSecurityPlatform(
-                            SecurityPlatformFixture.createDefault(
-                                "EDR platform " + suffix, "EDR"))))
-            .persist()
-            .get();
+              var remediation = DetectionRemediationFixture.createDefaultDetectionRemediation();
+              remediation.setValues("remediation values " + suffix);
+              Payload payload =
+                  payloadComposer
+                      .forPayload(PayloadFixture.createDefaultCommand())
+                      .withDetectionRemediation(
+                          detectionRemediationComposer
+                              .forDetectionRemediation(remediation)
+                              .withSecurityPlatform(
+                                  securityPlatformComposer.forSecurityPlatform(
+                                      SecurityPlatformFixture.createDefault(
+                                          "EDR platform " + suffix, "EDR"))))
+                      .persist()
+                      .get();
 
-    Exercise exercise = new Exercise();
-    exercise.setId(simulationId);
+              Exercise exercise = new Exercise();
+              exercise.setId(simulationId);
 
-    InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
-    contract.setNeedsExecutor(true);
-    contract.setPayload(payload);
+              InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
+              contract.setNeedsExecutor(true);
+              contract.setPayload(payload);
 
-    Inject inject = InjectFixture.getDefaultInject();
-    inject.setId("exec-" + suffix);
-    inject.setExercise(exercise);
-    inject.setTenant(tenant);
-    inject.setTitle("payload-" + suffix);
-    inject.setInjectorContract(contract);
-    inject.setAssets(List.of(endpoint));
+              Inject inject = InjectFixture.getDefaultInject();
+              inject.setId("exec-" + suffix);
+              inject.setExercise(exercise);
+              inject.setTenant(tenant);
+              inject.setTitle("payload-" + suffix);
+              inject.setInjectorContract(contract);
+              inject.setAssets(List.of(endpoint));
 
-    // The execution row freezes step.getStepTemplate().getId(), so a step with no template
-    // triggers a NullPointerException inside onRun: link one, as production always has.
-    StepComposer.Composer templateComposer =
-        stepComposer.forStep(StepFixture.getDefaultStepTemplate());
-    Step step = StepFixture.getDefaultStepTemplate();
-    workflowComposer
-        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-        .withStep(templateComposer)
-        .withStep(stepComposer.forStep(step).withStepTemplate(templateComposer))
-        .persist();
+              // The execution row freezes step.getStepTemplate().getId(), so a step with no
+              // template
+              // triggers a NullPointerException inside onRun: link one, as production always has.
+              StepComposer.Composer templateComposer =
+                  stepComposer.forStep(StepFixture.getDefaultStepTemplate());
+              Step step = StepFixture.getDefaultStepTemplate();
+              workflowComposer
+                  .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+                  .withSimulation(
+                      exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                  .withStep(templateComposer)
+                  .withStep(stepComposer.forStep(step).withStepTemplate(templateComposer))
+                  .persist();
+              return new Graph(endpoint, agent, inject, step);
+            });
+    Endpoint endpoint = graph.endpoint();
+    Agent agent = graph.agent();
+    Inject inject = graph.inject();
+    Step step = graph.step();
 
     TenantContext.clearCurrentTenant();
 

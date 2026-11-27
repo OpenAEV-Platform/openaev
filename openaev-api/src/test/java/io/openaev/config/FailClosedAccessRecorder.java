@@ -18,9 +18,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class FailClosedAccessRecorder {
 
   /**
-   * One recorded unscoped access to an active table. {@code caller} locates the emitting call site.
+   * One recorded unscoped access to an active table. {@code caller} locates the emitting call site,
+   * {@code thread} names the thread that ran the read (a test, request, scheduler or consumer
+   * thread).
    */
-  public record Violation(String activeTables, String caller, String sql) {}
+  public record Violation(String activeTables, String caller, String thread, String sql) {}
 
   private static final List<Violation> VIOLATIONS = new CopyOnWriteArrayList<>();
   private static volatile boolean recording = false;
@@ -36,9 +38,9 @@ public final class FailClosedAccessRecorder {
     recording = false;
   }
 
-  static void record(String activeTables, String caller, String sql) {
+  static void record(String activeTables, String caller, String thread, String sql) {
     if (recording) {
-      VIOLATIONS.add(new Violation(activeTables, caller, sql));
+      VIOLATIONS.add(new Violation(activeTables, caller, thread, sql));
     }
   }
 

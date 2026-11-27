@@ -22,7 +22,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The mapper's own contract: child triggers resolve inside the tenant the row is written into, not
@@ -37,7 +36,6 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Notifier ids are left empty on purpose: the mapper short-circuits an empty id list, so this
  * test says nothing about notifier resolution, which is still v1 and is corrected by #7864.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=notification_triggers")
 @WithMockUser(isAdmin = true)
 @DisplayName("child triggers resolve in the write tenant, not across the whole read scope")
 class NotificationTriggerMapperChildScopeTest extends IntegrationTest {

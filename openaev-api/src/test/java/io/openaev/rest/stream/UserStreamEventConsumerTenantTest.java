@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -1554,6 +1555,7 @@ public class UserStreamEventConsumerTenantTest extends ProductionTablesIntegrati
   @DisplayName("User updated from the platform by an operator who belongs to no tenant")
   class UpdatedFromThePlatformByAnOperatorOfNoTenant {
 
+    @ExpectsEmptyScopeReads("an operator of no tenant has no scope to read its associations under")
     @Test
     @DisplayName(
         "The event is attributed to no tenant: the consumers of every tenant receive the user with the groups, capabilities and flags left out")

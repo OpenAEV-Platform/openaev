@@ -7,16 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.openaev.IntegrationTest;
 import io.openaev.config.WriteAttrDetectorRecorder.Violation;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Reporting;
-import io.openaev.database.model.ReportingContextType;
-import io.openaev.database.model.ReportingSchedule;
-import io.openaev.database.model.ReportingSchedulePeriod;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.ReportingScheduleRepository;
-import io.openaev.rest.reporting.service.ReportingScheduleLoader;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import org.hibernate.Session;
@@ -28,72 +26,57 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * A managed entity mutated through dirty checking is never handed to {@code persist} or {@code
- * merge}. Two things keep such a write out of silence. The frame that loaded the entity is captured
- * at load time, so a production method that reloads a row and sets a column is attributed to that
- * method even though the UPDATE flushes later from a test frame. And when nobody captured the
- * entity at all (it was loaded before the recording window opened), the flush-time write with no
- * production frame on its stack is reported as unattributed and keyed on the test that flushed it,
- * so it is visible and triageable instead of being waived as test-driven.
+ * A managed entity changed through dirty checking is never handed to {@code persist} or {@code
+ * merge}. Two things make such a write visible. The frame that loaded the entity is captured at
+ * load time, so a change flushed later from a test frame is attributed to the production method
+ * that loaded it. And when nobody captured the entity at all (it is loaded before the recording
+ * window opened), the flush-time write with no production frame on its stack is reported as
+ * unattributed and keyed on the test that flushed it, so it is triaged and not waived as
+ * test-driven.
  *
- * <p>The production shape is {@code ReportingScheduleLoader.markLastRun}: a managed reload by id
- * and a setter, no save.
- *
- * <p>The class arms {@code import_mappers} only, a fixed table unrelated to this test's writes, not
- * the production list: {@link WriteAttrDetectorTrigger#install} attaches the trigger to every table
- * carrying {@code tenant_id} regardless of {@code active-tables}, so which other table is armed
- * cannot change what it raises. The test drives an update that moves a row out of the scope the
- * transaction runs under, which the statement inspector refuses once {@code reporting_schedules} is
- * active; the detector path it pins needs that one table inactive, nothing else.
+ * <p>The class runs on the test profile's list, the production one. Under it the statement
+ * inspector refuses an update that moves a row of an active table out of the transaction's scope,
+ * so the only tenant rows a dirty change can write outside the scope are those of a table the list
+ * leaves to the detector alone: {@code users_tenants}, a self-isolated membership table written by
+ * Hibernate when the {@code tenants} collection of a loaded user changes. The loader is {@code
+ * UserService.user}, a read by id with no save. The change is made here, so what the assertions pin
+ * is that the attribution follows the frame that loaded the owner, not the frame that changed or
+ * flushed it.
  */
 @Transactional
 @Import(WriteAttrDetectorTestConfig.class)
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
-@DisplayName("Write-attribution: a dirty-checked update is attributed to its loader, or reported")
+@DisplayName("Write-attribution: a dirty-checked change is attributed to its loader, or reported")
 class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
-  private static final String TABLE = "reporting_schedules";
-  private static final String LOADER =
-      "io.openaev.rest.reporting.service.ReportingScheduleLoader.markLastRun";
+  private static final String TABLE = "users_tenants";
+  private static final String LOADER = "io.openaev.service.UserService.user";
   private static final String UNATTRIBUTED_KEY =
       "unattributed(io.openaev.config.WriteAttrDirtyUpdateReportingTest$DirtyUpdate"
           + ".given_entityLoadedBeforeRecording_should_beReportedUnattributed)";
 
-  @Autowired private ReportingScheduleLoader reportingScheduleLoader;
-  @Autowired private ReportingScheduleRepository reportingScheduleRepository;
+  @Autowired private UserService userService;
+  @Autowired private UserRepository userRepository;
+  @Autowired private UserComposer userComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private JdbcTemplate jdbcTemplate;
 
   private String tenantB;
-  private String scheduleId;
+  private String userId;
 
   @BeforeEach
   void setUp() throws Exception {
+    userComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-dirty-b").getId();
-    // Seed a schedule in the default tenant while no scope is set (the trigger stays silent).
-    Tenant defaultTenant = entityManager.getReference(Tenant.class, DEFAULT_TENANT);
-    Reporting reporting = new Reporting();
-    reporting.setName("wattr reporting");
-    reporting.setContextType(ReportingContextType.PLATFORM);
-    reporting.setTenant(defaultTenant);
-    entityManager.persist(reporting);
-    ReportingSchedule schedule = new ReportingSchedule();
-    schedule.setReporting(reporting);
-    schedule.setName("wattr schedule");
-    schedule.setPeriod(ReportingSchedulePeriod.DAY);
-    schedule.setTriggerTime("09:00");
-    schedule.setOwner(testUserHolder.get());
-    schedule.setTenant(defaultTenant);
-    entityManager.persist(schedule);
+    // The user is seeded with no membership while no scope is set, so the trigger stays silent.
+    User user = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
     entityManager.flush();
     entityManager.clear();
-    scheduleId = schedule.getId();
+    userId = user.getId();
     entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
@@ -101,59 +84,65 @@ class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {
   void clear() {
     TenantContext.clearCurrentTenant();
     WriteAttrDetectorRecorder.stop();
+    // The membership row written in the default tenant under scope B is this class's specimen,
+    // asserted on in each test; the gate must not judge it again as a production write. Any other
+    // violation is left to the gate.
+    WriteAttrDetectorRecorder.discardViolations(violation -> TABLE.equals(violation.table()));
   }
 
   @Nested
-  @DisplayName("Given a production method that mutates a managed entity without saving it")
+  @DisplayName("Given a managed user whose membership collection changes without a save")
   class DirtyUpdate {
 
     @Test
     @DisplayName(
-        "Given the method loaded the entity itself, should attribute the update to the method")
+        "Given a production method loaded the entity, should attribute the change to the method")
     void given_methodLoadedTheEntity_should_attributeToTheMethod() {
       // Arrange
       TenantContext.clearCurrentTenant();
       WriteAttrDetectorRecorder.start();
       setScope(tenantB);
+      User loaded = userService.user(userId);
 
-      // Act: the loader reloads the schedule (default tenant) and sets a column; nothing is saved.
-      reportingScheduleLoader.markLastRun(scheduleId, Instant.now());
-      String writtenTenant = readTenantFromTestFrame();
+      // Act: the default tenant joins the membership collection; nothing is saved.
+      loaded.getTenants().add(entityManager.getReference(Tenant.class, DEFAULT_TENANT));
+      String writtenTenant = readLinkTenantFromTestFrame();
       WriteAttrDetectorRecorder.stop();
 
       // Assert
       assertEquals(DEFAULT_TENANT, writtenTenant, "precondition: the row is in the default tenant");
-      assertFalse(scheduleViolations().isEmpty(), "the trigger must see the dirty update");
+      assertFalse(linkViolations().isEmpty(), "the trigger must see the dirty change");
       List<String> attributed = attributed();
       assertTrue(
           attributed.contains(TABLE + " DEFAULT " + LOADER),
-          "a dirty update must be attributed to the production frame that loaded the entity;"
+          "a dirty change must be attributed to the production frame that loaded the entity;"
               + " attributed="
               + attributed
               + " violations="
-              + scheduleViolations());
+              + linkViolations());
     }
 
     @Test
-    @DisplayName("Given the entity was loaded before recording, should be reported as unattributed")
+    @DisplayName("Given an entity loaded before recording, should be reported as unattributed")
     void given_entityLoadedBeforeRecording_should_beReportedUnattributed() {
-      // Arrange: the schedule enters the persistence context outside the recording window, so no
-      // frame is captured for it; the loader's reload is then a cache hit that raises no load
+      // Arrange: the user enters the persistence context outside the recording window, so no
+      // frame is captured for it; the production read is then a cache hit that raises no load
       // event.
       TenantContext.clearCurrentTenant();
       WriteAttrDetectorRecorder.stop();
-      reportingScheduleRepository.findById(scheduleId).orElseThrow();
+      userRepository.findById(userId).orElseThrow();
       WriteAttrDetectorRecorder.start();
       setScope(tenantB);
+      User loaded = userService.user(userId);
 
       // Act
-      reportingScheduleLoader.markLastRun(scheduleId, Instant.now());
-      String writtenTenant = readTenantFromTestFrame();
+      loaded.getTenants().add(entityManager.getReference(Tenant.class, DEFAULT_TENANT));
+      String writtenTenant = readLinkTenantFromTestFrame();
       WriteAttrDetectorRecorder.stop();
 
       // Assert
       assertEquals(DEFAULT_TENANT, writtenTenant, "precondition: the row is in the default tenant");
-      assertFalse(scheduleViolations().isEmpty(), "the trigger must see the dirty update");
+      assertFalse(linkViolations().isEmpty(), "the trigger must see the dirty change");
       List<String> attributed = attributed();
       assertTrue(
           attributed.contains(TABLE + " DEFAULT " + UNATTRIBUTED_KEY),
@@ -161,11 +150,11 @@ class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {
               + " flushing test, not waived; attributed="
               + attributed
               + " violations="
-              + scheduleViolations());
+              + linkViolations());
     }
   }
 
-  private List<Violation> scheduleViolations() {
+  private List<Violation> linkViolations() {
     return WriteAttrDetectorRecorder.violations().stream()
         .filter(v -> TABLE.equals(v.table()))
         .toList();
@@ -185,16 +174,15 @@ class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {
 
   /**
    * Forces the pending flush from this test method with a native query the inspector leaves alone
-   * (no table), so the flush stack holds no production frame, then reads the row through the
-   * transaction's JDBC connection, which the statement inspector does not rewrite: under the
-   * production active-tables list a scoped native read of an active table would not see a row of
-   * another tenant, which is exactly the row this test wrote on purpose.
+   * (no table), so the flush stack holds no production frame, then reads the membership row through
+   * the transaction's JDBC connection.
    */
-  private String readTenantFromTestFrame() {
+  private String readLinkTenantFromTestFrame() {
     entityManager.createNativeQuery("SELECT 1").getSingleResult();
     return jdbcTemplate.queryForObject(
-        "SELECT tenant_id FROM reporting_schedules WHERE reporting_schedule_id = ?",
+        "SELECT tenant_id FROM users_tenants WHERE user_id = ? AND tenant_id = ?",
         String.class,
-        scheduleId);
+        userId,
+        DEFAULT_TENANT);
   }
 }

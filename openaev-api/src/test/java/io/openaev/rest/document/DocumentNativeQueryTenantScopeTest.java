@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Certifies the eight native queries of {@link DocumentRepository} against a real PostgreSQL with
@@ -41,7 +40,6 @@ import org.springframework.test.context.TestPropertySource;
  * Two freshly created tenants keep the assertions exact on a shared database; everything seeded is
  * removed in teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("Document native queries are scoped and valid once documents is v2-active")
 class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
 

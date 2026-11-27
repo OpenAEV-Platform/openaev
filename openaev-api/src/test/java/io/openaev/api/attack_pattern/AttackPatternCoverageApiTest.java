@@ -51,6 +51,7 @@ public class AttackPatternCoverageApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should accept the latest scoping query parameter")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_latestQueryParameter_should_returnCoverageArray() throws Exception {
       // Act
       String response =

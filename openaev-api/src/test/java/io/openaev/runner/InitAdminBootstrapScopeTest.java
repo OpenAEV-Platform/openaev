@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
@@ -52,7 +51,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * <p>NOT {@code @Transactional}: the assertions read the scope of the transaction the runner owns,
  * and a surrounding test transaction would make the runner join it instead.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @DisplayName("Platform bootstrap tenant scope (marking_definitions armed)")
 class InitAdminBootstrapScopeTest extends IntegrationTest {
 

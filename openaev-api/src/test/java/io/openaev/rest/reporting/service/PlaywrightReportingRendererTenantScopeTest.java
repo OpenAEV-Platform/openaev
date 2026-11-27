@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Pins that {@code reporting_generations} being tenant-active does not silently stop the render
@@ -33,7 +32,6 @@ import org.springframework.test.context.TestPropertySource;
  * already-active one. Rows are seeded and cleaned up with plain JDBC, following the established
  * pattern for background-primitive tests (see {@code SecurityCoverageTenantScopeTest}).
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=reporting_generations")
 @WithMockUser(isAdmin = true)
 @DisplayName("reporting_generations render lifecycle tenant scope")
 class PlaywrightReportingRendererTenantScopeTest extends IntegrationTest {

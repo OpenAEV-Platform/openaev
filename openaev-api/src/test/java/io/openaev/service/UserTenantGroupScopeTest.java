@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -49,6 +50,16 @@ class UserTenantGroupScopeTest extends ProductionTablesIntegrationTest {
   @PersistenceContext private EntityManager entityManager;
 
   @Test
+  @WaivesUnscopedReads(
+      value =
+          "the reload after the update runs in the empty scope of an operator of no tenant: the"
+              + " tags, teams and organizations of the user read nothing, and the tag replacement"
+              + " changes the links in scope only, so no link is written from them",
+      reads = {
+        "io.openaev.service.UserService.replaceTags tables=tags",
+        "io.openaev.service.UserService.loadStreamedAssociations tables=tags,teams",
+        "io.openaev.database.model.User.loadOrganizations tables=organizations"
+      })
   @DisplayName(
       "given_anOperatorWithNoTenantMembership_should_grantAttachedAndRevokeDetachedGroupsOnUpdate")
   void

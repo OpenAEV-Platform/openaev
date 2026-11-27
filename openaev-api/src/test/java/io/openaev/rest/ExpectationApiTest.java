@@ -1020,6 +1020,7 @@ class ExpectationApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("AI defense feed excludes endpoint parents with agent children")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void aiDefenseFeedExcludesParentsWithAgentChildren() throws Exception {
       // -- PREPARE --
       Collector llmCollector = createCollectorWithSecurityPlatform("LLM_FIREWALL");
@@ -1366,6 +1367,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_collector_not_awaited_should_not_receive_logging_leaves")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_collector_not_awaited_should_not_receive_logging_leaves() throws Exception {
       // Arrange
       setLoggingFlag(true);
@@ -1382,6 +1384,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_expired_logging_leaves_should_not_be_returned")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_expired_logging_leaves_should_not_be_returned() throws Exception {
       // Arrange
       setLoggingFlag(true);

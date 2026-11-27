@@ -16,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @Import({FailClosedDetectorTestConfig.class, WriteAttrDetectorTestConfig.class})
-@TestPropertySource(properties = "openaev.tenant.active-tables=mitigations")
 @WithMockUser(isAdmin = true)
 @DisplayName("Fail-closed and write-attribution detectors coexist in one JVM, each sees its signal")
 class DetectorCoexistenceTest extends IntegrationTest {

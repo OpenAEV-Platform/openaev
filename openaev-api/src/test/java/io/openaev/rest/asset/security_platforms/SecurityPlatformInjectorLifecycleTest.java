@@ -28,7 +28,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +51,6 @@ import org.springframework.transaction.annotation.Transactional;
 // resolved by the upsert. That isolation is v2 now, so the table has to be active in this context:
 // the test profile declares no active-tables, and without this the assertion rode on the v1 @Filter
 // the activation removed, then started resolving the foreign row.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
   private static final String INJECTOR_TYPE = "openaev_nuclei_lifecycle_test";

@@ -4,13 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.openaev.config.FailClosedAccessRecorder.Violation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * Unit test of the WS1 gate's decision logic (no Spring): a fail-closed read from a NEW production
@@ -20,7 +26,8 @@ import org.junit.jupiter.api.Test;
 class FailClosedGateExtensionTest {
 
   private static Violation from(String caller) {
-    return new Violation("collectors", caller, "select ... where can_access_tenant(c.tenant_id)");
+    return new Violation(
+        "collectors", caller, "main", "select ... where can_access_tenant(c.tenant_id)");
   }
 
   @Test
@@ -120,7 +127,8 @@ class FailClosedGateExtensionTest {
     private static final String TOKEN_LOAD = "io.openaev.service.UserService.findByToken";
 
     private Violation read(String tables, String caller) {
-      return new Violation(tables, caller, "select ... where can_access_tenant(r.tenant_id, true)");
+      return new Violation(
+          tables, caller, "main", "select ... where can_access_tenant(r.tenant_id, true)");
     }
 
     @Test
@@ -212,7 +220,8 @@ class FailClosedGateExtensionTest {
   class GroupsReads {
 
     private Violation read(String tables, String site) {
-      return new Violation(tables, site + ":1", "select ... where can_access_tenant(g.tenant_id)");
+      return new Violation(
+          tables, site + ":1", "main", "select ... where can_access_tenant(g.tenant_id)");
     }
 
     @Test
@@ -421,7 +430,7 @@ class FailClosedGateExtensionTest {
 
     private Violation read(String tables, String site) {
       return new Violation(
-          tables, site + ":1065", "select ... where can_access_tenant(r.tenant_id)");
+          tables, site + ":1065", "main", "select ... where can_access_tenant(r.tenant_id)");
     }
 
     @Test
@@ -472,6 +481,184 @@ class FailClosedGateExtensionTest {
 
       // Assert
       assertEquals(List.of(site), offending);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tests that expect an empty scope")
+  class ExpectedEmptyScope {
+
+    @ExpectsEmptyScopeReads("a caller of no tenant reads nothing")
+    class AnnotatedOuter {
+      class NotAnnotatedInner {}
+    }
+
+    class NotAnnotatedOuter {
+      @ExpectsEmptyScopeReads("a read with no scope")
+      void annotatedMethod() {}
+
+      void plainMethod() {}
+    }
+
+    private ExtensionContext contextOf(AnnotatedElement element, ExtensionContext parent) {
+      ExtensionContext context = mock(ExtensionContext.class);
+      when(context.getElement()).thenReturn(Optional.ofNullable(element));
+      when(context.getParent()).thenReturn(Optional.ofNullable(parent));
+      return context;
+    }
+
+    private Method method(Class<?> type, String name) throws NoSuchMethodException {
+      return type.getDeclaredMethod(name);
+    }
+
+    @Test
+    @DisplayName("given_anAnnotatedMethod_should_beExpected")
+    void given_anAnnotatedMethod_should_beExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(NotAnnotatedOuter.class, null);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "annotatedMethod"), outer);
+
+      // Act & Assert
+      assertTrue(FailClosedGateExtension.expectsEmptyScopeReads(test));
+    }
+
+    @Test
+    @DisplayName("given_aMethodOfAnAnnotatedClassNestedTwice_should_beExpected")
+    void given_aMethodOfAnAnnotatedClassNestedTwice_should_beExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(AnnotatedOuter.class, null);
+      ExtensionContext inner = contextOf(AnnotatedOuter.NotAnnotatedInner.class, outer);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "plainMethod"), inner);
+
+      // Act & Assert
+      assertTrue(FailClosedGateExtension.expectsEmptyScopeReads(test));
+    }
+
+    @Test
+    @DisplayName("given_aMethodWithNoAnnotationAnywhere_should_notBeExpected")
+    void given_aMethodWithNoAnnotationAnywhere_should_notBeExpected() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(NotAnnotatedOuter.class, null);
+      ExtensionContext test = contextOf(method(NotAnnotatedOuter.class, "plainMethod"), outer);
+
+      // Act & Assert
+      assertFalse(FailClosedGateExtension.expectsEmptyScopeReads(test));
+    }
+  }
+
+  @Nested
+  @DisplayName("Reads a test waives for itself")
+  class TestWaivedReads {
+
+    private static final String SITE = "io.openaev.service.UserService.nobodyWaivedThisLoad";
+
+    @WaivesUnscopedReads(
+        value = "a member of no tenant reads no tag",
+        reads = {SITE + " tables=tags"})
+    class WaivingOuter {
+      void plainMethod() {}
+    }
+
+    class PlainOuter {
+      void plainMethod() {}
+
+      @WaivesUnscopedReads(
+          value = "an entry that would waive the whole site",
+          reads = {SITE})
+      void waivesAWholeSite() {}
+
+      @WaivesUnscopedReads(
+          value = "an entry that names the qualifier and no table",
+          reads = {SITE + " tables= "})
+      void waivesNoNamedTable() {}
+    }
+
+    private Violation read(String tables, String site) {
+      return new Violation(
+          tables, site + ":1", "main", "select ... where can_access_tenant(t.tenant_id)");
+    }
+
+    private ExtensionContext contextOf(AnnotatedElement element, ExtensionContext parent) {
+      ExtensionContext context = mock(ExtensionContext.class);
+      when(context.getElement()).thenReturn(Optional.ofNullable(element));
+      when(context.getParent()).thenReturn(Optional.ofNullable(parent));
+      return context;
+    }
+
+    @Test
+    @DisplayName("given_aTestInsideAWaivingClass_should_waiveTheNamedReadOnly")
+    void given_aTestInsideAWaivingClass_should_waiveTheNamedReadOnly() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(WaivingOuter.class, null);
+      ExtensionContext test = contextOf(WaivingOuter.class.getDeclaredMethod("plainMethod"), outer);
+      Set<String> waived = FailClosedGateExtension.waivedReadsOf(test);
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("tags", SITE), read("teams", SITE), read("tags", SITE + "Elsewhere")),
+              waived);
+
+      // Assert: the named table at the named site only
+      assertEquals(List.of(SITE, SITE + "Elsewhere"), offending);
+    }
+
+    @Test
+    @DisplayName("given_aTestWithoutTheAnnotation_should_waiveNothing")
+    void given_aTestWithoutTheAnnotation_should_waiveNothing() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(PlainOuter.class, null);
+      ExtensionContext test = contextOf(PlainOuter.class.getDeclaredMethod("plainMethod"), outer);
+
+      // Act
+      List<String> offending =
+          FailClosedGateExtension.offendingSignatures(
+              List.of(read("tags", SITE)), FailClosedGateExtension.waivedReadsOf(test));
+
+      // Assert
+      assertEquals(List.of(SITE), offending);
+    }
+
+    @Test
+    @DisplayName("given_anEntryWithNoTable_should_beRefused")
+    void given_anEntryWithNoTable_should_beRefused() throws Exception {
+      // Arrange
+      ExtensionContext outer = contextOf(PlainOuter.class, null);
+      ExtensionContext wholeSite =
+          contextOf(PlainOuter.class.getDeclaredMethod("waivesAWholeSite"), outer);
+      ExtensionContext noTable =
+          contextOf(PlainOuter.class.getDeclaredMethod("waivesNoNamedTable"), outer);
+
+      // Act & Assert
+      assertThrows(
+          IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(wholeSite));
+      assertThrows(
+          IllegalArgumentException.class, () -> FailClosedGateExtension.waivedReadsOf(noTable));
+    }
+  }
+
+  @Nested
+  @DisplayName("the thread of each offending read")
+  class ThreadOfTheRead {
+
+    private static final String SITE = "io.openaev.service.ChannelService.validateArticles";
+    private static final String SQL = "select ... where can_access_tenant(c.tenant_id)";
+
+    @Test
+    @DisplayName("given_offendingReadsOnTwoThreads_should_nameEachThreadUnderItsSite")
+    void given_offendingReadsOnTwoThreads_should_nameEachThreadUnderItsSite() {
+      // Arrange: the same site read from a scheduler thread and twice from the test thread
+      List<Violation> reads =
+          List.of(
+              new Violation("channels", SITE + ":1", "scheduler_Worker-1", SQL),
+              new Violation("channels", SITE + ":2", "main", SQL),
+              new Violation("channels", SITE + ":1", "main", SQL));
+
+      // Act
+      String described = FailClosedGateExtension.describeOffendingReads(reads, Set.of());
+
+      // Assert
+      assertEquals(SITE + "\n    on thread main, scheduler_Worker-1", described);
     }
   }
 }

@@ -22,7 +22,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -30,7 +29,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * activated. The job must read the candidate registrations across tenants, update each tenant under
  * its own scoped transaction, then send the emails outside every transaction, one tenant at a time.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = true)
 @DisplayName("tenant_xtmhub_registrations background isolation")
 class XtmHubBackgroundIsolationTest extends IntegrationTest {

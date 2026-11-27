@@ -25,13 +25,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @CoversTenantIsolation("notifications")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=notifications")
 @WithMockUser(isAdmin = true)
 @DisplayName("notifications read and write isolation through the real HTTP endpoint")
 class NotificationHttpIsolationTest extends IntegrationTest {

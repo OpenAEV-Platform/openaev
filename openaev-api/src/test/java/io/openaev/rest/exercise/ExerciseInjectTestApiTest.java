@@ -308,7 +308,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when search a paginated inject test results")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void should_return_200_when_search_paginated_results() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
@@ -400,7 +400,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Deleting a test of another simulation returns 404 and keeps it")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_testOfAnotherSimulation_should_return404_when_deletingInjectTest() throws Exception {
       // Act
       mvc.perform(
@@ -418,7 +418,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Deleting a test of another simulation answers like an unknown test")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_testOfAnotherSimulation_should_answerLikeUnknownTest_when_deletingInjectTest()
         throws Exception {
       // Arrange

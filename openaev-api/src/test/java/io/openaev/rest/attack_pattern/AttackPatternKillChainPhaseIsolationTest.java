@@ -19,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +43,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("attack_patterns")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases,attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("kill_chain_phases isolation through the attack pattern association")
 class AttackPatternKillChainPhaseIsolationTest extends IntegrationTest {

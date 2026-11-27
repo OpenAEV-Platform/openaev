@@ -28,7 +28,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
  * next caller, not only for the one endpoint that happens to check today.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = true)
 @DisplayName("STIX bundle processing takes its tenant from the transaction scope")
 class StixServiceTenantSourceTest extends IntegrationTest {

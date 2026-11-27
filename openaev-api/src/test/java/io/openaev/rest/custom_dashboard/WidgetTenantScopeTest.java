@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -49,7 +49,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("widgets")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=widgets")
 @WithMockUser(isAdmin = true)
 @DisplayName("widgets read isolation under a tenant scope")
 class WidgetTenantScopeTest extends IntegrationTest {
@@ -112,6 +111,7 @@ class WidgetTenantScopeTest extends IntegrationTest {
               + " dashboard and no tenant, so the scope is the only thing hiding it");
     }
 
+    @ExpectsEmptyScopeReads("the lookup by id with no scope is the subject: it finds nothing")
     @Test
     @WithoutTenantScope
     @DisplayName("with no scope at all: even the caller's own widget fails closed")

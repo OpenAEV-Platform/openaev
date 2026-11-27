@@ -23,7 +23,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
  * arsenal entry) appeared for it.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("PayloadApi scopes the payload-supporting injector lookup to the caller's tenant")
 class PayloadApiTenantIsolationTest extends IntegrationTest {

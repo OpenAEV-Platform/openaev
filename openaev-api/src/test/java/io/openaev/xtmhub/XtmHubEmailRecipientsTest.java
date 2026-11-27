@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -114,7 +115,10 @@ class XtmHubEmailRecipientsTest extends ProductionTablesIntegrationTest {
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
-    registeredTenantIds.forEach(registrationRepository::deleteByTenantId);
+    registeredTenantIds.forEach(
+        id ->
+            tenantScopedTransaction.execute(
+                TxCtx.forTenant(id), () -> registrationRepository.deleteByTenantId(id)));
     // Plain JDBC: the entities hold each other eagerly, so a session delete trips on the other side
     groupIds.forEach(id -> jdbcTemplate.update("delete from users_groups where group_id = ?", id));
     groupIds.forEach(id -> jdbcTemplate.update("delete from groups_roles where group_id = ?", id));
@@ -388,18 +392,23 @@ class XtmHubEmailRecipientsTest extends ProductionTablesIntegrationTest {
             : tenantScopedTransaction.execute(
                 TxCtx.forTenant(tenantId), () -> roleRepository.save(toSave));
     roleIds.add(role.getId());
-    Group group = TenantGroupFixture.getGroup("xtmhub-group-" + UUID.randomUUID());
-    group.setTenant(tenant);
-    group.setRoles(new ArrayList<>(List.of(role)));
-    group.setUsers(new ArrayList<>(List.of(userRepository.findById(userId).orElseThrow())));
-    // Saving the group checks that the role exists, a read of the active roles table; a platform
-    // row (tenant == null) is written under a platform-write transaction
+    // The group takes its member from the same scoped transaction that saves it: the user's own
+    // group memberships are active rows too, read in the scope of the group's tenant.
+    Role savedRole = role;
+    TxCtx groupScope = TxCtx.forTenant(tenantId == null ? Tenant.DEFAULT_TENANT_UUID : tenantId);
+    Supplier<Group> saveGroup =
+        () -> {
+          Group group = TenantGroupFixture.getGroup("xtmhub-group-" + UUID.randomUUID());
+          group.setTenant(tenant);
+          group.setRoles(new ArrayList<>(List.of(savedRole)));
+          group.setUsers(new ArrayList<>(List.of(userRepository.findById(userId).orElseThrow())));
+          // Saving the group checks that the role exists, a read of the active roles table
+          return groupRepository.save(group);
+        };
     groupIds.add(
         (tenantId == null
-                ? tenantScopedTransaction.executeAsPlatformWrite(
-                    TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> groupRepository.save(group))
-                : tenantScopedTransaction.execute(
-                    TxCtx.forTenant(tenantId), () -> groupRepository.save(group)))
+                ? tenantScopedTransaction.executeAsPlatformWrite(groupScope, saveGroup)
+                : tenantScopedTransaction.execute(groupScope, saveGroup))
             .getId());
   }
 

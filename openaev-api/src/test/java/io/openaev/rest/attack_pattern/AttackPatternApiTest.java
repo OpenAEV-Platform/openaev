@@ -30,7 +30,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,6 @@ import org.springframework.web.client.RestTemplate;
 
 @Transactional
 @TestInstance(PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 public class AttackPatternApiTest extends IntegrationTest {
   @Autowired private Environment env;
 

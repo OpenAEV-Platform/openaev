@@ -53,7 +53,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -75,7 +74,6 @@ import org.springframework.transaction.annotation.Transactional;
  * get a single row.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,assets,domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("The injects import resolves unbundled step references in the tenant it writes into")
 class InjectImportStepReferenceScopeTest extends IntegrationTest {

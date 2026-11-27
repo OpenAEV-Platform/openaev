@@ -97,7 +97,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteTagRule_WITH_unexisting_id() throws Exception {
     mvc.perform(
             delete(TAG_RULE_URI + "/" + "randomid").accept(MediaType.APPLICATION_JSON).with(csrf()))
@@ -190,7 +190,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateTagRule_WITH_non_existing_tag() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -215,7 +215,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateTagRule_WITH_non_existing_id() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -240,7 +240,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateTagRule_WITH_non_existing_asset_group() throws Exception {
 
     String assetName1 = "assetGroupName1";

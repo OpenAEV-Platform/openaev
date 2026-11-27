@@ -22,7 +22,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Pins the tenant scope of the only background reader of {@code asset_groups}: the Elasticsearch
@@ -41,7 +40,6 @@ import org.springframework.test.context.TestPropertySource;
  * JdbcTemplate}.
  */
 @CoversTenantIsolation("asset_groups")
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_groups")
 @DisplayName("asset_groups background (ES indexing) tenant scope")
 class AssetGroupBackgroundIsolationTest extends IntegrationTest {
 

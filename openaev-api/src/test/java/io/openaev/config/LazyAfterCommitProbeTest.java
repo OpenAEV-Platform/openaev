@@ -37,7 +37,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,7 +55,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * LazyAfterCommitProbeMaskedTest} covers the transactional case, which is what most of the suite
  * runs.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,tags")
 @Import({LazyAfterCommitProbeTestConfig.class, LazyAfterCommitProbeTest.ProbeEndpointConfig.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Lazy-after-commit probe on committed data")
@@ -106,6 +104,8 @@ class LazyAfterCommitProbeTest extends IntegrationTest {
   }
 
   @Nested
+  @ExpectsEmptyScopeReads(
+      "a lazy collection serialised after the commit reads with no scope, which is the subject")
   @DisplayName("A lazy collection serialised after the commit")
   class SerialisedAfterCommit {
 
@@ -126,8 +126,8 @@ class LazyAfterCommitProbeTest extends IntegrationTest {
       mvc.perform(get(PROBE_CHALLENGE_URI, tenant, challengeId)).andExpect(status().isOk());
 
       // -- Assert --
-      assertThat(LazyAfterCommitRecorder.incidents()).hasSize(1);
-      Incident incident = LazyAfterCommitRecorder.incidents().getFirst();
+      assertThat(tagIncidents()).hasSize(1);
+      Incident incident = tagIncidents().getFirst();
       assertThat(incident.endpoint()).isEqualTo("GET " + PROBE_CHALLENGE_URI);
       assertThat(incident.handler()).isEqualTo("ProbeChallengeController.challenge");
       assertThat(incident.phase()).isEqualTo(Phase.SERIALIZATION);
@@ -248,6 +248,16 @@ class LazyAfterCommitProbeTest extends IntegrationTest {
     }
   }
 
+  /**
+   * The incidents on the tags. A challenge also lists its documents, a lazy collection of another
+   * active table that the same response serialises after the commit; the tags are the subject here.
+   */
+  static List<Incident> tagIncidents() {
+    return LazyAfterCommitRecorder.incidents().stream()
+        .filter(incident -> "Challenge.tags".equals(incident.association()))
+        .toList();
+  }
+
   private String seedChallenge() {
     String id = UUID.randomUUID().toString();
     jdbc.update(
@@ -307,6 +317,7 @@ class LazyAfterCommitProbeTest extends IntegrationTest {
       public Challenge readWithTags(TxCtx ctx, String challengeId) {
         Challenge challenge = challengeRepository.findById(challengeId).orElseThrow();
         Hibernate.initialize(challenge.getTags());
+        Hibernate.initialize(challenge.getDocuments());
         return challenge;
       }
     }

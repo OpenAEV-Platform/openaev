@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -59,7 +58,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * JdbcTemplate} so every read of the request is a statement the inspector rewrites, and removed on
  * teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,documents")
 @DisplayName("Anonymous player pages of a non-default tenant, challenges and documents active")
 class PlayerDocumentsAnonymousRouteTest extends IntegrationTest {
 

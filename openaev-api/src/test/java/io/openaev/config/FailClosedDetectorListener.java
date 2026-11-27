@@ -7,6 +7,8 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
@@ -38,6 +40,18 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   private static final boolean SUITE_WIDE =
       "on".equals(System.getProperty("openaev.failclosed.detector"));
   private static final int SQL_HINT_LENGTH = 600;
+
+  // The function-call form, so a hypothetical identifier merely containing the name does not match.
+  private static final Pattern GATE =
+      Pattern.compile("can_access_tenant\\(", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern PLATFORM_ONLY_GATE =
+      Pattern.compile(
+          "(?:\\(|\\bAND\\s+|\\bWHERE\\s+)\\s*([\\w.]+)\\s+IS\\s+NULL\\s*\\)*\\s*AND\\s+\\(*\\s*"
+              + "can_access_tenant\\(\\s*\\1\\s*,\\s*true\\s*\\)",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern ALTERNATIVE = Pattern.compile("\\bOR\\b", Pattern.CASE_INSENSITIVE);
 
   private static final String READ_SCOPE_SQL =
       "SELECT coalesce(current_setting('app.current_tenants', true), '')";
@@ -75,33 +89,142 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   public void afterQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
     for (QueryInfo queryInfo : queryInfoList) {
       String sql = queryInfo.getQuery();
-      if (sql == null || !isTenantGated(sql)) {
+      if (sql == null || !isFailClosedRead(sql)) {
         continue;
       }
       if (scopeIsEmpty(execInfo)) {
         Set<String> mentioned = oracle().mentioned(sql);
         String tables = mentioned.isEmpty() ? "(gated)" : String.join(",", mentioned);
         String caller = callerHint();
-        FailClosedAccessRecorder.record(tables, caller, sql);
+        String thread = Thread.currentThread().getName();
+        FailClosedAccessRecorder.record(tables, caller, thread, sql);
         if (SUITE_WIDE) {
-          System.out.println(MARKER + " tables=" + tables + " at=" + caller + " sql=" + hint(sql));
+          System.out.println(
+              MARKER
+                  + " tables="
+                  + tables
+                  + " at="
+                  + caller
+                  + " thread="
+                  + thread
+                  + " sql="
+                  + hint(sql));
         }
       }
     }
   }
 
   /**
-   * Only a statement the inspector rewrote with {@code can_access_tenant} can fail closed: that
-   * function returns false under an empty scope, so the gated read returns zero rows. Raw-JDBC and
-   * otherwise ungated statements are never rewritten, so an unscoped read there is not a
-   * fail-closed access - which is why matching the mere presence of an active-table name
-   * over-reports massively (bulk raw-JDBC seed writers, tenant-resolution bootstrap reads) while
-   * this precise signal does not.
+   * Only a gate that is false under an empty scope can fail closed. {@code can_access_tenant(x)}
+   * always is. {@code can_access_tenant(x, true)}, the dual-scope form, returns true for a platform
+   * row ({@code x IS NULL}) before it looks at the scope, so it is false only for a tenant row. A
+   * statement whose every gate is the dual-scope form AND-ed with {@code x IS NULL} on the same
+   * expression therefore reads platform rows only and is not a fail-closed read.
+   *
+   * <p>The shape is the one the inspector produces after a {@code tenant_id IS NULL} filter, read
+   * from the statement text: {@code x IS NULL} opened by {@code (}, {@code AND} or {@code WHERE},
+   * closed by {@code AND}, then the gate on the same {@code x}. The text alone does not say which
+   * operands an {@code AND} binds, so a match counts only when no {@code OR} sits at any
+   * parenthesis level between the predicate and the gate: {@code (y = ? OR z = ? AND x IS NULL) AND
+   * can_access_tenant(x, true)} reads tenant rows through {@code y = ?} and is flagged. {@code x IS
+   * NULL} inside an {@code OR}, or on another alias, does not qualify either. Raw-JDBC and
+   * otherwise ungated statements are never rewritten, so a statement with no gate is not flagged.
    */
-  private static boolean isTenantGated(String sql) {
-    // The function-call form, so a hypothetical identifier merely containing the name does not
-    // match.
-    return sql.toLowerCase(Locale.ROOT).contains("can_access_tenant(");
+  static boolean isFailClosedRead(String sql) {
+    int gates = count(GATE, sql);
+    return gates > 0 && gates > countPlatformOnlyGates(sql);
+  }
+
+  private static int countPlatformOnlyGates(String sql) {
+    int[] depth = parenthesisDepths(sql);
+    Matcher matcher = PLATFORM_ONLY_GATE.matcher(sql);
+    int found = 0;
+    while (matcher.find()) {
+      int gate = sql.toLowerCase(Locale.ROOT).lastIndexOf("can_access_tenant(", matcher.end());
+      if (noAlternativeBetween(sql, depth, matcher.start(1), gate)) {
+        found++;
+      }
+    }
+    return found;
+  }
+
+  /**
+   * Whether no {@code OR} sits at a parenthesis level that groups the predicate at {@code from} or
+   * the gate at {@code to} with anything, up to the level where the two meet. Each such level is
+   * the text of one enclosing pair of parentheses (the whole statement for level 0), and an {@code
+   * OR} among its own top-level tokens means the {@code AND} between the two does not bind them as
+   * a filter of every row.
+   */
+  private static boolean noAlternativeBetween(String sql, int[] depth, int from, int to) {
+    int meet = Integer.MAX_VALUE;
+    for (int i = from; i <= to; i++) {
+      if (depth[i] >= 0) {
+        meet = Math.min(meet, depth[i]);
+      }
+    }
+    for (int position : new int[] {from, to}) {
+      for (int level = depth[position]; level >= meet; level--) {
+        if (hasAlternativeAtLevel(sql, depth, position, level)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private static boolean hasAlternativeAtLevel(String sql, int[] depth, int position, int level) {
+    int start = position;
+    while (level > 0
+        && start > 0
+        && !(depth[start - 1] == level - 1 && sql.charAt(start - 1) == '(')) {
+      start--;
+    }
+    if (level == 0) {
+      start = 0;
+    }
+    int end = position;
+    while (end < sql.length() && !(depth[end] == level && sql.charAt(end) == ')')) {
+      end++;
+    }
+    Matcher or = ALTERNATIVE.matcher(sql).region(start, end);
+    while (or.find()) {
+      if (depth[or.start()] == level) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The parenthesis depth before each character, with the inside of a quoted literal held at the
+   * depth of its opening quote and marked {@code -1} so no token inside it is read as SQL.
+   */
+  private static int[] parenthesisDepths(String sql) {
+    int[] depth = new int[sql.length() + 1];
+    int current = 0;
+    boolean quoted = false;
+    for (int i = 0; i < sql.length(); i++) {
+      char c = sql.charAt(i);
+      depth[i] = quoted ? -1 : current;
+      if (c == '\'') {
+        quoted = !quoted;
+      } else if (!quoted && c == '(') {
+        current++;
+      } else if (!quoted && c == ')') {
+        current--;
+      }
+    }
+    depth[sql.length()] = current;
+    return depth;
+  }
+
+  private static int count(Pattern pattern, String sql) {
+    Matcher matcher = pattern.matcher(sql);
+    int found = 0;
+    while (matcher.find()) {
+      found++;
+    }
+    return found;
   }
 
   /**
@@ -129,13 +252,22 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
   }
 
   /**
-   * First application frame that is not this detector, to locate the unscoped call site for triage.
+   * Whether the frame only forwards to the code that asked for the read. The lazy-collection
+   * tracker wraps every collection initialisation, so blaming it would hide the caller beneath it.
+   */
+  static boolean isForwardingFrame(String className) {
+    return className.equals(FailClosedDetectorListener.class.getName())
+        || className.startsWith(LazyCollectionInitTracker.class.getName());
+  }
+
+  /**
+   * First application frame that is not this detector or a forwarding frame, to locate the unscoped
+   * call site for triage.
    */
   private static String callerHint() {
     for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
       String className = frame.getClassName();
-      if (className.startsWith("io.openaev.")
-          && !className.equals(FailClosedDetectorListener.class.getName())) {
+      if (className.startsWith("io.openaev.") && !isForwardingFrame(className)) {
         return frame.getClassName() + "." + frame.getMethodName() + ":" + frame.getLineNumber();
       }
     }

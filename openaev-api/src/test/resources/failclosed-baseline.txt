@@ -11,6 +11,23 @@
 #
 # Lines starting with # and blank lines are ignored.
 
+# BENIGN - groups and marking_definitions, the loads that run before a request scope exists. The
+# groups block and the markings block below give the reasoning for the other sites of the same
+# kind, and these four read the groups or the markings of the user the same way: with no scope the
+# platform groups of the user load and its tenant groups do not.
+# - findByTokenAndTenantId: the connector token filter, the sibling of findByToken. The principal it
+#   builds holds the id, the admin flag and the language only, and the capabilities are read later
+#   by the request's own user load, in its scope (OpenCTIJwtAuthenticationTest).
+# - UserApi.login and UserService.user: the password login before the tenant is chosen, and the
+#   by-id user read, as for roles above (UserLoadUnscopedMarkingsTest, UserLoadUnscopedGroupsTest).
+# - PlatformGroupService.findById: the platform group endpoints run in the scope of their caller,
+#   empty for an operator of no tenant. The group output carries no marking, and the markings of a
+#   platform group are never written from this load (GroupPrivilegeCheckHiddenRolesTest).
+io.openaev.service.UserService.findByTokenAndTenantId tables=groups
+io.openaev.rest.user.UserApi.login tables=groups
+io.openaev.service.UserService.user tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.findById tables=marking_definitions
+
 # SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
 # bundles and consumes each one under TxCtx.forTenant of its simulation's tenant; a test that calls
 # these methods directly reads with no scope.
@@ -86,14 +103,12 @@ io.openaev.rest.injector_contract.InjectorContractService.createDependencyForTen
 # the test itself is about (DomainApiTest, ChallengeDocumentsBulkLoadTest, ...).
 io.openaev.service.InjectorService.createNewBuiltinInjector
 
-# BENIGN - roles activation (#9147). The token and login loads read the user with no scope: a token
-# request before any transaction (PlainTokenExtractor), and the admin session the tests open
-# (createAdminSession has no production caller). The roles of the user's groups come back without
-# its tenant roles, and the principal these loads build holds the id, the admin flag and the
+# BENIGN - roles activation (#9147). The token load reads the user with no scope: a token request
+# before any transaction (PlainTokenExtractor). The roles of the user's groups come back without
+# its tenant roles, and the principal this load builds holds the id, the admin flag and the
 # language only: no capability is evaluated from them. The capabilities are read later, by the
 # request's own user load in its scope. Waived for roles only.
 io.openaev.service.UserService.findByToken tables=roles,groups
-io.openaev.service.UserService.createAdminSession tables=roles,groups
 
 # BENIGN - roles and marking_definitions activation. The user load of the access check
 # (UserService.findWithRoles, from currentUser, currentUserOrNull and userWithRoles) reads the roles
@@ -189,3 +204,29 @@ io.openaev.service.UserService.findByToken tables=marking_definitions
 io.openaev.service.UserService.resetPassword tables=marking_definitions
 io.openaev.service.UserService.sendPasswordResetEmail tables=marking_definitions
 io.openaev.service.UserService.user tables=marking_definitions
+
+# BENIGN - the threat arsenal bulk delete is the one THREAT_ARSENAL endpoint with
+# Propagation.SUPPORTS, so its access check runs with no transaction to carry a scope. The check
+# names no resource there (the ids come from the request body), so this lookup is for an empty
+# contract id and finds nothing in any scope; a refusal for a missing right is the same with or
+# without the scope (ThreatArsenalBulkDeleteEligibilityTenantTest). Every other THREAT_ARSENAL
+# endpoint is transactional with a TxCtx, so its check reads inside the request scope.
+io.openaev.service.GrantService.threatArsenalGrantResources tables=injectors_contracts
+
+# DENY-ALL BY DESIGN - by-id reads of a simulation, a scenario or an inject under an empty scope.
+# A caller with no membership and no selector, an anonymous player on a route that names no tenant
+# (TxCtx.missing()) and an agent token of no tenant reach these reads with an empty scope on purpose:
+# the row is not found and the endpoint answers 404 or 403, which is the isolation the tests below
+# pin (ByIdRequestScopeTest, ByIdRequestScopeArmedTest, the Chained*WorkflowFollowsItsTenantTest
+# classes, the Player*AnonymousRouteTest classes, PlayerUrlTokenRoutesTenantPathTest,
+# SimulationChallengeApiPlayerLegacyRouteTest, InjectImplantTenantScopeTest). A caller that belongs
+# to a tenant has it in scope, so the same reads return its rows. Waived for the tables each read
+# names only.
+io.openaev.rest.exercise.service.ExerciseService.findInScope tables=exercises
+io.openaev.rest.exercise.service.ExerciseService.findByIdInScope tables=exercises,scenarios,security_coverages
+io.openaev.service.scenario.ScenarioService.findInScope tables=scenarios
+io.openaev.rest.inject.service.InjectService.requireInScopeForAgent tables=injects
+io.openaev.rest.inject.service.InjectService.doFindInScope tables=collector_types,documents,exercises,injectors_contracts,injects,payload_identities,payload_revocations,payloads,scenarios,security_coverages
+# The user of a url access token is loaded with its groups before the simulation is looked up, so
+# the empty scope of a route that names no tenant reaches the groups read as well.
+io.openaev.rest.helper.RestBehavior.impersonateUser tables=groups

@@ -43,13 +43,11 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @CoversTenantIsolation("security_coverages")
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = true)
 @DisplayName("security_coverages v2 tenant scope")
 class SecurityCoverageTenantScopeTest extends IntegrationTest {
@@ -241,10 +239,8 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
     // ExpectationApi#deleteInjectExpectationResult, ChallengeApi#tryChallenge,
     // SimulationChallengeApi#validateChallenge and InjectApi#injectExecutionCallback all cascade
     // into InjectExpectationService's updateLeavesThenRecomputeParents, which calls this exact
-    // service method. Proving the gate
-    // is scope-dependent here demonstrates why those four entrypoints needed TxCtx: without a
-    // scope, exercise.getSecurityCoverage() reads as if the coverage did not exist, and the send
-    // job is silently never created (fail-closed, not an error).
+    // service method. Each of those entrypoints carries a TxCtx: without a scope the simulation
+    // and its coverage are not read, so the gate sees nothing to send and no job is created.
     @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
     @Autowired private PlatformTransactionManager transactionManager;
 
@@ -278,7 +274,7 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given no scope should not see the linked coverage and silently skip the send job")
+    @DisplayName("given no scope should read no simulation and silently skip the send job")
     void given_noScope_should_notSeeLinkedCoverageAndSkipSendJob() throws Exception {
       // Arrange
       tenantA = tenantHelper.createTenantWithCurrentUser("sec-cov-gate-noscope-tenant").getId();
@@ -287,24 +283,28 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
       Exercise exercise = createFinishedExerciseForTenant(tenantA, coverage);
 
       // Act: a raw TransactionTemplate opens a transaction with no TxCtx argument at all, so
-      // TenantScopeTransactionAspect stays inert and app.current_tenants is left empty - exactly
-      // the state a @Transactional entrypoint without a TxCtx parameter would leave the read in
-      // (the pre-fix state of ExpectationApi/ChallengeApi/SimulationChallengeApi/InjectApi).
-      new TransactionTemplate(transactionManager)
-          .executeWithoutResult(
-              status -> {
-                Exercise scoped = exerciseRepository.findById(exercise.getId()).orElseThrow();
-                securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
-                    List.of(scoped));
-              });
+      // TenantScopeTransactionAspect stays inert and app.current_tenants is left empty, the state
+      // a @Transactional entrypoint without a TxCtx parameter leaves the read in. The lookup and
+      // the gate run in the order the entrypoints chain them.
+      List<Exercise> read =
+          new TransactionTemplate(transactionManager)
+              .execute(
+                  status -> {
+                    List<Exercise> found =
+                        exerciseRepository.findById(exercise.getId()).stream().toList();
+                    securityCoverageSendJobService
+                        .createOrUpdateCoverageSendJobForSimulationsIfReady(found);
+                    return found;
+                  });
 
-      // Assert
+      // Assert: the simulation and its coverage are not read, nothing fails, no job is created
+      assertThat(read).isEmpty();
       Long jobCount =
           jdbcTemplate.queryForObject(
               "SELECT count(*) FROM security_coverage_send_job WHERE security_coverage_send_job_simulation = ?",
               Long.class,
               exercise.getId());
-      assertThat(jobCount).isEqualTo(0L);
+      assertThat(jobCount).isZero();
     }
   }
 

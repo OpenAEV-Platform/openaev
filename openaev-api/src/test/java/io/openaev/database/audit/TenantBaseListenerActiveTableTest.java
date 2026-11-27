@@ -10,7 +10,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -20,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
  * inactive: on an active table the listener is removed from the entity altogether, so the rule
  * would have nothing to fire on.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=injects")
 @Transactional
 class TenantBaseListenerActiveTableTest extends IntegrationTest {
 

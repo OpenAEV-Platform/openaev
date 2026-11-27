@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -16,6 +18,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.WithoutTenantScope;
@@ -65,6 +68,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private UserRepository userRepository;
   @Autowired private TenantMembershipCacheManager membershipCache;
   @Autowired private JdbcTemplate jdbc;
@@ -76,7 +80,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
 
   @BeforeAll
   void seed() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantA = tenantHelper.createTenant("user-load-groups").getId();
     } finally {
@@ -140,6 +144,7 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
   @DisplayName("the load the callers run with no scope")
   class UnscopedLoad {
 
+    @ExpectsEmptyScopeReads("the unscoped load is the subject: only the platform group is loaded")
     @Test
     @DisplayName("given_noScope_should_loadThePlatformGroupOfTheUserAndNotItsTenantGroup")
     void given_noScope_should_loadThePlatformGroupOfTheUserAndNotItsTenantGroup() {
@@ -198,6 +203,18 @@ class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
     }
 
     @Test
+    @WaivesUnscopedReads(
+        value =
+            "an operator of no tenant updates the profile with an empty scope: the reload of the"
+                + " user reads none of its tags, teams and organizations, nor its tenant group in the"
+                + " tag replacement, and the test asserts that the tenant group stays linked",
+        reads = {
+          "io.openaev.service.UserService.replaceTags tables=groups,tags",
+          "io.openaev.service.UserService.loadStreamedAssociations tables=tags,teams",
+          "io.openaev.database.model.User.loadOrganizations tables=organizations",
+          "io.openaev.database.model.User.organizationOfTenant tables=organizations",
+          "io.openaev.helper.MultiIdListSerializer.serialize tables=teams"
+        })
     @DisplayName("given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges")
     void given_anOperatorOfNoTenant_should_keepTheTenantGroupWhenOnlyTheProfileChanges() {
       // Arrange: the user stays in its tenant, so no group is attached or detached

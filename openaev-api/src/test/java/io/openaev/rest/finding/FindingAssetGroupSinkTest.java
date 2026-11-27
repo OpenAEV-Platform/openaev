@@ -17,6 +17,7 @@ import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -48,7 +48,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * the request's own transaction has closed, which means committing the seed and sweeping it by
  * hand.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,asset_groups,assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("a finding still carries its inject's asset groups when serialized")
 class FindingAssetGroupSinkTest extends IntegrationTest {
@@ -56,6 +55,7 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private FindingOccurrenceService findingOccurrenceService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private EntityManager entityManager;
 
   @Autowired private javax.sql.DataSource dataSource;
@@ -136,11 +136,16 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setInject(inject);
               finding.setTenant(new Tenant(tenantId));
               entityManager.persist(finding);
-              findingOccurrenceService.recordOccurrences(
-                  inject,
-                  FindingOccurrenceService.occurrenceDate(inject),
-                  List.of(finding),
-                  Map.of(finding.getId(), finding.getField()));
+              // The occurrence write reads the injects table: it runs in its tenant's scope, as it
+              // does in the execution that produces a finding.
+              rowTenantScope.write(
+                  tenantId,
+                  () ->
+                      findingOccurrenceService.recordOccurrences(
+                          inject,
+                          FindingOccurrenceService.occurrenceDate(inject),
+                          List.of(finding),
+                          Map.of(finding.getId(), finding.getField())));
               findingId = finding.getId();
               entityManager.flush();
 

@@ -32,7 +32,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Pins how {@link WorkflowEndService#deleteAllAssetAgentJobsBySimulationIds} stays correctly scoped
@@ -61,7 +60,6 @@ import org.springframework.test.context.TestPropertySource;
  * uses the ordinary composers, exactly like {@code IntegrationTest}'s own base setup; cleanup goes
  * through an auto-committing {@link JdbcTemplate}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_agent_jobs")
 @WithMockUser(isAdmin = true)
 @DisplayName("asset_agent_jobs deletion (WorkflowEndService) tenant scope")
 class AssetAgentJobDeletionScopeTest extends IntegrationTest {
@@ -97,31 +95,47 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
 
     TenantContext.setCurrentTenant(tenantId);
     try {
+      // Each fixture is committed in the scope of the tenant that owns it, so the next one reads
+      // it.
+      TxCtx scope = TxCtx.forTenant(tenantId);
       Exercise simulation =
-          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+          tenantTx.execute(
+              scope,
+              () ->
+                  exerciseComposer
+                      .forExercise(ExerciseFixture.createDefaultExercise())
+                      .persist()
+                      .get());
       simulationId = simulation.getId();
       Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withExercise(exerciseComposer.forExercise(simulation))
-              .persist()
-              .get();
+          tenantTx.execute(
+              scope,
+              () ->
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withExercise(exerciseComposer.forExercise(simulation))
+                      .persist()
+                      .get());
       Endpoint endpoint =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+          tenantTx.execute(
+              scope,
+              () -> endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get());
       agentExternalReference = "scope-test-" + UUID.randomUUID();
       Agent agent =
-          agentComposer
-              .forAgent(AgentFixture.createAgent(endpoint, agentExternalReference))
-              .persist()
-              .get();
-
+          tenantTx.execute(
+              scope,
+              () ->
+                  agentComposer
+                      .forAgent(AgentFixture.createAgent(endpoint, agentExternalReference))
+                      .persist()
+                      .get());
       AssetAgentJob job = new AssetAgentJob();
       job.setCommand("whoami");
       job.setAgent(agent);
       job.setInject(inject);
       job.setTenant(simulation.getTenant());
       job.setCreatedAt(Instant.now());
-      assetAgentJobId = assetAgentJobRepository.save(job).getId();
+      assetAgentJobId = tenantTx.execute(scope, () -> assetAgentJobRepository.save(job)).getId();
     } finally {
       TenantContext.clearCurrentTenant();
     }

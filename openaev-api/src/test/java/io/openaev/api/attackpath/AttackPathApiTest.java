@@ -87,6 +87,7 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /endpoint/findings?ref= resolves and returns the expand shape")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void expand_endpoint_route_resolves() throws Exception {
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/endpoint/findings")
@@ -98,6 +99,7 @@ class AttackPathApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("GET /endpoint/relations?ref= resolves and returns the relations shape")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void relations_endpoint_route_resolves() throws Exception {
     mvc.perform(
             get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + SIM + "/endpoint/relations")

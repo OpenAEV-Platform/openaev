@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import static io.openaev.config.LazyAfterCommitProbeTest.PROBE_CHALLENGE_URI;
+import static io.openaev.config.LazyAfterCommitProbeTest.tagIncidents;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.hasSize;
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
  * runs it with.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,tags")
 @Import({LazyAfterCommitProbeTestConfig.class, LazyAfterCommitProbeTest.ProbeEndpointConfig.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Lazy-after-commit probe under a test transaction")
@@ -97,8 +96,8 @@ class LazyAfterCommitProbeMaskedTest extends IntegrationTest {
       mvc.perform(get(PROBE_CHALLENGE_URI, tenant, challengeId)).andExpect(status().isOk());
 
       // -- Assert --
-      assertThat(LazyAfterCommitRecorder.incidents()).hasSize(1);
-      Incident incident = LazyAfterCommitRecorder.incidents().getFirst();
+      assertThat(tagIncidents()).hasSize(1);
+      Incident incident = tagIncidents().getFirst();
       assertThat(incident.endpoint()).isEqualTo("GET " + PROBE_CHALLENGE_URI);
       assertThat(incident.association()).isEqualTo("Challenge.tags");
       assertThat(incident.transactionActive()).isTrue();
@@ -124,7 +123,7 @@ class LazyAfterCommitProbeMaskedTest extends IntegrationTest {
       mvc.perform(get(PROBE_CHALLENGE_URI, tenant, challengeId)).andExpect(status().isOk());
 
       // -- Assert --
-      assertThat(LazyAfterCommitRecorder.incidents())
+      assertThat(tagIncidents())
           .extracting(Incident::association, Incident::verdict)
           .containsExactly(tuple("Challenge.tags", Verdict.CONFIRMED_REPLAYED));
     }

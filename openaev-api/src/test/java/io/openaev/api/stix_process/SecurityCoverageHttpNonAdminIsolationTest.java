@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -46,7 +45,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * Non-admin counterpart of SecurityCoverageHttpIsolationTest under security_coverages v2
  * activation.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = false)
 @DisplayName("security_coverages isolation through STIX HTTP endpoint for non-admin")
 class SecurityCoverageHttpNonAdminIsolationTest extends IntegrationTest {

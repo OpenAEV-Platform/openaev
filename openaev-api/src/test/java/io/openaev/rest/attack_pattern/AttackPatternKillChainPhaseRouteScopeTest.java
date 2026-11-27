@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
  * phase tenant and the pattern tenant keeps it out.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("attack pattern reads return the kill chain phases of the pattern's own tenant")
 class AttackPatternKillChainPhaseRouteScopeTest extends IntegrationTest {

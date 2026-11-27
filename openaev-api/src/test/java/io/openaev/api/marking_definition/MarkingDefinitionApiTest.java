@@ -56,14 +56,12 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @DisplayName("Marking definition API")
 class MarkingDefinitionApiTest extends IntegrationTest {
 

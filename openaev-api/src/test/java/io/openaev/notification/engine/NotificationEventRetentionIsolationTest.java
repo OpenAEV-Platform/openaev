@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The outbox purge is a bulk {@code DELETE ... WHERE created_at < ?} spanning every tenant, run
@@ -27,8 +26,6 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Not {@code @Transactional}: the scoped primitive refuses to open inside an active transaction
  * and the production path has none. Seeding auto-commits through {@link JdbcTemplate} and is swept.
  */
-@TestPropertySource(
-    properties = "openaev.tenant.active-tables=notification_triggers,notification_events")
 @WithMockUser(isAdmin = true)
 @DisplayName("the notification outbox purge deletes old rows in every tenant")
 class NotificationEventRetentionIsolationTest extends IntegrationTest {

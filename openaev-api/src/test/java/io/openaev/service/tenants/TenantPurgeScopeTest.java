@@ -22,7 +22,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -60,7 +59,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>NOT {@code @Transactional}: the purge opens one transaction per tenant, and a surrounding test
  * transaction would also keep the tenant rows it deletes alive for the assertions.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @Import(TenantPurgeScopeTest.ScopeProbeConfiguration.class)
 @DisplayName("Tenant purge tenant scope (marking_definitions armed)")
 class TenantPurgeScopeTest extends IntegrationTest {

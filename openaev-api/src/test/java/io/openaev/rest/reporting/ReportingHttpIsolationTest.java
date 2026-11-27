@@ -24,7 +24,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("reportings")
 @Transactional
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=reportings,reporting_generations,reporting_schedules")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "reportings, reporting_generations and reporting_schedules isolation through the real HTTP"

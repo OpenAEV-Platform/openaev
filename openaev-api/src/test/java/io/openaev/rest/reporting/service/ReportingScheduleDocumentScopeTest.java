@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -48,7 +48,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * boundary is explicit), so seeding and cleanup run in auto-committed JDBC / a committed {@code
  * TransactionTemplate}, mirroring {@code TenantScopedTransactionIntegrationTest}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("Reporting schedule delivery reads the produced document under the schedule tenant")
 class ReportingScheduleDocumentScopeTest extends IntegrationTest {
 
@@ -99,8 +98,9 @@ class ReportingScheduleDocumentScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("without a v2 scope the same query fail-closes the document, not the generation")
-    void given_noPrimitiveScope_should_failCloseTheDocumentJoinButKeepTheGeneration() {
+    @ExpectsEmptyScopeReads("the poll with no scope is the subject: it finds neither row")
+    @DisplayName("without a v2 scope the same query finds neither the generation nor its document")
+    void given_noPrimitiveScope_should_failCloseTheGenerationAndItsDocument() {
       // -- Act -- the identical query in a scope-less transaction (v1 TenantContext only)
       ReportingGeneration unscoped =
           rawTransaction()
@@ -116,14 +116,9 @@ class ReportingScheduleDocumentScopeTest extends IntegrationTest {
                     }
                   });
 
-      // -- Assert -- reporting_generations is still v1, so the generation is found; documents is
-      // active, so its JOIN FETCH fail-closes and the delivery would see no document. This is the
-      // exact state the primitive scope fixes.
-      assertNotNull(
-          unscoped, "reporting_generations stays v1: the generation itself is still read");
-      assertNull(
-          unscoped.getDocument(),
-          "documents is active: with no v2 scope the JOIN FETCH fail-closes to a null document");
+      // -- Assert -- reporting_generations and documents are both active: with no v2 scope the
+      // query fail-closes, which is the state the primitive scope fixes.
+      assertNull(unscoped, "with no v2 scope the generation is not read, so no document either");
     }
   }
 

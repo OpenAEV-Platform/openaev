@@ -12,10 +12,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -131,7 +136,7 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
           FAILURE_MARKER
               + " a tenant_id outside the request or job scope "
               + "(a wrong-tenant write, or a null tenant on a strict table):\n  "
-              + String.join("\n  ", offending)
+              + describeOffendingWrites(violations, WAIVED)
               + "\n"
               + ATTRIBUTE_MARKER
               + " from the request's write scope (an HTTP TxCtx selector, or the "
@@ -165,12 +170,32 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
    * method is called. See {@link #emptyScopeSignatures} for its own, separate channel.
    */
   private static List<String> keyed(Collection<Violation> violations) {
+    return keyedWrites(violations).map(WriteAttrGateExtension::signatureOf).distinct().toList();
+  }
+
+  /**
+   * The offending signatures of the failure message, each followed by the threads that made its
+   * writes, so a write from a scheduler, consumer or indexing thread shows as such.
+   */
+  static String describeOffendingWrites(Collection<Violation> violations, Set<String> waived) {
+    Map<String, Set<String>> threads = new LinkedHashMap<>();
+    keyedWrites(violations)
+        .filter(v -> !waived.contains(signatureOf(v)))
+        .forEach(
+            v -> threads.computeIfAbsent(signatureOf(v), s -> new TreeSet<>()).add(v.thread()));
+    return threads.entrySet().stream()
+        .map(e -> e.getKey() + "\n    on thread " + String.join(", ", e.getValue()))
+        .collect(Collectors.joining("\n  "));
+  }
+
+  private static Stream<Violation> keyedWrites(Collection<Violation> violations) {
     return violations.stream()
         .filter(v -> v.entryFrame() != null)
-        .filter(v -> !v.scope().isEmpty())
-        .map(v -> WriteAttrSignature.of(v.table(), v.relation(), v.entryFrame()))
-        .distinct()
-        .toList();
+        .filter(v -> !v.scope().isEmpty());
+  }
+
+  private static String signatureOf(Violation violation) {
+    return WriteAttrSignature.of(violation.table(), violation.relation(), violation.entryFrame());
   }
 
   /**

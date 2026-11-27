@@ -35,7 +35,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -65,8 +64,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * attack-path tables are not tenant-filtered here. A test whose premise depends on one of them
  * being isolated must not assume it.
  */
-@TestPropertySource(
-    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")
 class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
@@ -197,7 +194,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenant.getId());
     Inject persistedInject = InjectFixture.getDefaultInject();
     persistedInject.setTenant(tenant);
-    persistedInject = injectRepository.save(persistedInject);
+    persistedInject = saved(injectRepository, persistedInject);
     VulnerabilityInjectExpectation vulnerability =
         InjectExpectationFixture.createVulnerabilityInjectExpectation(
             persistedInject, target.agent());
@@ -209,7 +206,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setDate(Instant.parse("2026-07-29T10:00:00Z"));
     vulnerability.setResults(List.of(result));
     VulnerabilityInjectExpectation savedExpectation =
-        injectExpectationRepository.save(vulnerability);
+        saved(injectExpectationRepository, vulnerability);
     TenantContext.clearCurrentTenant();
 
     // Act
@@ -247,10 +244,10 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
     platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
-    platform = securityPlatformRepository.save(platform);
+    platform = saved(securityPlatformRepository, platform);
     Inject persistedInject = InjectFixture.getDefaultInject();
     persistedInject.setTenant(tenant);
-    persistedInject = injectRepository.save(persistedInject);
+    persistedInject = saved(injectRepository, persistedInject);
 
     PreventionInjectExpectation prevention =
         InjectExpectationFixture.createPreventionInjectExpectation(persistedInject, target.agent());
@@ -261,7 +258,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setResult("Prevented");
     result.setDate(Instant.parse("2026-07-31T10:00:00Z"));
     prevention.setResults(List.of(result));
-    PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
+    PreventionInjectExpectation savedExpectation = saved(injectExpectationRepository, prevention);
 
     InjectExpectationTrace trace = new InjectExpectationTrace();
     trace.setInjectExpectation(savedExpectation);
@@ -269,7 +266,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     trace.setAlertName("Trace Alert A");
     trace.setAlertLink("https://security.microsoft.com/alerts/trace-a");
     trace.setAlertDate(java.time.Instant.parse("2026-07-31T10:00:00Z"));
-    injectExpectationTraceRepository.save(trace);
+    saved(injectExpectationTraceRepository, trace);
     TenantContext.clearCurrentTenant();
 
     // Act
@@ -321,10 +318,10 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
     platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
-    platform = securityPlatformRepository.save(platform);
+    platform = saved(securityPlatformRepository, platform);
     Inject persistedInject = InjectFixture.getDefaultInject();
     persistedInject.setTenant(tenant);
-    persistedInject = injectRepository.save(persistedInject);
+    persistedInject = saved(injectRepository, persistedInject);
 
     PreventionInjectExpectation prevention =
         InjectExpectationFixture.createPreventionInjectExpectation(persistedInject, target.agent());
@@ -335,7 +332,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setResult("Prevented");
     result.setDate(Instant.parse("2026-08-01T11:00:00Z"));
     prevention.setResults(List.of(result));
-    PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
+    PreventionInjectExpectation savedExpectation = saved(injectExpectationRepository, prevention);
 
     InjectExpectationTrace trace = new InjectExpectationTrace();
     trace.setInjectExpectation(savedExpectation);
@@ -343,7 +340,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     trace.setAlertName("External reference alert");
     trace.setAlertLink("https://security.microsoft.com/alerts/ext-ref");
     trace.setAlertDate(java.time.Instant.parse("2026-08-01T11:00:00Z"));
-    injectExpectationTraceRepository.save(trace);
+    saved(injectExpectationTraceRepository, trace);
     TenantContext.clearCurrentTenant();
 
     // Act
@@ -393,18 +390,22 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     // Persist a group with one member endpoint (agent-backed), under the tenant, committed so the
     // run's readOnly resolution sees it.
     TenantContext.setCurrentTenant(tenant.getId());
-    AssetGroupComposer.Composer groupComposer =
-        assetGroupComposer
-            .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("ap-grp"))
-            .withAsset(
-                endpointComposer
-                    .forEndpoint(EndpointFixture.createEndpoint())
-                    .withAgent(
-                        agentComposer.forAgent(
-                            AgentFixture.createDefaultAgentSession(
-                                executorFixture.getDefaultExecutor(tenant.getId())))));
-    groupComposer.persist();
-    AssetGroup group = groupComposer.get();
+    AssetGroup group =
+        inTenant(
+            () -> {
+              AssetGroupComposer.Composer groupComposer =
+                  assetGroupComposer
+                      .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("ap-grp"))
+                      .withAsset(
+                          endpointComposer
+                              .forEndpoint(EndpointFixture.createEndpoint())
+                              .withAgent(
+                                  agentComposer.forAgent(
+                                      AgentFixture.createDefaultAgentSession(
+                                          executorFixture.getDefaultExecutor(tenant.getId())))));
+              groupComposer.persist();
+              return groupComposer.get();
+            });
     TenantContext.clearCurrentTenant();
 
     Inject inject = new Inject();
@@ -484,19 +485,23 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   void proxiedDirectAssetIsNotDropped() {
     TenantContext.setCurrentTenant(tenant.getId());
     io.openaev.database.model.Endpoint persisted =
-        endpointComposer
-            .forEndpoint(EndpointFixture.createEndpoint())
-            .withAgent(
-                agentComposer.forAgent(
-                    AgentFixture.createDefaultAgentSession(
-                        executorFixture.getDefaultExecutor(tenant.getId()))))
-            .persist()
-            .get();
+        inTenant(
+            () ->
+                endpointComposer
+                    .forEndpoint(EndpointFixture.createEndpoint())
+                    .withAgent(
+                        agentComposer.forAgent(
+                            AgentFixture.createDefaultAgentSession(
+                                executorFixture.getDefaultExecutor(tenant.getId()))))
+                    .persist()
+                    .get());
     String endpointId = persisted.getId();
     TenantContext.clearCurrentTenant();
 
     runAsTheExecutorWould(
         () -> {
+          // The proxy is initialised in this transaction, so it carries the tenant's scope.
+          tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenant.getId()));
           // A reference typed as the Asset base class is a proxy: `instanceof Endpoint` is false on
           // it until unproxied. This is what the resolver's Hibernate.unproxy guards against.
           Asset proxy = entityManager.getReference(Asset.class, endpointId);
@@ -667,12 +672,21 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     // deleteById must clear them explicitly, else they orphan once the simulation is gone.
     TenantContext.setCurrentTenant(tenant.getId());
     Exercise exercise =
-        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
-    workflowService.creationWorkflow(exercise);
-    Workflow workflow =
-        workflowService.findWorkflowTemplateBySimulationId(exercise.getId()).orElse(null);
-    assertThat(workflow).isNotNull();
-    workflowService.launchWorkflowSimulation(workflow);
+        tenantTx.execute(
+            TxCtx.forTenant(tenant.getId()),
+            () -> {
+              Exercise created =
+                  exerciseComposer
+                      .forExercise(ExerciseFixture.createDefaultExercise())
+                      .persist()
+                      .get();
+              workflowService.creationWorkflow(created);
+              Workflow workflow =
+                  workflowService.findWorkflowTemplateBySimulationId(created.getId()).orElse(null);
+              assertThat(workflow).isNotNull();
+              workflowService.launchWorkflowSimulation(workflow);
+              return created;
+            });
 
     String simId = exercise.getId();
     String execId = "hd-exec-" + simId;
@@ -698,7 +712,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         execId,
         findId);
 
-    exerciseService.deleteById(simId);
+    tenantTx.execute(TxCtx.forTenant(tenant.getId()), () -> exerciseService.deleteById(simId));
     TenantContext.clearCurrentTenant();
 
     assertThat(
@@ -832,6 +846,16 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
         tenantId);
   }
 
+  private <T> T inTenant(java.util.function.Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(tenant.getId()), work);
+  }
+
+  // A fixture row is committed in the scope of its tenant, as the request or job that writes it.
+  private <T, S extends T> S saved(
+      org.springframework.data.repository.CrudRepository<T, ?> repository, S row) {
+    return inTenant(() -> repository.save(row));
+  }
+
   private record Target(Endpoint endpoint, Agent agent) {}
 
   // Eva's resolution reads the endpoint, its agent and the agent's executor back through the
@@ -841,16 +865,24 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   // (the agents FK is composite on (executor, tenant_id)).
   private Target persistTarget() {
     TenantContext.setCurrentTenant(tenant.getId());
-    Agent agent =
-        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
-    Endpoint endpoint =
-        endpointComposer
-            .forEndpoint(EndpointFixture.createEndpoint())
-            .withAgent(agentComposer.forAgent(agent))
-            .persist()
-            .get();
-    TenantContext.clearCurrentTenant();
-    return new Target(endpoint, agent);
+    try {
+      return tenantTx.execute(
+          TxCtx.forTenant(tenant.getId()),
+          () -> {
+            Agent agent =
+                AgentFixture.createDefaultAgentSession(
+                    executorFixture.getDefaultExecutor(tenant.getId()));
+            Endpoint endpoint =
+                endpointComposer
+                    .forEndpoint(EndpointFixture.createEndpoint())
+                    .withAgent(agentComposer.forAgent(agent))
+                    .persist()
+                    .get();
+            return new Target(endpoint, agent);
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   // The engine hands the inject over in memory with its contract attached; only the EXECUTION rows

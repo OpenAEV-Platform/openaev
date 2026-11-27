@@ -58,7 +58,6 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -84,7 +83,6 @@ import org.springframework.transaction.annotation.Transactional;
  * import resolves the preset domain by name and relies on the scope to get a single row.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject and scenario imports write in the tenant of the caller or of the parent")
 class InjectImportWriteScopeTest extends IntegrationTest {

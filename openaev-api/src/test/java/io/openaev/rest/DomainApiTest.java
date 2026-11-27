@@ -17,13 +17,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("Domain API tests")
 class DomainApiTest extends IntegrationTest {

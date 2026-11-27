@@ -17,7 +17,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
  * on this table.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = false)
 @DisplayName("tenant_xtmhub_registrations isolation holds for a non-admin spanning two tenants")
 class XtmHubNonAdminIsolationTest extends IntegrationTest {

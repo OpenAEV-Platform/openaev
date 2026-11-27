@@ -48,7 +48,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -66,7 +65,6 @@ import org.springframework.test.util.ReflectionTestUtils;
  * own tenant and removed with it.
  */
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=workflows,steps")
 @DisplayName("A batched inject callback notifies the chaining step that runs the inject")
 class BatchedCallbackWorkflowUpdateEventTest extends IntegrationTest {
 

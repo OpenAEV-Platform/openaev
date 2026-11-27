@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -428,6 +429,19 @@ public class TenantUserNoSelectorReadScopeTest extends ProductionTablesIntegrati
         value = Handler.class,
         names = {"FIND_BY_ID", "FIND", "USERS", "SEARCH"})
     @WithMockUser(isAdmin = true)
+    @WaivesUnscopedReads(
+        value =
+            "a caller with no membership has an empty scope: the users of the ambient tenant come"
+                + " from tables the inspector does not gate, and their groups, organizations, tags"
+                + " and teams read nothing, so the answer shows no organization",
+        reads = {
+          "io.openaev.service.tenants.TenantUserService.user tables=groups",
+          "io.openaev.service.tenants.TenantUserService.find tables=groups",
+          "io.openaev.service.tenants.TenantUserService.users tables=groups,organizations,tags,teams",
+          "io.openaev.utils.users.UserQueryHelper.execution tables=organizations",
+          "io.openaev.api.users.dto.UserMapper.toOutput tables=tags",
+          "io.openaev.database.model.User.organizationOfTenant tables=organizations"
+        })
     @DisplayName("A read is answered for the ambient default tenant")
     void given_callerWithoutMembership_should_readTheDefaultTenant(Handler handler)
         throws Exception {

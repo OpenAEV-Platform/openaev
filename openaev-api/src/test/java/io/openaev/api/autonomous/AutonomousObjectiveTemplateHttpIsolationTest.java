@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("autonomous_objective_templates")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=autonomous_objective_templates")
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous objective template isolation through the real gallery endpoint")
 class AutonomousObjectiveTemplateHttpIsolationTest extends IntegrationTest {

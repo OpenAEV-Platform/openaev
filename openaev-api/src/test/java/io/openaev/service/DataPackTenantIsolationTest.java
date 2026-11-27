@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -39,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("datapacks")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=datapacks")
 @WithMockUser(isAdmin = true)
 @WithoutTenantScope
 class DataPackTenantIsolationTest extends IntegrationTest {
@@ -74,6 +73,7 @@ class DataPackTenantIsolationTest extends IntegrationTest {
             + " caller supplied B's tenant explicitly in the composite key");
   }
 
+  @ExpectsEmptyScopeReads("the read with no scope is the subject: it finds nothing")
   @Test
   @DisplayName("with no scope set at all: even the caller's own tenant fails closed")
   void given_noScopeSet_should_failClosedEvenForOwnTenant() {

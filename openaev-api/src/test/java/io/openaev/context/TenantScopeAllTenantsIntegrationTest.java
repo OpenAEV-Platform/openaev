@@ -27,7 +27,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
  * refuses it, and the primitive resolves it into an explicit list of active tenants, re-resolved at
  * every transaction (freshness). Also measures the GUC mechanics under a large explicit list.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @Import(TenantScopeAllTenantsIntegrationTest.ScopedServiceFixture.class)
 @DisplayName("TxCtx.allTenants(): an intention resolved into an explicit list, never a wildcard")
 class TenantScopeAllTenantsIntegrationTest extends IntegrationTest {

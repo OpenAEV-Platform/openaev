@@ -21,6 +21,7 @@ import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserService;
 import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -53,6 +54,8 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
   @Autowired private InitAdminCommandLineRunner initAdminCommandLineRunner;
 
   @Autowired private UserService userService;
+
+  @Autowired private AdminSessionTestHelper adminSession;
 
   @Autowired private TenantScopedTransaction tenantTx;
 
@@ -190,7 +193,7 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // the security context. Cleared in the finally block: the other tests of this class run
     // unauthenticated and the context is thread-bound.
     Token renewedAdminToken;
-    this.userService.createAdminSession();
+    this.adminSession.open();
     try {
       renewedAdminToken = this.userService.renewUserToken(ADMIN_TOKEN_UUID);
     } finally {

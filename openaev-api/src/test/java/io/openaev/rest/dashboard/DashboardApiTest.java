@@ -42,7 +42,6 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +53,6 @@ import org.springframework.transaction.annotation.Transactional;
 // reach, not only findings: @TestPropertySource REPLACES the property, so naming findings alone
 // would deactivate tables that ARE active in production and test less than production while
 // looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Dashboard API tests")
 class DashboardApiTest extends IntegrationTest {
 

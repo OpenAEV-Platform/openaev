@@ -56,7 +56,9 @@ class XtmHubConnectivityFlagTest extends ProductionTablesIntegrationTest {
   @AfterEach
   void cleanup() {
     if (tenant != null) {
-      registrationRepository.deleteByTenantId(tenant.getId());
+      tenantScopedTransaction.execute(
+          TxCtx.forTenant(tenant.getId()),
+          () -> registrationRepository.deleteByTenantId(tenant.getId()));
       tenantRepository.deleteById(tenant.getId());
     }
     tenantScopedTransaction.executeAsPlatformWrite(

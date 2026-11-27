@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@link WorkflowTimeoutJob} polls the expired runs of every tenant, then force-completes each run
@@ -25,10 +24,6 @@ import org.springframework.test.context.TestPropertySource;
  * reads committed rows as it does in production, and are swept explicitly.
  */
 @WithMockUser(isAdmin = true)
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=workflows,steps,conditions,scope_variables,"
-            + "steps_delay_queue,workflow_scope_rules,workflow_states")
 @DisplayName("Workflow timeout job tenant scope")
 class WorkflowTimeoutPollScopeTest extends IntegrationTest {
 

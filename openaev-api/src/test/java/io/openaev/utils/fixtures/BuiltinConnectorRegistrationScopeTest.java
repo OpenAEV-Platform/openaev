@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
  * tests arm {@code domains} so the fixtures are exercised under the shape the platform runs in.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("built-in connector registration from a fixture, with domains armed")
 class BuiltinConnectorRegistrationScopeTest extends IntegrationTest {

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Read and write isolation for {@code phishing_results} under an explicit tenant scope.
@@ -48,7 +48,6 @@ import org.springframework.test.context.TestPropertySource;
  * one. Seeding and cleanup run through auto-committed JDBC.
  */
 @CoversTenantIsolation("phishing_results")
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @DisplayName("phishing_results isolation when the scope does not match the token's tenant")
 class PhishingResultTenantScopeTest extends IntegrationTest {
 
@@ -111,6 +110,7 @@ class PhishingResultTenantScopeTest extends IntegrationTest {
     }
 
     @Test
+    @ExpectsEmptyScopeReads("the token lookup with no scope is the subject: it answers nothing")
     @DisplayName("with no scope at all: even the token's own tenant resolves to nothing")
     void given_noScopeSet_should_failClosedOnItsOwnToken() {
       // Act & Assert - the control for the test above, on a different line than the active-tables

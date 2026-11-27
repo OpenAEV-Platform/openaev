@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -54,7 +53,6 @@ import org.springframework.test.web.servlet.ResultActions;
  * commits, so the scope would still be set during serialization and mask the failure. Rows are
  * seeded through an auto-committing {@link JdbcTemplate} and removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents,tags")
 @WithMockUser(isAdmin = true)
 @DisplayName("Raw document responses serialize their links with documents v2-activated")
 class DocumentSerializationTenantScopeTest extends IntegrationTest {

@@ -29,7 +29,8 @@ public final class WriteAttrDetectorRecorder {
    * relation} come from the trigger and are always exact. {@code entryFrame} is the outermost
    * production frame on the stack (the waiver key, null when the write is test-driven with no
    * production frame); {@code innermostCaller} is the nearest frame that emitted the statement,
-   * kept for triage, best effort for a lazily flushed insert.
+   * kept for triage, best effort for a lazily flushed insert. {@code thread} names the thread that
+   * ran the statement (a test, request, scheduler or consumer thread).
    */
   public record Violation(
       String table,
@@ -37,7 +38,8 @@ public final class WriteAttrDetectorRecorder {
       String scope,
       WriteAttrSignature.Relation relation,
       String entryFrame,
-      String innermostCaller) {}
+      String innermostCaller,
+      String thread) {}
 
   private static final List<Violation> VIOLATIONS = new CopyOnWriteArrayList<>();
   private static volatile boolean recording = false;

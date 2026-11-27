@@ -120,7 +120,7 @@ public class TagApiCapabilityTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     @DisplayName("Given no tags capability, should allow list and search")
     void given_noTagsCapability_should_allowListAndSearch() throws Exception {
       // -------- Arrange --------

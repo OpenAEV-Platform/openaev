@@ -1230,6 +1230,9 @@ class ThreatArsenalVersionApiTest extends IntegrationTest {
       // Act & Assert
       assertThat(flagged(otherTenant, latest)).isEmpty();
       keep(otherTenant, latest).andExpect(status().is4xxClientError());
+      // The request left the other tenant's scope on the transaction: the check reads the default
+      // tenant's action in the default tenant's scope
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, DEFAULT_TENANT_UUID);
       entityManager.clear();
       // The request left the other tenant's scope on the test transaction; the action belongs to
       // the default tenant, so it is read back from there.

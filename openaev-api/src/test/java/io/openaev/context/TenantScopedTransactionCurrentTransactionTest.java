@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -31,7 +30,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * NOT {@code @Transactional}: each test opens and commits its own transaction, and seeds and cleans
  * through auto-committed JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @DisplayName("A tenant scope run on the current transaction")
 class TenantScopedTransactionCurrentTransactionTest extends IntegrationTest {
 

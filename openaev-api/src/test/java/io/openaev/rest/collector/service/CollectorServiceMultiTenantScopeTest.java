@@ -16,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@code CollectorService#ensureCollectorTypeExists} must dedupe against the tenant it is about to
@@ -42,7 +41,6 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Deliberately NOT {@code @Transactional}: {@link TenantScopedTransaction#execute} refuses to
  * open inside an active transaction. Seed and clean through auto-committed JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @DisplayName("CollectorService.ensureCollectorTypeExists: dedup must target the write tenant")
 class CollectorServiceMultiTenantScopeTest extends IntegrationTest {
 

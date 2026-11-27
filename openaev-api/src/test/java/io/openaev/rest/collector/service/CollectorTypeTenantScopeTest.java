@@ -23,7 +23,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -45,7 +44,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("collector_types")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)
 @DisplayName("collector_types read isolation under a tenant scope")
 class CollectorTypeTenantScopeTest extends IntegrationTest {

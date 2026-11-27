@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
@@ -26,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@code phishing_results} is tenant-active, so {@code createResult} attributes the row's tenant
@@ -39,7 +40,6 @@ import org.springframework.test.context.TestPropertySource;
  * writing, then reads the row back by SQL - the one case the ambient tenant cannot get right.
  */
 @SpringBootTest
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @WithMockUser(isAdmin = true)
 class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
 
@@ -52,6 +52,7 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Nested
   @DisplayName("createResult with the inject in a non-default tenant")
@@ -79,8 +80,16 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
       if (inject != null && injectRepository.existsById(inject.getId())) {
         injectRepository.deleteById(inject.getId());
       }
-      if (user != null && userRepository.existsById(user.getId())) {
-        userRepository.deleteById(user.getId());
+      if (user != null) {
+        // Removing a user serializes its teams, tags and organization for the stream event, which
+        // are active tables: the removal runs in the scope of every tenant.
+        tenantTx.execute(
+            TxCtx.allTenants(),
+            () -> {
+              if (userRepository.existsById(user.getId())) {
+                userRepository.deleteById(user.getId());
+              }
+            });
       }
       TenantContext.clearCurrentTenant();
     }

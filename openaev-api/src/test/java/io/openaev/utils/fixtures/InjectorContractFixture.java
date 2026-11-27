@@ -63,14 +63,18 @@ public class InjectorContractFixture {
     // bare findById sees every tenant's copy at once and throws once more than one tenant has
     // registered it in the given tenant. Resolve and create in that tenant specifically.
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId);
+        builtinConnectorRegistration.inScope(
+            tenantId,
+            () -> injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId));
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
       builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
-      return injectorContractRepository
-          .findByContractIdAndTenant(EMAIL_DEFAULT, tenantId)
+      return builtinConnectorRegistration
+          .inScope(
+              tenantId,
+              () -> injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId))
           .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -80,14 +84,18 @@ public class InjectorContractFixture {
   public InjectorContract getWellKnownGlobalEmailContract() {
     String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findByContractIdAndTenant(EMAIL_GLOBAL, tenantId);
+        builtinConnectorRegistration.inScope(
+            tenantId,
+            () -> injectorContractRepository.findByContractIdAndTenant(EMAIL_GLOBAL, tenantId));
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
       builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
-      return injectorContractRepository
-          .findByContractIdAndTenant(EMAIL_GLOBAL, tenantId)
+      return builtinConnectorRegistration
+          .inScope(
+              tenantId,
+              () -> injectorContractRepository.findByContractIdAndTenant(EMAIL_GLOBAL, tenantId))
           .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);

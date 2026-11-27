@@ -84,7 +84,7 @@ class DebugModeE2ETest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("a real HTTP request still succeeds and its app + SQL logs share one trace id")
   void requestSucceedsAndLogsAreCorrelated() throws Exception {
     appender.list.clear();

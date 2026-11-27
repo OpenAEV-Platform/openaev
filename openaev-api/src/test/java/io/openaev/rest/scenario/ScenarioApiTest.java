@@ -242,7 +242,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Retrieve scenarios")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void retrieveScenariosTest() throws Exception {
     // -- PREPARE --
     scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();

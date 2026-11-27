@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Inject;
 import io.openaev.helper.InjectHelper;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The scheduler's cross-tenant sweeps over {@code exercises}, {@code injects} and {@code scenarios}
@@ -38,7 +38,6 @@ import org.springframework.test.context.TestPropertySource;
  * and the pending-inject read is called on a bare thread without the scope its caller, {@code
  * InjectsFinalizationJob.handlePendingInject}, gives it.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers,scenarios")
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")
 class CrossTenantJobSweepTest extends IntegrationTest {
@@ -47,6 +46,7 @@ class CrossTenantJobSweepTest extends IntegrationTest {
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;
   @Autowired private ScenarioExecutionJob scenarioExecutionJob;
   @Autowired private InjectHelper injectHelper;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
   @Autowired private DataSource dataSource;
 
   private JdbcTemplate jdbc;
@@ -193,7 +193,10 @@ class CrossTenantJobSweepTest extends IntegrationTest {
 
       // Act
       List<Inject> pending =
-          onBareThread(() -> injectHelper.getAllPendingInjectsWithThresholdMinutes(10));
+          onBareThread(
+              () ->
+                  tenantScopedJobRunner.supplyAcrossTenants(
+                      () -> injectHelper.getAllPendingInjectsWithThresholdMinutes(10)));
 
       // Assert
       assertThat(pending).extracting(Inject::getId).contains(injectId);

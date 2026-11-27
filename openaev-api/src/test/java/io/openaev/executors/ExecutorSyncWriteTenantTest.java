@@ -33,7 +33,7 @@ import io.openaev.executors.tanium.service.TaniumExecutorService;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
-import io.openaev.service.UserService;
+import io.openaev.utils.AdminSessionTestHelper;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CrowdstrikeDeviceFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
@@ -72,7 +72,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
-  @Autowired private UserService userService;
+  @Autowired private AdminSessionTestHelper adminSession;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private ExecutorRepository executorRepository;
   @Autowired private EndpointService endpointService;
@@ -84,7 +84,7 @@ class ExecutorSyncWriteTenantTest extends ProductionTablesIntegrationTest {
 
   @BeforeAll
   void createTenant() throws Exception {
-    userService.createAdminSession();
+    adminSession.open();
     try {
       tenantB = tenantHelper.createTenant("executor-sync-b").getId();
     } finally {

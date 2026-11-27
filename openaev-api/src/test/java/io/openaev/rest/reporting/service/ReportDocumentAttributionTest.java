@@ -23,7 +23,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The report renderer stores its output document under the generation's tenant, captured on the
@@ -45,7 +44,6 @@ import org.springframework.test.context.TestPropertySource;
  * setTenant} on the render thread (the persistence listener is gone since activation) and is read
  * back with raw JDBC, which the inspector never rewrites.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("The report renderer attributes its output document to the generation tenant")
 class ReportDocumentAttributionTest extends IntegrationTest {
 

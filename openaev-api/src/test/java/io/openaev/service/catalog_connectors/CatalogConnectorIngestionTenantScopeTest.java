@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The startup catalog ingestion cleans up outdated connector instance configurations. {@code
@@ -37,7 +36,6 @@ import org.springframework.test.context.TestPropertySource;
  * transaction primitive, which refuses to open inside an active transaction. Seeding and cleanup
  * run in auto-committed JDBC and one primitive-scoped write.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @DisplayName("Catalog connector startup cleanup: per-tenant scope")
 class CatalogConnectorIngestionTenantScopeTest extends IntegrationTest {
 

@@ -353,18 +353,10 @@ class AttackPathRunWiringTest extends ProductionTablesIntegrationTest {
     stepRun.setId("step-update-wiring");
     stepRun.setData("{\"inject_id\":\"" + fixtureInject.getId() + "\"}");
 
-    try {
-      injectExecutionStep.update(stepRun);
-    } catch (Exception ignored) {
-      // downstream of the copy call; irrelevant here
-    }
+    updateInTenantScope(stepRun);
     verify(attackPathFindingIngestion).copyFindings(any(), any());
 
-    try {
-      injectExecutionStep.update(stepRun);
-    } catch (Exception ignored) {
-      // downstream of the copy call; irrelevant here
-    }
+    updateInTenantScope(stepRun);
     verify(attackPathFindingIngestion, times(2)).copyFindings(any(), any());
   }
 
@@ -497,5 +489,22 @@ class AttackPathRunWiringTest extends ProductionTablesIntegrationTest {
         "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_simulation_id = ?",
         Integer.class,
         "SIM-WIRING");
+  }
+
+  /** Runs update() in the scope of the run's tenant, as the queue consumer that calls it does. */
+  private void updateInTenantScope(Step stepRun) {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(tenant.getId()),
+          () -> {
+            try {
+              return injectExecutionStep.update(stepRun);
+            } catch (Exception e) {
+              throw new IllegalStateException(e);
+            }
+          });
+    } catch (Exception ignored) {
+      // downstream of the copy call; irrelevant here
+    }
   }
 }

@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,7 +50,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Not {@code @Transactional} at the class level: the tests own their caller transaction, and the
  * primitive refuses to open inside an active one. Seeds and cleans up through plain JDBC.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=reporting_generations")
 @WithMockUser(isAdmin = true)
 @DisplayName("PlaywrightReportingRenderer.render fail-fast path under reporting_generations scope")
 class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {
@@ -154,12 +152,17 @@ class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {
       // row as an insert plus an update of the fields set afterwards, and that update is the
       // statement the inspector filters.
       AtomicReference<String> scopeAfterRender = new AtomicReference<>();
+      // The caller read the reporting in its own scope before it hands over this transaction
+      Reporting reporting =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantId),
+              () -> reportingRepository.findById(reportingId).orElseThrow());
 
       // ACT
       new TransactionTemplate(transactionManager)
           .executeWithoutResult(
               status -> {
-                renderer.render(saveNewPendingGeneration(), null);
+                renderer.render(saveNewPendingGeneration(reporting), null);
                 scopeAfterRender.set(currentTenantScope());
               });
 
@@ -178,8 +181,11 @@ class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {
 
   /** Same statement as ReportingService.doRequestGeneration: a PENDING row, not yet committed. */
   private ReportingGeneration saveNewPendingGeneration() {
+    return saveNewPendingGeneration(reportingRepository.findById(reportingId).orElseThrow());
+  }
+
+  private ReportingGeneration saveNewPendingGeneration(Reporting reporting) {
     ReportingGeneration generation = new ReportingGeneration();
-    Reporting reporting = reportingRepository.findById(reportingId).orElseThrow();
     generation.setReporting(reporting);
     generation.setTenant(new Tenant(tenantId));
     generation.setFormat(ReportingFormat.PDF);

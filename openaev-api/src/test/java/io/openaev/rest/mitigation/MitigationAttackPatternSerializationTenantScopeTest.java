@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -43,7 +42,6 @@ import org.springframework.test.web.servlet.MockMvc;
  * failure this pins. Seeding therefore goes through an auto-committing {@link JdbcTemplate} and is
  * removed on teardown.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "Mitigation read endpoints serialize their attack patterns with attack_patterns active")

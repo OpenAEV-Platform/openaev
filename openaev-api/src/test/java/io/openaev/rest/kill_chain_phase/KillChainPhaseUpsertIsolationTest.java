@@ -22,7 +22,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>So this class is NOT {@code @Transactional}: everything it creates is committed, and both the
  * phases and the tenants are removed in {@link #cleanUp()}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
 @WithMockUser(isAdmin = true)
 @DisplayName("kill_chain_phases upsert attribution and per-tenant duplication")
 class KillChainPhaseUpsertIsolationTest extends IntegrationTest {

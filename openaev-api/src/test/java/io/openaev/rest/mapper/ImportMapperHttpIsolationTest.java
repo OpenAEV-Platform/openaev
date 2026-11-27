@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +48,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @CoversTenantIsolation("import_mappers")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("import_mappers read and write isolation through the real HTTP endpoint")
 class ImportMapperHttpIsolationTest extends IntegrationTest {

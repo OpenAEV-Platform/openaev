@@ -22,12 +22,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=custom_dashboards,widgets")
 @WithMockUser(isAdmin = true)
 @DisplayName("dashboard widget queries honor the request tenant scope once widgets are v2-active")
 class DashboardApiTenantScopeTest extends IntegrationTest {

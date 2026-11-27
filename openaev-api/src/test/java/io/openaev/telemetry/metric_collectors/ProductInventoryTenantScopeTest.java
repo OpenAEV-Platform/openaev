@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The product inventory gauges are deliberately platform-wide: telemetry is per-instance, not
@@ -31,10 +30,6 @@ import org.springframework.test.context.TestPropertySource;
  * class is not {@code @Transactional}: the scoped primitive refuses to open inside an active
  * transaction, so seeding goes through an auto-committing {@link JdbcTemplate}.
  */
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=asset_groups,assets,import_mappers,findings,documents,teams,"
-            + "scenarios,injects,workflows")
 @DisplayName("product inventory gauges keep counting across tenants once a table is v2-active")
 class ProductInventoryTenantScopeTest extends IntegrationTest {
 

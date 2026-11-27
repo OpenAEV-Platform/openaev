@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -167,6 +168,7 @@ class PlatformSettingsUnscopedAccessTest extends ProductionTablesIntegrationTest
               .isEmpty());
     }
 
+    @ExpectsEmptyScopeReads("a delete with no platform marker and no scope is refused")
     @Test
     @DisplayName("given_noPlatformWriteMarker_should_refuseDeletingAPlatformRowWithAnError")
     void given_noPlatformWriteMarker_should_refuseDeletingAPlatformRowWithAnError() {

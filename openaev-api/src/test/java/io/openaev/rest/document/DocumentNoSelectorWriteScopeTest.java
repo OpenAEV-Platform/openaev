@@ -27,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +45,6 @@ import org.springframework.transaction.annotation.Transactional;
  * read. Objects written to real storage are removed in teardown.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Document create resolves the write tenant from the caller when no selector is given")
 class DocumentNoSelectorWriteScopeTest extends IntegrationTest {
