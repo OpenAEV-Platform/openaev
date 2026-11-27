@@ -814,6 +814,51 @@ class ThreatArsenalDraftApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "given a draft of a new action saved by an author, should be listed for a reader, who"
+            + " cannot change or discard it")
+    void given_newActionDraftOfAnother_should_beListedForReaderWhoCannotChangeIt()
+        throws Exception {
+      // Arrange
+      String name = "Shared new action draft " + UUID.randomUUID();
+      String draftId = createNewActionDraft(author, name);
+
+      // Act
+      String listed = newActionDrafts(reader);
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(listed, "$[*].draft_id")).contains(draftId);
+      mvc.perform(
+              put(url("/new_action_drafts/" + draftId))
+                  .with(authentication(reader))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(newActionContent(name + " changed"))))
+          .andExpect(status().isForbidden());
+      mvc.perform(
+              delete(url("/new_action_drafts/" + draftId))
+                  .with(authentication(reader))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+      assertThat((List<String>) JsonPath.read(newActionDrafts(author), "$[*].draft_id"))
+          .contains(draftId);
+    }
+
+    @Test
+    @DisplayName(
+        "given a draft of a new action saved by an author, should be listed for an approver")
+    void given_newActionDraftOfAuthor_should_beListedForApprover() throws Exception {
+      // Arrange
+      String draftId = createNewActionDraft(author, "Approver sees " + UUID.randomUUID());
+
+      // Act
+      String listed = newActionDrafts(approver);
+
+      // Assert
+      assertThat((List<String>) JsonPath.read(listed, "$[*].draft_id")).contains(draftId);
+    }
+
+    @Test
     @DisplayName("given a discarded new action draft, should be gone")
     void given_discardedNewActionDraft_should_beGone() throws Exception {
       // Arrange

@@ -29,6 +29,8 @@ interface StatsProps {
 interface HeroProps extends StatsProps {
   /** After Create: e.g. the Active list adds the new action on top. */
   onCreate?: (action: ThreatArsenalAction) => void;
+  /** A draft of a new action was saved, discarded or published from the Create form. */
+  onDraftsChange?: () => void;
 }
 
 interface Props extends HeroProps { active: 'to-review' | 'my-changes' }
@@ -153,7 +155,7 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
  * action in the header, the summary tiles in the body). What acts on one tab's list (export, import,
  * install all) sits in that tab's toolbar instead, beside the list.
  */
-export const ThreatArsenalHero: FunctionComponent<HeroProps> = ({ onFilterApproval, onCreate }) => {
+export const ThreatArsenalHero: FunctionComponent<HeroProps> = ({ onFilterApproval, onCreate, onDraftsChange }) => {
   const { t } = useFormatter();
   return (
     <MarketplaceHero
@@ -162,7 +164,7 @@ export const ThreatArsenalHero: FunctionComponent<HeroProps> = ({ onFilterApprov
       bottomSlot={<ThreatArsenalHeroStats onFilterApproval={onFilterApproval} />}
       rightSlot={(
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-          <CreateThreatArsenalAction onCreate={onCreate} />
+          <CreateThreatArsenalAction onCreate={onCreate} onDraftsChange={onDraftsChange} />
         </Can>
       )}
     />

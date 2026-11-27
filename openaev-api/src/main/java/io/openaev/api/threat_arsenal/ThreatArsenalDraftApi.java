@@ -147,13 +147,17 @@ public class ThreatArsenalDraftApi {
 
   // -- DRAFTS OF NEW ACTIONS: no action and no version until published --
 
-  @Operation(summary = "Drafts of new actions, last changed first")
+  @Operation(
+      summary = "Drafts of new actions, last changed first",
+      description =
+          "Drafts are shared: everyone who can read the Threat Arsenal sees them; saving,"
+              + " publishing and discarding one needs the right to create actions.")
   @GetMapping({
     THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS,
     TENANT_THREAT_ARSENAL_URL + NEW_ACTION_DRAFTS
   })
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<PayloadDraftOutput> newActionDrafts(TxCtx ctx) {
     return threatArsenalDraftService.newActionDrafts();
   }
