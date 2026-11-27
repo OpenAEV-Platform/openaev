@@ -34,7 +34,9 @@ interface Props {
   testId?: string;
 }
 
-// A marketplace item in the card grid, on the design system Card.
+const NO_TEXT = ' ';
+
+// A marketplace item in the card grid, on the design system Card. An empty slot keeps its place, so every card has the same height.
 const MarketplaceCard: FunctionComponent<Props> = ({
   icon,
   title,
@@ -69,28 +71,27 @@ const MarketplaceCard: FunctionComponent<Props> = ({
       </Thumbnail>
     )}
     >
-      {overline && <CardOverview>{overline}</CardOverview>}
-      <CardTitle>{title}</CardTitle>
+      <CardOverview>{overline ?? NO_TEXT}</CardOverview>
+      <CardTitle>
+        <span className="line-clamp-2" style={{ minHeight: '2lh' }}>{title}</span>
+      </CardTitle>
     </CardHeader>
-    {subtitle && (
-      <CardInfoGroup>
-        <CardInfo value={subtitle} />
-      </CardInfoGroup>
-    )}
-    {chips && (
-      // FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see Figma 8486:41702
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 'calc(var(--spacing) * 2)',
-        minWidth: 0,
-      }}
-      >
-        {chips}
-      </div>
-    )}
-    {description && <CardDescription>{description}</CardDescription>}
+    <CardInfoGroup>
+      <CardInfo value={subtitle ?? NO_TEXT} />
+    </CardInfoGroup>
+    {/* FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see Figma 8486:41702 */}
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 'calc(var(--spacing) * 2)',
+      minWidth: 0,
+      minHeight: 'calc(var(--spacing) * 6)',
+    }}
+    >
+      {chips}
+    </div>
+    <CardDescription style={{ minHeight: '3lh' }}>{description}</CardDescription>
     {info && (
       <CardInfoGroup type="block">
         {info.map(item => <CardInfo key={item.label} label={item.label} value={item.value} />)}
