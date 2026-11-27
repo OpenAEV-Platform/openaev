@@ -11160,6 +11160,7 @@ export interface PayloadUpsertInput {
 }
 
 export interface PayloadUsageCountOutput {
+  /** @minLength 1 */
   payload_id: string;
   /** @format int64 */
   payload_usage_count: number;
