@@ -4,19 +4,14 @@ import { test as setup } from './fixtures/baseFixtures';
 import { fetchCsrfCookie, loginWithApi, newRequestContextAs } from './utils/auth';
 import { AUTH_ADMIN } from './utils/constants';
 import login from './utils/login';
+import { newsFeedBannerDismissedKey } from './utils/newsFeedBanner';
 import { PERSONAS } from './utils/personas';
 import { DEFAULT_TENANT_UUID } from './utils/url';
 
-/**
- * The XTM Hub news feed register banner (#8938) shows up only after an asynchronous
- * registration lookup and then pushes the whole layout down: a click in flight lands
- * on a moved target. Store its dismissal, as a user who closed it would have, so no
- * suite runs under that late layout shift. Same key as NewsFeedRegisterBannerProvider
- * (useLocalStorage serialises the boolean as JSON).
- */
+/** Dismisses the XTM Hub news feed register banner, so no suite runs under its late layout shift. */
 const NEWS_FEED_BANNER_DISMISSED = [
-  `news-feed-register-banner-dismissed-${DEFAULT_TENANT_UUID}`,
-  'news-feed-register-banner-dismissed-default',
+  newsFeedBannerDismissedKey(DEFAULT_TENANT_UUID),
+  newsFeedBannerDismissedKey('default'),
 ];
 
 /**

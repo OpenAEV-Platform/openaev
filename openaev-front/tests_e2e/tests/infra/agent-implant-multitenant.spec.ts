@@ -12,6 +12,7 @@ import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { executeAgentInstall, getAgentPlatform } from '../../utils/agent';
 import { AUTH_ADMIN, TIMEOUT } from '../../utils/constants';
+import { dismissNewsFeedBanner } from '../../utils/newsFeedBanner';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -78,6 +79,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     const segments = new URL(page.url()).pathname.split('/').filter(Boolean);
     newTenantId = segments.find(s => uuidPattern.test(s) && s !== DEFAULT_TENANT_UUID) ?? null;
     expect(newTenantId).not.toBeNull();
+    await dismissNewsFeedBanner(page, newTenantId!);
 
     // ─── Install the agent from the new tenant ───
     await page.goto(tenantUrl('/admin/agents', newTenantId!));
@@ -110,6 +112,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
   test('should have OpenAEV agent executor running new atomic test on new tenant', async ({ page }) => {
     test.setTimeout(480_000);
     expect(newTenantId).not.toBeNull();
+    await dismissNewsFeedBanner(page, newTenantId!);
 
     // ─── Wait for agent to register an endpoint ───
     await expect(async () => {
