@@ -113,16 +113,17 @@ public class TaniumExecutorServiceTest {
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
-    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
     ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> referenceCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
     verify(assetGroupService)
-        .createOrUpdateAssetGroupWithoutDynamicAssets(
-            assetGroupCaptor.capture(), tenantCaptor.capture());
+        .syncExternalAssetGroup(
+            tenantCaptor.capture(), referenceCaptor.capture(), nameCaptor.capture(), any(), any());
     assertEquals(
         taniumExecutor.getTenantId(),
         tenantCaptor.getValue(),
         "the asset group must be attributed to the executor's own tenant");
-    assertEquals(HOST_GROUP_TANIUM, assetGroupCaptor.getValue().getExternalReference());
+    assertEquals(HOST_GROUP_TANIUM, referenceCaptor.getValue());
   }
 
   @Test

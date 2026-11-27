@@ -269,14 +269,28 @@ public class AssetGroupService implements AssetGroupMembershipResolver {
   }
 
   /**
-   * Upserts an asset group owned by {@code tenantId}, without resolving dynamic members.
+   * Finds the asset group of {@code tenantId} with this external reference, or creates it, then
+   * sets its name and assets, without resolving dynamic members. A {@code null} description keeps
+   * the current one.
    *
    * <p>Same rule as {@link #createAssetGroup}: the tenant is explicit. Connector callers run inside
    * a {@code TenantScopedTransaction} and pass the tenant that scope was opened for.
    */
-  public AssetGroup createOrUpdateAssetGroupWithoutDynamicAssets(
-      AssetGroup assetGroup, @NotBlank final String tenantId) {
+  public AssetGroup syncExternalAssetGroup(
+      @NotBlank final String tenantId,
+      final String externalReference,
+      final String name,
+      final String description,
+      final List<Asset> assets) {
+    AssetGroup assetGroup =
+        findByExternalReference(externalReference, tenantId).orElseGet(AssetGroup::new);
+    assetGroup.setExternalReference(externalReference);
     assetGroup.setTenant(requireTenant(tenantId));
+    assetGroup.setName(name);
+    if (description != null) {
+      assetGroup.setDescription(description);
+    }
+    assetGroup.setAssets(assets);
     return this.assetGroupRepository.save(assetGroup);
   }
 

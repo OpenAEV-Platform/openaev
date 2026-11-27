@@ -2,19 +2,16 @@ package io.openaev.executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -24,14 +21,12 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,7 +41,7 @@ class DeviceSyncTest {
 
   private static final String TENANT_ID = "tenant-id";
   private static final DeviceGroup GROUP_A = new DeviceGroup("group-a", "Group A", null);
-  private static final DeviceGroup GROUP_B = new DeviceGroup("group-b", "Group B", "From the EDR");
+  private static final DeviceGroup GROUP_B = new DeviceGroup("group-b", "Group B", null);
 
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
@@ -87,8 +82,6 @@ class DeviceSyncTest {
               List.of(
                   AgentFixture.createAgent(shared, "shared"),
                   AgentFixture.createAgent(onlyInA, "only-in-a")));
-      when(assetGroupService.findByExternalReference(anyString(), eq(TENANT_ID)))
-          .thenReturn(Optional.empty());
       List<RemoteDevice> devices =
           List.of(
               new RemoteDevice(agentInput("shared"), Set.of(GROUP_A)),
@@ -107,36 +100,6 @@ class DeviceSyncTest {
       Map<String, List<Asset>> assetsByGroup = savedAssetGroups();
       assertThat(assetsByGroup.get("group-a")).containsExactlyInAnyOrder(shared, onlyInA);
       assertThat(assetsByGroup.get("group-b")).containsExactly(shared);
-    }
-
-    @Test
-    void given_existingAndNewGroups_should_reuseTheExistingOneAndCreateTheOtherInTheTenant() {
-      // Arrange
-      AssetGroup existing = AssetGroupFixture.createDefaultAssetGroup("Old name");
-      existing.setDescription("Written by a user");
-      when(assetGroupService.findByExternalReference(GROUP_A.externalReference(), TENANT_ID))
-          .thenReturn(Optional.of(existing));
-      when(assetGroupService.findByExternalReference(GROUP_B.externalReference(), TENANT_ID))
-          .thenReturn(Optional.empty());
-      when(endpointService.syncAgentsEndpoints(any(), any(), eq(TENANT_ID))).thenReturn(List.of());
-      List<RemoteDevice> devices =
-          List.of(new RemoteDevice(agentInput("device"), Set.of(GROUP_A, GROUP_B)));
-
-      // Act
-      deviceSync.sync(executor, () -> devices);
-
-      // Assert
-      ArgumentCaptor<AssetGroup> saved = ArgumentCaptor.forClass(AssetGroup.class);
-      verify(assetGroupService, times(2))
-          .createOrUpdateAssetGroupWithoutDynamicAssets(saved.capture(), eq(TENANT_ID));
-      AssetGroup savedA = saved.getAllValues().get(0);
-      AssetGroup savedB = saved.getAllValues().get(1);
-      assertThat(savedA).isSameAs(existing);
-      assertThat(savedA.getName()).isEqualTo("Group A");
-      assertThat(savedA.getDescription()).isEqualTo("Written by a user");
-      assertThat(savedB.getExternalReference()).isEqualTo("group-b");
-      assertThat(savedB.getDescription()).isEqualTo("From the EDR");
-      assertThat(savedB.getTenant().getId()).isEqualTo(TENANT_ID);
     }
 
     @Test
@@ -166,11 +129,16 @@ class DeviceSyncTest {
     }
 
     private Map<String, List<Asset>> savedAssetGroups() {
-      ArgumentCaptor<AssetGroup> saved = ArgumentCaptor.forClass(AssetGroup.class);
+      ArgumentCaptor<String> references = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<List<Asset>> assets = ArgumentCaptor.forClass(List.class);
       verify(assetGroupService, atLeastOnce())
-          .createOrUpdateAssetGroupWithoutDynamicAssets(saved.capture(), eq(TENANT_ID));
-      return saved.getAllValues().stream()
-          .collect(Collectors.toMap(AssetGroup::getExternalReference, AssetGroup::getAssets));
+          .syncExternalAssetGroup(
+              eq(TENANT_ID), references.capture(), any(), any(), assets.capture());
+      Map<String, List<Asset>> assetsByGroup = new HashMap<>();
+      for (int i = 0; i < references.getAllValues().size(); i++) {
+        assetsByGroup.put(references.getAllValues().get(i), assets.getAllValues().get(i));
+      }
+      return assetsByGroup;
     }
   }
 

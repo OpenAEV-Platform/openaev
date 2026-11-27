@@ -3,9 +3,7 @@ package io.openaev.executors;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.model.DeviceGroup;
 import io.openaev.executors.model.RemoteDevice;
@@ -82,26 +80,14 @@ public class DeviceSync {
 
   private void saveAssetGroup(
       DeviceGroup group, Set<String> agentReferences, List<Agent> agents, String tenantId) {
-    AssetGroup assetGroup =
-        assetGroupService
-            .findByExternalReference(group.externalReference(), tenantId)
-            .orElseGet(() -> newAssetGroup(group.externalReference(), tenantId));
-    assetGroup.setName(group.name());
-    if (group.description() != null) {
-      assetGroup.setDescription(group.description());
-    }
-    assetGroup.setAssets(
+    assetGroupService.syncExternalAssetGroup(
+        tenantId,
+        group.externalReference(),
+        group.name(),
+        group.description(),
         agents.stream()
             .filter(agent -> agentReferences.contains(agent.getExternalReference()))
             .map(Agent::getAsset)
             .collect(Collectors.toCollection(ArrayList::new)));
-    assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup, tenantId);
-  }
-
-  private static AssetGroup newAssetGroup(String externalReference, String tenantId) {
-    AssetGroup assetGroup = new AssetGroup();
-    assetGroup.setExternalReference(externalReference);
-    assetGroup.setTenant(new Tenant(tenantId));
-    return assetGroup;
   }
 }
