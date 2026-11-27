@@ -5,7 +5,8 @@ import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withSourceLink } from '../../../components/xtm/sourcedCounterpart';
-import { CONNECT_OPENCTI_DOC_URL, OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
+import { CONNECT_OPENCTI_DOC_URL } from '../../../components/xtm/xtmDocUrls';
+import { OpenCtiMatchPreview, OpenCtiPivotView, OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
 
 const can = vi.fn();
 const useCounterpartMock = vi.fn();

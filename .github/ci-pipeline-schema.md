@@ -2,7 +2,7 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in two inputs: `api-matrix` and `e2e-matrix`.
+only in their inputs: `api-matrix`, `e2e-matrix`, `no-cache` and `docs-git-plugins`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 19 job definitions in `_ci-pipeline.yml`,
-**13 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
+Almost nothing in this pipeline waits. Of the 27 job definitions in `_ci-pipeline.yml`,
+**19 launch at t = 0 with no `needs:` at all**; only 8 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -62,7 +62,7 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 22 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -109,6 +109,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
 | 🔍 **Spotless Check** | 10 min | Java formatting |
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
+| 📖 **Docs Check** | 10 min | `docs/run.py test`, then `docs/run.py --offline check --force`, the check developers run: a strict build with the engine mike deploys with and the checks of `docs/hooks/checks.py`, so every page and image is in the built site and its search index, every link between docs pages and every key of `docs/links.json` resolves to a page and anchor. Nightly adds `--git-plugins`, and the job is advisory in the Gate there. Restores the pip cache, which only `main` writes and Nightly bypasses |
+| 🔎 **Docs URLs Guard** | 3 min | No docs URL, path or anchor concatenated onto a docs link, or import of `links.json` in tracked code or config outside the documentation sources, `.github/`, Markdown outside source trees, the comments of `application.properties`, `DocsLinks.java` and `DocsLinksTest`: the app opens the docs by key of `docs/links.json`. On a pull request or a merge queue group, every link removed from that map since the target branch must be in its `retired` list |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, are listed in the job summary and do not fail the job. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
@@ -136,16 +138,18 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 20 jobs:
+It `needs:` these 22 jobs:
 
 `adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
 `prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
-`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
-`backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
+`fds-mui-regression`, `docs-check`, `docs-urls-guard`, `api-tests`, `coverage-backend-gate`, `e2e-tests`,
+`api-types-check`, `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
 **Advisory jobs.** `bom-override-guard` shows ⚠️ in the gate when it fails,
 and never fails it. A new check starts there so a false positive cannot block a merge; taking it out of
-the advisory list in the gate makes it blocking.
+the advisory list in the gate makes it blocking. `docs-check` is advisory only when the caller sets
+`docs-git-plugins` (Nightly): git-committers then calls the GitHub API for every page, and a hiccup
+there must not turn the Nightly gate red. It blocks everywhere else.
 
 **Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
 merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
@@ -195,7 +199,7 @@ to the release. The downside is that an Aikido outage blocks merges until it end
 | | Core CI | Nightly CI |
 |-|---------|------------|
 | Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | ≈ 36 | ≈ 59 |
+| Total expanded jobs | 51 on pull requests, 55 on push and tags | 152 |
 
 ### API Tests matrix
 

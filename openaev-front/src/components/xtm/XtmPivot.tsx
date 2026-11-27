@@ -12,6 +12,7 @@ import { OPENCTI_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart, { OPENCTI_PRODUCT } from './useCounterpart';
+import { CONNECT_OPENCTI_DOC_URL } from './xtmDocUrls';
 import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_GLYPH_SIZE, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
@@ -19,10 +20,6 @@ import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 // the same in OpenCTI and OpenCRQ): an icon-only emblem per counterpart product in every hero and
 // header (CounterpartEmblem: found, not found, not connected), and a 16 px mark on a list row only
 // when the counterpart is found.
-
-// The OpenCTI connection of a tenant is deployment configuration (openaev.xtm.opencti.{tenant}.*),
-// so the emblem of a configurer opens its documentation page.
-export const CONNECT_OPENCTI_DOC_URL = 'https://docs.openaev.io/latest/integrations/xtm-suite/xtm-suite-connector/';
 
 /** The OpenCTI glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
 export const ProductMark: FunctionComponent<{

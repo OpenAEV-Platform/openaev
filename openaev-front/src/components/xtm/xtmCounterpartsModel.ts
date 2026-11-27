@@ -5,10 +5,10 @@ import xtmOneMask from '../../static/images/xtm/xtm-mark-xtmone.svg';
 import { FACT_LABELS, OPENCTI_FACT_LABELS, XTM_ONE_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { OPENCTI_PRODUCT } from './useCounterpart';
+import { CONNECT_OPENCRQ_DOC_URL, CONNECT_OPENCTI_DOC_URL, CONNECT_XTM_ONE_DOC_URL } from './xtmDocUrls';
 import { EMBLEM_FOUND, EMBLEM_FOUND_XTM_ONE } from './XtmEmblem';
-import { CONNECT_XTM_ONE_DOC_URL, XTM_ONE_PRODUCT } from './XtmOnePivot';
-import { CONNECT_OPENCRQ_DOC_URL, OPENCRQ_PRODUCT } from './XtmOpenCrq';
-import { CONNECT_OPENCTI_DOC_URL } from './XtmPivot';
+import { XTM_ONE_PRODUCT } from './XtmOnePivot';
+import { OPENCRQ_PRODUCT } from './XtmOpenCrq';
 
 // The model of the single XTM One emblem (XtmCounterpartsEmblem): the products of its surface,
 // their order, and which sections a user sees. Kept apart from the component so it stays a

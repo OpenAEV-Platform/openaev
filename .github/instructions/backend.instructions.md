@@ -158,6 +158,16 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Never `@Autowired` on fields in new code
 - Logging: `@Slf4j`, never `System.out.println`, no sensitive data in logs
 
+## Documentation Links
+
+- **Never write a `docs.openaev.io` URL in Java code** — use a constant of `io.openaev.docs.DocsLinks` (`DocsLinks.CONFIGURATION_IMAP`: the docs base URL followed by the path of the `configuration_imap` key of `docs/links.json`). A CI guard fails on a raw URL; outside the docs it allows only `DocsLinks.java`, `DocsLinksTest.java` and the comment lines of `openaev-api/src/main/resources/application.properties`, whose docs URLs `DocsLinksTest` checks against `docs/links.json`
+- **Never build a docs URL by concatenation onto a key** (`DocsLinks.X + "#anchor"`): the anchor escapes the check, and the guard rejects `DocsLinks.X +`. Add a key for the page and anchor instead
+- **New page or anchor** → add a `snake_case` key to `docs/links.json` (path relative to its `base`, optional `#anchor`) pointing to the real page, not to an old path kept as a redirect (the check fails on a redirect), and add its constant by hand to `openaev-api/src/main/java/io/openaev/docs/DocsLinks.java` (the key in upper case, holding the base URL followed by the path). `DocsLinksTest` fails when the class and `links.json` differ
+- **Moved page** → add a redirect in `docs/mkdocs.yml`, move the old path to `retired` in `docs/links.json` (paths released versions still open: they must keep resolving, redirects allowed), point the key at the new page and update its constant in `DocsLinks.java`. Never drop a path that released versions open: CI fails when a path leaves `links` without going to `retired`
+- **Renamed heading** → keep the old anchor working with `<a id="old-anchor"></a>` right above the new heading, since released versions open it, and point the keys at the new anchor
+- The `docs-check` goal (`validate`) builds the docs in strict mode and fails the build on any problem the docs check reports (a `links.json` key or retired path that does not resolve, links between pages, images, navigation, preview features…): fix `links.json` or the docs page. When it cannot run (no usable Python, setup or toolchain failure) it only warns: the blocking gate is the Docs Check CI job. It skips itself in CI and with `-Dopenaev.docs.check.skip=true`. It needs Python, at least the version in `docs/.python-version`, with its `venv` module (`python3-venv` on Debian/Ubuntu); `-Dopenaev.docs.python` or `OPENAEV_DOCS_PYTHON` chooses it, see [docs/README.md](../../docs/README.md#which-python-runs-the-docs-toolchain) for the lookup
+- **`Could not find goal 'docs-check'`** with `-pl openaev-api` (without `-am`) or the offline fast restart: `~/.m2` holds an older `openaev-maven-plugin` of the same version. Run `mvn -pl openaev-maven-plugin install` once, or build with `-Dopenaev.docs.check.skip=true`
+
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.

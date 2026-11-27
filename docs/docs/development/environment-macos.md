@@ -133,6 +133,31 @@ npm install -g corepack
 corepack enable
 ```
 
+## Documentation check
+
+The backend build and `yarn check-docs-links` run the [documentation check](build-from-source.md#documentation-check),
+which needs Python, at least the version in `docs/.python-version`, with its `venv` module.
+
+Install Python with Homebrew, which includes the `venv` module:
+
+```bash
+brew install python
+```
+
+Verify that `python3` reports at least the version in `docs/.python-version`:
+
+```bash
+python3 --version
+```
+
+!!! warning "IDE that does not load your shell environment"
+
+    If your IDE does not load the environment of your shell, for example when you start it from the Dock or
+    the Finder, its Maven build does not get your `PATH` and finds Apple's `/usr/bin/python3`, which is too
+    old, instead of the Homebrew one. Set `OPENAEV_DOCS_PYTHON` in the environment of the run configuration,
+    or add `-Dopenaev.docs.python=/opt/homebrew/bin/python3` (`/usr/local/bin/python3` on Intel Macs) to its
+    Maven command. Starting the IDE from a terminal (`idea .`, `code .`) also passes your `PATH`.
+
 ## What's next?
 
 - [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV

@@ -52,6 +52,31 @@ npm install -g corepack
 corepack enable
 ```
 
+## Documentation check
+
+The backend build and `yarn check-docs-links` run the [documentation check](build-from-source.md#documentation-check),
+which needs Python, at least the version in `docs/.python-version`, with its `venv` module.
+
+On Ubuntu 24.04, `python3` is recent enough, but Ubuntu packages its `venv` module apart. Install it:
+
+```bash
+sudo apt-get install python3 python3-venv
+```
+
+The `python3` of Ubuntu 22.04 is 3.10, which is too old. Install Python 3.11 next to it, from the Ubuntu
+repositories (`jammy-updates`), with its `venv` module. The check finds `python3.11` on its own:
+
+```bash
+sudo apt-get install python3.11 python3.11-venv
+```
+
+Verify that the Python imports its `venv` module (use `python3.11` instead of `python3` on Ubuntu 22.04):
+
+```bash
+python3 --version
+python3 -c "import venv, ensurepip"
+```
+
 ## What's next?
 
 - [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV

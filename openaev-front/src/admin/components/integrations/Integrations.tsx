@@ -12,6 +12,7 @@ import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
 import { type CatalogConnectorOutput } from '../../../utils/api-types';
+import docsUrl from '../../../utils/docsUrl';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
@@ -70,7 +71,7 @@ const Integrations = () => {
                 {t('Some deployment requires the installation of our')}
                 &nbsp;
                 <a
-                  href="https://docs.openaev.io/latest/deployment/ecosystem/integration-manager/overview/"
+                  href={docsUrl('integration_manager')}
                   target="_blank"
                   rel="noreferrer"
                 >

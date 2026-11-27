@@ -55,6 +55,7 @@ Then:
 | **No writes in read paths** | [backend.instructions.md › Hibernate](../instructions/backend.instructions.md#hibernate) |
 | **Logging** | [backend.instructions.md › Lombok](../instructions/backend.instructions.md#lombok) |
 | **CI scripts** | [ci.instructions.md › No `${{ }}` inside scripts](../instructions/ci.instructions.md#no---inside-scripts) → 🔴 when the value can come from a PR, branch name or other untrusted input |
+| **Docs links** | [backend.instructions.md › Documentation Links](../instructions/backend.instructions.md#documentation-links) → 🟠 HIGH |
 
 ### Phase 3 — Code Quality
 

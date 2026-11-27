@@ -12,6 +12,7 @@ import { XTM_ONE_FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart from './useCounterpart';
+import { CONNECT_XTM_ONE_DOC_URL } from './xtmDocUrls';
 import CounterpartEmblem, { EMBLEM_FOUND_XTM_ONE, EMBLEM_GLYPH_SIZE, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
@@ -20,8 +21,6 @@ import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 // XTM One account), in the canonical XTM One purple. XTM One's inventory holds assets only.
 
 export const XTM_ONE_PRODUCT = 'xtmone';
-// The XTM One connection is deployment configuration (openaev.xtm.one.*), documented on its page.
-export const CONNECT_XTM_ONE_DOC_URL = 'https://docs.openaev.io/latest/integrations/xtm-suite/xtm-one/';
 
 /** The XTM One glyph: the canonical XTM One purple when found, the disabled ink otherwise. */
 export const XtmOneMark: FunctionComponent<{

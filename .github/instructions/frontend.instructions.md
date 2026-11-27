@@ -21,6 +21,7 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 - Prefer a default export for a module's main component; helpers, constants and hooks modules may use named exports
 - Never export a mutable binding (`export let` / `export var`): export a `const`, or a getter/setter function (enforced by `custom-rules/no-mutable-exports`)
 - No Ramda: write native JavaScript (array methods, spread, optional chaining). Ramda is being removed; the files that still import it are listed in `legacyRamdaFiles` in `eslint.config.js`. Never add a file to that list: a cleaned file leaves it
+- **Docs links**: never write a `docs.openaev.io` URL (a CI guard fails on it) — use `docsUrl('<key>')` from `utils/docsUrl.ts`, a key of `docs/links.json` (an unknown key fails `yarn check-ts`). `utils/docsUrl.ts` is the only module that imports `links.json`. Never build a docs URL by concatenation onto a key (`docsUrl(...) + '#anchor'`, `` `${docsUrl(...)}...` ``): the guard rejects it, add a key for the page and anchor instead. Adding, moving or renaming a page or heading: see [backend › Documentation Links](backend.instructions.md#documentation-links), which also covers the `DocsLinks.java` constant of each key. `yarn check-docs-links` runs the docs check (at least the Python version in `docs/.python-version`, with its `venv` module; `OPENAEV_DOCS_PYTHON` chooses it, see [docs/README.md](../../docs/README.md#which-python-runs-the-docs-toolchain)) and, unlike the backend build, fails when it cannot run
 
 ## Design System & Layout
 

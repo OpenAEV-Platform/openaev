@@ -23,6 +23,8 @@ COPY openaev-front/package.json openaev-front/yarn.lock openaev-front/.yarnrc.ym
 RUN npm install -g corepack
 RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
+# The front imports the docs links map from ../docs/links.json
+COPY docs/links.json /opt/openaev-build/docs/links.json
 RUN yarn build
 
 FROM maven:3.10.0-eclipse-temurin-21-noble AS api-builder
@@ -40,7 +42,8 @@ COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
-RUN mvn install -DskipTests -Pdev
+# The docs links are checked in CI, not in the image build (no docs toolchain here)
+RUN mvn install -DskipTests -Pdev -Dopenaev.docs.check.skip=true
 
 # Runtime base per architecture: eclipse-temurin 21.0.13.1_2-jre-noble has no arm64 image yet
 # (adoptium/containers#1146), so arm64 stays on 21.0.13_9 meanwhile.

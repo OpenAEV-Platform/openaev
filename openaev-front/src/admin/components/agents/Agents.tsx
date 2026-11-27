@@ -10,6 +10,7 @@ import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type ExecutorOutput } from '../../../utils/api-types';
+import docsUrl from '../../../utils/docsUrl';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import ExecutorDocumentationLink from './ExecutorDocumentationLink';
@@ -73,7 +74,7 @@ const Executors = () => {
       <Alert variant="outlined" severity="info" style={{ marginBottom: theme.spacing(2) }}>
         {`${t('Here, you can download and install simulation agents available in your executors. Depending on the integrations you have enabled, some of them may be unavailable. Each agent can be installed on Windows, Linux and MacOS using x86_64 or arm64 architectures.')} ${t('Learn more information about how to setup simulation agents')} `}
         <a
-          href="https://docs.openaev.io/latest/deployment/ecosystem/executors/?h=agent#deploy-agents"
+          href={docsUrl('executors_deploy_agents')}
           target="_blank"
           rel="noreferrer"
         >

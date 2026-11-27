@@ -80,6 +80,24 @@ npm install -g corepack
 corepack enable
 ```
 
+## Documentation check
+
+The backend build and `yarn check-docs-links` run the [documentation check](build-from-source.md#documentation-check),
+which needs Python, at least the version in `docs/.python-version`, with its `venv` module.
+
+Install Python from [python.org](https://www.python.org/downloads/windows/) or with a package manager. The
+installer includes the `venv` module and the `py` launcher:
+
+```bash
+winget install Python.Python.3.12
+```
+
+Verify that `py -3` reports at least the version in `docs/.python-version`:
+
+```bash
+py -3 --version
+```
+
 ## What's next?
 
 - [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV

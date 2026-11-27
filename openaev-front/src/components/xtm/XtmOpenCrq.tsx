@@ -13,8 +13,9 @@ import { FACT_LABELS } from './counterpartFacts';
 import { type CounterpartAnswer } from './counterpartStore';
 import { withSourceLink } from './sourcedCounterpart';
 import useCounterpart from './useCounterpart';
+import { CONNECT_OPENCRQ_DOC_URL } from './xtmDocUrls';
 import CounterpartEmblem, { EMBLEM_FOUND, EMBLEM_GLYPH_SIZE, EMBLEM_MUTED, MaskedEmblem } from './XtmEmblem';
-import { CONNECT_OPENCTI_DOC_URL, ROW_MARK_SLOT_WIDTH } from './XtmPivot';
+import { ROW_MARK_SLOT_WIDTH } from './XtmPivot';
 import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 
 // The OpenCRQ side of the cross-platform pivots, contract v3 (Sam, 22 Nov 2026): the same
@@ -23,10 +24,6 @@ import { PivotPreview, PivotTeaser } from './XtmPivotPreview';
 // loss avoided by fixing it) in its preview.
 
 export const OPENCRQ_PRODUCT = 'opencrq';
-// The OpenCRQ connection of a tenant is deployment configuration (openaev.xtm.opencrq.{tenant}.*),
-// documented on the same XTM integration page as the OpenCTI one.
-export const CONNECT_OPENCRQ_DOC_URL = CONNECT_OPENCTI_DOC_URL;
-
 /** The OpenCRQ glyph in the theme primary, the one colour of every found emblem (Sam, 22 Nov 2026). */
 export const OpenCrqMark: FunctionComponent<{
   size?: number;

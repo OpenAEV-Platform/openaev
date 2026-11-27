@@ -7,6 +7,7 @@ entry.
 
 from pathlib import Path
 
+from mkdocs.plugins import event_priority
 from mkdocs.utils.meta import get_data
 
 # MkDocs adds the folder of the hook to sys.path while it loads it
@@ -42,6 +43,9 @@ def on_config(config):
     return config
 
 
+# Before mkdocs-redirects (priority 0) lists the pages its redirects may point to: a redirect to a
+# hidden page then fails the strict build instead of leading nowhere.
+@event_priority(50)
 def on_files(files, config):
     for file in list(files.documentation_pages()):
         if not _page_visible(config.docs_dir, file.src_uri):

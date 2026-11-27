@@ -1,0 +1,40 @@
+name: Docs URLs Guard
+description: >
+  Fails when a tracked code or configuration file links to the docs without a key of
+  docs/links.json: a docs.openaev.io URL in any written form, a path or an anchor concatenated onto
+  a DocsLinks constant or a docsUrl() call, or an import of links.json outside the front docsUrl
+  helper. The Docs Check resolves every key of that map against the built site, so a link opened by
+  key cannot break silently when the docs move; a raw URL can. Allowed: the documentation sources
+  under docs/, .github/**, Markdown files outside source trees, comment lines of openaev-api's
+  application.properties, DocsLinks.java (the hand-written backend constants of the map) and
+  DocsLinksTest, which keeps them equal to it.
+  On a pull request or a merge queue group the checkout is the merge commit, whose first parent is
+  the target branch: every value removed from the links of docs/links.json since that branch must
+  be listed in its retired paths, which released versions still open. Requires a checkout with
+  fetch-depth 2 then. Pushes and scheduled runs check the tree alone: what they hold went through a
+  pull request.
+  Stdlib Python only, no setup needed.
+
+inputs:
+  pull-request:
+    description: "Whether the run checks a pull request or a merge queue group (true/false)"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Test the guard
+      shell: bash
+      run: python3 -m unittest discover -s .github/scripts/tests -p 'test_check_docs_urls.py'
+
+    - name: Check for docs links written outside docs/links.json
+      shell: bash
+      env:
+        PULL_REQUEST: ${{ inputs.pull-request }}
+      run: |
+        ARGS=()
+        if [ "$PULL_REQUEST" = "true" ]; then
+          ARGS+=(--base-ref "HEAD^1")
+        fi
+        python3 .github/scripts/check-docs-urls.py "${ARGS[@]}"

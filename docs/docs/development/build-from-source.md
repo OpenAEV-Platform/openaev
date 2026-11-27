@@ -89,6 +89,47 @@ mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 
 The backend listens on port `8080`.
 
+The build of `openaev-api` also checks the documentation: see [Documentation check](#documentation-check).
+
+### Documentation check
+
+The build of `openaev-api` builds the documentation in strict mode and fails on any problem the check
+reports: a key of `docs/links.json` or a retired path that no longer resolves, a broken link or anchor
+between pages, a missing image, a page left out of the navigation, a leftover preview feature block, and so
+on. The backend and the frontend open the documentation through the keys of `docs/links.json`, so this
+check keeps every link of the application working.
+
+The check needs Python, at least the version in `docs/.python-version`, with its `venv` module: the
+prerequisites page of your platform ([Ubuntu](environment-ubuntu.md#documentation-check),
+[macOS](environment-macos.md#documentation-check) or [Windows](environment-windows.md#documentation-check))
+shows how to install it. The build finds it on the `PATH`. To choose one, set the `OPENAEV_DOCS_PYTHON`
+environment variable to its path, or pass `-Dopenaev.docs.python=<path>` to Maven. The
+[documentation README](https://github.com/OpenAEV-Platform/openaev/blob/main/docs/README.md#which-python-runs-the-docs-toolchain) explains how
+the Python is chosen.
+
+The first run creates a virtual environment in `docs/.venv` and installs the pinned documentation
+dependencies in it, which takes about half a minute. When nothing changed in `docs/` since the last
+successful check, the check takes less than a second.
+
+When the check cannot run (no usable Python, an install that fails, offline without the dependencies), the
+build prints a warning and goes on. Add `-Dopenaev.docs.check.skip=true` to a Maven command to skip it. It
+also skips itself in CI, where the blocking Docs Check job runs it.
+
+!!! note "Could not find goal 'docs-check'"
+
+    A build that leaves out the plugin module (`-pl openaev-api` without `-am`, or the offline fast restart
+    `mvn -o -pl openaev-model,openaev-framework,openaev-api ...`) uses the `openaev-maven-plugin` installed in
+    your local Maven repository (`~/.m2`). If it was installed before the docs check was added, with the same
+    version, the build fails with `Could not find goal 'docs-check'`. Install the plugin once (add `-o` when
+    offline), then build again, or build with `-Dopenaev.docs.check.skip=true`, which turns the check off before
+    Maven looks the goal up:
+
+    ```bash
+    mvn -pl openaev-maven-plugin install
+    ```
+
+    A full `mvn install -DskipTests` from the repository root installs it too.
+
 ## Frontend
 
 Run the commands in this section from `./openaev-front`:
@@ -113,6 +154,15 @@ yarn start
 ```
 When the Vite dev server is ready, it prints a local URL (by default
 http://localhost:3001/). Start the backend first, otherwise the UI does not load.
+
+### Checking the documentation links
+To run the [documentation check](#documentation-check) of the backend build from the frontend:
+```bash
+yarn check-docs-links
+```
+Unlike the backend build, it fails when it cannot run, for example when no usable Python is found. It
+ignores `-Dopenaev.docs.python`: set `OPENAEV_DOCS_PYTHON` to choose the Python. Extra arguments go to the
+check, for example `yarn check-docs-links --force` to rebuild when nothing changed.
 
 !!! tip "IntelliJ IDEA run configurations"
 

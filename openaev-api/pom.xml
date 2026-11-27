@@ -44,6 +44,39 @@
         <profile>
             <id>dev</id>
         </profile>
+        <!-- Checks docs/links.json against the built docs site (docs/run.py check, which chooses its
+             Python). Bound to validate so it runs on every local build, including spring-boot:run, which
+             forks the lifecycle up to test-compile. Fails the build only on docs problems: when the check
+             cannot run it warns and the build goes on. The goal skips itself when the CI variable is set
+             (the Docs Check job covers CI). -Dopenaev.docs.check.skip=true turns this profile off, so
+             Maven does not even look the goal up: that also gets past an older openaev-maven-plugin in
+             ~/.m2 that has no docs-check goal. -->
+        <profile>
+            <id>docs-check</id>
+            <activation>
+                <property>
+                    <name>!openaev.docs.check.skip</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.openaev</groupId>
+                        <artifactId>openaev-maven-plugin</artifactId>
+                        <version>${project.parent.version}</version>
+                        <executions>
+                            <execution>
+                                <id>docs-check</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>docs-check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
     <dependencies>
