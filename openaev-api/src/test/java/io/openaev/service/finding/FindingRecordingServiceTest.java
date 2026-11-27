@@ -5,7 +5,7 @@ import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -57,7 +57,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @WithMockUser(isAdmin = true)
 @RecordApplicationEvents
 @DisplayName("FindingRecordingService.recordFindingsByInject")
-class FindingRecordingServiceTest extends ProductionTablesIntegrationTest {
+class FindingRecordingServiceTest extends IntegrationTest {
 
   private static final Instant MONDAY = Instant.parse("2026-11-02T09:00:00Z");
   private static final Instant TUESDAY = Instant.parse("2026-11-03T09:00:00Z");

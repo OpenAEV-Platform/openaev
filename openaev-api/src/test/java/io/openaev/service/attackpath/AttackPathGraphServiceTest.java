@@ -2,7 +2,7 @@ package io.openaev.service.attackpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
  * lookups).
  */
 @Transactional
-class AttackPathGraphServiceTest extends ProductionTablesIntegrationTest {
+class AttackPathGraphServiceTest extends IntegrationTest {
 
   private static final String SIM = "SIM-GRAPH";
 

@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -56,7 +56,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("POST /autonomous-runs/capabilities/resolve for a caller of several tenants")
-class CapabilityResolveTenantScopeTest extends ProductionTablesIntegrationTest {
+class CapabilityResolveTenantScopeTest extends IntegrationTest {
 
   private static final String PATTERN_A = "T9101.001";
   private static final String PATTERN_B = "T9102.002";

@@ -12,7 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -69,7 +69,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 @WithoutTenantScope
 @WithMockUser(isAdmin = true)
 @DisplayName("XTM Hub lost-connectivity email recipients")
-class XtmHubEmailRecipientsTest extends ProductionTablesIntegrationTest {
+class XtmHubEmailRecipientsTest extends IntegrationTest {
 
   private static final String FLAG = SettingKeys.XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key();
 

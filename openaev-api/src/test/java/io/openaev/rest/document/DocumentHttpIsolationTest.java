@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.service.MinioService;
@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("documents read and write isolation through the real HTTP endpoints, both routes")
-class DocumentHttpIsolationTest extends ProductionTablesIntegrationTest {
+class DocumentHttpIsolationTest extends IntegrationTest {
 
   private static final String DOCUMENTS = "/api/documents";
   private static final String TENANT_DOCUMENTS = "/api/tenants/{tenantId}/documents";

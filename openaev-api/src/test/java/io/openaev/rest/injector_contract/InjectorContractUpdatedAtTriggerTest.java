@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -31,7 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Updated timestamp of an injector contract held by several tenants")
-class InjectorContractUpdatedAtTriggerTest extends ProductionTablesIntegrationTest {
+class InjectorContractUpdatedAtTriggerTest extends IntegrationTest {
 
   private static final String PAST_TIMESTAMP = "2000-01-01 00:00:00";
 

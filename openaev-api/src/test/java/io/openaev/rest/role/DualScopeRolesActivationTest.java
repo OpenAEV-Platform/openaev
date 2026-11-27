@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.platform.roles.PlatformRoleApi;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
@@ -70,7 +70,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("roles active, dual-scope isolation")
-class DualScopeRolesActivationTest extends ProductionTablesIntegrationTest {
+class DualScopeRolesActivationTest extends IntegrationTest {
 
   private static final String ROLES_ON_PATH = "/api/tenants/{tenantId}/roles";
   private static final String ROLE_ON_PATH = "/api/tenants/{tenantId}/roles/{roleId}";

@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -43,7 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("The detail of a chained simulation or scenario names its workflow")
-class ChainedDetailsNameTheirWorkflowTest extends ProductionTablesIntegrationTest {
+class ChainedDetailsNameTheirWorkflowTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseComposer exerciseComposer;

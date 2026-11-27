@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Organization;
@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithMockUser(isAdmin = true)
 @DisplayName("Reads by id and the profile take their tenant from the request scope")
-class RequestTenantOfReadsAndProfileTest extends ProductionTablesIntegrationTest {
+class RequestTenantOfReadsAndProfileTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String HEADER_ROUTE = "header";

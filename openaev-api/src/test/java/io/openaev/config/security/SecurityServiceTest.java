@@ -2,7 +2,7 @@ package io.openaev.config.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
@@ -43,7 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
           + "\"Mapped Group\",\"autoCreate\":true,\"tenantId\":"
           + "\"2cffad3a-0001-4078-b0e2-ef74274022c3\"}]"
     })
-class SecurityServiceTest extends ProductionTablesIntegrationTest {
+class SecurityServiceTest extends IntegrationTest {
 
   private static final String REGISTRATION_ID = "oidc";
   private static final String SSO_EMAIL = "sso-user@integration.test";

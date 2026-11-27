@@ -3,20 +3,60 @@ package io.openaev.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("The startup guard of the '*' activation")
-class TenantFilteringConfigWildcardGuardTest {
-
-  private static final List<String> WILDCARD = List.of(TenantTables.ALL_STRICT);
+@DisplayName("The tenant tables the statement inspector gates")
+class TenantFilteringConfigArmingTest {
 
   private static TenantTables schemaWithAnchors() {
     return new TenantTables(
         Set.of("injects", "exercises", "scenarios", "findings", "documents"), Set.of("roles"));
+  }
+
+  @Nested
+  @DisplayName("When the schema holds the anchor tables")
+  class CompleteSchema {
+
+    @Test
+    @DisplayName("given every anchor, should arm every tenant table, strict and dual-scope")
+    void given_everyAnchor_should_armEveryTenantTable() {
+      // Act
+      TenantTables armed = TenantFilteringConfig.arm(schemaWithAnchors());
+
+      // Assert
+      assertThat(armed.strict())
+          .containsExactlyInAnyOrder("injects", "exercises", "scenarios", "findings", "documents");
+      assertThat(armed.dualScope()).containsExactly("roles");
+    }
+
+    @Test
+    @DisplayName("given self-isolated tables in the schema, should leave them out")
+    void given_selfIsolatedTablesInTheSchema_should_leaveThemOut() {
+      // Arrange
+      TenantTables schema =
+          new TenantTables(
+              Set.of(
+                  "injects",
+                  "exercises",
+                  "scenarios",
+                  "findings",
+                  "tenants",
+                  "users_tenants",
+                  "attackpath_graph_version"),
+              Set.of("roles"));
+
+      // Act
+      TenantTables armed = TenantFilteringConfig.arm(schema);
+
+      // Assert
+      assertThat(armed.strict())
+          .containsExactlyInAnyOrder("injects", "exercises", "scenarios", "findings")
+          .doesNotContainAnyElementsOf(TenantTables.selfIsolatedTables());
+      assertThat(armed.dualScope()).containsExactly("roles");
+    }
   }
 
   @Nested
@@ -30,7 +70,7 @@ class TenantFilteringConfigWildcardGuardTest {
       TenantTables nothing = new TenantTables(Set.of(), Set.of());
 
       // Act & Assert
-      assertThatThrownBy(() -> TenantFilteringConfig.arm(nothing, WILDCARD))
+      assertThatThrownBy(() -> TenantFilteringConfig.arm(nothing))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("no tenant table");
     }
@@ -43,7 +83,7 @@ class TenantFilteringConfigWildcardGuardTest {
           new TenantTables(Set.of("tenants", "users_tenants"), Set.of());
 
       // Act & Assert
-      assertThatThrownBy(() -> TenantFilteringConfig.arm(onlySelfIsolated, WILDCARD))
+      assertThatThrownBy(() -> TenantFilteringConfig.arm(onlySelfIsolated))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("no tenant table");
     }
@@ -62,7 +102,7 @@ class TenantFilteringConfigWildcardGuardTest {
               Set.of("exercises", "scenarios", "findings", "documents"), Set.of("roles"));
 
       // Act & Assert
-      assertThatThrownBy(() -> TenantFilteringConfig.arm(withoutInjects, WILDCARD))
+      assertThatThrownBy(() -> TenantFilteringConfig.arm(withoutInjects))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("injects");
     }
@@ -75,49 +115,9 @@ class TenantFilteringConfigWildcardGuardTest {
           new TenantTables(Set.of("injects", "exercises", "scenarios", "findings"), Set.of());
 
       // Act & Assert
-      assertThatThrownBy(() -> TenantFilteringConfig.arm(withoutRoles, WILDCARD))
+      assertThatThrownBy(() -> TenantFilteringConfig.arm(withoutRoles))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("roles");
-    }
-  }
-
-  @Nested
-  @DisplayName("When the schema is complete or the list is explicit")
-  class Accepted {
-
-    @Test
-    @DisplayName("given every anchor, should arm what '*' arms")
-    void given_everyAnchor_should_armWhatTheWildcardArms() {
-      // Act
-      TenantTables armed = TenantFilteringConfig.arm(schemaWithAnchors(), WILDCARD);
-
-      // Assert
-      assertThat(armed.strict()).contains("injects", "documents");
-      assertThat(armed.dualScope()).containsExactly("roles");
-    }
-
-    @Test
-    @DisplayName("given an explicit list on a schema without anchors, should not apply the guard")
-    void given_explicitListOnSchemaWithoutAnchors_should_notApplyTheGuard() {
-      // Arrange
-      TenantTables small = new TenantTables(Set.of("documents"), Set.of());
-
-      // Act
-      TenantTables armed = TenantFilteringConfig.arm(small, List.of("documents"));
-
-      // Assert
-      assertThat(armed.strict()).containsExactly("documents");
-    }
-
-    @Test
-    @DisplayName("given an empty list, should arm nothing and boot")
-    void given_emptyList_should_armNothingAndBoot() {
-      // Act
-      TenantTables armed = TenantFilteringConfig.arm(schemaWithAnchors(), List.of());
-
-      // Assert
-      assertThat(armed.strict()).isEmpty();
-      assertThat(armed.dualScope()).isEmpty();
     }
   }
 }

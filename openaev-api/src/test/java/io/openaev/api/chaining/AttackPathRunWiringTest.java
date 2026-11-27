@@ -8,7 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -95,7 +95,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 // class drives InjectExecutionStep and StepEventService directly and needs no scheduled job.
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName("attack path: a chaining run drives the ingestion (run-level wiring)")
-class AttackPathRunWiringTest extends ProductionTablesIntegrationTest {
+class AttackPathRunWiringTest extends IntegrationTest {
 
   // Spy, not mock: tenant provisioning (createTenantWithCurrentUser) uses the real injectorContract
   // resolution; a full mock returns null and NPEs on getPayload() during provisioning.

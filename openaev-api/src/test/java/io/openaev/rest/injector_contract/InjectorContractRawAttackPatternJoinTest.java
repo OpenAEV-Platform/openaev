@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -53,10 +53,10 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("GET /injector_contracts attack pattern aggregation across tenants")
-class InjectorContractRawAttackPatternJoinTest extends ProductionTablesIntegrationTest {
+class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
 
   // The list carries no predicate on the ambient tenant: the statement inspector is what scopes it
-  // to the tenant of the path, so the class runs with the production list of isolated tables.
+  // to the tenant of the path.
   private static final String PATTERN_A = "T9001.001";
   private static final String PATTERN_B = "T9002.002";
   private static final String PATTERN_SHARED = "T9003.003";

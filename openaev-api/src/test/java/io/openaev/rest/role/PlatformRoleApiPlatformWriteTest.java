@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.RoleRepository;
@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("Platform role API with roles active")
-class PlatformRoleApiPlatformWriteTest extends ProductionTablesIntegrationTest {
+class PlatformRoleApiPlatformWriteTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;

@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.RegisterConnector;
@@ -26,14 +25,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * Pins the legacy-connector cleanup to the default tenant, with the production {@code
- * active-tables} list (so {@code roles} is armed) and a connector of a NON-default tenant.
+ * Pins the legacy-connector cleanup to the default tenant, with {@code roles} gated like every
+ * tenant table and a connector of a NON-default tenant.
  *
  * <p>{@link OpenCTIConnectorPrivilegeService#ensurePrivilegedUserExistsForConnector} scopes its
  * transaction to the connector's own tenant before calling {@link
@@ -71,13 +68,6 @@ class LegacyOpenCTIConnectorMigrationTenantScopeTest extends IntegrationTest {
   private static final String CONNECTOR_ROLE_ID =
       AbstractPrivilegeService.getUUIDFromName(
           OPENCTI_CONNECTOR.access().roleId(), CONNECTOR_TENANT_ID);
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list, roles included, as the activation left it.
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
   @Autowired private DataSource dataSource;

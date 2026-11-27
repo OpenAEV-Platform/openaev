@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
@@ -69,7 +69,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Login and password reset responses describe the user's teams and tags")
-class UserApiLoginResponseTest extends ProductionTablesIntegrationTest {
+class UserApiLoginResponseTest extends IntegrationTest {
 
   @MockitoBean private UserEventService userEventService;
 

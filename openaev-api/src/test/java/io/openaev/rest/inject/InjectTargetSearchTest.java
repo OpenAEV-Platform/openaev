@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.utils.FilterUtilsJpa;
@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(PER_CLASS)
 @DisplayName("Searching inject targets tests")
-public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
+public class InjectTargetSearchTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectContractComposer;
   @Autowired private PayloadComposer payloadComposer;

@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("injectors read and write isolation through the real HTTP endpoint")
-class InjectorHttpIsolationTest extends ProductionTablesIntegrationTest {
+class InjectorHttpIsolationTest extends IntegrationTest {
 
   private static final String INJECTOR_BY_ID = "/api/tenants/{tenantId}/injectors/{injectorId}";
 

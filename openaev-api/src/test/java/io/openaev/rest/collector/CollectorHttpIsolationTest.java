@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.collector.form.CollectorUpdateInput;
@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("collectors read and write isolation through the real HTTP endpoint")
-class CollectorHttpIsolationTest extends ProductionTablesIntegrationTest {
+class CollectorHttpIsolationTest extends IntegrationTest {
 
   private static final String COLLECTOR_BY_ID = "/api/tenants/{tenantId}/collectors/{collectorId}";
 

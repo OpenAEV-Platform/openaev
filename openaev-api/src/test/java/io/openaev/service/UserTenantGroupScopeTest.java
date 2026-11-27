@@ -4,7 +4,7 @@ import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static io.openaev.utils.fixtures.UserFixture.getUserInputWithTenants;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.context.TxCtx;
@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @DisplayName("A platform operator's tenant attach grants and revokes groups")
-class UserTenantGroupScopeTest extends ProductionTablesIntegrationTest {
+class UserTenantGroupScopeTest extends IntegrationTest {
 
   @Autowired private UserService userService;
   @Autowired private UserComposer userComposer;

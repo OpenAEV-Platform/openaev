@@ -8,7 +8,7 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -57,7 +57,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
+class EndpointDeleteIndexEventTest extends IntegrationTest {
 
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
 

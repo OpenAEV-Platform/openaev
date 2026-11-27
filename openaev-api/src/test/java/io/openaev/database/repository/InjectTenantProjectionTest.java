@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -25,8 +24,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The owner lookup of injects ({@code findTenantIdsByInjectIds}) reads an active table, so it is
@@ -43,12 +40,6 @@ import org.springframework.test.context.DynamicPropertySource;
 @WithMockUser(isAdmin = true)
 @DisplayName("Owner lookup of injects")
 class InjectTenantProjectionTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   private static final String UNKNOWN_INJECT_ID = "does-not-exist";
 

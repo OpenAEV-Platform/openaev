@@ -2,9 +2,7 @@ package io.openaev.config;
 
 import jakarta.persistence.EntityManager;
 import java.util.List;
-import java.util.Map;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.test.context.ContextConfigurationAttributes;
 import org.springframework.test.context.ContextCustomizer;
 import org.springframework.test.context.ContextCustomizerFactory;
@@ -22,48 +20,24 @@ public class LazyAfterCommitProbeContextCustomizerFactory implements ContextCust
 
   static final String ENABLED_PROPERTY = "openaev.lazyprobe";
 
-  /**
-   * Arms production's activation list in every context, over a list the test class sets itself.
-   * Half the HTTP test classes arm only the table they test, so without it an association into
-   * another active table reads ungated and the probe cannot see it.
-   */
-  static final String PRODUCTION_TABLES_PROPERTY = "openaev.lazyprobe.production-tables";
+  private static final ContextCustomizer CUSTOMIZER = new ProbeCustomizer();
 
   @Override
   public ContextCustomizer createContextCustomizer(
       Class<?> testClass, List<ContextConfigurationAttributes> configAttributes) {
-    return "on".equals(System.getProperty(ENABLED_PROPERTY))
-        ? new ProbeCustomizer("on".equals(System.getProperty(PRODUCTION_TABLES_PROPERTY)))
-        : null;
+    return "on".equals(System.getProperty(ENABLED_PROPERTY)) ? CUSTOMIZER : null;
   }
 
-  /** Adds the probe's post-processor to a test context. */
+  /**
+   * Adds the probe's post-processor to a test context. A single shared instance comparing equal by
+   * type, so it does not fragment the context cache across test classes.
+   */
   static final class ProbeCustomizer implements ContextCustomizer {
-
-    private final boolean productionTables;
-
-    ProbeCustomizer(boolean productionTables) {
-      this.productionTables = productionTables;
-    }
 
     @Override
     public void customizeContext(
         ConfigurableApplicationContext context, MergedContextConfiguration mergedConfig) {
-      if (productionTables) {
-        context
-            .getEnvironment()
-            .getPropertySources()
-            .addFirst(
-                new MapPropertySource(
-                    "lazyAfterCommitProbeProductionTables",
-                    Map.of(
-                        "openaev.tenant.active-tables",
-                        String.join(",", ProductionActiveTables.names()))));
-      }
-      context
-          .getBeanFactory()
-          .addBeanPostProcessor(
-              LazyAfterCommitProbeTestConfig.probeWiring(context.getEnvironment()));
+      context.getBeanFactory().addBeanPostProcessor(LazyAfterCommitProbeTestConfig.probeWiring());
       context
           .getBeanFactory()
           .registerSingleton(
@@ -73,13 +47,12 @@ public class LazyAfterCommitProbeContextCustomizerFactory implements ContextCust
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof ProbeCustomizer customizer
-          && customizer.productionTables == productionTables;
+      return other instanceof ProbeCustomizer;
     }
 
     @Override
     public int hashCode() {
-      return Boolean.hashCode(productionTables);
+      return ProbeCustomizer.class.hashCode();
     }
   }
 }

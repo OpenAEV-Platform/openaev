@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Onboarding a tenant copies the platform's default injector contracts into it ({@code
  * InjectorContractService#createDependencyForTenant}), reading source rows that live in the default
- * tenant. On the production list of isolated tables, which holds {@code domains}, the source
- * contract's eagerly fetched {@code domains} collection is a gated read, so the copy step cannot be
- * what decides which domains the new tenant's contracts end up with.
+ * tenant. With {@code domains} gated, the source contract's eagerly fetched {@code domains}
+ * collection is a gated read, so the copy step cannot be what decides which domains the new
+ * tenant's contracts end up with.
  *
  * <p>What makes the end state correct is the built-in injector registration that runs later in the
  * same onboarding transaction, scoped to the new tenant, and re-resolves every contract's domains
@@ -37,9 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName(
-    "tenant onboarding on the production list of isolated tables links the provisioned contracts"
+    "tenant onboarding with every tenant table gated links the provisioned contracts"
         + " to the new tenant's own domains")
-class InjectorContractTenantProvisioningDomainTest extends ProductionTablesIntegrationTest {
+class InjectorContractTenantProvisioningDomainTest extends IntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager entityManager;

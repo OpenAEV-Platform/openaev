@@ -5,7 +5,7 @@ import static io.openaev.api.xtm_composer.XtmComposerApi.XTMCOMPOSER_URI;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @DisplayName("XTM Composer API tenant scope tests")
-class XtmComposerApiTenantScopeTest extends ProductionTablesIntegrationTest {
+class XtmComposerApiTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;

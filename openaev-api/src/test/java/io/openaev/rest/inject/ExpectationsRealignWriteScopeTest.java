@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
@@ -23,8 +22,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The realignment of an atomic testing overwrites the stored expectations of its inject with the
@@ -40,12 +37,6 @@ class ExpectationsRealignWriteScopeTest extends ByIdRequestScopeTestBase {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final String PREDEFINED_TYPE = "DETECTION";
   private static final String STORED_TYPE = "PREVENTION";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private InjectRepository realignInjectRepository;
   @Autowired private InjectorContractComposer realignContractComposer;

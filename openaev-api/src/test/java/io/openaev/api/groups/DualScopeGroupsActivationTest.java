@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
@@ -59,7 +59,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("groups active, dual-scope isolation")
-class DualScopeGroupsActivationTest extends ProductionTablesIntegrationTest {
+class DualScopeGroupsActivationTest extends IntegrationTest {
 
   private static final String GROUPS_ON_PATH = "/api/tenants/{tenantId}/groups";
   private static final String GROUP_ON_PATH = "/api/tenants/{tenantId}/groups/{groupId}";

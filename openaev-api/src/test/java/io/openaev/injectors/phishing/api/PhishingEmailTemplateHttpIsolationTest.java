@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.injectors.phishing.form.PhishingEmailTemplateInput;
@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName(
     "phishing_email_templates read and write isolation through the real HTTP endpoint, both"
         + " routes")
-class PhishingEmailTemplateHttpIsolationTest extends ProductionTablesIntegrationTest {
+class PhishingEmailTemplateHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_TEMPLATES = "/api/tenants/{tenantId}/phishing/email-templates";
   private static final String TEMPLATES = "/api/phishing/email-templates";

@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,8 +42,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -52,13 +49,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * The execution trace readers, the retention job, the job writers, the executor launch writers and
- * the chaining end writer on the production list of active tables, which holds {@code
- * execution_traces}. Two tenants each own a pending inject and its traces. The jobs run the way
- * production runs them, with no transaction and no ambient tenant of their own on the thread; the
- * readers, the by-id read and the launch and chaining end writers run inside a transaction scoped
- * to one tenant, as their callers open it. The answer is read back from the tenant column. The
- * execution log of an inject is read over HTTP on the tenant route and on the {@code X-Tenant-Ids}
- * route.
+ * the chaining end writer on the gated {@code execution_traces} table. Two tenants each own a
+ * pending inject and its traces. The jobs run the way production runs them, with no transaction and
+ * no ambient tenant of their own on the thread; the readers, the by-id read and the launch and
+ * chaining end writers run inside a transaction scoped to one tenant, as their callers open it. The
+ * answer is read back from the tenant column. The execution log of an inject is read over HTTP on
+ * the tenant route and on the {@code X-Tenant-Ids} route.
  *
  * <p>NOT {@code @Transactional}: the scoped primitive refuses to open inside an active transaction,
  * and the jobs commit their own transactions. The rows are committed through JDBC and swept after
@@ -72,12 +68,6 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
   private static final int RETENTION_DAYS = 30;
   private static final int OLD_DAYS = 100;
   private static final int RECENT_DAYS = 5;
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private ExecutionTraceRepository executionTraceRepository;
   @Autowired private ExecutionTraceRetentionJob retentionJob;

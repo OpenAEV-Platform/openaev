@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -86,7 +86,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("In-handler permission decisions hold in the tenant of the rows they return")
-class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
+class InHandlerPermissionTenantTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 

@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.mapper.form.ImportMapperAddInput;
@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A create is attributed to the tenant the request selects, on every route")
-class ExplicitTenantAttributionRoutesTest extends ProductionTablesIntegrationTest {
+class ExplicitTenantAttributionRoutesTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String MAPPERS = "/api/mappers";

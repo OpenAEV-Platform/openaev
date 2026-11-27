@@ -6,7 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.config.cache.TenantMembershipCacheManager;
@@ -60,7 +60,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithoutTenantScope
 @DisplayName("Loads of a user with no scope, with groups active")
-class UserLoadUnscopedGroupsTest extends ProductionTablesIntegrationTest {
+class UserLoadUnscopedGroupsTest extends IntegrationTest {
 
   @MockitoBean private UserEventService userEventService;
 

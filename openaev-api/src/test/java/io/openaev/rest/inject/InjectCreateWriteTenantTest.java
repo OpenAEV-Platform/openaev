@@ -3,7 +3,7 @@ package io.openaev.rest.inject;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -53,7 +53,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @DisplayName("Creating an inject writes it in its parent's tenant, not the ambient one")
 @WithMockUser(isAdmin = true)
-class InjectCreateWriteTenantTest extends ProductionTablesIntegrationTest {
+class InjectCreateWriteTenantTest extends IntegrationTest {
 
   @Autowired private InjectService injectService;
   @Autowired private ScenarioToExerciseService scenarioToExerciseService;

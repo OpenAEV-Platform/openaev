@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous default agents resolve their tenant from the request scope")
-class AutonomousDefaultAgentsTenantRoutesTest extends ProductionTablesIntegrationTest {
+class AutonomousDefaultAgentsTenantRoutesTest extends IntegrationTest {
 
   private static final String PATH = "/default-agents";
   private static final String SCOPED = TENANT_PREFIX + "/autonomous-runs" + PATH;

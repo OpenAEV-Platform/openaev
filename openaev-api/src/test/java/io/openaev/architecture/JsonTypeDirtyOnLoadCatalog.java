@@ -1,7 +1,6 @@
 package io.openaev.architecture;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
-import io.openaev.config.ProductionActiveTables;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.lang.reflect.Field;
@@ -41,7 +40,6 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
  */
 final class JsonTypeDirtyOnLoadCatalog {
 
-  /** Where the production activation list lives, relative to the module root. */
   private JsonTypeDirtyOnLoadCatalog() {}
 
   /** A {@link JsonType}-mapped field, identified by the class that declares it. */
@@ -162,7 +160,7 @@ final class JsonTypeDirtyOnLoadCatalog {
 
   /** The tenant tables activated in production. One reader for the whole suite. */
   static Set<String> activeTables() {
-    return ProductionActiveTables.names();
+    return BackgroundEntrypointTenantScopeArchTest.gatedTenantTables();
   }
 
   /** The candidate fields stored in at least one tenant-active table. */

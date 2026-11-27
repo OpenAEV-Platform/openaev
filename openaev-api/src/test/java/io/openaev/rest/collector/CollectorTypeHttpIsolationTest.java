@@ -6,7 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("collector_types write isolation through the real HTTP endpoint, both routes")
-class CollectorTypeHttpIsolationTest extends ProductionTablesIntegrationTest {
+class CollectorTypeHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_COLLECTOR_URI = "/api/tenants/{tenantId}/collectors";
 

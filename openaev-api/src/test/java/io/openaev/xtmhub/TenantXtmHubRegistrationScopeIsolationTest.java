@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -38,7 +38,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @CoversTenantIsolation("tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = true)
 @DisplayName("tenant_xtmhub_registrations refuses another tenant's row under one tenant's scope")
-class TenantXtmHubRegistrationScopeIsolationTest extends ProductionTablesIntegrationTest {
+class TenantXtmHubRegistrationScopeIsolationTest extends IntegrationTest {
 
   @Autowired private TenantXtmHubRegistrationRepository repository;
   @Autowired private TenantScopedTransaction tenantTx;

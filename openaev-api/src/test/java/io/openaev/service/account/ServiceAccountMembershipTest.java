@@ -4,7 +4,7 @@ import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.account.AbstractPrivilegeService.getUUIDFromName;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -46,7 +46,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
 @DisplayName("A service account holds exactly its well-known group once provisioned")
-class ServiceAccountMembershipTest extends ProductionTablesIntegrationTest {
+class ServiceAccountMembershipTest extends IntegrationTest {
 
   private static final String PEER_EMAIL = "opencrq@xtm.openaev.filigran.io";
 

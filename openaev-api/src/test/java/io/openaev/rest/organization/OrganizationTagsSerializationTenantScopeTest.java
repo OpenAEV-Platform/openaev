@@ -17,7 +17,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
@@ -42,8 +41,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -56,9 +53,6 @@ import org.springframework.test.web.servlet.ResultActions;
  * io.openaev.service.organization.OrganizationService} loads the tags inside the scoped transaction
  * to prevent it.
  *
- * <p>The tests run with the production list of isolated tables, read from {@code
- * application.properties}, so they follow any later activation.
- *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the tenant-local GUC would stay alive through serialization and MASK the very failure
  * this pins. Seeding, checks and cleanup therefore run in committed transactions opened through
@@ -67,12 +61,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @WithMockUser(isAdmin = true)
 @DisplayName("Organization endpoints serialize their tags with the production isolation")
 class OrganizationTagsSerializationTenantScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    String activeTables = String.join(",", ProductionActiveTables.names());
-    registry.add("openaev.tenant.active-tables", () -> activeTables);
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

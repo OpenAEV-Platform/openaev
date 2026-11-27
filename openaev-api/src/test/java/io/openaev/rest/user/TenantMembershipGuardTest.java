@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.TenantInterceptor;
 import io.openaev.context.TenantContext;
@@ -73,7 +73,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Tenant membership guard")
-public class TenantMembershipGuardTest extends ProductionTablesIntegrationTest {
+public class TenantMembershipGuardTest extends IntegrationTest {
 
   /**
    * The test classpath declares no active tables, so without this the inspector rewrites nothing

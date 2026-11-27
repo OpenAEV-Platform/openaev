@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.tag_rule.form.TagRuleInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("tag_rules read and write isolation through the real HTTP endpoint")
-class TagRuleHttpIsolationTest extends ProductionTablesIntegrationTest {
+class TagRuleHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_TAG_RULES = "/api/tenants/{tenantId}/tag-rules";
 

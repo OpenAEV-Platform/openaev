@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
@@ -54,7 +54,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @DisplayName("A caller of one tenant and a contract held by another tenant")
 @CoversTenantIsolation("injectors_contracts")
 @WithMockUser
-class InjectorContractCrossTenantRefusalTest extends ProductionTablesIntegrationTest {
+class InjectorContractCrossTenantRefusalTest extends IntegrationTest {
 
   private static final String LABEL_PREFIX = "refusal-copy-";
 

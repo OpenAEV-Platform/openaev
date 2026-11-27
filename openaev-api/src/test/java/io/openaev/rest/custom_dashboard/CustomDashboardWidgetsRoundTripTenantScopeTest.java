@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboard;
@@ -45,15 +45,14 @@ import org.springframework.test.web.servlet.MockMvc;
  * fail closed to an empty array. The test reads a dashboard through the search, sends it back to
  * the update endpoint as it came, and checks the widgets in the database.
  *
- * <p>The tests run with the production list of isolated tables. The class is deliberately NOT
- * {@code @Transactional}: a rolled-back test transaction never commits, so the tenant-local scope
- * would stay alive through serialization and mask the failure. Seeding and cleanup run in committed
- * transactions scoped to the test tenant, and the database checks read the widgets table directly,
- * outside any scope.
+ * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
+ * commits, so the tenant-local scope would stay alive through serialization and mask the failure.
+ * Seeding and cleanup run in committed transactions scoped to the test tenant, and the database
+ * checks read the widgets table directly, outside any scope.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Custom dashboard search keeps the widgets across a read and an unchanged save")
-class CustomDashboardWidgetsRoundTripTenantScopeTest extends ProductionTablesIntegrationTest {
+class CustomDashboardWidgetsRoundTripTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;

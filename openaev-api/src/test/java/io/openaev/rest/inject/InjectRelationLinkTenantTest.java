@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.CredentialSecretReference;
@@ -66,7 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "An inject links only the tags, assets, asset groups and secret references of its own tenant")
-class InjectRelationLinkTenantTest extends ProductionTablesIntegrationTest {
+class InjectRelationLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String INJECT_TAGS = "SELECT tag_id FROM injects_tags WHERE inject_id = ?";

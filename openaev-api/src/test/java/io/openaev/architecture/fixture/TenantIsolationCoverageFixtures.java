@@ -1,13 +1,10 @@
 package io.openaev.architecture.fixture;
 
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
@@ -18,32 +15,20 @@ import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.commons.annotation.Testable;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 
 /** The shapes of a marked class, for the isolation coverage gate. */
 public final class TenantIsolationCoverageFixtures {
 
   private TenantIsolationCoverageFixtures() {}
 
-  /** No pin, no registration: the gating CI run arms no table for it. */
-  @CoversTenantIsolation({"tags", "documents"})
-  public static class MarksWithNoDeclaration {
-    @Test
-    void runs() {}
-  }
-
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags,documents")
   @CoversTenantIsolation("tags")
-  public static class MarksOnAProbePin {
+  public static class MarksTags {
     @Test
     void runs() {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("documents")
-  public static class MarksATableItsPinLeavesOut {
+  public static class MarksDocuments {
     @Test
     void runs() {}
   }
@@ -60,120 +45,13 @@ public final class TenantIsolationCoverageFixtures {
     void runs() {}
   }
 
-  /** Marks a table that is active nowhere. */
-  @CoversTenantIsolation("not_an_active_table")
-  public static class MarksAnInactiveTable {
+  /** Marks a table nothing gates. */
+  @CoversTenantIsolation("not_a_gated_table")
+  public static class MarksAnUngatedTable {
     @Test
     void runs() {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
-  @TestPropertySource(properties = "openaev.tenant.active-tables=documents")
-  @CoversTenantIsolation("documents")
-  public static class MarksWithTheKeyDeclaredTwice {
-    @Test
-    void runs() {}
-  }
-
-  /** Follows production in a registration and adds its own table on top. */
-  @CoversTenantIsolation({"tags", "documents"})
-  public static class MarksOnARegistrationHoldingProduction {
-    @Test
-    void runs() {}
-
-    @DynamicPropertySource
-    static void tables(DynamicPropertyRegistry registry) {
-      Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-      tables.addAll(Set.of("tags", "documents"));
-      registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-    }
-  }
-
-  @CoversTenantIsolation("documents")
-  public static class MarksATableItsRegistrationLeavesOut {
-    @Test
-    void runs() {}
-
-    @DynamicPropertySource
-    static void tables(DynamicPropertyRegistry registry) {
-      registry.add("openaev.tenant.active-tables", () -> "tags");
-    }
-  }
-
-  /** Reads state the scan cannot provide, so the gate cannot read its list. */
-  @CoversTenantIsolation("tags")
-  public static class MarksOnARegistrationTheScanCannotEvaluate {
-    @Test
-    void runs() {}
-
-    static String tables;
-
-    @DynamicPropertySource
-    static void tables(DynamicPropertyRegistry registry) {
-      registry.add("openaev.tenant.active-tables", () -> tables.toLowerCase());
-    }
-  }
-
-  @TestPropertySource(properties = "openaev.tenant.active-tables=documents")
-  @CoversTenantIsolation("documents")
-  public static class MarksWithAnAnnotationAndARegistration {
-    @Test
-    void runs() {}
-
-    @DynamicPropertySource
-    static void tables(DynamicPropertyRegistry registry) {
-      registry.add("openaev.tenant.active-tables", () -> "documents");
-    }
-  }
-
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
-  public static class PinsTags {}
-
-  /** Inherits the pin of its parent, which is the site that decides its list. */
-  @CoversTenantIsolation("tags")
-  public static class MarksOnAnInheritedPin extends PinsTags {
-    @Test
-    void runs() {}
-  }
-
-  @TestPropertySource(properties = "openaev.tenant.active-tables=*")
-  @CoversTenantIsolation("tags")
-  public static class MarksOnAWildcardPin {
-    @Test
-    void runs() {}
-  }
-
-  /** Registers the key; its child registers it too, and Spring resolves one of the two. */
-  public static class RegistersTags {
-    @DynamicPropertySource
-    static void tables(DynamicPropertyRegistry registry) {
-      registry.add("openaev.tenant.active-tables", () -> "tags");
-    }
-  }
-
-  @CoversTenantIsolation("tags")
-  public static class MarksWithAParentAndAChildRegistering extends RegistersTags {
-    @Test
-    void runs() {}
-
-    @DynamicPropertySource
-    static void childTables(DynamicPropertyRegistry registry) {
-      registry.add("openaev.tenant.active-tables", () -> "tags,documents");
-    }
-  }
-
-  /** The pin of the enclosing class reaches the nested class marked below. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
-  public static class PinsTagsAroundANestedClass {
-    @Nested
-    @CoversTenantIsolation("tags")
-    public class MarksUnderTheEnclosingPin {
-      @Test
-      void runs() {}
-    }
-  }
-
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public abstract static class MarksAnAbstractClass {
     @Test
@@ -181,21 +59,18 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   @Disabled
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksADisabledClass {
     @Test
     void runs() {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWithNoTestMethod {
     void helper() {}
   }
 
   /** The tests sit in nested classes, as in the large API test classes. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseTestsAreNested {
     @Nested
@@ -206,7 +81,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** The only nested class that holds a test is disabled. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestsAreInADisabledNestedClass {
     @Disabled
@@ -219,7 +93,6 @@ public final class TenantIsolationCoverageFixtures {
 
   /** The marked class is nested in a disabled outer class, so JUnit never runs it. */
   @Disabled
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   public static class DisablesAClassAroundAMarkedNestedClass {
     @Nested
     @CoversTenantIsolation("tags")
@@ -235,11 +108,9 @@ public final class TenantIsolationCoverageFixtures {
     void runs() {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsInherited extends HoldsATest {}
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsDisabled {
     @Disabled
@@ -248,7 +119,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** The only nested class that holds a test holds a disabled one. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyNestedTestIsDisabled {
     @Nested
@@ -263,7 +133,6 @@ public final class TenantIsolationCoverageFixtures {
   @Disabled
   public static class DisabledParent {}
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassUnderADisabledParent extends DisabledParent {
     @Test
@@ -271,7 +140,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** Jupiter discovers a private method as no test: it is never executed. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsPrivate {
     @Test
@@ -279,7 +147,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** Jupiter discovers a static method as no test: it is never executed. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsStatic {
     @Test
@@ -287,7 +154,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** {@code @Testable} is the Platform's marker: Jupiter runs only its own test annotations. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsABareTestable {
     @Testable
@@ -295,7 +161,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** Every method is one Jupiter does not run; the class is reported, not counted. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyNestedTestIsPrivate {
     @Nested
@@ -311,14 +176,12 @@ public final class TenantIsolationCoverageFixtures {
   @Test
   public @interface IsolationTest {}
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsAComposedAnnotation {
     @IsolationTest
     void runs() {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsAFactory {
     @TestFactory
@@ -327,7 +190,6 @@ public final class TenantIsolationCoverageFixtures {
     }
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsParameterized {
     @ParameterizedTest
@@ -335,7 +197,6 @@ public final class TenantIsolationCoverageFixtures {
     void runs(String value) {}
   }
 
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsRepeated {
     @RepeatedTest(2)
@@ -343,7 +204,6 @@ public final class TenantIsolationCoverageFixtures {
   }
 
   /** The test is protected, which Jupiter discovers. */
-  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
   @CoversTenantIsolation("tags")
   public static class MarksAClassWhoseOnlyTestIsProtected {
     @Test

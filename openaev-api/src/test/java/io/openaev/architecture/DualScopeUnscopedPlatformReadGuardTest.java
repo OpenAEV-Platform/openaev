@@ -3,7 +3,6 @@ package io.openaev.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.architecture.fixture.UnscopedPlatformReadPinFixtures;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utilstest.PinsUnscopedPlatformRead;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.lang.reflect.Method;
@@ -52,12 +51,12 @@ class DualScopeUnscopedPlatformReadGuardTest {
   }
 
   @Test
-  @DisplayName("given the production list, should arm no dual-scope table that is not pinned")
-  void given_theProductionList_should_armNoDualScopeTableThatIsNotPinned() {
+  @DisplayName("given the gated tables, should hold no dual-scope table that is not pinned")
+  void given_theGatedTables_should_holdNoDualScopeTableThatIsNotPinned() {
     // Act
     Set<String> unpinned =
         unpinned(
-            ProductionActiveTables.names(),
+            BackgroundEntrypointTenantScopeArchTest.gatedTenantTables(),
             BackgroundEntrypointTenantScopeArchTest.productionTenantTables().dualScope());
 
     // Assert

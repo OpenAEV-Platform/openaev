@@ -9,16 +9,14 @@ import io.openaev.database.model.TenantBase;
 import jakarta.persistence.Table;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 // Exercises the listener's @PrePersist logic directly, on a throwaway TenantBase, instead of
-// through a real entity's repository: any entity's own table can be activated (removing the
-// listener from that entity) or deactivated by a future PR, which would break a test pinned on
-// it. The listener's behavior does not depend on which entity carries it.
+// through a real entity's repository: the listener's behavior does not depend on which entity
+// carries it, and an entity can drop the listener in a later change.
+@DisplayName("The tenant stamp of a tenant-scoped write")
 class TenantBaseListenerTest {
 
   @AfterEach
@@ -70,74 +68,49 @@ class TenantBaseListenerTest {
     }
   }
 
-  @Nested
-  @DisplayName("when the entity's table is v2-active")
-  class WhenTheTableIsActive {
+  private final TenantBaseListener<ProbeTenantBase> listener = new TenantBaseListener<>();
 
-    private final TenantBaseListener<ProbeTenantBase> listener =
-        new TenantBaseListener<>(List.of("probe_tenant_bases"));
+  @Test
+  @DisplayName("given no tenant context, should refuse the write")
+  void given_noTenantContext_should_throwOnPersist() {
+    // Arrange
+    TenantContext.clearCurrentTenant();
+    ProbeTenantBase entity = new ProbeTenantBase();
 
-    @Test
-    void given_noTenantContext_should_throwOnPersist() {
-      // Arrange
-      TenantContext.clearCurrentTenant();
-      ProbeTenantBase entity = new ProbeTenantBase();
-
-      // Act & Assert
-      assertThatThrownBy(() -> persist(listener, entity))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessage("unattributed tenant write: ProbeTenantBase");
-    }
-
-    @Test
-    void given_tenantContextSet_should_stampTenantOnPersist() {
-      // Arrange
-      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
-      ProbeTenantBase entity = new ProbeTenantBase();
-
-      // Act
-      persist(listener, entity);
-
-      // Assert
-      assertThat(entity.getTenant()).isNotNull();
-      assertThat(entity.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    }
-
-    @Test
-    void given_tenantAlreadySetOnEntity_should_leaveItUnchanged() {
-      // Arrange
-      TenantContext.clearCurrentTenant();
-      ProbeTenantBase entity = new ProbeTenantBase();
-      Tenant explicitTenant = new Tenant("11111111-1111-1111-1111-111111111111");
-      entity.setTenant(explicitTenant);
-
-      // Act
-      persist(listener, entity);
-
-      // Assert
-      assertThat(entity.getTenant()).isSameAs(explicitTenant);
-    }
+    // Act & Assert
+    assertThatThrownBy(() -> persist(listener, entity))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("unattributed tenant write: ProbeTenantBase");
   }
 
-  @Nested
-  @DisplayName("when the entity's table is not v2-active")
-  class WhenTheTableIsNotActive {
+  @Test
+  @DisplayName("given a tenant context, should stamp its tenant")
+  void given_tenantContextSet_should_stampTenantOnPersist() {
+    // Arrange
+    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    ProbeTenantBase entity = new ProbeTenantBase();
 
-    private final TenantBaseListener<ProbeTenantBase> listener =
-        new TenantBaseListener<>(List.of());
+    // Act
+    persist(listener, entity);
 
-    @Test
-    void given_noTenantContext_should_stampDefaultTenant() {
-      // Arrange
-      TenantContext.clearCurrentTenant();
-      ProbeTenantBase entity = new ProbeTenantBase();
+    // Assert
+    assertThat(entity.getTenant()).isNotNull();
+    assertThat(entity.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+  }
 
-      // Act
-      persist(listener, entity);
+  @Test
+  @DisplayName("given a tenant on the entity, should leave it unchanged")
+  void given_tenantAlreadySetOnEntity_should_leaveItUnchanged() {
+    // Arrange
+    TenantContext.clearCurrentTenant();
+    ProbeTenantBase entity = new ProbeTenantBase();
+    Tenant explicitTenant = new Tenant("11111111-1111-1111-1111-111111111111");
+    entity.setTenant(explicitTenant);
 
-      // Assert
-      assertThat(entity.getTenant()).isNotNull();
-      assertThat(entity.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    }
+    // Act
+    persist(listener, entity);
+
+    // Assert
+    assertThat(entity.getTenant()).isSameAs(explicitTenant);
   }
 }

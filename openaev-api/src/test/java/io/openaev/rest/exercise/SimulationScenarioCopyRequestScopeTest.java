@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
  * not the tenant the request thread falls back to.
  */
 @DisplayName("Simulation and scenario copy, in the tenant of the source")
-class SimulationScenarioCopyRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
+class SimulationScenarioCopyRequestScopeTest extends ByIdRequestScopeEnterpriseEditionTestBase {
 
   @Nested
   @DisplayName("Non-prefixed route with an X-Tenant-Ids selector")

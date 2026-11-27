@@ -3,7 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -42,7 +42,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @CoversTenantIsolation({"workflow_states", "steps_delay_queue"})
 @WithMockUser(isAdmin = true)
 @DisplayName("workflow_states and steps_delay_queue refuse another tenant's row on a run")
-class ChainingRunStateScopeIsolationTest extends ProductionTablesIntegrationTest {
+class ChainingRunStateScopeIsolationTest extends IntegrationTest {
 
   @Autowired private WorkflowStateStore workflowStateStore;
   @Autowired private StepDelayQueueService stepDelayQueueService;

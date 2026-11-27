@@ -23,7 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -63,7 +62,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.hibernate.Hibernate;
@@ -74,8 +72,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -91,10 +87,10 @@ import org.springframework.test.web.servlet.ResultActions;
  * <p>The tests cover every lazy association these responses serialize that can be seeded without an
  * inject: team tags, users, organization, simulations, scenarios and simulation players; player
  * tags, teams, organization and simulation players. Every {@code TeamApi} endpoint returning a raw
- * team is covered except create: read, edit, players update and upsert. They run with the
- * production list of isolated tables plus {@code exercises} and {@code scenarios}, which a team
- * reaches through its simulations and scenarios: activating another table that one of these
- * associations reaches makes them fail until the association is loaded inside the scope too.
+ * team is covered except create: read, edit, players update and upsert. They run with every tenant
+ * table gated, {@code exercises} and {@code scenarios} included, which a team reaches through its
+ * simulations and scenarios: a lazy association left unloaded by the handler makes them fail until
+ * it is loaded inside the scope too.
  *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the tenant-local GUC would stay alive through serialization and MASK the very failure
@@ -104,14 +100,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @WithMockUser(isAdmin = true)
 @DisplayName("Team and team player endpoints serialize every lazy association")
 class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithExercisesAndScenarios(DynamicPropertyRegistry registry) {
-    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("exercises");
-    tables.add("scenarios");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

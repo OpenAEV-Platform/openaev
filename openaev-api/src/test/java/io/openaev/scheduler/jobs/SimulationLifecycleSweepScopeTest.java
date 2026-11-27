@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Tenant;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -25,8 +24,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,8 +32,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -55,28 +50,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @WithMockUser(isAdmin = true)
 @DisplayName("The simulation lifecycle sweeps see every tenant's rows")
 class SimulationLifecycleSweepScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionChainingAndSimulationTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            Stream.concat(
-                    ProductionActiveTables.names().stream(),
-                    Stream.of(
-                        "workflows",
-                        "steps",
-                        "conditions",
-                        "scope_variables",
-                        "steps_delay_queue",
-                        "workflow_scope_rules",
-                        "workflow_states",
-                        "exercises",
-                        "scenarios",
-                        "injects"))
-                .distinct()
-                .collect(Collectors.joining(",")));
-  }
 
   @Autowired private InjectsExecutionJob injectsExecutionJob;
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;

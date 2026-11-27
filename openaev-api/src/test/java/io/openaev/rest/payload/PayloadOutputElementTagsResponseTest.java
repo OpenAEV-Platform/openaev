@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -52,12 +52,11 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * <p>The tags of an output element are a lazy collection on a tenant table. Not {@code
  * Transactional}: each request runs and commits its own transaction, then open-in-view serializes
  * the response with no tenant scope, as in production, so a collection left unloaded by the handler
- * comes back empty. The payload is created through the API in a tenant of its own, on the
- * production list of isolated tables.
+ * comes back empty. The payload is created through the API in a tenant of its own.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Payload responses answer the tags of the output elements")
-class PayloadOutputElementTagsResponseTest extends ProductionTablesIntegrationTest {
+class PayloadOutputElementTagsResponseTest extends IntegrationTest {
 
   private static final String TAGS_PATH = "$..contract_output_element_tags[*]";
   private static final String TENANT_INJECTOR_CONTRACT_URI = TENANT_PREFIX + "/injector_contracts";

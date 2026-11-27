@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
@@ -39,13 +39,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants. The tag ids of the
  * body resolve in the tenant of the document alone. The links are read from the join table through
- * JDBC on the test connection, which the statement inspector does not rewrite. The class arms the
- * production list, so {@code tags} and {@code documents} are both scoped by the inspector.
+ * JDBC on the test connection, which the statement inspector does not rewrite. The inspector scopes
+ * both {@code tags} and {@code documents}.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Document tag endpoints link only the tags of the document tenant")
-class DocumentTagLinkTenantTest extends ProductionTablesIntegrationTest {
+class DocumentTagLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

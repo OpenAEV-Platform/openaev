@@ -6,7 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @DisplayName("ThreatArsenalApi#threatArsenal resolves a single tenant for a two-tenant caller")
 @WithMockUser(isAdmin = true)
-class ThreatArsenalApiTenantScopeTest extends ProductionTablesIntegrationTest {
+class ThreatArsenalApiTenantScopeTest extends IntegrationTest {
 
   private static final String URL = THREAT_ARSENAL_URL;
   private static final String DEFAULT_LABEL = "default-tenant-copy";

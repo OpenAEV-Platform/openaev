@@ -13,14 +13,10 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.attackpath.AttackPathGraphVersion;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("TenantTables.fromEntities")
+@DisplayName("TenantTables: the entity model and the gated tables")
 class TenantTablesTest {
 
   @Test
@@ -62,52 +58,24 @@ class TenantTablesTest {
         IllegalStateException.class, () -> TenantTables.fromEntities(List.of(NoTableTenant.class)));
   }
 
-  // --- restrictTo: the activation allowlist --------------------------------
-
-  private static final TenantTables MODEL =
-      new TenantTables(Set.of("documents", "findings"), Set.of("groups"));
+  // --- withoutSelfIsolated: the tables the inspector gates ----------------
 
   @Test
-  @DisplayName("an empty allowlist leaves no table active")
-  void restrictToEmptyAllowlistActivatesNothing() {
-    TenantTables active = MODEL.restrictTo(Set.of());
-    assertTrue(active.strict().isEmpty());
-    assertTrue(active.dualScope().isEmpty());
-  }
+  @DisplayName("given strict and dual-scope tables, should gate every one, keeping its family")
+  void given_strictAndDualScopeTables_should_gateEveryOneKeepingItsFamily() {
+    // Arrange
+    TenantTables model = new TenantTables(Set.of("documents", "findings"), Set.of("groups"));
 
-  @Test
-  @DisplayName("only the allowlisted tables stay active, keeping their family")
-  void restrictToKeepsAllowlistedTablesAndFamily() {
-    TenantTables active = MODEL.restrictTo(Set.of("documents", "groups"));
-    assertEquals(Set.of("documents"), active.strict());
-    assertEquals(Set.of("groups"), active.dualScope());
-    assertEquals(TenantTables.Family.NONE, active.family("findings"));
-  }
+    // Act
+    TenantTables gated = model.withoutSelfIsolated();
 
-  @Test
-  @DisplayName("the allowlist is matched case-insensitively")
-  void restrictToIsCaseInsensitive() {
-    assertEquals(
-        TenantTables.Family.STRICT, MODEL.restrictTo(Set.of("DOCUMENTS")).family("documents"));
-  }
-
-  @Test
-  @DisplayName("an allowlist entry that is not a known tenant table fails fast")
-  void restrictToRejectsUnknownTable() {
-    assertThrows(
-        IllegalArgumentException.class, () -> MODEL.restrictTo(Set.of("not_a_tenant_table")));
-  }
-
-  @Test
-  @DisplayName("'*' activates every strict table and every dual-scope one")
-  void restrictToAllStrictActivatesStrictAndDualScopeTables() {
-    TenantTables active = MODEL.restrictTo(Set.of(TenantTables.ALL_STRICT));
-    assertEquals(Set.of("documents", "findings"), active.strict());
+    // Assert
+    assertEquals(Set.of("documents", "findings"), gated.strict());
     assertEquals(
         Set.of("groups"),
-        active.dualScope(),
+        gated.dualScope(),
         "a platform row is written under the platform-write marker, which the mechanism covers");
-    assertEquals(TenantTables.Family.DUAL, active.family("groups"));
+    assertEquals(TenantTables.Family.DUAL, gated.family("groups"));
   }
 
   /**
@@ -120,8 +88,9 @@ class TenantTablesTest {
   }
 
   @Test
-  @DisplayName("'*' leaves out every self-isolated strict table")
-  void restrictToAllStrictSkipsSelfIsolatedTables() {
+  @DisplayName("given self-isolated strict tables, should leave every one out")
+  void given_selfIsolatedStrictTables_should_leaveEveryOneOut() {
+    // Arrange
     String graphVersion = tableOf(AttackPathGraphVersion.class);
     String tenants = tableOf(Tenant.class);
     // A join table with no entity class, so its name cannot be read from a mapping.
@@ -130,38 +99,40 @@ class TenantTablesTest {
         new TenantTables(
             Set.of("documents", graphVersion, tenants, usersTenants), Set.of("groups"));
 
-    TenantTables active = model.restrictTo(Set.of(TenantTables.ALL_STRICT));
+    // Act
+    TenantTables gated = model.withoutSelfIsolated();
 
-    assertEquals(Set.of("documents"), active.strict());
+    // Assert
+    assertEquals(Set.of("documents"), gated.strict());
     assertEquals(
         TenantTables.Family.NONE,
-        active.family(graphVersion),
+        gated.family(graphVersion),
         "its upsert is a shape the inspector cannot rewrite; it isolates itself by explicit predicate");
     assertEquals(
         TenantTables.Family.NONE,
-        active.family(tenants),
+        gated.family(tenants),
         "the tenant registry is not tenant-scoped data; gating it stops the platform from bootstrapping");
     assertEquals(
         TenantTables.Family.NONE,
-        active.family(usersTenants),
+        gated.family(usersTenants),
         "the membership check that computes the scope reads it before any scope exists");
   }
 
   @Test
-  @DisplayName("'*' leaves out a self-isolated table whichever family the schema reads it as")
-  void given_selfIsolatedTableReadAsDualScope_should_wildcardLeaveItOut() {
+  @DisplayName("given a self-isolated table read as dual-scope, should leave it out")
+  void given_selfIsolatedTableReadAsDualScope_should_leaveItOut() {
     // Arrange: the schema reads a table as dual-scope when its tenant_id is nullable
     TenantTables model =
         new TenantTables(
             Set.of("documents"), Set.of("groups", tableOf(Tenant.class), "users_tenants"));
 
     // Act
-    TenantTables active = model.restrictTo(Set.of(TenantTables.ALL_STRICT));
+    TenantTables gated = model.withoutSelfIsolated();
 
     // Assert
-    assertEquals(Set.of("groups"), active.dualScope());
-    assertEquals(TenantTables.Family.NONE, active.family(tableOf(Tenant.class)));
-    assertEquals(TenantTables.Family.NONE, active.family("users_tenants"));
+    assertEquals(Set.of("groups"), gated.dualScope());
+    assertEquals(TenantTables.Family.NONE, gated.family(tableOf(Tenant.class)));
+    assertEquals(TenantTables.Family.NONE, gated.family("users_tenants"));
   }
 
   @Test
@@ -172,44 +143,6 @@ class TenantTablesTest {
     assertEquals(
         Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class), "users_tenants"),
         TenantTables.selfIsolatedTables());
-  }
-
-  static Stream<String> selfIsolatedTables() {
-    return TenantTables.selfIsolatedTables().stream().sorted();
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("selfIsolatedTables")
-  @DisplayName("a self-isolated table named in an explicit allowlist fails fast")
-  void restrictToRejectsASelfIsolatedTable(String table) {
-    // The model knows the table as strict, as the schema derivation does, so the refusal cannot be
-    // the "not a tenant table" one.
-    TenantTables model =
-        new TenantTables(
-            Stream.concat(Stream.of("documents"), TenantTables.selfIsolatedTables().stream())
-                .collect(Collectors.toSet()),
-            Set.of());
-
-    IllegalArgumentException alone =
-        assertThrows(IllegalArgumentException.class, () -> model.restrictTo(Set.of(table)));
-    IllegalArgumentException amongOthers =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> model.restrictTo(Set.of("documents", table.toUpperCase())));
-
-    assertTrue(alone.getMessage().contains(table), alone.getMessage());
-    assertTrue(amongOthers.getMessage().contains(table), amongOthers.getMessage());
-    assertTrue(
-        alone.getMessage().contains("self-isolated"),
-        "the error must say why the table is refused: " + alone.getMessage());
-  }
-
-  @Test
-  @DisplayName("'*' alongside a table name fails fast rather than guessing which one wins")
-  void restrictToRejectsAllStrictMixedWithTableNames() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> MODEL.restrictTo(Set.of(TenantTables.ALL_STRICT, "documents")));
   }
 
   /** A tenant-aware entity missing its {@code @Table} mapping. */

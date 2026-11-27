@@ -3,7 +3,7 @@ package io.openaev.context;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.TagRepository;
 import java.util.UUID;
@@ -24,13 +24,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * back once that part is done, and what the narrowed part changed is written under the narrowed
  * scope.
  *
- * <p>The class runs with the production list of active tables, which holds {@code tags}, so that an
- * update of a tag is filtered by the tenant scope it runs under. Deliberately NOT
- * {@code @Transactional}: each test owns its transaction, and seeds and cleans through
- * auto-committed JDBC.
+ * <p>The statement inspector gates {@code tags}, so that an update of a tag is filtered by the
+ * tenant scope it runs under. Deliberately NOT {@code @Transactional}: each test owns its
+ * transaction, and seeds and cleans through auto-committed JDBC.
  */
 @DisplayName("TenantScopedTransaction: capturing the scope of the current transaction")
-class TenantScopedTransactionCapturedScopeTest extends ProductionTablesIntegrationTest {
+class TenantScopedTransactionCapturedScopeTest extends IntegrationTest {
 
   private static final String RENAMED = "captured-scope-renamed";
 

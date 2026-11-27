@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -52,7 +52,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithoutTenantScope
 @DisplayName("User load of the access check with no scope, with marking_definitions active")
-class CurrentUserLoadUnscopedMarkingsTest extends ProductionTablesIntegrationTest {
+class CurrentUserLoadUnscopedMarkingsTest extends IntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;

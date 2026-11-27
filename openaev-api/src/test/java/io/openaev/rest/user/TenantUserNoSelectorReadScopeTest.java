@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.WaivesUnscopedReads;
 import io.openaev.context.TenantContext;
@@ -74,7 +74,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("User reads and update with no tenant selector")
-public class TenantUserNoSelectorReadScopeTest extends ProductionTablesIntegrationTest {
+public class TenantUserNoSelectorReadScopeTest extends IntegrationTest {
 
   /** Production's active tables: the handlers read tables the inspector gates. */
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

@@ -7,7 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = false)
 @DisplayName("Teams isolation holds for a non-admin spanning two tenants")
-class TeamNonAdminIsolationTest extends ProductionTablesIntegrationTest {
+class TeamNonAdminIsolationTest extends IntegrationTest {
 
   private static final Set<Capability> READ_TEAMS = Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS);
   private static final String SEED_PREFIX = "team-nonadmin-iso-team-";

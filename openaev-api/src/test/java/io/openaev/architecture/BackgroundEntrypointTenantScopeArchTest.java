@@ -14,24 +14,20 @@ import io.openaev.database.model.TenantBase;
 import io.openaev.database.model.TenantIdBase;
 import jakarta.persistence.Table;
 import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -136,12 +132,6 @@ import org.junit.jupiter.api.Test;
  * positive and it is fail-closed (it demands attention, it never hides an unscoped path); the fix
  * is to reference the primitive in the child or add a {@code delegates-to} baseline entry, not to
  * weaken the guard.
- *
- * <p><b>Known limit, an explicit allowlist naming a self-isolated table.</b> {@code until-active}
- * rejects a self-isolated strict table ({@code attackpath_graph_version}, {@code tenants}) because
- * these are never meant to be activated, yet {@link io.openaev.config.TenantTables#restrictTo}
- * still accepts such a name in an explicit {@code openaev.tenant.active-tables} list, so activating
- * one that way is a production configuration error this guard does not reject today (follow-up).
  */
 public class BackgroundEntrypointTenantScopeArchTest {
 
@@ -295,12 +285,11 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("no waiver outlives the v1 table it was granted against (until-active:<table>)")
   void no_baseline_waiver_outlives_its_table() {
-    List<String> expired =
-        expiredWaivers(loadBaseline(), effectiveActiveTables(), wildcardActivatedTables());
+    List<String> expired = expiredWaivers(loadBaseline(), gatedTenantTables());
     assertTrue(
         expired.isEmpty(),
         "an until-active waiver was granted only while its table stayed v1, and that table is now"
-            + " in openaev.tenant.active-tables. Convert the path to the primitive and remove the"
+            + " gated by the statement inspector. Convert the path to the primitive and remove the"
             + " waiver:\n  "
             + String.join("\n  ", expired));
   }
@@ -435,39 +424,26 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The waivers whose table is no longer v1. Under an explicit allowlist a table counts as active
-   * when it is named. Under the wildcard {@link TenantTables#ALL_STRICT} the terminal state
-   * activates every tenant table, dual-scope ones included, minus the self-isolated ones ({@link
-   * TenantTables#restrictTo}). So a tag expires under {@code *} when its table is in {@code
-   * wildcardActivates} (the {@code *}-expansion). A self-isolated table is in neither, and is
+   * The waivers whose table the statement inspector gates. Every tenant table but the self-isolated
+   * ones is gated, so a tag naming a tenant table expires at once; a self-isolated table is
    * rejected upstream as an illegal until-active target by {@code
    * every_until_active_tag_names_a_real_tenant_table}.
-   *
-   * <p>(The active-tables set is resolved by {@link #effectiveActiveTables()}: the nightly shadow
-   * run arms {@code *} through a {@code -Dopenaev.tenant.active-tables} JVM property, which wins
-   * over the production {@code application.properties} file, so the wildcard expiry this check
-   * promises actually fires in that run.)
    */
-  static List<String> expiredWaivers(
-      Map<String, String> baseline, Set<String> activeTables, Set<String> wildcardActivates) {
-    boolean wildcard =
-        activeTables.stream().anyMatch(t -> TenantTables.ALL_STRICT.equals(t.strip()));
-    Set<String> nowActive =
-        (wildcard ? wildcardActivates : activeTables)
-            .stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+  static List<String> expiredWaivers(Map<String, String> baseline, Set<String> gatedTables) {
+    Set<String> gated =
+        gatedTables.stream()
+            .map(t -> t.strip().toLowerCase(Locale.ROOT))
+            .collect(Collectors.toSet());
     List<String> expired = new ArrayList<>();
     baseline.forEach(
         (fqcn, reason) -> {
           for (String table : untilActiveTables(reason)) {
-            if (nowActive.contains(table)) {
+            if (gated.contains(table)) {
               expired.add(
                   fqcn
                       + " is waived until '"
                       + table
-                      + "' activates, but that table is now active"
-                      + (wildcard
-                          ? " ('*' activates every tenant table except the self-isolated ones)"
-                          : "")
+                      + "' activates, but the statement inspector gates every tenant table"
                       + "; scope the path through TenantScopedTransaction and remove the waiver");
             }
           }
@@ -476,20 +452,20 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The tables the terminal {@code *} activation turns v2: the strict entity tables minus the
-   * self-isolated ones, every dual-scope entity table, plus the strict tables that carry a {@code
-   * tenant_id} but no tenant-marker entity ({@link #strictTablesMissedByEntityScan()}). Production
-   * derives its set from {@code information_schema} and so covers those; this guard has no
-   * database, so it unions the checked-in inventory to stay identical to production. {@code
-   * TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema} fails the build if
+   * The tables the statement inspector gates: the strict entity tables minus the self-isolated
+   * ones, every dual-scope entity table, plus the strict tables that carry a {@code tenant_id} but
+   * no tenant-marker entity ({@link #strictTablesMissedByEntityScan()}). Production derives its set
+   * from {@code information_schema} and so covers those; this guard has no database, so it unions
+   * the checked-in inventory to stay identical to production. {@code
+   * TenantFilteringConfigTest#backgroundGuardGatedTablesMatchProductionSchema} fails the build if
    * the two ever diverge.
    */
-  public static Set<String> wildcardActivatedTables() {
-    TenantTables armed = productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT));
-    Set<String> activated = new TreeSet<>(armed.strict());
-    activated.addAll(armed.dualScope());
-    activated.addAll(strictTablesMissedByEntityScan());
-    return activated;
+  public static Set<String> gatedTenantTables() {
+    TenantTables gated = productionTenantTables().withoutSelfIsolated();
+    Set<String> tables = new TreeSet<>(gated.strict());
+    tables.addAll(gated.dualScope());
+    tables.addAll(strictTablesMissedByEntityScan());
+    return tables;
   }
 
   /**
@@ -521,58 +497,6 @@ public class BackgroundEntrypointTenantScopeArchTest {
       throw new UncheckedIOException(e);
     }
     return tables;
-  }
-
-  static final String ACTIVE_TABLES_PROPERTY = "openaev.tenant.active-tables";
-
-  /**
-   * The active-tables allowlist the JVM is actually running under. A shadow run arms the wildcard
-   * (or the production list) by passing {@code -Dopenaev.tenant.active-tables=...}, which Surefire
-   * forwards to the test fork as a system property; that is the effective allowlist and MUST win
-   * over the checked-in file, or the expiry check would run against an empty (or stale) list in the
-   * shadow run and an until-active waiver would never expire when the wildcard activates its table.
-   * With no such property (an ordinary build) the production {@code application.properties} is the
-   * source of truth.
-   */
-  static Set<String> effectiveActiveTables() {
-    return resolveActiveTables(
-        System.getProperty(ACTIVE_TABLES_PROPERTY),
-        BackgroundEntrypointTenantScopeArchTest::activeTablesFromFile);
-  }
-
-  /**
-   * Resolves the effective allowlist: the system-property value when the JVM carries one (a shadow
-   * run), otherwise the production file. Pulled out as a pure function so a test drives both arms
-   * without mutating global JVM state.
-   */
-  static Set<String> resolveActiveTables(String systemProperty, Supplier<Set<String>> fileTables) {
-    if (systemProperty != null) {
-      return parseActiveTables(systemProperty);
-    }
-    return fileTables.get();
-  }
-
-  /**
-   * The allowlist {@code main} ships, ignoring any system property. {@link
-   * TenantTableActivationCoverageArchTest} reads this one rather than {@link
-   * #effectiveActiveTables()}: it judges the checked-in configuration, so a shadow run that arms a
-   * different list must not change its verdict.
-   */
-  static Set<String> activeTablesFromFile() {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    return parseActiveTables(props.getProperty(ACTIVE_TABLES_PROPERTY, ""));
-  }
-
-  private static Set<String> parseActiveTables(String raw) {
-    return Arrays.stream(raw.split(","))
-        .map(String::strip)
-        .filter(s -> !s.isEmpty())
-        .collect(Collectors.toSet());
   }
 
   /**
@@ -623,13 +547,10 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The tables an until-active tag may legally name: every table {@code
-   * openaev.tenant.active-tables} can activate, so that a waiver always has an activation to expire
-   * it. That is the tables the terminal {@code *} turns v2 ({@link #wildcardActivatedTables()}:
-   * strict and dual-scope, minus the self-isolated ones), which expire under {@code *} or when
-   * named explicitly. A self-isolated table ({@code attackpath_graph_version}, {@code tenants},
-   * {@code users_tenants}) and a typo are rejected: they are never activated, so a waiver on one
-   * has no honest way to expire.
+   * The tables an until-active tag may legally name: the gated tables ({@link
+   * #gatedTenantTables()}). A self-isolated table ({@code attackpath_graph_version}, {@code
+   * tenants}, {@code users_tenants}) and a typo are rejected: they are never gated, so a waiver on
+   * one has no honest way to expire.
    *
    * <p>The dual-scope tables come from the entity model ({@link #productionTenantTables()}); a dual
    * link table with no entity would be missed and its waiver rejected as unknown. That is
@@ -637,7 +558,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
    * inventory lists only strict tables); the day one appears, add it there or an entity marker.
    */
   static Set<String> knownTenantTables() {
-    return wildcardActivatedTables();
+    return gatedTenantTables();
   }
 
   // --- family recognition ------------------------------------------------------------------------

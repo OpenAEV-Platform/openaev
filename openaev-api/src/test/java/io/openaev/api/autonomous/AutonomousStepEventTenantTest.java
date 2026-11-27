@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("a step is linked to the events of its own tenant")
-class AutonomousStepEventTenantTest extends ProductionTablesIntegrationTest {
+class AutonomousStepEventTenantTest extends IntegrationTest {
 
   private static final String STEPS = AUTONOMOUS_URI + "/{runId}/attack-path/steps";
 

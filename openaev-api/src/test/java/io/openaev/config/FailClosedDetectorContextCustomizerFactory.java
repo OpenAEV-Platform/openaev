@@ -3,7 +3,6 @@ package io.openaev.config;
 import java.util.List;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.Environment;
 import org.springframework.test.context.ContextConfigurationAttributes;
 import org.springframework.test.context.ContextCustomizer;
 import org.springframework.test.context.ContextCustomizerFactory;
@@ -36,8 +35,7 @@ public class FailClosedDetectorContextCustomizerFactory implements ContextCustom
     @Override
     public void customizeContext(
         ConfigurableApplicationContext context, MergedContextConfiguration mergedConfig) {
-      Environment environment = context.getEnvironment();
-      FailClosedDetectorListener listener = new FailClosedDetectorListener(environment);
+      FailClosedDetectorListener listener = new FailClosedDetectorListener();
       context
           .getBeanFactory()
           .addBeanPostProcessor(

@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -53,12 +53,12 @@ import org.springframework.transaction.annotation.Transactional;
  * tenants, and these edits carry no tenant selector, so the request scope holds all of them. The
  * team ids of the body resolve in the tenant of the entity written alone. The links are read
  * through {@code exercises_teams}, {@code scenarios_teams} and {@code injects_teams} on the test
- * connection, which the statement inspector does not rewrite. The class arms the production list.
+ * connection, which the statement inspector does not rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A simulation, a scenario and an inject link only the teams of their own tenant")
-class SimulationScenarioInjectTeamLinkTenantTest extends ProductionTablesIntegrationTest {
+class SimulationScenarioInjectTeamLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String EXERCISE_TEAMS =

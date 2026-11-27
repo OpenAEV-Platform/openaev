@@ -40,7 +40,6 @@ import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
@@ -369,19 +368,19 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * Interim guard for the activation blind spot: once a table is in {@code
- * openaev.tenant.active-tables}, ANY access to it without a tenant scope silently reads zero rows
- * (fail-closed). Nothing at runtime ties "table is active" to "every accessor carries a scope", so
- * a NEW accessor added later would go dark with green tests. Until the structural fix lands (a
- * compile-time scope rule with #6391, and/or a fail-loud {@code can_access_tenant} — arbitration),
- * this test pins the REVIEWED access surface of each active table:
+ * Interim guard for the gating blind spot: on a gated tenant table, ANY access without a tenant
+ * scope silently reads zero rows (fail-closed). Nothing at runtime ties "table is active" to "every
+ * accessor carries a scope", so a NEW accessor added later would go dark with green tests. Until
+ * the structural fix lands (a compile-time scope rule with #6391, and/or a fail-loud {@code
+ * can_access_tenant}, arbitration), this test pins the REVIEWED access surface of each active
+ * table:
  *
  * <ul>
  *   <li>only allowlisted classes may depend on an active table's repository;
  *   <li>only allowlisted classes may call an association accessor that lazy-loads an active table
  *       (for {@code cwes}: {@code Vulnerability#getCwes}, which bypasses the repository entirely);
- *   <li>every table in the production allowlist MUST have a guard here: activating a table without
- *       extending this test fails the build (see the activate-tenant-table skill, go-live phase).
+ *   <li>every table in the gated set MUST have a guard here: activating a table without extending
+ *       this test fails the build (see the activate-tenant-table skill, go-live phase).
  * </ul>
  *
  * <p>Floor semantics, stated plainly: this test verifies WHO accesses an active table, not that the
@@ -517,10 +516,10 @@ class TenantActiveTableAccessArchTest {
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
-    Set<String> active = ProductionActiveTables.names();
+    Set<String> active = BackgroundEntrypointTenantScopeArchTest.gatedTenantTables();
     assertTrue(
         GUARDED_TABLES.containsAll(active),
-        "every table in openaev.tenant.active-tables needs a guard in this test; missing: "
+        "every gated tenant table needs a guard in this test; missing: "
             + active.stream().filter(t -> !GUARDED_TABLES.contains(t)).collect(Collectors.toSet())
             + ". Extend the repository/accessor rules and the allowlists (see the"
             + " activate-tenant-table skill, go-live phase).");

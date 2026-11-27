@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
@@ -48,7 +48,7 @@ import org.springframework.test.web.servlet.ResultActions;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Payload create and upsert resolve one write tenant")
-class PayloadWriteTenantSelectorTest extends ProductionTablesIntegrationTest {
+class PayloadWriteTenantSelectorTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;

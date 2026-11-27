@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
@@ -45,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("AI target endpoints on the tenant route")
-class AiTargetTenantRouteTest extends ProductionTablesIntegrationTest {
+class AiTargetTenantRouteTest extends IntegrationTest {
 
   private static final String AI_TARGET_BY_ID_URI = TENANT_AI_TARGET_URI + "/{aiTargetId}";
 

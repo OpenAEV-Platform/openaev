@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Tenant;
@@ -29,8 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,9 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
  * from the request's tenant scope, so the pin is on the isolation of the read itself, not on a
  * by-id scope check in the handler.
  *
- * <p>The class follows the production list of isolated tables, which is what enforces the property
- * once {@code exercises} and {@code scenarios} are on it. The rows of A are seeded natively, since
- * the create endpoints would pin the transaction's scope on A and the search below sets it to B.
+ * <p>The statement inspector gates {@code exercises} and {@code scenarios}, which is what enforces
+ * the property. The rows of A are seeded natively, since the create endpoints would pin the
+ * transaction's scope on A and the search below sets it to B.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -52,12 +49,6 @@ class SimulationScenarioSearchIsolationTest extends IntegrationTest {
 
   private static final String SIMULATION_NAME = "cross-tenant-search-simulation";
   private static final String SCENARIO_NAME = "cross-tenant-search-scenario";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

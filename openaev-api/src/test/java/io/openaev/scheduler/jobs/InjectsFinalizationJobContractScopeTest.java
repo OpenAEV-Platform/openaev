@@ -3,12 +3,10 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
@@ -19,8 +17,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * {@code InjectsFinalizationJob} loads injects across tenants, and an inject loads its injector
@@ -28,21 +24,14 @@ import org.springframework.test.context.DynamicPropertySource;
  * scope cannot load that contract, so the first phase throws and {@code execute} stops before the
  * auto-close and pending-inject phases, for every tenant.
  *
- * <p>The tests arm the production list plus {@code injectors_contracts}, and run the job on a bare
- * thread, as a Quartz worker does: no transaction, no session, no ambient tenant. Not
- * {@code @Transactional}: the scoped primitive refuses to open inside an active transaction, so
- * rows are committed through JDBC in a tenant of their own and removed after each test.
+ * <p>The tests run the job on a bare thread, as a Quartz worker does: no transaction, no session,
+ * no ambient tenant. Not {@code @Transactional}: the scoped primitive refuses to open inside an
+ * active transaction, so rows are committed through JDBC in a tenant of their own and removed after
+ * each test.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("InjectsFinalizationJob with injector contracts tenant-isolated")
 class InjectsFinalizationJobContractScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithInjectorContracts(DynamicPropertyRegistry registry) {
-    TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("injectors_contracts");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;
   @Autowired private DataSource dataSource;

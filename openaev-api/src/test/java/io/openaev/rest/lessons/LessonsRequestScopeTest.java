@@ -1,6 +1,5 @@
 package io.openaev.rest.lessons;
 
-import static io.openaev.config.ProductionActiveTables.names;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -50,8 +49,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -67,10 +64,10 @@ import org.springframework.transaction.annotation.Transactional;
  * point at lies outside the scope of the request. The same holds when the caller names its own
  * simulation in the path and a child of A by id: the child is not one of that simulation.
  *
- * <p>The setup runs under the production activation list, so the isolation that is on in a
- * deployment is the one in force. Rows are read back with native SQL, by the ids seeded in A, so no
- * entity filter shapes what the assertions see. Every refusal is asserted as a 404 together with an
- * unchanged row, so a different status or an empty answer cannot pass for it.
+ * <p>Every tenant table is gated, as in a deployment, so the isolation in force is the production
+ * one. Rows are read back with native SQL, by the ids seeded in A, so no entity filter shapes what
+ * the assertions see. Every refusal is asserted as a 404 together with an unchanged row, so a
+ * different status or an empty answer cannot pass for it.
  *
  * <p>The controls pass: a holder of the capability in A works on A's own simulation, a child
  * addressed through another parent of the same simulation is not found, and a member of B without
@@ -97,11 +94,6 @@ class LessonsRequestScopeTest extends IntegrationTest {
       "{\"variable_key\":\"variable_renamed\",\"variable_value\":\"v\","
           + "\"variable_description\":\"d\"}";
   private static final String EVALUATION_BODY = "{\"evaluation_score\":9}";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

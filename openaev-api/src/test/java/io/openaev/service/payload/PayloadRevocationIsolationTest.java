@@ -2,7 +2,7 @@ package io.openaev.service.payload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("payload_revocations read isolation under a tenant scope")
-class PayloadRevocationIsolationTest extends ProductionTablesIntegrationTest {
+class PayloadRevocationIsolationTest extends IntegrationTest {
 
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private PayloadRevocationRepository payloadRevocationRepository;

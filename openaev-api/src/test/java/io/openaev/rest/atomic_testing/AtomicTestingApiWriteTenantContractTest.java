@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -44,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName(
     "AtomicTestingApi resolves the built-in contract in the write tenant, not the ambient one")
 @WithMockUser(isAdmin = true)
-class AtomicTestingApiWriteTenantContractTest extends ProductionTablesIntegrationTest {
+class AtomicTestingApiWriteTenantContractTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 

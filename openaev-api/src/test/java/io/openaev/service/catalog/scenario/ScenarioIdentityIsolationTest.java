@@ -2,7 +2,7 @@ package io.openaev.service.catalog.scenario;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("scenario_identities read isolation under a tenant scope")
-class ScenarioIdentityIsolationTest extends ProductionTablesIntegrationTest {
+class ScenarioIdentityIsolationTest extends IntegrationTest {
 
   @Autowired private ScenarioIdentityRepository scenarioIdentityRepository;
   @Autowired private TenantScopedTransaction tenantTx;

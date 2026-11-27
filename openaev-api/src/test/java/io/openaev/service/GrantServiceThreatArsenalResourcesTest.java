@@ -3,7 +3,7 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
@@ -32,7 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * matched through it.
  */
 @DisplayName("the grant resources of a threat arsenal check never reach another tenant's contract")
-class GrantServiceThreatArsenalResourcesTest extends ProductionTablesIntegrationTest {
+class GrantServiceThreatArsenalResourcesTest extends IntegrationTest {
 
   private static final String EMPTY_CONTRACT_ID = "";
 

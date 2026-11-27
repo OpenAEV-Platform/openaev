@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -46,17 +46,17 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The full text search on the non-prefixed route, under the production list of isolated tables. The
- * caller holds the scenario capability through a role of the default tenant and is also a member of
- * a second tenant. With {@code scenarios} isolated, the scenarios a search reads are those of the
- * tenants of the request's scope: the header naming the default tenant reads the default tenant's
- * scenario, the header naming the second tenant never does.
+ * The full text search on the non-prefixed route. The caller holds the scenario capability through
+ * a role of the default tenant and is also a member of a second tenant. With {@code scenarios}
+ * isolated, the scenarios a search reads are those of the tenants of the request's scope: the
+ * header naming the default tenant reads the default tenant's scenario, the header naming the
+ * second tenant never does.
  */
 @Transactional
 @TestInstance(PER_CLASS)
 @WithMockUser(isAdmin = true)
 @DisplayName("Full text search on the non-prefixed route, scenarios isolated")
-class FullTextSearchHeaderRouteTest extends ProductionTablesIntegrationTest {
+class FullTextSearchHeaderRouteTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   // A word no other fixture uses: the search matches by prefix on each term.

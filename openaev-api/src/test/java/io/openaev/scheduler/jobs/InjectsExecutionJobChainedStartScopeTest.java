@@ -3,7 +3,6 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepEvent;
 import io.openaev.service.queue.BatchQueueService;
@@ -14,7 +13,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
@@ -25,8 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -35,10 +31,10 @@ import org.springframework.test.util.ReflectionTestUtils;
  * table is tenant-isolated: read with no tenant scope it returns nothing, so the step is readied
  * once with no asset target instead of once per asset of the scope.
  *
- * <p>The tests arm the production list plus {@code injectors_contracts}, and run the job on a bare
- * thread, as a Quartz worker does: no transaction, no session, no ambient tenant. Not
- * {@code @Transactional}: the scoped primitive refuses to open inside an active transaction, so
- * rows are committed through JDBC in a tenant of their own and removed after each test.
+ * <p>The tests run the job on a bare thread, as a Quartz worker does: no transaction, no session,
+ * no ambient tenant. Not {@code @Transactional}: the scoped primitive refuses to open inside an
+ * active transaction, so rows are committed through JDBC in a tenant of their own and removed after
+ * each test.
  *
  * <p>The ready queue is shared and live. Its consumer is swapped for one that acknowledges and
  * drops, so the readied step stays READY and no inject is created behind the assertions.
@@ -50,13 +46,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 @WithMockUser(isAdmin = true)
 @DisplayName("InjectsExecutionJob starting a scheduled chained simulation")
 class InjectsExecutionJobChainedStartScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithInjectorContracts(DynamicPropertyRegistry registry) {
-    TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("injectors_contracts");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private InjectsExecutionJob injectsExecutionJob;
   @Autowired private QueueChainingService queueChainingService;

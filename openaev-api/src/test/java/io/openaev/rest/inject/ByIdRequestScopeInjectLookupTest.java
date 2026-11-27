@@ -35,7 +35,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("An inject named by id in a request body or a sub-resource path is read in scope")
-class ByIdRequestScopeInjectLookupTest extends ByIdRequestScopeProductionTablesTestBase {
+class ByIdRequestScopeInjectLookupTest extends ByIdRequestScopeTestBase {
 
   private static final String TITLE = "depends on an inject of another tenant";
 

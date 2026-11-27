@@ -3,15 +3,12 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,8 +17,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The pending-inject sweep of {@code InjectsFinalizationJob} leaves the injects of a running
@@ -39,25 +34,6 @@ import org.springframework.test.context.DynamicPropertySource;
 class PendingInjectChainingExclusionScopeTest extends IntegrationTest {
 
   private static final int OVERDUE_DAYS = 1;
-
-  @DynamicPropertySource
-  static void productionAndChainingActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables",
-        () ->
-            Stream.concat(
-                    ProductionActiveTables.names().stream(),
-                    Stream.of(
-                        "workflows",
-                        "steps",
-                        "conditions",
-                        "scope_variables",
-                        "steps_delay_queue",
-                        "workflow_scope_rules",
-                        "workflow_states"))
-                .distinct()
-                .collect(Collectors.joining(",")));
-  }
 
   @Autowired private InjectsFinalizationJob injectsFinalizationJob;
   @Autowired private DataSource dataSource;

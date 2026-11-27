@@ -3,7 +3,7 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -30,7 +30,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @WithoutTenantScope
 @DisplayName("user-group membership platform-write marker")
-class UserGroupMembershipPlatformMarkerTest extends ProductionTablesIntegrationTest {
+class UserGroupMembershipPlatformMarkerTest extends IntegrationTest {
 
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private UserGroupMembershipService userGroupMembershipService;

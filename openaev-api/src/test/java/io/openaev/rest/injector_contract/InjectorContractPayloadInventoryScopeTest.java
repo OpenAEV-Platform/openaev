@@ -3,13 +3,11 @@ package io.openaev.rest.injector_contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -19,28 +17,18 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The payload-delete path inventories the contracts a payload backs before the database cascade
  * removes them. Once {@code injectors_contracts} is tenant-isolated, that inventory reads only the
  * tenants in scope: a contract of another tenant pointing at the same payload is not returned.
  *
- * <p>The tests arm the production list plus {@code injectors_contracts}. Not
- * {@code @Transactional}: the reads run in the scoped primitive, which refuses an active
+ * <p>Not {@code @Transactional}: the reads run in the scoped primitive, which refuses an active
  * transaction, so rows are committed through JDBC and removed after each test.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Inventory of the contracts backed by a payload")
 class InjectorContractPayloadInventoryScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTablesWithInjectorContracts(DynamicPropertyRegistry registry) {
-    TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
-    tables.add("injectors_contracts");
-    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
-  }
 
   @Autowired private InjectorContractService injectorContractService;
   @Autowired private TenantScopedTransaction tenantTx;

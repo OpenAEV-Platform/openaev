@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
@@ -54,15 +54,14 @@ import org.springframework.test.web.servlet.ResultActions;
  * responses, so saving it unchanged replaced the tags with nothing. Each test reads a platform,
  * sends the response back as it came, and checks the links in the database.
  *
- * <p>The tests run with the production list of isolated tables. The class is deliberately NOT
- * {@code @Transactional}: a rolled-back test transaction never commits, so the tenant-local scope
- * would stay alive through serialization and mask the failure. Seeding and cleanup run in committed
- * transactions scoped to the test tenant, and the database checks read the link columns directly,
- * outside any scope.
+ * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
+ * commits, so the tenant-local scope would stay alive through serialization and mask the failure.
+ * Seeding and cleanup run in committed transactions scoped to the test tenant, and the database
+ * checks read the link columns directly, outside any scope.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Security platform endpoints keep their links across a read and an unchanged save")
-class SecurityPlatformLinksRoundTripTenantScopeTest extends ProductionTablesIntegrationTest {
+class SecurityPlatformLinksRoundTripTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;

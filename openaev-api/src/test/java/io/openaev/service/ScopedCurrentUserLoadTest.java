@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
@@ -78,7 +78,7 @@ import org.springframework.web.bind.annotation.RestController;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import(ScopedCurrentUserLoadTest.CapabilityProbe.class)
 @DisplayName("Current user load with roles active")
-class ScopedCurrentUserLoadTest extends ProductionTablesIntegrationTest {
+class ScopedCurrentUserLoadTest extends IntegrationTest {
 
   private static final String PROBE_PATH = "/test-roles-scoped-load";
   private static final String GUARDED_URI = "/api" + PROBE_PATH + "/guarded";

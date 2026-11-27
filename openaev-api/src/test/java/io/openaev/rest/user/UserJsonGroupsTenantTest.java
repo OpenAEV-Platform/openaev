@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Group;
@@ -56,7 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("User JSON groups of the request tenant")
-public class UserJsonGroupsTenantTest extends ProductionTablesIntegrationTest {
+public class UserJsonGroupsTenantTest extends IntegrationTest {
 
   private static final String UNSCOPED_GROUPS = "unscopedGroups";
   private static final String USER_GROUPS = "user_groups";

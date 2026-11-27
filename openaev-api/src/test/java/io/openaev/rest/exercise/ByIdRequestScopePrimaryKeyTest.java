@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * tenant scope: the path tenant on the tenant route, the {@code X-Tenant-Ids} selector or the
  * caller's memberships on the non-prefixed route. Covers the direct inject execution, the
  * expectations, expectation drift and player challenges endpoints, and the scenario delete with an
- * autonomous run. Runs with the production list of isolated tables.
+ * autonomous run.
  *
  * <p>The direct inject execution also writes: the rows it creates belong to the simulation's
  * tenant, which the last group asserts on the inject row itself on all three routes, so counting
@@ -32,7 +32,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Simulation and scenario primary key loads in the request scope, production tables")
-class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeProductionTablesTestBase {
+class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeEnterpriseEditionTestBase {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 

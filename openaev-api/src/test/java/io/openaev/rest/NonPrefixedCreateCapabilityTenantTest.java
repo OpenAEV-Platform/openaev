@@ -12,7 +12,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser
 @DisplayName("Simulation and scenario creates are authorized in the tenant they write in")
-class NonPrefixedCreateCapabilityTenantTest extends ProductionTablesIntegrationTest {
+class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";

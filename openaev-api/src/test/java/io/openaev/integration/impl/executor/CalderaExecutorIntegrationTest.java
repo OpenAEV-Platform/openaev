@@ -12,7 +12,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -49,8 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,12 +64,6 @@ import org.springframework.transaction.annotation.Transactional;
     publicUrl = "caldera_public_url",
     apiKey = "caldera_api_key")
 public class CalderaExecutorIntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private CalderaExecutorClient client;
   @Autowired private EndpointService endpointService;

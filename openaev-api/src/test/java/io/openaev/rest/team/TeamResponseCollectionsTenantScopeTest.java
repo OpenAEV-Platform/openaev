@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -65,14 +65,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * transaction: each endpoint runs as a bean in a read-only transaction that never flushes, so no
  * stream event is built and the answered collections are initialized by the endpoint or not at all.
  *
- * <p>The class runs with the production list of isolated tables and is deliberately NOT {@code
- * Transactional}: a rolled-back test transaction never commits, so its scope stays alive through
- * serialization. Rows are seeded through an auto-committing {@link JdbcTemplate}, injects and
- * players through a committed transaction scoped to their tenant.
+ * <p>The class is deliberately NOT {@code Transactional}: a rolled-back test transaction never
+ * commits, so its scope stays alive through serialization. Rows are seeded through an
+ * auto-committing {@link JdbcTemplate}, injects and players through a committed transaction scoped
+ * to their tenant.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Team responses carry the simulations, scenarios and tags of the team")
-class TeamResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest {
+class TeamResponseCollectionsTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

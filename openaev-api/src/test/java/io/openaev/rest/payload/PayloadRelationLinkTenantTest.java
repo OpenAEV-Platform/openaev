@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Domain;
@@ -51,12 +51,12 @@ import org.springframework.transaction.annotation.Transactional;
  * attack pattern ids of the body resolve in the tenant of the payload alone. The payload holds them
  * on its injector contract, read from {@code injectors_contracts_domains} and {@code
  * injectors_contracts_attack_patterns} through JDBC on the test connection, which the statement
- * inspector does not rewrite. The class arms the production list.
+ * inspector does not rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Payload create and update link only the domains and attack patterns of its tenant")
-class PayloadRelationLinkTenantTest extends ProductionTablesIntegrationTest {
+class PayloadRelationLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String CONTRACT_DOMAINS =

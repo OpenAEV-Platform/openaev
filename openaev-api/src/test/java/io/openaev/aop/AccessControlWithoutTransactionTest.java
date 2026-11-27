@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -41,7 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * production. Everything it creates is committed, and the tenant is removed in {@link #cleanUp()}.
  */
 @DisplayName("Access check of an endpoint that opens no transaction, on the plain route")
-class AccessControlWithoutTransactionTest extends ProductionTablesIntegrationTest {
+class AccessControlWithoutTransactionTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final Set<Capability> DELETE_RIGHTS =

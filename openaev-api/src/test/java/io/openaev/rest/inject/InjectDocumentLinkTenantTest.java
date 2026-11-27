@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
@@ -48,12 +48,12 @@ import org.springframework.transaction.annotation.Transactional;
  * unknown id); on edit it is silently skipped (the same as any other unknown id on that endpoint),
  * so only the document(s) resolving inside the inject's own tenant get linked. The links are read
  * through {@code injects_documents} on the test connection, which the statement inspector does not
- * rewrite. The class arms the production list.
+ * rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A simulation inject links only the documents of its own tenant")
-class InjectDocumentLinkTenantTest extends ProductionTablesIntegrationTest {
+class InjectDocumentLinkTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String INJECT_DOCUMENTS =

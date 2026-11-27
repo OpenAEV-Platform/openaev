@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path execution detail — security platforms (A1)")
-class AttackPathSecurityPlatformsTest extends ProductionTablesIntegrationTest {
+class AttackPathSecurityPlatformsTest extends IntegrationTest {
 
   private static final String SIM = "SIM-SP";
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();

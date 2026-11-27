@@ -7,7 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Player update in the tenant of the request")
-public class PlayerUpdateWriteTenantTest extends ProductionTablesIntegrationTest {
+public class PlayerUpdateWriteTenantTest extends IntegrationTest {
 
   /** Production's active tables: the handler reads and writes tables the inspector gates. */
   @Autowired private MockMvc mvc;

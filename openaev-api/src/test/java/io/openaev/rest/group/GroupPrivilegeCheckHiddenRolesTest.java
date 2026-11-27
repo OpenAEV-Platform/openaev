@@ -10,7 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.groups.PlatformGroupUpdateRolesInput;
 import io.openaev.api.groups.PlatformGroupUpdateUsersInput;
 import io.openaev.api.groups.dto.PlatformGroupInput;
@@ -67,7 +67,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Group privilege checks with a role the request scope hides")
-class GroupPrivilegeCheckHiddenRolesTest extends ProductionTablesIntegrationTest {
+class GroupPrivilegeCheckHiddenRolesTest extends IntegrationTest {
 
   /** A capability of the hidden role, held by none of the callers. */
   private static final Capability HIDDEN_CAPABILITY = Capability.ACCESS_ASSESSMENT;

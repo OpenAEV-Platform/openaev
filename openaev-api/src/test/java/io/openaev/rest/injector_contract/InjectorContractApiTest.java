@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Injector Contract API tests")
-public class InjectorContractApiTest extends ProductionTablesIntegrationTest {
+public class InjectorContractApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager em;

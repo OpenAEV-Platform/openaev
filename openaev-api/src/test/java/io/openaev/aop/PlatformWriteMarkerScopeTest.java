@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithoutTenantScope
 @Import(PlatformWriteMarkerScopeTest.Fixture.class)
 @DisplayName("the platform-write marker is scoped to the method that sets it")
-class PlatformWriteMarkerScopeTest extends ProductionTablesIntegrationTest {
+class PlatformWriteMarkerScopeTest extends IntegrationTest {
 
   private static final String NESTED_KEY = "marker-scope-test-written-by-the-nested-method";
   private static final String OUTER_KEY = "marker-scope-test-written-by-the-outer-method";

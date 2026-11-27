@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")
-class AttackPathHttpIsolationTest extends ProductionTablesIntegrationTest {
+class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";
   private static final String ENDPOINT_KEY = "dc-01";

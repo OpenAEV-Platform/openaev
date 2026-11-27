@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialInput;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.repository.TagRepository;
@@ -31,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,19 +43,13 @@ import org.springframework.transaction.annotation.Transactional;
  * scoped to its tenant. The tag ids of the body resolve in that tenant alone. The caller belongs to
  * both tenants, and the rows are committed because the write runs in transactions of its own. The
  * links are read from {@code secret_reference_tags} through JDBC on the test connection, which the
- * statement inspector does not rewrite. The class arms the production list.
+ * statement inspector does not rewrite.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.enabled-dev-features=CREDENTIAL_ASSET")
 @WithMockUser(isAdmin = true)
 @DisplayName("Credential create and update link only the tags of the credential tenant")
 class CredentialTagLinkTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   private static final String REFERENCE_TAGS =
       "SELECT tag_id FROM secret_reference_tags WHERE secret_reference_id = ?";

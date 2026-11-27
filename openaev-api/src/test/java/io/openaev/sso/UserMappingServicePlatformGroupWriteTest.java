@@ -2,7 +2,7 @@ package io.openaev.sso;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -31,7 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * under {@code SecurityService.userManagement}), which commits independently of a surrounding test
  * transaction, so the row is cleaned up explicitly instead.
  */
-class UserMappingServicePlatformGroupWriteTest extends ProductionTablesIntegrationTest {
+class UserMappingServicePlatformGroupWriteTest extends IntegrationTest {
 
   @Autowired private UserMappingService userMappingService;
   @Autowired private UserRepository userRepository;

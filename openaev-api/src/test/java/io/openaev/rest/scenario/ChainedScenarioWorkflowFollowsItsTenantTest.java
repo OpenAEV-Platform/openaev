@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.KillChainPhase;
@@ -73,7 +73,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("The workflow of a chained scenario follows the scenario's tenant")
-class ChainedScenarioWorkflowFollowsItsTenantTest extends ProductionTablesIntegrationTest {
+class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;

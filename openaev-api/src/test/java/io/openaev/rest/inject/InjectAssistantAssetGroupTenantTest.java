@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.AttackPattern;
@@ -59,13 +59,12 @@ import org.springframework.transaction.annotation.Transactional;
  * no tenant selector, so the request scope holds all of them. The asset group ids and the asset ids
  * of the body resolve in the tenant of the scenario alone. The generated injects hold their asset
  * groups in {@code injects_asset_groups} and their endpoints in {@code injects_assets}, read
- * through JDBC on the test connection, which the statement inspector does not rewrite. The class
- * arms the production list.
+ * through JDBC on the test connection, which the statement inspector does not rewrite.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Inject assistant targets only the asset groups and endpoints of the scenario tenant")
-class InjectAssistantAssetGroupTenantTest extends ProductionTablesIntegrationTest {
+class InjectAssistantAssetGroupTenantTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String INJECT_ASSET_GROUPS =

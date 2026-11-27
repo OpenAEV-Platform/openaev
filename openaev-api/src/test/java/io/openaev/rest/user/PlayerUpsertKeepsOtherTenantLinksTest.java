@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -70,7 +70,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @DisplayName("Player and user writes keep the links of the tenants they do not work on")
-public class PlayerUpsertKeepsOtherTenantLinksTest extends ProductionTablesIntegrationTest {
+public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 

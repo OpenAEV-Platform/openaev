@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import io.openaev.architecture.BackgroundEntrypointTenantScopeArchTest;
 import io.openaev.config.LazyAfterCommitRecorder.Incident;
 import io.openaev.config.LazyAfterCommitRecorder.Phase;
 import io.openaev.config.LazyCollectionInitTracker.Initialization;
@@ -21,7 +22,6 @@ import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
 import net.ttddyy.dsproxy.proxy.ParameterSetOperation;
-import org.springframework.core.env.Environment;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -83,12 +83,10 @@ public class LazyAfterCommitProbeListener implements QueryExecutionListener {
   /** Set while the probe replays a statement, so it never inspects its own replay. */
   private static final ThreadLocal<Boolean> REPLAYING = ThreadLocal.withInitial(() -> false);
 
-  private final Environment environment;
   private final Supplier<DataSource> rawDataSource;
   private volatile TenantSqlLeakOracle oracle;
 
-  public LazyAfterCommitProbeListener(Environment environment, Supplier<DataSource> rawDataSource) {
-    this.environment = environment;
+  public LazyAfterCommitProbeListener(Supplier<DataSource> rawDataSource) {
     this.rawDataSource = rawDataSource;
   }
 
@@ -365,11 +363,7 @@ public class LazyAfterCommitProbeListener implements QueryExecutionListener {
   TenantSqlLeakOracle oracle() {
     TenantSqlLeakOracle local = oracle;
     if (local == null) {
-      // armedBy expands the terminal '*': an oracle built on the token itself watches no table.
-      local =
-          new TenantSqlLeakOracle(
-              ProductionActiveTables.armedBy(
-                  environment.getProperty("openaev.tenant.active-tables", "")));
+      local = new TenantSqlLeakOracle(BackgroundEntrypointTenantScopeArchTest.gatedTenantTables());
       oracle = local;
     }
     return local;

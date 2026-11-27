@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -29,9 +29,9 @@ import org.springframework.beans.factory.annotation.Autowired;
  * caller scoped to one tenant. A contract id is shared by every tenant, so each tenant holds its
  * own link rows for the same id, and only the tenant column tells them apart.
  *
- * <p>Each case runs on one link table of the production list: the contract's tags, attack patterns,
- * security domains, vulnerabilities and injectors. The queries are plain statements with no tenant
- * predicate of their own, so what keeps tenant B's row out is the statement inspector alone.
+ * <p>Each case runs on one gated link table: the contract's tags, attack patterns, security
+ * domains, vulnerabilities and injectors. The queries are plain statements with no tenant predicate
+ * of their own, so the statement inspector alone holds tenant B's row out.
  *
  * <p>Deliberately NOT {@code @Transactional}: the rows of both tenants have to be committed before
  * the scoped transactions read them.
@@ -45,7 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 })
 @WithMockUser(isAdmin = true)
 @DisplayName("Link rows of an injector contract across tenants")
-class InjectorContractLinkTableIsolationTest extends ProductionTablesIntegrationTest {
+class InjectorContractLinkTableIsolationTest extends IntegrationTest {
 
   enum LinkTable {
     TAGS("injector_contract_tags"),

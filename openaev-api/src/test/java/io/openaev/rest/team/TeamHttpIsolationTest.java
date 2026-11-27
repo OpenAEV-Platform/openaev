@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Teams read isolation through the real HTTP endpoints")
-class TeamHttpIsolationTest extends ProductionTablesIntegrationTest {
+class TeamHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_OPTIONS_URI = "/api/tenants/{tenantId}/teams/options";
   private static final String TENANT_FIND_URI = "/api/tenants/{tenantId}/teams/find";

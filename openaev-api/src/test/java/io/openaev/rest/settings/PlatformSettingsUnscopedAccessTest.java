@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.config.ExpectsEmptyScopeReads;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -36,7 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @WithoutTenantScope
 @DisplayName("parameters read and written with no scope")
-class PlatformSettingsUnscopedAccessTest extends ProductionTablesIntegrationTest {
+class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
 
   private static final String TENANT_ONLY_KEY = "platform-read-test-tenant-only";
 

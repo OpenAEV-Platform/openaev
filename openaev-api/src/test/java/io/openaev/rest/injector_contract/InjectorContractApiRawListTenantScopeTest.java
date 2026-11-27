@@ -6,7 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @DisplayName("The raw injector contract list follows the request's tenant scope")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiRawListTenantScopeTest extends ProductionTablesIntegrationTest {
+class InjectorContractApiRawListTenantScopeTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

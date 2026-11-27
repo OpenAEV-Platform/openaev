@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -48,7 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = false)
 @DisplayName(
     "Reading an autonomous run by id leaves the run untouched in every tenant of the scope")
-class AutonomousRunScopeAuthorizationTest extends ProductionTablesIntegrationTest {
+class AutonomousRunScopeAuthorizationTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String RUN_BY_ID_URI = AUTONOMOUS_URI + "/{runId}";

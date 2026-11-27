@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -41,13 +41,13 @@ import org.springframework.test.web.servlet.MockMvc;
  * non-prefixed routes with {@code X-Tenant-Ids} naming two tenants), and a filter such as a
  * hostname matches the endpoints of every tenant in that scope.
  *
- * <p>Runs with the production list of isolated tables. The class is deliberately NOT
- * {@code @Transactional}: the rows are committed, in transactions opened through {@link
- * TenantScopedTransaction}, so the requests read them through the real scope of each request.
+ * <p>The class is deliberately NOT {@code @Transactional}: the rows are committed, in transactions
+ * opened through {@link TenantScopedTransaction}, so the requests read them through the real scope
+ * of each request.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("A dynamic asset group matches the endpoints of its own tenant")
-class AssetGroupDynamicTenantTest extends ProductionTablesIntegrationTest {
+class AssetGroupDynamicTenantTest extends IntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 

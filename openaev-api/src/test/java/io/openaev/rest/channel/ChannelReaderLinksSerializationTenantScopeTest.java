@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -45,11 +45,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  *
  * <p>The class is deliberately not {@code @Transactional}: a rolled back test transaction leaves
  * the tenant scope alive through serialization and masks the failure. Rows are seeded through an
- * auto-committing {@link JdbcTemplate} and removed on teardown. The production list of isolated
- * tables is armed.
+ * auto-committing {@link JdbcTemplate} and removed on teardown.
  */
 @DisplayName("Channel reader endpoints serialize the links of the simulation and the scenario")
-class ChannelReaderLinksSerializationTenantScopeTest extends ProductionTablesIntegrationTest {
+class ChannelReaderLinksSerializationTenantScopeTest extends IntegrationTest {
 
   /** The parent the channel page is read for. */
   enum Parent {
