@@ -2341,8 +2341,8 @@
         {
             "title": "SentinelOne",
             "slug": "openaev_sentinelone",
-            "description": "Validate OpenAEV detection and prevention expectations against SentinelOne Singularity by collecting the threats and alerts its EDR raises in response to simulated attacks.",
-            "short_description": "Collect detections from SentinelOne EDR",
+            "description": "Validate OpenAEV detection, prevention and logging expectations against SentinelOne Singularity by collecting the threats and alerts its EDR raises and the raw events its agents record in response to simulated attacks.",
+            "short_description": "Collect detections and raw events from SentinelOne EDR",
             "use_cases": [
                 "Security response"
             ],
@@ -2436,13 +2436,24 @@
                     },
                     "SENTINELONE_ENABLE_DEEP_VISIBILITY_SEARCH": {
                         "default": false,
-                        "description": "Enable deep visibility search for SentinelOne threat searches.",
+                        "description": "Allow the collector to search raw events (Event Search on SaaS, Deep Visibility on self-hosted). Used to validate static-engine detections, and required by SENTINELONE_LOGGING_ENABLED. Needs the Deep Visibility permission and licence.",
                         "type": "boolean"
                     },
                     "SENTINELONE_DISABLE_STRICT_END_DATE": {
                         "default": false,
                         "description": "Disable strict end date enforcement (do not ignore expectations missing an end date).",
                         "type": "boolean"
+                    },
+                    "SENTINELONE_LOGGING_ENABLED": {
+                        "default": false,
+                        "description": "Search raw events to answer LOGGING expectations. Requires LOGGING_EXPECTATION preview feature and SENTINELONE_ENABLE_DEEP_VISIBILITY_SEARCH.",
+                        "type": "boolean"
+                    },
+                    "SENTINELONE_LOGGING_MAX_INTERVAL": {
+                        "default": "PT15M",
+                        "description": "Longest time between two Logging searches of the same expectation (ISO 8601, at most PT1H).",
+                        "format": "duration",
+                        "type": "string"
                     }
                 },
                 "required": [
