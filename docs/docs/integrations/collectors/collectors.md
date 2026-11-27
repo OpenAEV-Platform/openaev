@@ -49,8 +49,17 @@ Collector: it looks for the parent process name or the IP addresses of the attac
 Inject.
 
 The [SentinelOne](https://github.com/OpenAEV-Platform/collectors/tree/main/sentinelone) Collector does this when
-Logging and Deep Visibility search are enabled in its configuration. Its API token needs access to Deep Visibility
-(Event Search).
+Logging and Deep Visibility search are enabled in its configuration. It searches Event Search (SDL) on SaaS consoles,
+and Deep Visibility on self-hosted consoles. Its API token needs access to Deep Visibility (Event Search).
+
+!!! note
+
+    The parent process name identifies the Inject itself, so a match on it is the strongest evidence. An IP address
+    only identifies a host, which also records its own unrelated traffic: an IP match alone is weaker evidence. The
+    trace of each Logging Expectation shows which of the two matched.
+
+    On self-hosted consoles, Deep Visibility support is best effort: SentinelOne removes this API on 2027-02-15.
+
 {% endif %}
 
 ### Threat intelligence
