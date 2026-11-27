@@ -520,7 +520,7 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.AGENT_INSTALLER, Action.READ)),
 
-  // Sends content releases to the catalogue: meant for the collector's account alone.
+  // Sends content releases to the catalogue: held by the catalog connectors account.
   SYNC_CATALOG(
       null,
       CapabilityGroup.SERVICE,
