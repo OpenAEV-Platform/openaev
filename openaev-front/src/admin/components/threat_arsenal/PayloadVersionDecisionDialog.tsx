@@ -31,8 +31,8 @@ const TITLES: Record<PayloadVersionDecision, string> = {
 
 const WARNINGS: Record<Exclude<PayloadVersionDecision, 'lift'>, string> = {
   revoke: 'A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.',
-  reject: 'A rejected version can no longer be picked or run: injects using it cannot launch until they move to another version. The reason is shown to its author.',
-  reopen: 'The version waits for approval again: it can no longer be picked or run, and injects using it cannot launch until it is approved.',
+  reject: 'A rejected version can no longer be picked or run: injects using it fail when they run until they move to another version. The reason is shown to its author.',
+  reopen: 'The version waits for approval again: it can no longer be picked or run, and injects using it fail when they run until it is approved.',
 };
 
 const EMPTY: Record<PayloadVersionDecision, string> = {

@@ -305,13 +305,14 @@ class PayloadApprovalEnforcementApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Launch (US2.2)")
+  @DisplayName("Launch: like a revoked payload")
   class Launch {
 
     @Test
     @DisplayName(
-        "Given a scenario using pending and rejected payloads, launching it should be refused and list both")
-    void given_scenarioWithUnapprovedPayloads_should_refuseLaunchListingThem() throws Exception {
+        "Given a scenario using pending and rejected versions, launching it should not be refused")
+    void given_scenarioWithUnapprovedPayloads_should_launch() throws Exception {
+      // Arrange
       Scenario scenario =
           scenarioComposer
               .forScenario(ScenarioFixture.getScenario())
@@ -321,26 +322,70 @@ class PayloadApprovalEnforcementApiTest extends IntegrationTest {
               .persist()
               .get();
 
+      // Act / Assert: the injects on those versions fail when they run, the launch is not blocked
+      mvc.perform(post(SCENARIO_URI + "/" + scenario.getId() + "/exercise/running").with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a scenario using a pending version, its health checks should show it, like a revoked one")
+    void given_scenarioWithPendingPayload_should_showApprovalHealthCheck() throws Exception {
+      // Arrange
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.getScenario())
+              .withInject(injectWith(contract("Mimikatz", PAYLOAD_APPROVAL_STATUS.PENDING)))
+              .persist()
+              .get();
+
+      // Act
       String body =
-          mvc.perform(
-                  post(SCENARIO_URI + "/" + scenario.getId() + "/exercise/running").with(csrf()))
-              .andExpect(status().isBadRequest())
+          mvc.perform(get(SCENARIO_URI + "/" + scenario.getId() + "/healthchecks"))
+              .andExpect(status().isOk())
               .andReturn()
               .getResponse()
               .getContentAsString();
 
-      assertThat(message(body))
-          .startsWith("Launching the scenario \"" + scenario.getName() + "\" is blocked")
-          .contains("\"Mimikatz\" (pending approval)", "\"Rubeus\" (rejected)")
-          .doesNotContain("Whoami");
+      // Assert
+      List<String> details = JsonPath.read(body, "$[?(@.type == 'PAYLOAD_APPROVAL')].detail");
+      assertThat(details).containsExactly("NOT_APPROVED");
     }
 
     @Test
-    @DisplayName("Given an atomic testing using a pending payload, launching it should be refused")
+    @DisplayName(
+        "Given a scenario using only approved versions, its health checks should not show approval")
+    void given_scenarioWithApprovedPayload_should_showNoApprovalHealthCheck() throws Exception {
+      // Arrange
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.getScenario())
+              .withInject(injectWith(contract("Whoami", PAYLOAD_APPROVAL_STATUS.APPROVED)))
+              .persist()
+              .get();
+
+      // Act
+      String body =
+          mvc.perform(get(SCENARIO_URI + "/" + scenario.getId() + "/healthchecks"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> details = JsonPath.read(body, "$[?(@.type == 'PAYLOAD_APPROVAL')].detail");
+      assertThat(details).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "Given an atomic testing using a pending version, launching it should be refused, like a revoked one")
     void given_atomicTestingWithPendingPayload_should_refuseLaunch() throws Exception {
+      // Arrange
       Inject atomicTesting =
           injectWith(contract("Mimikatz", PAYLOAD_APPROVAL_STATUS.PENDING)).persist().get();
 
+      // Act
       String body =
           mvc.perform(
                   post(ATOMIC_TESTING_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
@@ -349,7 +394,8 @@ class PayloadApprovalEnforcementApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertThat(message(body)).contains("is blocked", "\"Mimikatz\" (pending approval)");
+      // Assert
+      assertThat(message(body)).contains("\"Mimikatz\" (pending approval)");
     }
   }
 

@@ -42,9 +42,10 @@ public class InjectAssistantService {
   private final PayloadApprovalGate payloadApprovalGate;
 
   /**
-   * Automatic selection only picks actions whose payload can run, like the pickers users see: the
-   * query keeps approved payloads (before its random pick), this also drops a payload changed since
-   * its approval. No match falls back to the manual placeholder, as when nothing matches.
+   * Automatic selection only picks actions whose version is an approved version, like the pickers
+   * users see: the query keeps approved payloads (before its random pick), and this check drops any
+   * other the gate does not let run (exemptions honoured). No match falls back to the manual
+   * placeholder, as when nothing matches.
    */
   private List<InjectorContract> searchRunnableContracts(
       String attackPatternExternalId, List<String> platformArchitecturePairs, Integer limit) {

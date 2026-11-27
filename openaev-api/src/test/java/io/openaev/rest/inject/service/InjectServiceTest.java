@@ -41,7 +41,6 @@ import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
-import io.openaev.service.readiness.LaunchReadinessService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -83,7 +82,6 @@ class InjectServiceTest {
 
   @Mock private InjectRepository injectRepository;
   @Mock private PayloadApprovalGate payloadApprovalGate;
-  @Mock private LaunchReadinessService launchReadinessService;
   @Mock private AssetService assetService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectAgentResolverService injectAgentResolverService;
@@ -185,8 +183,7 @@ class InjectServiceTest {
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
                 conditionService,
-                previewFeatureService),
-            payloadApprovalGate));
+                previewFeatureService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

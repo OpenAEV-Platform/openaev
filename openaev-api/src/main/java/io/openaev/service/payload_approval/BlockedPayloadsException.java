@@ -6,14 +6,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
-/** Refusal to use or launch injects whose payload is not approved; answers 400 with the list. */
+/** Refusal to use an action version that is not an approved version; answers 400 with the list. */
 @Getter
 public class BlockedPayloadsException extends BadRequestException {
 
-  /**
-   * One payload that blocks the operation, with the reason and its approval status (APPROVED with
-   * the "content changed since its approval" reason).
-   */
+  /** One payload version that blocks the operation, with the reason and its approval status. */
   public record BlockedPayload(
       String payloadId,
       String payloadName,

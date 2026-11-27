@@ -8,7 +8,6 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.audit_log.AuditEvent;
-import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
@@ -363,9 +362,8 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given scheduled simulation using a payload that is not approved should move it back to draft and log EXECUTION_BLOCKED_BY_APPROVAL")
-    void
-        given_scheduledSimulationWithUnapprovedPayload_should_goBackToDraftAndLogBlockedByApproval() {
+        "given scheduled simulation using a version that is not approved should start it, like with a revoked one")
+    void given_scheduledSimulationWithUnapprovedPayload_should_startIt() {
       // Arrange
       Payload pending = PayloadFixture.createDefaultCommand();
       pending.setName("Pending payload");
@@ -393,26 +391,15 @@ class InjectsExecutionJobTest extends IntegrationTest {
       // Act
       List<Exercise> started = job.autoStartDueExercises();
 
-      // Assert
-      assertThat(started).extracting(Exercise::getId).doesNotContain(exercise.getId());
-      Exercise draft = exerciseRepository.findById(exercise.getId()).orElseThrow();
-      assertThat(draft.getStatus()).isEqualTo(ExerciseStatus.SCHEDULED);
-      assertThat(draft.getStart()).isEmpty();
+      // Assert: not sent back to draft; the inject on that version fails when it runs
+      assertThat(started).extracting(Exercise::getId).contains(exercise.getId());
+      Exercise running = exerciseRepository.findById(exercise.getId()).orElseThrow();
+      assertThat(running.getStatus()).isEqualTo(ExerciseStatus.RUNNING);
+      assertThat(running.getStart()).isPresent();
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
       verify(auditLogger, atLeastOnce()).logEvent(eventCaptor.capture());
-      AuditEvent blocked =
-          eventCaptor.getAllValues().stream()
-              .filter(e -> e.getEventScope() == AuditEventScope.EXECUTION_BLOCKED_BY_APPROVAL)
-              .filter(e -> exercise.getId().equals(e.getResourceId()))
-              .findFirst()
-              .orElseThrow();
-      assertThat(blocked.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
-      assertThat(blocked.getMessage()).contains("\"Pending payload\" (pending approval)");
       assertThat(eventCaptor.getAllValues())
-          .noneMatch(
-              e ->
-                  e.getEventScope() == AuditEventScope.SCHEDULED_LAUNCH
-                      && exercise.getId().equals(e.getResourceId()));
+          .noneMatch(e -> e.getEventScope() == AuditEventScope.EXECUTION_BLOCKED_BY_APPROVAL);
     }
 
     @Test

@@ -44,7 +44,6 @@ const AtomicTestings = () => {
       <InjectResultList
         showActions
         fetchInjects={searchAtomicTestings}
-        displayDraftWhenPayloadBlocked
         goTo={injectId => `/admin/atomic_testings/${injectId}`}
         queryableHelpers={queryableHelpers}
         searchPaginationInput={searchPaginationInput}

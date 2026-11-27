@@ -154,32 +154,8 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given a recurring scenario whose schedule is paused, no new simulation should be created")
-    void given_pausedRecurringScenario_should_not_create_simulation() throws JobExecutionException {
-      // -- PREPARE --
-      ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
-      int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
-      int hourToStart = (zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60)) % 24;
-      Scenario scenario = ScenarioFixture.getScenario();
-      scenario.setRecurrence("0 " + minuteToStart + " " + hourToStart + " * * *");
-      scenario.setRecurrencePausedAt(Instant.now());
-      String scenarioId = scenarioService.createScenario(scenario).getId();
-
-      // -- EXECUTE --
-      job.execute(null);
-
-      // -- ASSERT --
-      assertThat(fromIterable(exerciseRepository.findAll()))
-          .noneMatch(
-              exercise ->
-                  exercise.getScenario() != null
-                      && scenarioId.equals(exercise.getScenario().getId()));
-    }
-
-    @Test
-    @DisplayName(
-        "Given a recurring scenario using a payload that is not approved, no new simulation should be created (schedule paused)")
-    void given_recurringScenarioWithPendingPayload_should_not_create_simulation()
+        "Given a recurring scenario using a version that is not approved, a new simulation should be created, like with a revoked one")
+    void given_recurringScenarioWithPendingPayload_should_create_simulation()
         throws JobExecutionException {
       // -- PREPARE --
       ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
@@ -218,12 +194,17 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         // -- EXECUTE --
         job.execute(null);
 
-        // -- ASSERT --
-        assertThat(fromIterable(exerciseRepository.findAll()))
-            .noneMatch(
-                exercise ->
-                    exercise.getScenario() != null
-                        && scenarioId.equals(exercise.getScenario().getId()));
+        // -- ASSERT --: the schedule is not paused; the inject fails when it runs
+        List<Exercise> created =
+            fromIterable(exerciseRepository.findAll()).stream()
+                .filter(
+                    exercise ->
+                        exercise.getScenario() != null
+                            && scenarioId.equals(exercise.getScenario().getId()))
+                .toList();
+        assertThat(created).hasSize(1);
+        new TransactionTemplate(transactionManager)
+            .executeWithoutResult(status -> exerciseRepository.deleteAll(created));
       } finally {
         new TransactionTemplate(transactionManager)
             .executeWithoutResult(

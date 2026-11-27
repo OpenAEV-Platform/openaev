@@ -28,9 +28,10 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * The one approval check of every path that uses or runs a payload: picking it for an inject,
- * launching an atomic testing, a scenario or a simulation, a scheduled run, and the executor right
- * before dispatch.
+ * The one approval check of every path that uses or runs a payload. Before run time, only picking
+ * an action for an inject, a step or an atomic testing is refused. At run time a version that is
+ * not approved behaves like a revoked payload: a launch is not blocked, the inject fails at the
+ * executor (an atomic testing run on its own is refused, like a revoked one).
  *
  * <p>A payload version runs only when it is {@code APPROVED}: a version never changes once created,
  * so its approval covers exactly what runs. Payload-less built-in actions and payloads exempted by
@@ -87,30 +88,6 @@ public class PayloadApprovalGate {
   }
 
   /**
-   * Refuses a user operation when one of these injects uses a payload that cannot run, and writes
-   * the refusal to the audit log.
-   *
-   * @param operation what is being done, for the message (e.g. "Launching this scenario")
-   * @param resourceType the resource the operation is about (scenario, simulation, inject...)
-   * @param resourceId its id, when it exists already
-   * @throws BlockedPayloadsException listing every blocking payload (HTTP 400)
-   */
-  public void requireApproved(
-      @NotNull final String operation,
-      final Collection<Inject> injects,
-      @NotNull final ResourceType resourceType,
-      @Nullable final String resourceId) {
-    if (injects == null) {
-      return;
-    }
-    List<BlockedPayload> blocked = blockedPayloads(injects);
-    if (!blocked.isEmpty()) {
-      auditBlocked(operation, blocked, resourceType, resourceId, REQUEST);
-      throw new BlockedPayloadsException(operation, blocked);
-    }
-  }
-
-  /**
    * Refuses a user operation (e.g. picking an action for an inject) when its payload cannot run.
    */
   public void requireApproved(
@@ -125,7 +102,7 @@ public class PayloadApprovalGate {
     }
   }
 
-  /** Writes a refused operation to the audit log (BRIEF rule 7: blocked attempts are logged). */
+  /** Writes a refused operation to the audit log. */
   public void auditBlocked(
       @NotNull final String operation,
       @NotNull final List<BlockedPayload> blocked,
@@ -159,6 +136,17 @@ public class PayloadApprovalGate {
                   .origin(origin)
                   .build());
         });
+  }
+
+  /** Why an inject fails at run time, like a revoked payload: said to the user in its traces. */
+  public static String runtimeRefusal(String injectTitle, BlockedPayload blocked) {
+    return "The inject \""
+        + injectTitle
+        + "\" did not run: the version of \""
+        + blocked.payloadName()
+        + "\" it uses is "
+        + blocked.reason()
+        + ". Move the inject to an approved version.";
   }
 
   private static BlockedPayload blocked(Payload payload, String reason) {

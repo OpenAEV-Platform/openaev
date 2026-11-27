@@ -67,7 +67,7 @@ The recommended approach is to create a Simulation from a [Scenario](../../build
 
 !!! note "Payload approval"
 
-    **Start** is disabled while the Simulation uses an Action whose payload version is not approved (the tooltip names the blocking Actions). A Simulation planned for later goes back to *Draft* (no start date) when one of its injects changes what it runs or targets, or its teams or players change: plan it or start it again on purpose. A new version of a payload waiting for approval changes nothing: each inject keeps its version. A running Simulation is not stopped: its injects using a payload version that is not approved are refused and end in error, the others run. See [Approval of payloads](../../build/threat-arsenals/threat-arsenals.md#approval-of-payloads).
+    A Simulation that uses an Action whose payload version is not approved behaves as with a revoked version: **Start** stays enabled and a Simulation planned for later starts on time. Its configuration checks show **Action not approved**; its injects using that version fail with an error that names the Action and its status, the others run. A new version of a payload waiting for approval changes nothing: each inject keeps its version. See [Approval of payloads](../../build/threat-arsenals/threat-arsenals.md#approval-of-payloads).
 
 ## Simulation detail tabs
 

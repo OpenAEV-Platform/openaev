@@ -48,7 +48,8 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
         break;
       }
       case 'INJECT':
-      case 'PAYLOAD': {
+      case 'PAYLOAD':
+      case 'PAYLOAD_APPROVAL': {
         if (exerciseId) {
           navigate(`/admin/simulations/${exerciseId}/injects`);
         } else {
