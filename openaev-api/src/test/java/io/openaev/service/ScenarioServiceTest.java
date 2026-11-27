@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -536,7 +535,7 @@ class ScenarioServiceTest extends IntegrationTest {
             now());
 
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks =
@@ -571,7 +570,7 @@ class ScenarioServiceTest extends IntegrationTest {
             now());
 
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks =
@@ -605,7 +604,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.ERROR,
             now());
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks =
@@ -639,7 +638,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.ERROR,
             now());
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks =
@@ -673,7 +672,7 @@ class ScenarioServiceTest extends IntegrationTest {
             HealthCheck.Status.WARNING,
             now());
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of(healthCheck));
 
     // RUN
     List<HealthCheck> healthchecks =
@@ -706,7 +705,7 @@ class ScenarioServiceTest extends IntegrationTest {
         scenarioService.runChecks(DEFAULT_TENANT_SCOPE, scenario.getId());
 
     // Assert
-    verify(this.injectService, never()).runChecks(any());
+    verify(this.injectService).runChecksOfInjects(List.of());
     boolean hasMissingContent =
         healthchecks.stream()
             .anyMatch(
@@ -736,7 +735,7 @@ class ScenarioServiceTest extends IntegrationTest {
     this.scenarioRepository.save(scenario);
 
     // MOCK
-    when(this.injectService.runChecks(any())).thenReturn(List.of());
+    when(this.injectService.runChecksOfInjects(any())).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healthchecks =

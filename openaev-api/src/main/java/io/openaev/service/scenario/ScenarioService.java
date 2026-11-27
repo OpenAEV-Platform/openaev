@@ -1740,10 +1740,8 @@ public class ScenarioService {
     // add them to the result
     List<HealthCheck> injectsHealthChecks =
         healthCheckUtils.removeDuplicates(
-            scenario.getInjects().stream()
-                .filter(Inject::isEnabled)
-                .flatMap(inject -> injectService.runChecks(inject).stream())
-                .toList());
+            injectService.runChecksOfInjects(
+                scenario.getInjects().stream().filter(Inject::isEnabled).toList()));
 
     // Since Injects healthchecks now have the "Missing Content" (and maybe others) checks details,
     // we dont want them into the Scenario checks.

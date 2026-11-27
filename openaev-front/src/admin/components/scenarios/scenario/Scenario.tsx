@@ -5,16 +5,14 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
-import { type AgentHelper } from '../../../../actions/agents/agent-helper';
 import { convertAutonomousRunToManual } from '../../../../actions/autonomous/autonomous-actions';
 import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
-import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { fetchScenarioInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
-import { fetchScenario, searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
+import { fetchScenario, searchScenarioExercises } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
@@ -38,7 +36,6 @@ import octiDark from '../../../../static/images/xtm/octi_dark.png';
 import octiLight from '../../../../static/images/xtm/octi_light.png';
 import { useHelper } from '../../../../store';
 import {
-  type Agent,
   type ExerciseSimple, type ExpectationResultsByType, type HealthCheck, type Inject,
   type InjectExpectationResultsByAttackPattern,
   type KillChainPhase,
@@ -66,7 +63,9 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared, timelineEvents }: {
+const Scenario = ({ healthchecks, setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared, timelineEvents }: {
+  // Loaded once by the scenario page, for this overview and the header.
+  healthchecks: HealthCheck[];
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   // The autonomous run owning this scenario, if any - ACTIVE (the orchestrator is planning / driving)
   // or SETTLED (planned / done). The AI outcome (mission, decision timeline, capability gaps, proofs)
@@ -97,20 +96,13 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
     scenario,
     settings,
     injects,
-    collectors,
-    agents,
-  } = useHelper((helper: ScenariosHelper & ExercisesHelper & LoggedHelper & InjectHelper & CollectorHelper & AgentHelper) => ({
+  } = useHelper((helper: ScenariosHelper & ExercisesHelper & LoggedHelper & InjectHelper) => ({
     scenario: helper.getScenario(scenarioId),
     settings: helper.getPlatformSettings(),
     injects: helper.getScenarioInjects(scenarioId),
-    collectors: helper.getExistingCollectors(),
-    agents: helper.getAgents(),
   }));
   const areAnyExercisesInScenario = scenario.scenario_exercises?.length > 0;
   const sortByOrder = (items: KillChainPhase[]) => items.toSorted(ascendBy('phase_order'));
-
-  // Spy on modifications to reload healthchecks
-  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = !!scenarioWorkflowId;
@@ -125,29 +117,11 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
 
   const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
 
-  const agentsActive = useMemo(() => {
-    const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
-    return agents
-      .filter((agent: Agent) => injectAssetIds.includes(agent.agent_asset))
-      .map((agent: Agent) => agent.agent_active);
-  }, [agents, injects]);
-
   useDataLoader(() => {
     if (!injects) {
       dispatch(fetchScenarioInjects(scenarioId));
     }
   });
-
-  useEffect(() => {
-    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-  }, [
-    settings?.smtp_service_available,
-    settings?.imap_service_available,
-    scenario,
-    injects,
-    collectors.length,
-    agentsActive,
-  ]);
 
   // Exercises
   const [loadingExercises, setLoadingExercises] = useState(true);
