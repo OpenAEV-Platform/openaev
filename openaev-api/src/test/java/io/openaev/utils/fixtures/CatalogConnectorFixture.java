@@ -1,13 +1,17 @@
 package io.openaev.utils.fixtures;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.CatalogConnectorInjectorContract;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.runner.CatalogConnectorIngestionRunner;
 import jakarta.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -92,5 +96,19 @@ public class CatalogConnectorFixture {
     String jsonValue = mapper.writeValueAsString(value);
     configurationInput.setValue(mapper.readTree(jsonValue));
     return configurationInput;
+  }
+
+  /** Returns the entry of the catalog shipped with the platform for the given slug. */
+  public static JsonNode getShippedCatalogContract(String slug) throws IOException {
+    try (InputStream catalog =
+        CatalogConnectorFixture.class.getResourceAsStream(
+            CatalogConnectorIngestionRunner.resourcePath)) {
+      for (JsonNode contract : new ObjectMapper().readTree(catalog).path("contracts")) {
+        if (slug.equals(contract.path("slug").asText())) {
+          return contract;
+        }
+      }
+    }
+    throw new IllegalArgumentException("No shipped catalog entry with slug " + slug);
   }
 }

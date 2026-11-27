@@ -40,6 +40,7 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
+import io.openaev.service.catalog_connectors.CatalogConnectorIngestionService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -89,6 +90,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @MockitoBean private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
 
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private CatalogConnectorIngestionService catalogConnectorIngestionService;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   /**
@@ -1108,6 +1110,53 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               .map(c -> c.getValue().asText())
               .toList()
               .containsAll(List.of("new value 02", "new value 01")));
+    }
+
+    @Test
+    @DisplayName("Given the shipped Nmap catalog entry should accept the Nmap scan settings")
+    void given_shippedNmapCatalogEntry_should_acceptNmapScanSettings() throws Exception {
+      // Arrange: the configuration definitions are built from the shipped catalog, as at startup
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+      CatalogConnector catalogConnector =
+          getCatalogConnectorWithConfiguration(
+              catalogConnectorIngestionService.buildConnectorConfigurations(
+                  getShippedCatalogContract("openaev_nmap"), new CatalogConnector()));
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      Map<String, String> composerSettings = new HashMap<>();
+      composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+      composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+      composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
+      saveComposerSettings(composerSettings);
+
+      List<String> nmapKeys =
+          List.of(
+              "NMAP_SCAN_TIMEOUT", "NMAP_DEFAULT_HOST_TIMEOUT_SECONDS", "NMAP_DEFAULT_MAX_RETRIES");
+      CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
+      input.setCatalogConnectorId(catalogConnector.getId());
+      input.setConfigurations(
+          List.of(
+              createConfigurationInput(nmapKeys.get(0), "3600"),
+              createConfigurationInput(nmapKeys.get(1), "600"),
+              createConfigurationInput(nmapKeys.get(2), "3")));
+
+      // Act
+      mvc.perform(
+              put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/configurations")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // Assert
+          .andExpect(status().is2xxSuccessful());
+      assertTrue(
+          connectorInstanceConfigurationRepository
+              .findByConnectorInstanceId(connectorInstance.getId())
+              .stream()
+              .map(ConnectorInstanceConfiguration::getKey)
+              .toList()
+              .containsAll(nmapKeys));
     }
 
     @ParameterizedTest
