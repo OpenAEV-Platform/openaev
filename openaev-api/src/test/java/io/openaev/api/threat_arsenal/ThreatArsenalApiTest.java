@@ -722,15 +722,28 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     @DisplayName("Searching by primary domain returns each domain's actions together")
     void given_groupByPrimaryDomain_should_returnActionsInDomainOrder() throws Exception {
       // Arrange
+      // Only the actions of this test's domains: built-in email actions carry preset domains, which
+      // sort before or after the random domain names by chance.
+      Filters.Filter ownDomains = new Filters.Filter();
+      ownDomains.setKey("action_domains");
+      ownDomains.setOperator(Filters.FilterOperator.contains);
+      ownDomains.setMode(Filters.FilterMode.or);
+      ownDomains.setValues(List.of(domain1.get().getId(), domain2.get().getId()));
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(ownDomains)));
       InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
       input.setSize(20);
+      input.setFilterGroup(filterGroup);
       input.setSorts(
           List.of(SortField.builder().property("action_labels").direction("DESC").build()));
       input.setGroupByPrimaryDomain(true);
-      String first =
+      String id1 = domain1.get().getId();
+      String id2 = domain2.get().getId();
+      List<String> expected =
           domain1.get().getName().compareTo(domain2.get().getName()) < 0
-              ? domain1.get().getId()
-              : domain2.get().getId();
+              ? List.of(id1, id1, id1, id2)
+              : List.of(id2, id1, id1, id1);
 
       // Act
       String response =
@@ -746,8 +759,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Assert
       List<String> primaryDomains = JsonPath.read(response, "$.content[*].action_domains_ids[0]");
-      int firstCount = (int) primaryDomains.stream().filter(first::equals).count();
-      assertThat(primaryDomains.subList(0, firstCount)).containsOnly(first);
+      assertThat(primaryDomains).containsExactlyElementsOf(expected);
     }
 
     static Stream<Arguments> domainCountFilterProvider() {

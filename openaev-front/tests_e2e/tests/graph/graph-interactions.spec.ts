@@ -49,8 +49,13 @@ const positions = (page: Page) => page.locator('.react-flow__node').evaluateAll(
   nodes.map(n => [(n as HTMLElement).dataset.id, (n as HTMLElement).style.transform]),
 )));
 
-/** Waits until the nodes stop moving (two reads a beat apart agree) and answers where they are. */
+/**
+ * Waits until the nodes stop moving and answers where they are. The canvas is busy while a move plays; two
+ * reads a beat apart must then agree. Two reads alone can agree halfway through a move when the browser
+ * skips animation frames (WebKit on a loaded arm64 runner).
+ */
 const settled = async (page: Page) => {
+  await expect(page.getByTestId('graph-canvas')).not.toHaveAttribute('aria-busy', 'true');
   let last = '';
   await expect.poll(async () => {
     const now = await positions(page);
@@ -85,12 +90,19 @@ const watchConsole = (page: Page) => {
     }
   });
   page.on('pageerror', (error) => {
-    // A browser notice, raised when a resize observer settles across frames: not an application error.
-    if (!error.message.includes('ResizeObserver loop')) {
+    // Not graph defects: a browser notice, raised when a resize observer settles across frames, and an API
+    // call cut short by page.goto, which the network layer rejects with `false` (no response, see network.ts).
+    if (!error.message.includes('ResizeObserver loop') && error.message !== 'false') {
       problems.push(`pageerror: ${error.message}`);
     }
   });
   return problems;
+};
+
+/** Clicks a node once the graph has stopped moving: a click on a node still gliding can land beside it. */
+const clickNode = async (page: Page, target: Locator, options?: Parameters<Locator['click']>[0]) => {
+  await settled(page);
+  await target.click(options);
 };
 
 /** An element's box on screen, asserted drawn. */
@@ -154,9 +166,9 @@ test.describe('Exploration graph interactions', () => {
     await expect(page.locator('[data-testid^="graph-node-"][data-anchor="true"]')).toHaveCount(1);
 
     // A plain click on A then on B: B alone is selected (OpenCTI's graph).
-    await node(0).click();
+    await clickNode(page, node(0));
     await expect(ringed).toHaveCount(1);
-    await node(1).click();
+    await clickNode(page, node(1));
     await expect(ringed).toHaveCount(1);
     await expect(node(1).locator('[data-selected="true"]')).toHaveCount(1);
     await expect(panel).toBeVisible();
@@ -168,15 +180,15 @@ test.describe('Exploration graph interactions', () => {
     await expect(panel).toHaveCount(0);
 
     // Esc does the same.
-    await node(2).click();
+    await clickNode(page, node(2));
     await expect(ringed).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(ringed).toHaveCount(0);
     await expect(panel).toHaveCount(0);
 
     // Ctrl+click adds a node to the selection: both stay selected.
-    await node(0).click();
-    await node(3).click({ modifiers: ['Control'] });
+    await clickNode(page, node(0));
+    await clickNode(page, node(3), { modifiers: ['Control'] });
     await expect(ringed).toHaveCount(2);
 
     expect(problems).toEqual([]);
@@ -274,20 +286,20 @@ test.describe('Exploration graph interactions', () => {
     const viewport = () => page.locator('.react-flow__viewport').evaluate(v => (v as HTMLElement).style.transform);
 
     // Right click on an endpoint: every endpoint (4 of the 5 nodes, the group left out) is selected.
-    await node(0).click({ button: 'right' });
+    await clickNode(page, node(0), { button: 'right' });
     await page.getByRole('menuitem', { name: 'Select every node of this type' }).click();
     await expect(ringed).toHaveCount(4);
 
     // A plain click selects one node alone; Ctrl+click adds a second; the selection menu offers the path between them.
-    await node(0).click();
-    await node(1).click({ modifiers: ['Control'] });
-    await node(1).click({ button: 'right' });
+    await clickNode(page, node(0));
+    await clickNode(page, node(1), { modifiers: ['Control'] });
+    await clickNode(page, node(1), { button: 'right' });
     await expect(page.getByRole('menuitem', { name: 'Find the path between them' })).toBeVisible();
     await page.keyboard.press('Escape');
 
     // Zoom to this node changes the viewport.
     const before = await viewport();
-    await node(2).click({ button: 'right' });
+    await clickNode(page, node(2), { button: 'right' });
     await page.getByRole('menuitem', { name: 'Zoom to this node' }).click();
     await expect.poll(viewport, { message: 'Zoom to this node frames it' }).not.toBe(before);
 

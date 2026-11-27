@@ -534,14 +534,19 @@ const GraphExplorerInner = ({
     const from = entering(shown.current, target, drawnEdges);
     const steps = frames.length > 1 ? frames : [target];
     const duration = frames.length > 1 ? Math.max(MOVE_MS, steps.length * FRAME_MS) : MOVE_MS;
+    // The canvas is busy while a move plays: assistive technologies, and the E2E tests, wait for the
+    // nodes to land instead of reading them halfway.
+    const busy = (on: boolean) => wrapper.current?.setAttribute('aria-busy', String(on));
     if (prefersReducedMotion() || variant === 'mini' || shown.current.size === 0) {
       shown.current = target;
       setPositions(target);
+      busy(false);
       frame();
       return undefined;
     }
     let raf = 0;
     const start = performance.now();
+    busy(true);
     const tick = (now: number) => {
       const next = moveAt(from, steps, (now - start) / duration);
       const progress = Math.min(1, Math.max(0, (now - start) / duration));
@@ -550,6 +555,7 @@ const GraphExplorerInner = ({
       if (progress < 1) {
         raf = window.requestAnimationFrame(tick);
       } else {
+        busy(false);
         frame();
       }
     };
@@ -1494,6 +1500,7 @@ const GraphExplorerInner = ({
       {pathFrom && <Alert severity="info" title={t('Select the destination node to find the shortest path')} />}
       <div
         ref={wrapper}
+        data-testid="graph-canvas"
         onKeyDown={onKeyDown}
         style={{
           position: 'relative',
