@@ -3,6 +3,7 @@ package io.openaev.executors;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.Executor;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.model.DeviceGroup;
@@ -11,10 +12,11 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -64,7 +66,7 @@ public class DeviceSync {
       for (DeviceGroup group : device.groups()) {
         groupsByReference.putIfAbsent(group.externalReference(), group);
         agentReferencesByGroup
-            .computeIfAbsent(group.externalReference(), k -> new HashSet<>())
+            .computeIfAbsent(group.externalReference(), k -> new LinkedHashSet<>())
             .add(agentReference);
       }
     }
@@ -73,21 +75,24 @@ public class DeviceSync {
             new ArrayList<>(agentsByReference.values()),
             agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), tenantId),
             tenantId);
+    Map<String, Asset> assetsByAgentReference =
+        agents.stream()
+            .collect(Collectors.toMap(Agent::getExternalReference, Agent::getAsset, (a, b) -> a));
     groupsByReference.forEach(
         (groupReference, group) ->
-            saveAssetGroup(group, agentReferencesByGroup.get(groupReference), agents, tenantId));
+            assetGroupService.syncExternalAssetGroup(
+                tenantId,
+                groupReference,
+                group.name(),
+                group.description(),
+                assetsOf(agentReferencesByGroup.get(groupReference), assetsByAgentReference)));
   }
 
-  private void saveAssetGroup(
-      DeviceGroup group, Set<String> agentReferences, List<Agent> agents, String tenantId) {
-    assetGroupService.syncExternalAssetGroup(
-        tenantId,
-        group.externalReference(),
-        group.name(),
-        group.description(),
-        agents.stream()
-            .filter(agent -> agentReferences.contains(agent.getExternalReference()))
-            .map(Agent::getAsset)
-            .collect(Collectors.toCollection(ArrayList::new)));
+  private static List<Asset> assetsOf(
+      Set<String> agentReferences, Map<String, Asset> assetsByAgentReference) {
+    return agentReferences.stream()
+        .map(assetsByAgentReference::get)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 }
