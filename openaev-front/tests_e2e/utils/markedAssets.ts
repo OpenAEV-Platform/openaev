@@ -7,7 +7,7 @@ import { type Persona } from './personas';
 /**
  * Three assets, one per TLP marking, to check what each persona's marking clearance lets it see.
  */
-const MARKINGS = {
+export const MARKINGS = {
   green: 'TLP:GREEN',
   amber: 'TLP:AMBER',
   red: 'TLP:RED',
