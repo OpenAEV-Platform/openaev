@@ -33,7 +33,12 @@ public class IntegrationConnectorTest {
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     TestIntegration integration =
-        new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
+        new TestIntegration(
+            componentRequestEngine,
+            instance,
+            connectorInstanceService,
+            null,
+            Tenant.DEFAULT_TENANT_UUID);
 
     integration.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
     integration.initialise();
@@ -49,7 +54,12 @@ public class IntegrationConnectorTest {
     instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     TestIntegration integration =
-        new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
+        new TestIntegration(
+            componentRequestEngine,
+            instance,
+            connectorInstanceService,
+            null,
+            Tenant.DEFAULT_TENANT_UUID);
 
     integration.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.stopped;
     integration.initialise();
@@ -72,7 +82,12 @@ public class IntegrationConnectorTest {
     instance.getConfigurations().add(config);
 
     TestIntegration integration =
-        new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
+        new TestIntegration(
+            componentRequestEngine,
+            instance,
+            connectorInstanceService,
+            null,
+            Tenant.DEFAULT_TENANT_UUID);
 
     integration.initialise();
     String appliedHashBefore = readAppliedHash(integration);

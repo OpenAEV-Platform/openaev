@@ -21,8 +21,6 @@ io.openaev.aop.AccessControlAspect#methodRBACVerification | AmbientTenantBridge.
 io.openaev.aop.AccessControlAspect#methodRBACVerification | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.api.chaining.InjectExecutionStep#getInjectFromDataStep | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
 io.openaev.api.payload.PayloadImportService#importPayload | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.config.OrchestratorRunTenantInterceptor#afterCompletion | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
 io.openaev.config.OrchestratorRunTenantInterceptor#afterConcurrentHandlingStarted | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
 io.openaev.config.OrchestratorRunTenantInterceptor#preHandle | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token

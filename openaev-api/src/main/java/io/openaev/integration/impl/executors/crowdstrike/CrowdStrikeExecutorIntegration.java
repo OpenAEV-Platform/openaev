@@ -72,6 +72,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       EndpointService endpointService,
       AgentService agentService,
       AssetGroupService assetGroupService,
@@ -84,7 +85,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       HttpClientFactory httpClientFactory,
       OpenAEVConfig openAEVConfig,
       TenantScopedTransaction tenantTx) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
     this.agentService = agentService;

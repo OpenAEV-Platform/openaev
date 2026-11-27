@@ -76,7 +76,7 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
@@ -86,6 +86,7 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
         componentRequestEngine,
         instance,
         connectorInstanceService,
+        tenantId,
         emailContract,
         injectorContext,
         emailService,

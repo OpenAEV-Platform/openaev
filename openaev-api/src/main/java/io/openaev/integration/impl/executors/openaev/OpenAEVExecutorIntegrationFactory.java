@@ -68,10 +68,11 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance, String tenantId) {
     return new OpenAEVExecutorIntegration(
         instance,
         connectorInstanceService,
+        tenantId,
         assetAgentJobRepository,
         componentRequestEngine,
         agentServiceAccountPrivilegeService,

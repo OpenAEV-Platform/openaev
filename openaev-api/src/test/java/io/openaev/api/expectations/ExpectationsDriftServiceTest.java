@@ -25,6 +25,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
@@ -66,7 +67,8 @@ class ExpectationsDriftServiceTest {
             injectRepository,
             scenarioRepository,
             exerciseRepository,
-            new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()),
+            new InjectorContractContentUtils(
+                ObjectMapperHelper.openAEVJsonMapper(), new ExpectationPropertiesConfig()),
             bulkOperationMonitor,
             chunkRunner,
             MAPPER);

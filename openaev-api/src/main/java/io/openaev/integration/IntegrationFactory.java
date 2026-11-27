@@ -69,11 +69,11 @@ public abstract class IntegrationFactory {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public List<Integration> sync(List<ConnectorInstance> instances) {
+  public List<Integration> sync(List<ConnectorInstance> instances, String tenantId) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
       try {
-        Integration integration = this.spawn(connectorInstance);
+        Integration integration = this.spawn(connectorInstance, tenantId);
         integration.initialise();
         list.add(integration);
       } catch (Exception e) {
@@ -95,7 +95,7 @@ public abstract class IntegrationFactory {
             tenantId, this.getClassName()));
   }
 
-  public abstract Integration spawn(ConnectorInstance instance)
+  public abstract Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,

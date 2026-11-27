@@ -117,7 +117,8 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances("test-tenant"), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
     assertThat(syncedIntegrations)
@@ -137,7 +138,8 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances("test-tenant"), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);

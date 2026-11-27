@@ -157,7 +157,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
 
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
-    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    Integration integration =
+        integrationFactory.spawn(new ConnectorInstanceInMemory(), Tenant.DEFAULT_TENANT_UUID);
     AssertionsForClassTypes.assertThat(
             FieldUtils.computeAllFieldValues(integration).get("encryptionService"))
         .isNull();
@@ -179,6 +180,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
                 new PaloAltoCortexExecutorIntegration(
                     instance,
                     connectorInstanceService,
+                    Tenant.DEFAULT_TENANT_UUID,
                     endpointService,
                     agentService,
                     assetGroupService,
@@ -210,7 +212,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
@@ -236,7 +238,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     integration.initialise();
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);

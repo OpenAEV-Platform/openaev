@@ -34,6 +34,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       ChannelContract channelContract,
       InjectorContext injectorContext,
       EmailService emailService,
@@ -41,7 +42,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
       InjectExpectationService injectExpectationService,
       ArticleRepository articleRepository,
       UrlAccessTokenService urlAccessTokenService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.channelContract = channelContract;
     this.injectorContext = injectorContext;
     this.emailService = emailService;

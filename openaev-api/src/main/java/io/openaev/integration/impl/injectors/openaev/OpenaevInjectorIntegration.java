@@ -26,10 +26,11 @@ public class OpenaevInjectorIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       InjectorContext injectorContext,
       InjectExpectationService injectExpectationService,
       InjectService injectService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
