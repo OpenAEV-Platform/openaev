@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type EsSeries } from '../../../utils/api-types';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const { mockDispatch, adHocSeriesMock, gridMountSpy, mockCan } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
@@ -176,15 +177,18 @@ describe('DefaultHomeDashboard security platforms loading (#9813)', () => {
     mockCan.mockReturnValue(true);
   });
 
-  it.each([true, false])('loads the security platforms only when the user can access them (can: %s)', async (canAccess) => {
-    // Arrange
-    mockCan.mockReturnValue(canAccess);
+  describe.each([true, false])('when the user can access security platforms: %s', (canAccess) => {
+    it('loads the security platforms only then', async () => {
+      // Arrange
+      mockCan.mockReturnValue(canAccess);
 
-    // Act
-    renderDashboard();
-    await act(async () => {});
+      // Act
+      renderDashboard();
+      await act(async () => {});
 
-    // Assert
-    expect(mockDispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
+      // Assert
+      expect(mockCan).toHaveBeenCalledWith(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
+      expect(mockDispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
+    });
   });
 });

@@ -60,11 +60,12 @@ const SecurityPlatformIndicator: FunctionComponent<SecurityPlatformIndicatorProp
       workflowConfiguration: workflowId ? helper.getWorkflowConfiguration(workflowId) : undefined,
     }),
   );
+  const canAccessSecurityPlatforms = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   useDataLoader(() => {
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)) {
+    if (canAccessSecurityPlatforms) {
       dispatch(fetchSecurityPlatforms());
     }
-  });
+  }, [canAccessSecurityPlatforms]);
   useEffect(() => {
     if (workflowId) {
       dispatch(fetchWorkflowConfiguration(workflowId));

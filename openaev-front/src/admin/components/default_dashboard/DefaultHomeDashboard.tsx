@@ -51,11 +51,12 @@ const DefaultHomeDashboard = () => {
   const ability = useAbility();
 
   // Connected security platforms power the orbiting nodes in the command center.
+  const canAccessSecurityPlatforms = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   useDataLoader(() => {
-    if (ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)) {
+    if (canAccessSecurityPlatforms) {
       dispatch(fetchSecurityPlatforms());
     }
-  });
+  }, [canAccessSecurityPlatforms]);
 
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const [refreshCount, setRefreshCount] = useState(0);

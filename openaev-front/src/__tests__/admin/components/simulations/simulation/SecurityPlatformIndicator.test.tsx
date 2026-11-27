@@ -39,6 +39,15 @@ vi.mock('../../../../../store', () => ({
 }));
 
 import SecurityPlatformIndicator from '../../../../../admin/components/simulations/simulation/SecurityPlatformIndicator';
+import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+
+const renderIndicator = (launched: boolean) => render(
+  <ThemeProvider theme={createTheme()}>
+    <TooltipProvider>
+      <SecurityPlatformIndicator workflowId="workflow-1" launched={launched} />
+    </TooltipProvider>
+  </ThemeProvider>,
+);
 
 describe('SecurityPlatformIndicator (#9813)', () => {
   afterEach(() => {
@@ -46,21 +55,30 @@ describe('SecurityPlatformIndicator (#9813)', () => {
     vi.clearAllMocks();
   });
 
-  it.each([true, false])('loads the security platforms only when the user can access them (can: %s)', (canAccess) => {
+  describe.each([true, false])('when the user can access security platforms: %s', (canAccess) => {
+    it('loads them only then and still renders the platforms frozen at launch', () => {
+      // Arrange
+      mocks.can.mockReturnValue(canAccess);
+
+      // Act
+      const { container } = renderIndicator(true);
+
+      // Assert
+      expect(mocks.can).toHaveBeenCalledWith(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
+      expect(mocks.dispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
+      expect(container.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  it('given a draft simulation and no access to security platforms, should neither load nor show them', () => {
     // Arrange
-    mocks.can.mockReturnValue(canAccess);
+    mocks.can.mockReturnValue(false);
 
     // Act
-    const { container } = render(
-      <ThemeProvider theme={createTheme()}>
-        <TooltipProvider>
-          <SecurityPlatformIndicator workflowId="workflow-1" launched />
-        </TooltipProvider>
-      </ThemeProvider>,
-    );
+    const { container } = renderIndicator(false);
 
     // Assert
-    expect(mocks.dispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(mocks.dispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(false);
+    expect(container.firstChild).toBeNull();
   });
 });
