@@ -200,18 +200,56 @@ class RequestTenantOfReadsAndProfileTest extends ProductionTablesIntegrationTest
       assertAmbientTenantIsTheDefaultOne();
 
       // Act
-      mvc.perform(
-              onRoute(
-                      route,
-                      put(uri(route, ME_URI, TENANT_ME_URI) + "/profile")
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(asJsonString(profile)))
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      String response = putProfileOnRoute(route, profile);
 
       // Assert
       assertThat(storedOrganizationIds(testUserHolder.get().getId()))
           .containsExactly(organizationId);
+      assertThatJson(response).node("user_organization").isEqualTo(organizationId);
+    }
+
+    @ParameterizedTest(name = "{0} route")
+    @ValueSource(strings = {HEADER_ROUTE, PREFIXED_ROUTE})
+    @WithMockUser
+    @DisplayName(
+        "given a caller who is not an admin and an organization of tenant B should answer with it")
+    void given_nonAdminCallerAndOrganizationOfTenantB_should_answerWithIt(String route)
+        throws Exception {
+      // Arrange
+      String organizationId = persistOrganization(tenantB);
+      flushAndClear();
+      assertAmbientTenantIsTheDefaultOne();
+
+      // Act
+      String response = putProfileOnRoute(route, profile("NotAdmin", organizationId));
+
+      // Assert
+      assertThatJson(response).node("user_admin").isEqualTo(false);
+      assertThatJson(response).node("user_organization").isEqualTo(organizationId);
+    }
+
+    @ParameterizedTest(name = "{0} route")
+    @ValueSource(strings = {HEADER_ROUTE, PREFIXED_ROUTE})
+    @DisplayName(
+        "given an organization of tenant B when the profile clears it should answer without an"
+            + " organization")
+    void given_organizationOfTenantB_when_profileClearsIt_should_answerWithoutOrganization(
+        String route) throws Exception {
+      // Arrange
+      String organizationId = persistOrganization(tenantB);
+      flushAndClear();
+      assertAmbientTenantIsTheDefaultOne();
+      String setResponse = putProfileOnRoute(route, profile("Cleared", organizationId));
+      assertThatJson(setResponse).node("user_organization").isEqualTo(organizationId);
+      flushAndClear();
+      assertAmbientTenantIsTheDefaultOne();
+
+      // Act
+      String response = putProfileOnRoute(route, profile("Cleared", null));
+
+      // Assert
+      assertThat(storedOrganizationIds(testUserHolder.get().getId())).isEmpty();
+      assertThatJson(response).node("user_organization").isNull();
     }
 
     @Test
@@ -269,6 +307,20 @@ class RequestTenantOfReadsAndProfileTest extends ProductionTablesIntegrationTest
 
       // Act & Assert
       mvc.perform(putProfile(profile)).andExpect(status().isBadRequest());
+    }
+
+    private String putProfileOnRoute(String route, UpdateProfileInput profile) throws Exception {
+      return mvc.perform(
+              onRoute(
+                      route,
+                      put(uri(route, ME_URI, TENANT_ME_URI) + "/profile")
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(profile)))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
 
     private MockHttpServletRequestBuilder putProfile(UpdateProfileInput profile) {

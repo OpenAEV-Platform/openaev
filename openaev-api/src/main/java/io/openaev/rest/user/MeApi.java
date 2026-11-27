@@ -9,6 +9,7 @@ import static org.springframework.util.StringUtils.hasLength;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.api.users.dto.UserMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
 import io.openaev.config.TenantWriteScopeResolver;
@@ -75,7 +76,8 @@ public class MeApi extends RestBehavior {
   }
 
   // A user holds one organization per tenant. Setting one needs the single tenant of the request's
-  // scope; an empty organization clears the one of the tenant the scope pins, if it pins one.
+  // scope; an empty organization clears the one of the tenant the scope pins, if it pins one. The
+  // response carries the organization of that tenant.
   @PutMapping({ME_URI + "/profile", TENANT_ME_URI + "/profile"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
@@ -87,21 +89,27 @@ public class MeApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
     String organizationId = input.getOrganizationId();
+    String organizationTenantId = null;
     if (hasLength(organizationId)) {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      organizationTenantId = writeScopeResolver.tenantForWrite(ctx, null);
       userRepository.assignOrganization(
           user,
-          tenantId,
-          resolveTenantOrganization(organizationId, tenantId, organizationRepository));
+          organizationTenantId,
+          resolveTenantOrganization(organizationId, organizationTenantId, organizationRepository));
     } else {
       Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
       if (scope.size() == 1) {
-        userRepository.assignOrganization(user, scope.iterator().next(), null);
+        organizationTenantId = scope.iterator().next();
+        userRepository.assignOrganization(user, organizationTenantId, null);
       }
     }
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(savedUser, ctx));
+    User response = permissionService.withRolesInAmbientTenant(savedUser, ctx);
+    if (organizationTenantId != null) {
+      response = UserMapper.toResponseView(response, organizationTenantId);
+    }
+    return hydrateUserForResponse(response);
   }
 
   // Tenant variant: the response carries the organization of the tenant it is read in.
