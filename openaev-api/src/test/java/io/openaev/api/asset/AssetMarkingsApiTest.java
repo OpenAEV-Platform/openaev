@@ -16,6 +16,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Capability;
@@ -33,6 +34,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -201,6 +203,7 @@ class AssetMarkingsApiTest extends IntegrationTest {
       markStored(green);
 
       // -- ACT --
+      clearedFor(green, yellow);
       entityManager
           .find(Endpoint.class, asset.getId())
           .setMarkingIds(new String[] {yellow.getId()});
@@ -217,6 +220,21 @@ class AssetMarkingsApiTest extends IntegrationTest {
           (Object) new String[] {marking.getId()},
           asset.getId());
       entityManager.clear();
+    }
+
+    /**
+     * Gives the test transaction a clearance, as the transaction aspect does on an HTTP request:
+     * the test's default scope sets the tenant only, so a marked asset read here would be filtered
+     * out.
+     */
+    private void clearedFor(MarkingDefinition... markings) {
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_markings', :markings, true)")
+          .setParameter(
+              "markings",
+              MarkingCtx.forMarkings(Arrays.stream(markings).map(MarkingDefinition::getId).toList())
+                  .toGuc())
+          .getSingleResult();
     }
 
     /**
