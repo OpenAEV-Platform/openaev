@@ -1,46 +1,19 @@
 import { type APIRequestContext, expect } from '@playwright/test';
 
-import { type Endpoint, type InjectOutput, type Scenario } from '../../../src/utils/api-types';
-import EndpointsApiHelpers from '../../api-helpers/EndpointsApiHelpers';
+import { type InjectOutput, type Scenario } from '../../../src/utils/api-types';
 import InjectorContractApiHelpers from '../../api-helpers/InjectorContractApiHelpers';
 import ScenarioApiHelpers from '../../api-helpers/ScenarioApiHelpers';
 import { test } from '../../fixtures';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
 import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
-import { type Persona } from '../../utils/personas';
-
-type AssetKey = 'green' | 'amber' | 'red';
-
-// Default group clearances (PresetTenantData.DEFAULT_GROUP_MARKINGS): Admin TLP:RED, Manager TLP:AMBER,
-// Observer TLP:GREEN. A clearance also covers every lower marking of the same type.
-const CASES: {
-  persona: Persona;
-  visibleAssets: AssetKey[];
-  invisibleAssets: AssetKey[];
-}[] = [
-  {
-    persona: 'admin',
-    visibleAssets: ['green', 'amber', 'red'],
-    invisibleAssets: [],
-  },
-  {
-    persona: 'manager',
-    visibleAssets: ['green', 'amber'],
-    invisibleAssets: ['red'],
-  },
-  {
-    persona: 'observer',
-    visibleAssets: ['green'],
-    invisibleAssets: ['amber', 'red'],
-  },
-];
+import { CLEARANCE_CASES, createMarkedAssets, deleteMarkedAssets, type MarkedAssets } from '../../utils/markedAssets';
 
 test.describe('Scenario - With asset marked', () => {
   // Seeded once as admin for every persona: a read-only persona cannot create them, and the data does not
   // depend on who reads it. Playwright reruns these hooks in a new worker after a failure.
   let adminRequest: APIRequestContext;
-  let assets: Record<AssetKey, Endpoint>;
+  let assets: MarkedAssets;
   let scenarioPage: ScenarioPage;
   let scenario: Scenario;
   let inject: InjectOutput;
@@ -48,21 +21,11 @@ test.describe('Scenario - With asset marked', () => {
 
   test.beforeAll(async ({ playwright, getMarkingDefinitionId }) => {
     adminRequest = await newRequestContextAs(playwright, 'admin');
-    const endpointApiHelpers = new EndpointsApiHelpers(adminRequest);
     const scenarioApiHelpers = new ScenarioApiHelpers(adminRequest);
     const contractApiHelpers = new InjectorContractApiHelpers(adminRequest);
     const suffix = `${Date.now()}-${Math.random()}`;
 
-    const [green, amber, red] = await Promise.all([
-      endpointApiHelpers.createEndpoint(`Asset Green ${suffix}`, [getMarkingDefinitionId('TLP:GREEN')]),
-      endpointApiHelpers.createEndpoint(`Asset Amber ${suffix}`, [getMarkingDefinitionId('TLP:AMBER')]),
-      endpointApiHelpers.createEndpoint(`Asset Red ${suffix}`, [getMarkingDefinitionId('TLP:RED')]),
-    ]);
-    assets = {
-      green,
-      amber,
-      red,
-    };
+    assets = await createMarkedAssets(adminRequest, getMarkingDefinitionId, suffix);
     scenario = await scenarioApiHelpers.createScenario(`Scenario marking ${suffix}`);
     // Custom contract on the built-in manual injector, declaring an asset field so the inject form lists the targets.
     const contract = await contractApiHelpers.createContract(`E2E contract ${suffix}`, undefined, true);
@@ -97,13 +60,12 @@ test.describe('Scenario - With asset marked', () => {
       await new InjectorContractApiHelpers(adminRequest).deleteContract(contractId);
     }
     if (assets) {
-      const endpointApiHelpers = new EndpointsApiHelpers(adminRequest);
-      await Promise.all(Object.values(assets).map(asset => endpointApiHelpers.deleteEndpoint(asset.asset_id)));
+      await deleteMarkedAssets(adminRequest, assets);
     }
     await adminRequest.dispose();
   });
 
-  for (const { persona, visibleAssets, invisibleAssets } of CASES) {
+  for (const { persona, visibleAssets, invisibleAssets } of CLEARANCE_CASES) {
     test.describe(() => {
       test.use({ persona });
 

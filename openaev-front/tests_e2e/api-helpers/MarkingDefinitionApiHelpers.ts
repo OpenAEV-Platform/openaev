@@ -6,11 +6,15 @@ import { tenantApiPath } from '../utils/url';
 class MarkingDefinitionApiHelpers {
   readonly markingDefinitionsUri = tenantApiPath('/api/marking_definitions');
 
-  constructor(private request: APIRequestContext) {
-  }
+  constructor(private request: APIRequestContext) {}
 
   async listAssignable(): Promise<MarkingDefinitionOutput[]> {
-    return (await this.request.get(`${this.markingDefinitionsUri}/assignable`)).json();
+    const uri = `${this.markingDefinitionsUri}/assignable`;
+    const response = await this.request.get(uri);
+    if (!response.ok()) {
+      throw new Error(`Failed to list assignable marking definitions (GET ${uri}): ${response.status()} ${response.statusText()} - ${await response.text()}`);
+    }
+    return response.json();
   }
 }
 

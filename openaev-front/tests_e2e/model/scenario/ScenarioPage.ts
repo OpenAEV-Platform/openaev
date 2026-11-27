@@ -45,7 +45,6 @@ class ScenarioPage {
 
   async gotoScenario(scenarioId: string) {
     await this.page.goto(tenantUrl(`/admin/scenarios/${scenarioId}`));
-    await this.page.waitForLoadState('domcontentloaded');
   }
 
   async gotoInjects(scenarioId: string) {
@@ -66,7 +65,7 @@ class ScenarioPage {
     return MuiListHelpers.filterItemsInList(this.teamListSection, teamName);
   }
 
-  /** An asset targeted by to inject opened in the update drawer. */
+  /** An asset targeted by the inject opened in the update drawer. */
   getInjectTargetAsset(assetName: string) {
     return MuiListHelpers.filterItemsInList(this.injectForm, assetName);
   }

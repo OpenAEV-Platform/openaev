@@ -8,23 +8,22 @@ class EndpointsApiHelpers {
   constructor(private request: APIRequestContext) {}
 
   async createEndpoint(name?: string, markings?: string[]): Promise<Endpoint> {
-    const response = await this.request.post(`${this.endpointsUri}/agentless`, {
-      data: {
-        asset_name: name || `Asset Agentless test e2e ${Date.now()}`,
-        asset_description: '',
-        asset_tags: [],
-        asset_category: 'WEB_APPLICATION',
-        asset_subcategory: 'WEBSITE',
-        asset_criticality: 'UNKNOWN',
-        asset_internet_facing: true,
-        asset_hostname: '',
-        asset_url: 'https://test.com',
-        asset_ips: [],
-        endpoint_is_eol: false,
-        asset_linked_person: null,
-        asset_markings: markings ?? [],
-      } as MarkedEndpointInput,
-    });
+    const input: MarkedEndpointInput = {
+      asset_name: name || `Asset Agentless test e2e ${Date.now()}`,
+      asset_description: '',
+      asset_tags: [],
+      asset_category: 'WEB_APPLICATION',
+      asset_subcategory: 'WEBSITE',
+      asset_criticality: 'UNKNOWN',
+      asset_internet_facing: true,
+      asset_hostname: '',
+      asset_url: 'https://test.com',
+      asset_ips: [],
+      endpoint_is_eol: false,
+      asset_linked_person: null,
+      asset_markings: markings ?? [],
+    };
+    const response = await this.request.post(`${this.endpointsUri}/agentless`, { data: input });
     if (!response.ok()) {
       throw new Error(`Failed to create endpoint (POST ${this.endpointsUri}/agentless): ${response.status()} ${response.statusText()} - ${await response.text()}`);
     }

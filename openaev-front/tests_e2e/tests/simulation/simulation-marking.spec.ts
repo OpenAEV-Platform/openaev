@@ -1,7 +1,6 @@
 import { type APIRequestContext, expect } from '@playwright/test';
 
-import { type Endpoint, type Exercise, type Grant, type InjectOutput } from '../../../src/utils/api-types';
-import EndpointsApiHelpers from '../../api-helpers/EndpointsApiHelpers';
+import { type Exercise, type Grant, type InjectOutput } from '../../../src/utils/api-types';
 import GroupApiHelpers from '../../api-helpers/GroupApiHelpers';
 import InjectApiHelpers from '../../api-helpers/InjectApiHelpers';
 import InjectorContractApiHelpers from '../../api-helpers/InjectorContractApiHelpers';
@@ -10,45 +9,26 @@ import { test } from '../../fixtures';
 import SimulationPage from '../../model/simulation/SimulationPage';
 import { disableAnimations } from '../../utils/animations';
 import { newRequestContextAs } from '../../utils/auth';
-import { type Persona, PERSONAS } from '../../utils/personas';
+import {
+  CLEARANCE_CASES,
+  createMarkedAssets,
+  deleteMarkedAssets,
+  type MarkedAssetKey,
+  type MarkedAssets,
+  visibleAssetsOf,
+} from '../../utils/markedAssets';
+import { PERSONAS } from '../../utils/personas';
 
-type AssetKey = 'green' | 'amber' | 'red';
-
-// Default group clearances (PresetTenantData.DEFAULT_GROUP_MARKINGS): Admin TLP:RED, Manager TLP:AMBER,
-// Observer TLP:GREEN. A clearance also covers every lower marking of the same type.
-// The simulation is launched by the observer, so the amber and red assets are left out of the execution:
-// each persona sees an "Asset not targeted" trace on those of them it can see.
-const CASES: {
-  persona: Persona;
-  visibleAssets: AssetKey[];
-  invisibleAssets: AssetKey[];
-  notTargetedAssets: AssetKey[];
-}[] = [
-  {
-    persona: 'admin',
-    visibleAssets: ['green', 'amber', 'red'],
-    invisibleAssets: [],
-    notTargetedAssets: ['amber', 'red'],
-  },
-  {
-    persona: 'manager',
-    visibleAssets: ['green', 'amber'],
-    invisibleAssets: ['red'],
-    notTargetedAssets: ['amber'],
-  },
-  {
-    persona: 'observer',
-    visibleAssets: ['green'],
-    invisibleAssets: ['amber', 'red'],
-    notTargetedAssets: [],
-  },
-];
+// The simulation is launched by the observer, so the assets its clearance does not cover are left out of the
+// execution: each persona sees an "Asset not targeted" trace on those of them it can see.
+const LAUNCHER = 'observer';
+const launcherAssets = visibleAssetsOf(LAUNCHER);
 
 test.describe('Simulation - With asset marked', () => {
   // Seeded once as admin for every persona: a read-only persona cannot create them, and the data does not
   // depend on who reads it. Playwright reruns these hooks in a new worker after a failure.
   let adminRequest: APIRequestContext;
-  let assets: Record<AssetKey, Endpoint>;
+  let assets: MarkedAssets;
   let simulation: Exercise;
   let inject: InjectOutput;
   let contractId: string;
@@ -56,21 +36,11 @@ test.describe('Simulation - With asset marked', () => {
 
   test.beforeAll(async ({ playwright, getMarkingDefinitionId }) => {
     adminRequest = await newRequestContextAs(playwright, 'admin');
-    const endpointApiHelpers = new EndpointsApiHelpers(adminRequest);
     const simulationApiHelpers = new SimulationApiHelpers(adminRequest);
     const contractApiHelpers = new InjectorContractApiHelpers(adminRequest);
     const suffix = `${Date.now()}-${Math.random()}`;
 
-    const [green, amber, red] = await Promise.all([
-      endpointApiHelpers.createEndpoint(`Asset Green ${suffix}`, [getMarkingDefinitionId('TLP:GREEN')]),
-      endpointApiHelpers.createEndpoint(`Asset Amber ${suffix}`, [getMarkingDefinitionId('TLP:AMBER')]),
-      endpointApiHelpers.createEndpoint(`Asset Red ${suffix}`, [getMarkingDefinitionId('TLP:RED')]),
-    ]);
-    assets = {
-      green,
-      amber,
-      red,
-    };
+    assets = await createMarkedAssets(adminRequest, getMarkingDefinitionId, suffix);
     simulation = await simulationApiHelpers.createSimulation(`Simulation marking ${suffix}`);
     // Custom contract on the built-in manual injector, declaring an asset field so the inject lists the targets.
     const contract = await contractApiHelpers.createContract(`E2E contract ${suffix}`, undefined, true);
@@ -96,16 +66,16 @@ test.describe('Simulation - With asset marked', () => {
     });
     // Started by the observer (TLP:GREEN clearance): the Observer role has no LAUNCH_ASSESSMENT, so its group
     // gets a LAUNCHER grant on this simulation only.
-    launcherGrant = await new GroupApiHelpers(adminRequest).addGrant(PERSONAS.observer.groupName, {
+    launcherGrant = await new GroupApiHelpers(adminRequest).addGrant(PERSONAS[LAUNCHER].groupName, {
       grant_name: 'LAUNCHER',
       grant_resource: simulation.exercise_id,
       grant_resource_type: 'SIMULATION',
     });
-    const observerRequest = await newRequestContextAs(playwright, 'observer');
+    const launcherRequest = await newRequestContextAs(playwright, LAUNCHER);
     try {
-      await new SimulationApiHelpers(observerRequest).startSimulation(simulation.exercise_id);
+      await new SimulationApiHelpers(launcherRequest).startSimulation(simulation.exercise_id);
     } finally {
-      await observerRequest.dispose();
+      await launcherRequest.dispose();
     }
 
     // InjectsExecutionJob fires once a minute, on the minute: the inject runs within the next tick.
@@ -135,8 +105,7 @@ test.describe('Simulation - With asset marked', () => {
       await new InjectorContractApiHelpers(adminRequest).deleteContract(contractId);
     }
     if (assets) {
-      const endpointApiHelpers = new EndpointsApiHelpers(adminRequest);
-      await Promise.all(Object.values(assets).map(asset => endpointApiHelpers.deleteEndpoint(asset.asset_id)));
+      await deleteMarkedAssets(adminRequest, assets);
     }
     await adminRequest.dispose();
   });
@@ -149,10 +118,12 @@ test.describe('Simulation - With asset marked', () => {
     const targetedAssetIds = expectations
       .filter(expectation => expectation.inject_expectation_inject === inject.inject_id)
       .map(expectation => expectation.inject_expectation_asset);
-    expect(targetedAssetIds).toEqual([assets.green.asset_id]);
+    expect(targetedAssetIds.toSorted()).toEqual(launcherAssets.map(key => assets[key].asset_id).toSorted());
   });
 
-  for (const { persona, visibleAssets, invisibleAssets, notTargetedAssets } of CASES) {
+  for (const { persona, visibleAssets, invisibleAssets } of CLEARANCE_CASES) {
+    const notTargetedAssets = visibleAssets.filter(key => !launcherAssets.includes(key));
+
     test.describe(() => {
       let simulationPage: SimulationPage;
 
@@ -164,7 +135,7 @@ test.describe('Simulation - With asset marked', () => {
         await simulationPage.gotoInject(simulation.exercise_id, inject.inject_id);
       });
 
-      test(`${persona} should list only the targeted assets cleared for the persona 'observer'`, async () => {
+      test(`${persona} should list only the inject targets its clearance covers`, async () => {
         // Assert
         await Promise.all(visibleAssets.map(key =>
           expect(simulationPage.getAssetByName(assets[key].asset_name)).toBeVisible()));
@@ -205,21 +176,24 @@ test.describe('Simulation - With asset marked', () => {
         // Arrange
         const request = await newRequestContextAs(playwright, persona);
         const injectApiHelpers = new InjectApiHelpers(request);
-        const getTraces = (key: AssetKey) => injectApiHelpers.getAssetExecutionTraces(inject.inject_id, assets[key].asset_id);
+        const getTraces = (key: MarkedAssetKey) => injectApiHelpers.getAssetExecutionTraces(inject.inject_id, assets[key].asset_id);
 
         try {
           // Act
-          const [clearedTraces, unclearedTraces] = await Promise.all([
+          const [green, cleared, uncleared] = await Promise.all([
+            getTraces('green'),
             Promise.all(notTargetedAssets.map(getTraces)),
             Promise.all(invisibleAssets.map(getTraces)),
           ]);
 
           // Assert
-          // Each not-targeted asset has an "Asset not targeted" trace: getting it for an asset the persona can see
-          // proves the request works, so an empty answer for an asset it cannot see is a refusal.
-          clearedTraces.forEach(traces =>
+          // Every persona is cleared for the green asset: a 200 on it proves the request works, so an empty answer
+          // for an asset the persona cannot see is a refusal, not a broken request.
+          expect(green.status).toBe(200);
+          // Each not-targeted asset the persona can see has an "Asset not targeted" trace.
+          cleared.forEach(({ traces }) =>
             expect(traces.map(trace => trace.execution_status)).toContain('ASSET_CLEARANCE_RESTRICTED'));
-          unclearedTraces.forEach(traces => expect(traces).toEqual([]));
+          uncleared.forEach(({ traces }) => expect(traces).toEqual([]));
         } finally {
           await request.dispose();
         }
