@@ -66,7 +66,7 @@ public class PayloadCustomizationMerge {
   public Payload merged(Update update, Map<CustomizableBlock, MergeChoice> choices) {
     if (update.conflicts().stream()
         .map(choices::get)
-        .anyMatch(choice -> choice == null || !choice.fits(false, null))) {
+        .anyMatch(choice -> choice == null || !choice.isSide())) {
       throw new BadRequestException(MergeChoice.MISSING);
     }
     Payload current = update.current();

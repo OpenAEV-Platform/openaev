@@ -26,11 +26,16 @@ public enum MergeChoice {
     }
   };
 
-  public static final String MISSING = "Choose a side for each conflict";
+  public static final String MISSING = "Choose Filigran's version or yours for each conflict";
 
   /** A choice that does not fit leaves the conflict open. */
   public boolean fits(boolean editable, Object edit) {
     return true;
+  }
+
+  /** Keeps one of the two versions as it is, with no value written by the user. */
+  public boolean isSide() {
+    return fits(false, null);
   }
 
   public abstract <T> T value(T applied, T local, T edit);
