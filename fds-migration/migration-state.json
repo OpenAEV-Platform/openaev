@@ -1109,7 +1109,8 @@
       "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
       "files": [
         "openaev-front/src/admin/components/scenarios/launch/ScenarioLaunchReadiness.tsx",
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadLiftDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevokeDialog.tsx",
         "openaev-front/src/admin/components/scenarios/card/ScenarioCard.tsx",
         "openaev-front/src/admin/components/scenarios/targets/ScenarioTargetsDrawer.tsx"
       ]
@@ -1122,7 +1123,8 @@
       ],
       "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
       "files": [
-        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadLiftDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevokeDialog.tsx",
         "openaev-front/src/admin/components/scenarios/targets/ScenarioTargetsDrawer.tsx"
       ]
     },
