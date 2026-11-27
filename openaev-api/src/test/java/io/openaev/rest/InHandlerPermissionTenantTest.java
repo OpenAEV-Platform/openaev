@@ -5,12 +5,13 @@ import static io.openaev.api.autonomous.AutonomousRunApi.AUTONOMOUS_URI;
 import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.notifier.NotifierApi.NOTIFIER_URI;
 import static io.openaev.api.notifier.NotifierApi.TENANT_NOTIFIER_URI;
-import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
+import static io.openaev.rest.asset.endpoint.EndpointApi.TENANT_ENDPOINT_URI;
 import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.reporting.ReportingApi.REPORTINGS_URI;
 import static io.openaev.rest.reporting.ReportingApi.TENANT_REPORTINGS_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.JsonTestUtils.asStringJson;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
@@ -27,7 +28,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.ProductionTablesIntegrationTest;
-import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -56,6 +56,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -607,8 +608,7 @@ class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
       String assetId = markedAssetInB();
 
       // -- ACT & ASSERT --
-      mvc.perform(inB(put(ASSET_URI + "/{assetId}/markings", assetId)).content(clearAsset()))
-          .andExpect(status().isForbidden());
+      mvc.perform(clearAssetInB(assetId)).andExpect(status().isForbidden());
     }
 
     @Test
@@ -619,16 +619,22 @@ class InHandlerPermissionTenantTest extends ProductionTablesIntegrationTest {
       String assetId = markedAssetInB();
 
       // -- ACT & ASSERT --
-      mvc.perform(inB(put(ASSET_URI + "/{assetId}/markings", assetId)).content(clearAsset()))
-          .andExpect(status().isOk());
+      mvc.perform(clearAssetInB(assetId)).andExpect(status().isOk());
     }
 
     private String clearGroup() {
       return asJsonString(new GroupUpdateMarkingsInput(List.of(), null));
     }
 
-    private String clearAsset() {
-      return asJsonString(new AssetUpdateMarkingsInput(List.of()));
+    private MockHttpServletRequestBuilder clearAssetInB(String assetId) {
+      Map<String, Object> body =
+          asStringJson(
+              asJsonString(EndpointFixture.createWindowsEndpointInput(List.of())), Map.class);
+      body.put("asset_markings", List.of());
+      return put(TENANT_ENDPOINT_URI + "/{endpointId}", tenantB, assetId)
+          .content(asJsonString(body))
+          .contentType(MediaType.APPLICATION_JSON)
+          .with(csrf());
     }
   }
 

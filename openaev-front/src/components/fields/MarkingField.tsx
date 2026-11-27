@@ -1,5 +1,17 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { Lens } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
@@ -8,7 +20,6 @@ import { useHelper } from '../../store';
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import { collapseToHighestPerType, markingLabel, sortMarkings } from '../../utils/markings';
-import MarkingChip from '../common/MarkingChip';
 import { useFormatter } from '../i18n';
 
 interface Props {
@@ -35,6 +46,7 @@ const MarkingField: FunctionComponent<Props> = ({
   required = false,
 }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   // Only the markings the current user is cleared to assign - offering one they don't hold would
   // just fail server-side at submit time (see MarkingEscalationValidator). Whatever is already
@@ -65,7 +77,7 @@ const MarkingField: FunctionComponent<Props> = ({
   // stronger level is an unsurprising upgrade) or, if it is the weaker one, is rejected outright
   // with an explanation - a type can only ever be covered by one level at a time, so there is
   // nothing to add otherwise.
-  const handleChange = (_: unknown, newValue: MarkingDefinitionOutput[]) => {
+  const handleChange = (newValue: MarkingDefinitionOutput[]) => {
     const removed = value.filter(
       current => !newValue.some(n => n.marking_definition_id === current.marking_definition_id),
     );
@@ -105,53 +117,43 @@ const MarkingField: FunctionComponent<Props> = ({
       ...style,
     }}
     >
-      <MuiAutocomplete
+      <Combobox<MarkingDefinitionOutput>
+        required={required}
         multiple
-        size="small"
-        selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
-        disabled={disabled}
-        options={options}
         value={value}
-        onChange={handleChange}
+        options={options}
+        disabled={disabled}
+        selectOnFocus
+        keepInputOnBlur
+        onValueChange={newValue => handleChange(newValue as MarkingDefinitionOutput[])}
+        getOptionLabel={markingLabel}
         isOptionEqualToValue={(option, val) => option.marking_definition_id === val.marking_definition_id}
-        getOptionLabel={option => markingLabel(option)}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.marking_definition_id}>
-            <Lens sx={{
-              color: option.marking_definition_color,
-              marginRight: 1,
-              fontSize: 'small',
-            }}
-            />
-            <span>{markingLabel(option)}</span>
-          </Box>
+        getChipColor={option => option.marking_definition_color}
+        error={!!error}
+        renderOption={option => (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+          }}
+          >
+            <Lens fontSize="small" style={{ color: option.marking_definition_color }} />
+            {markingLabel(option)}
+          </span>
         )}
-        renderValue={(markingValue, getMarkingProps) => markingValue.map((option, index) => {
-          const { key, ...markingProps } = getMarkingProps({ index });
-          return (
-            <MarkingChip
-              key={key}
-              {...markingProps}
-              size="small"
-              marking={option}
-            />
-          );
-        })}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            error={!!error}
-            helperText={error?.message}
-            required={required}
-          />
-        )}
-      />
+      >
+        <ComboboxLabel required={required}>{label}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+        {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+      </Combobox>
     </div>
   );
 };

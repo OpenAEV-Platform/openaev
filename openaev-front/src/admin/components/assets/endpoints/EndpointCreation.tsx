@@ -6,7 +6,7 @@ import { addEndpointAgentless } from '../../../../actions/assets/endpoint-action
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import type { AiTargetInput, Endpoint, EndpointInput } from '../../../../utils/api-types';
+import type { AiTargetInput, Endpoint, MarkedEndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import AiTargetForm from '../ai_targets/AiTargetForm';
 import { type AssetCategory, getCategoryDef } from '../asset-categories';
@@ -35,7 +35,7 @@ const EndpointCreation: FunctionComponent<Props> = ({
     setCategory(null);
   };
 
-  const onSubmit = (data: EndpointInput) => {
+  const onSubmit = (data: MarkedEndpointInput) => {
     dispatch(addEndpointAgentless(data)).then(
       (result: {
         result: string;
