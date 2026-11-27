@@ -76,7 +76,9 @@ public enum ContractFieldType {
   @JsonProperty("asset-group")
   AssetGroup("asset-group", ValueShape.UNCHECKED),
 
-  /** An asset group picked by id, stored in the content; unlike {@link #AssetGroup} not a target. */
+  /**
+   * An asset group picked by id, stored in the content; unlike {@link #AssetGroup} not a target.
+   */
   @JsonProperty("asset-group-reference")
   AssetGroupReference("asset-group-reference", ValueShape.UNCHECKED),
 
