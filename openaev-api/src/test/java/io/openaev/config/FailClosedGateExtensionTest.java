@@ -287,7 +287,7 @@ class FailClosedGateExtensionTest {
    * The gate asserts per test in the normal pipeline and reports instead under a shadow mode. Three
    * directions, because a gate measured in two of them is not measured: the normal path still
    * fails, the shadow path does not fail, and a signature new to the armed mode's own list still
-   * reaches the shadow verdict.
+   * reaches the shadow report.
    */
   @Nested
   @DisplayName("per-mode shadow reporting")
@@ -309,10 +309,9 @@ class FailClosedGateExtensionTest {
     @Test
     @DisplayName("the running JVM's own mode and the gate's decision agree, in either pipeline")
     void given_thisJvm_should_decideFromItsOwnArmedMode() {
-      // Arrange + Act: the live value, not a crafted one. It is empty in the normal pipeline and a
-      // shadow mode in the nightly, which runs this very class in shard 9, so asserting emptiness
-      // here would make the instrument fail its own nightly. What must hold in both is that the
-      // decision follows the mode actually armed.
+      // Arrange + Act: the live value, not a crafted one. It is empty in the pipeline and set by a
+      // run armed by hand with a shadow mode, so asserting emptiness here would fail that run.
+      // What must hold in both is that the decision follows the mode actually armed.
       String armed = FailClosedGateExtension.armedShadowMode();
 
       // Assert
@@ -366,7 +365,7 @@ class FailClosedGateExtensionTest {
     }
 
     @Test
-    @DisplayName("the shadow report marks a new signature so the verdict can read it")
+    @DisplayName("the shadow report marks a new signature so a reader can count it")
     void given_aNewSignature_should_bePrefixedNewInTheReport() {
       // Arrange + Act
       String content =
@@ -378,7 +377,7 @@ class FailClosedGateExtensionTest {
       // Assert
       assertTrue(
           content.contains(FailClosedGateExtension.NEW_PREFIX + NEW_SITE),
-          "the verdict counts lines prefixed '"
+          "a reader counts lines prefixed '"
               + FailClosedGateExtension.NEW_PREFIX
               + "', got:\n"
               + content);

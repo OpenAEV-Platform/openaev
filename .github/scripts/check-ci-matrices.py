@@ -124,17 +124,16 @@ def check_api_matrix(where: str, matrix: list[dict]) -> None:
         seen[name] = index
 
         # Coverage artifacts are named from shard + artifact_suffix, not from shard_name
-        # (api-tests/action.yml), so two entries with distinct shard_names can still collide there
-        # and the second upload fails the run. Shadow entries upload no coverage.
-        if not entry.get("tenant_mode"):
-            coverage = f"jacoco-exec-shard-{entry.get('shard')}{entry.get('artifact_suffix', '')}"
-            if coverage in coverage_artifacts:
-                fail(
-                    f"{where}: entries '{coverage_artifacts[coverage]}' and '{name}' would both "
-                    f"upload the coverage artifact '{coverage}'"
-                )
-            else:
-                coverage_artifacts[coverage] = name
+        # (api-tests/action.yml), so two entries with distinct shard_names can collide there and
+        # the second upload fails the run.
+        coverage = f"jacoco-exec-shard-{entry.get('shard')}{entry.get('artifact_suffix', '')}"
+        if coverage in coverage_artifacts:
+            fail(
+                f"{where}: entries '{coverage_artifacts[coverage]}' and '{name}' would both "
+                f"upload the coverage artifact '{coverage}'"
+            )
+        else:
+            coverage_artifacts[coverage] = name
 
         if entry.get("includes") == "shardfile":
             shard = entry.get("shard")
@@ -144,10 +143,6 @@ def check_api_matrix(where: str, matrix: list[dict]) -> None:
                     f"{where}: entry '{name}' reads shard file {shard_file.relative_to(REPO)}, "
                     "which does not exist"
                 )
-
-        mode = entry.get("tenant_mode")
-        if mode is not None and mode not in ("production", "all"):
-            fail(f"{where}: entry '{name}' has tenant_mode '{mode}', expected 'production' or 'all'")
 
 
 def check_e2e_matrix(where: str, matrix: list[dict]) -> None:

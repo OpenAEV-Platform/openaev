@@ -4,18 +4,16 @@
 #
 # This is NOT a waiver list and it carries no safety claim. It says only which unscoped production
 # signatures that armed set is already known to produce, so a shadow run can report the ones that
-# are NEW and the number is comparable from one night to the next. A signature here has not been
-# judged benign; it has been seen before. A signature judged benign or scoped-ok belongs in
-# failclosed-baseline.txt with its reason, which is read in every mode, and never here.
+# are NEW. A signature here has not been judged benign; it has been seen before. A signature judged
+# benign or scoped-ok belongs in failclosed-baseline.txt with its reason, which is read in every
+# mode, and never here.
 #
-# A new signature fails the shadow verdict (the job, never the workflow run: the shadow shards are
-# continue-on-error). To curate: triage it, then either scope the path, or waive it in
-# failclosed-baseline.txt with a reason, or add it here if it is a known consequence of arming this
-# wider list.
+# No CI job arms this mode: a run sets openaev.failclosed.shadow-mode by hand and reads
+# failclosed-shadow.txt next to the surefire reports. To curate a new signature: triage it, then
+# scope the path, or waive it in failclosed-baseline.txt with a reason, or add it here if it is a
+# known consequence of arming this wider list.
 #
-# Deliberately empty. Populating it needs one full ten-shard shadow-all run, and a list generated
-# from a run with known-red shapes in it silently blesses whatever was broken that day. The first
-# night after this lands therefore reports its whole set as new, which is the honest starting
-# point; the owner curates it from that run's own report.
+# Deliberately empty: a list generated from a run with known-red shapes in it silently blesses
+# whatever is broken in that run.
 #
 # Lines starting with # and blank lines are ignored.
