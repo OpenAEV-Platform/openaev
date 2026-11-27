@@ -47,7 +47,7 @@ public record ImplantCommand(ArchSource archSource, String windowsTemplatePrefix
   }
 
   private String templateKey(PLATFORM_TYPE platform, Agent agent) {
-    String key = platform.name() + "." + archSource.templateArch(agent);
+    String key = platform.name() + "." + archSource.templateArch(agent).name();
     return platform == PLATFORM_TYPE.Windows && windowsTemplatePrefix != null
         ? windowsTemplatePrefix + "." + key
         : key;

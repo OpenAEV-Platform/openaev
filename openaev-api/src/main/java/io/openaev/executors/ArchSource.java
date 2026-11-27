@@ -14,8 +14,8 @@ public enum ArchSource {
   /** The architecture the EDR reported at sync. */
   AGENT {
     @Override
-    String templateArch(Agent agent) {
-      return ((Endpoint) agent.getAsset()).getArch().name();
+    PLATFORM_ARCH templateArch(Agent agent) {
+      return ((Endpoint) agent.getAsset()).getArch();
     }
 
     @Override
@@ -26,8 +26,8 @@ public enum ArchSource {
   /** The EDR does not report it: the command detects it on the endpoint before downloading. */
   ENDPOINT {
     @Override
-    String templateArch(Agent agent) {
-      return PLATFORM_ARCH.x86_64.name();
+    PLATFORM_ARCH templateArch(Agent agent) {
+      return PLATFORM_ARCH.x86_64;
     }
 
     @Override
@@ -40,7 +40,7 @@ public enum ArchSource {
     }
   };
 
-  abstract String templateArch(Agent agent);
+  abstract PLATFORM_ARCH templateArch(Agent agent);
 
   abstract String adapt(String template, PLATFORM_TYPE platform);
 }
