@@ -6,7 +6,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
+import { searchFindings } from '../../../../actions/findings/finding-actions';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { fetchOrganizations } from '../../../../actions/Organization';
 import { searchInjectsForPlayer } from '../../../../actions/players/player-actions';
@@ -126,7 +126,7 @@ const PersonDetail = () => {
     [userId],
   ));
   const findingsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId])),
+    (input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_users', [userId])),
     [userId],
   ));
 
@@ -255,7 +255,7 @@ const PersonDetail = () => {
           <SectionBlock title={t('Findings')}>
             <FindingList
               filterLocalStorageKey="person-findings"
-              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindings(withFilter(input, 'finding_users', [userId]))}
+              searchFindings={(input: SearchPaginationInput) => searchFindings(withFilter(input, 'finding_users', [userId]))}
               contextId={userId}
             />
           </SectionBlock>

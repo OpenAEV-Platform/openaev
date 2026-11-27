@@ -5,7 +5,7 @@ import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
+import { searchFindings } from '../../../../actions/findings/finding-actions';
 import type { UserHelper } from '../../../../actions/helper';
 import { fetchOrganization, searchInjectsForOrganization } from '../../../../actions/organizations/organization-actions';
 import { searchPlayers } from '../../../../actions/players/player-actions';
@@ -33,7 +33,7 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ORGANIZATION_BASE_URL, PERSON_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type AggregatedFindingOutput, type Filter, type InjectResultOutput, type Organization, type PlayerOutput, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
+import { type Filter, type FindingSimple, type InjectResultOutput, type Organization, type PlayerOutput, type SearchPaginationInput, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
@@ -196,7 +196,7 @@ const OrganizationDetailContent = () => {
   const findingsTotal = useSearchTotal(useCallback(
     (input: SearchPaginationInput) => (teamIds.length === 0
       ? Promise.resolve({ data: { totalElements: 0 } })
-      : searchDistinctFindings(withTeamsScope(input, 'finding_teams'))),
+      : searchFindings(withTeamsScope(input, 'finding_teams'))),
     [teamIds, withTeamsScope],
   ));
 
@@ -214,9 +214,9 @@ const OrganizationDetailContent = () => {
   // scope would match everything - so short-circuit to an empty page while
   // keeping the list (search, filters, pagination) rendered.
   const fetchOrganizationFindings = useCallback(
-    (input: SearchPaginationInput): Promise<{ data: Page<AggregatedFindingOutput> }> => (teamIds.length === 0
-      ? Promise.resolve(buildEmptyPage<AggregatedFindingOutput>(input))
-      : searchDistinctFindings(withTeamsScope(input, 'finding_teams'))),
+    (input: SearchPaginationInput): Promise<{ data: Page<FindingSimple> }> => (teamIds.length === 0
+      ? Promise.resolve(buildEmptyPage<FindingSimple>(input))
+      : searchFindings(withTeamsScope(input, 'finding_teams'))),
     [teamIds, withTeamsScope],
   );
 
@@ -376,7 +376,7 @@ const OrganizationDetailContent = () => {
             <SectionBlock title={t('Findings')}>
               <FindingList
                 filterLocalStorageKey="organization-findings"
-                searchDistinctFindings={fetchOrganizationFindings}
+                searchFindings={fetchOrganizationFindings}
                 contextId={organizationId}
               />
             </SectionBlock>

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.FindingStatus;
 import io.openaev.rest.asset_group.form.AssetGroupSimple;
+import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,11 +34,6 @@ public class FindingOutput {
   @JsonProperty("finding_id")
   @NotBlank
   private String id;
-
-  @Schema(description = "Contract output field the finding was extracted from")
-  @JsonProperty("finding_field")
-  @NotBlank
-  private String field;
 
   @Schema(
       description = "Represents the data type being extracted.",
@@ -124,15 +120,34 @@ public class FindingOutput {
   @JsonProperty("finding_users")
   private List<String> users;
 
-  @Schema(description = "Simulation the finding was produced in")
+  @Schema(description = "Number of occurrences, one per inject that detected the finding")
+  @JsonProperty("finding_occurrences_count")
+  private long occurrencesCount;
+
+  @Schema(description = "Asset or player the finding was detected on, absent when unknown")
+  @JsonProperty("finding_location")
+  private TargetSimple location;
+
+  // -- Deprecated: the fields the output carried before a finding became one row per (type, value,
+  // location), kept so the API clients that read them keep working.
+
+  @Schema(
+      deprecated = true,
+      description = "Deprecated: contract output field of the latest occurrence")
+  @JsonProperty("finding_field")
+  private String field;
+
+  @Schema(deprecated = true, description = "Deprecated: simulation of the latest occurrence")
   @JsonProperty("finding_simulation")
   private ExerciseSimple simulation;
 
-  @Schema(description = "Scenario the finding was produced in")
+  @Schema(deprecated = true, description = "Deprecated: scenario of the latest occurrence")
   @JsonProperty("finding_scenario")
   private ScenarioSimple scenario;
 
-  @Schema(description = "Asset groups targeted by the inject that produced the finding")
+  @Schema(
+      deprecated = true,
+      description = "Deprecated: asset groups that contain an asset of the finding")
   @JsonProperty("finding_asset_groups")
   private Set<AssetGroupSimple> assetGroups;
 }

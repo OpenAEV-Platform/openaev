@@ -5,11 +5,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.architecture.LazyAssociationCatalog.Association;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Scenario;
+import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.rest.scenario.form.ScenarioSimple;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -102,20 +108,27 @@ class LazyAssociationAfterCommitArchTest {
       Set<String> sites = liveSites();
 
       // -- Assert --
-      // The finding's scenario summary holds the scenario's own tag collection, not a copy.
-      assertThat(sites).contains("FindingApi.finding -> ScenarioSimple.tags");
+      // The scenario summary holds the scenario's own tag collection, not a copy.
+      assertThat(sites).contains("ScenarioApi.scenarios -> ScenarioSimple.tags");
     }
 
     @Test
     @DisplayName(
         "given a response documented wider than its return type, when scanned, then the documented types are reached")
-    void given_responseDocumentedWiderThanReturnType_should_reachDocumentedTypes() {
+    void given_responseDocumentedWiderThanReturnType_should_reachDocumentedTypes()
+        throws NoSuchMethodException {
+      // -- Arrange --
+      // No production endpoint documents a wider response today: the mechanism is checked on a
+      // method of this class.
+      Method method =
+          LazyAssociationAfterCommitArchTest.class.getDeclaredMethod(
+              "documentedWiderThanItsReturnType");
+
       // -- Act --
-      Set<String> sites = liveSites();
+      Set<Class<?>> types = LazyAssociationCatalog.documentedResponseTypes(method);
 
       // -- Assert --
-      // Declared as aggregated findings, it also answers related findings, which carry a scenario.
-      assertThat(sites).contains("FindingSearchApi.findings -> ScenarioSimple.tags");
+      assertThat(types).containsExactlyInAnyOrder(ScenarioSimple.class, ExerciseSimple.class);
     }
 
     @Test
@@ -202,6 +215,13 @@ lower BASELINE_SIZE by as many:%n%s""",
                 assertThat(parts[1].trim()).as("reason for %s", site).isNotEmpty();
               });
     }
+  }
+
+  @ApiResponse(
+      responseCode = "200",
+      content = @Content(schema = @Schema(oneOf = {ScenarioSimple.class, ExerciseSimple.class})))
+  private static Object documentedWiderThanItsReturnType() {
+    return null;
   }
 
   private static Set<String> liveSites() {

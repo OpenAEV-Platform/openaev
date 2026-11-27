@@ -5,7 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
-import { searchDistinctFindingsForInjects } from '../../../../../actions/findings/finding-actions';
+import { searchFindingsForInjects } from '../../../../../actions/findings/finding-actions';
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../../actions/injects/inject-action';
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
@@ -834,12 +834,12 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             {currentTab === FINDINGS_TAB && detail.injectId && (
               <FindingList
                 filterLocalStorageKey="ap-inject-findings"
-                searchDistinctFindings={input => searchDistinctFindingsForInjects(detail.injectId as string, input)}
+                searchFindings={input => searchFindingsForInjects(detail.injectId as string, input)}
                 contextId={detail.injectId}
                 // Compact in the narrow drawer: no search/filter/pagination top bar, and drop the
                 // asset-groups column (attack-path targets are direct assets, so it's always empty).
                 compact
-                hiddenFields={['finding_asset_groups', 'finding_created_at', 'finding_updated_at']}
+                hiddenFields={['finding_first_seen', 'finding_last_seen']}
               />
             )}
 

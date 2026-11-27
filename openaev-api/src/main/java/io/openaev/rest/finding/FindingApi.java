@@ -3,21 +3,32 @@ package io.openaev.rest.finding;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingRetestInput;
 import io.openaev.rest.finding.form.FindingRetestOutput;
+import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.service.finding.FindingRetestService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -29,30 +40,21 @@ public class FindingApi extends RestBehavior {
   public static final String FINDING_URI = "/api/findings";
   public static final String TENANT_FINDING_URI = TENANT_PREFIX + "/findings";
 
+  private static final String DISTINCT_DEPRECATION =
+      "Deprecated and ignored: a finding is already one row per type, value and location.";
+
   private final FindingService findingService;
   private final FindingMapper findingMapper;
+  private final FindingOccurrenceService findingOccurrenceService;
+  private final InjectService injectService;
   private final FindingRetestService findingRetestService;
 
-  // -- CRUD --
+  // -- READ --
 
   /*
-   * On the lazy associations of Finding and the v2 tenant scope.
-   *
-   * main resolved them by hand before returning the entity (withScopedAssociationsInitialized,
-   * #7856): Finding.getAssetGroups() and Finding.assets are lazy and reach v2-active tables, and
-   * Jackson used to walk them AFTER the controller returned, through open-in-view - session still
-   * open, but transaction and app.current_tenants scope gone, so the statement inspector
-   * fail-closed the query and the endpoint answered 200 with empty arrays.
-   *
-   * These endpoints no longer serialize the entity: FindingMapper.toFindingOutput builds the DTO
-   * inside the transaction, so every association is read while the scope is still alive. The
-   * defect is therefore addressed by construction rather than by an explicit initialisation list -
-   * which is also why the note main left on finding_tags, finding_teams and finding_users, "they
-   * belong here the day they are active", no longer needs acting on: they are read in the same
-   * place, active or not.
-   *
-   * FindingAssetGroupSinkTest still pins the observable behaviour, and still from a
-   * non-transactional test.
+   * The output is built inside the transaction: its location reaches the v2-active assets table,
+   * which Jackson can no longer read once the transaction has closed (#7856).
+   * FindingLocationSinkTest pins it from a non-transactional test.
    */
 
   @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
@@ -62,8 +64,10 @@ public class FindingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingOutput> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
+    Finding finding = this.findingService.finding(ctx, id);
     return ResponseEntity.ok(
-        this.findingMapper.toFindingOutput(this.findingService.finding(ctx, id)));
+        this.findingMapper.toFindingOutput(
+            finding, this.findingOccurrenceService.countOccurrences(id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
@@ -72,9 +76,116 @@ public class FindingApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
+  @Operation(
+      summary = "Get the group-wide summary of a finding",
+      description = "Deprecated: read the finding and its occurrences instead.",
+      deprecated = true)
   public ResponseEntity<FindingSummaryOutput> findingSummary(
       TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.findingSummary(ctx, id));
+  }
+
+  // -- SEARCH --
+
+  @LogExecutionTime
+  @PostMapping({FINDING_URI + "/search", TENANT_FINDING_URI + "/search"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
+  public Page<FindingSimple> findings(
+      TxCtx ctx,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
+    return search(Specification.unrestricted(), searchPaginationInput);
+  }
+
+  @LogExecutionTime
+  @PostMapping({
+    FINDING_URI + "/injects/{injectId}/search",
+    TENANT_FINDING_URI + "/injects/{injectId}/search"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
+  public Page<FindingSimple> findingsByInject(
+      TxCtx ctx,
+      @PathVariable @NotNull final String injectId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
+    injectService.existsInScope(ctx, injectId);
+    return search(FindingSpecification.findFindingsForInject(injectId), searchPaginationInput);
+  }
+
+  @LogExecutionTime
+  @PostMapping({
+    FINDING_URI + "/exercises/{simulationId}/search",
+    TENANT_FINDING_URI + "/exercises/{simulationId}/search"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#simulationId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public Page<FindingSimple> findingsBySimulation(
+      TxCtx ctx,
+      @PathVariable @NotNull final String simulationId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
+    return search(
+        FindingSpecification.findFindingsForSimulation(simulationId), searchPaginationInput);
+  }
+
+  @LogExecutionTime
+  @PostMapping({
+    FINDING_URI + "/scenarios/{scenarioId}/search",
+    TENANT_FINDING_URI + "/scenarios/{scenarioId}/search"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public Page<FindingSimple> findingsByScenario(
+      TxCtx ctx,
+      @PathVariable @NotNull final String scenarioId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
+    return search(FindingSpecification.findFindingsForScenario(scenarioId), searchPaginationInput);
+  }
+
+  @LogExecutionTime
+  @PostMapping({
+    FINDING_URI + "/endpoints/{endpointId}/search",
+    TENANT_FINDING_URI + "/endpoints/{endpointId}/search"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#endpointId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  public Page<FindingSimple> findingsByEndpoint(
+      TxCtx ctx,
+      @PathVariable @NotNull final String endpointId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
+      @Parameter(deprecated = true, description = DISTINCT_DEPRECATION)
+          @RequestParam(value = "distinct", required = false)
+          final Boolean distinct) {
+    return search(FindingSpecification.findFindingsForEndpoint(endpointId), searchPaginationInput);
+  }
+
+  private Page<FindingSimple> search(
+      Specification<Finding> scope, SearchPaginationInput searchPaginationInput) {
+    return this.findingMapper.toFindingSimplePage(
+        this.findingService.searchFindings(scope, searchPaginationInput));
   }
 
   // -- LIFECYCLE --

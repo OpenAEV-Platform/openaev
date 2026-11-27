@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.Queryable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,6 +40,7 @@ public class FindingOccurrence implements Base {
   @JsonIgnore
   private Inject inject;
 
+  @Queryable(filterable = true, sortable = true, label = "date")
   @Column(name = "finding_occurrence_date")
   @JsonProperty("finding_occurrence_date")
   @NotNull

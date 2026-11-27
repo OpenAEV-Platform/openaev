@@ -27,7 +27,7 @@ vi.mock('../../../../../../actions/inject_status/inject-status-action', () => ({
 
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({ fetchExecutionDetail: mocks.fetchExecutionDetail }));
 
-vi.mock('../../../../../../actions/findings/finding-actions', () => ({ searchDistinctFindingsForInjects: vi.fn() }));
+vi.mock('../../../../../../actions/findings/finding-actions', () => ({ searchFindingsForInjects: vi.fn() }));
 
 vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({

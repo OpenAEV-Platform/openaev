@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchAssetOverview, searchInjectsForAsset } from '../../../../actions/assets/endpoint-actions';
-import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
+import { searchFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -131,7 +131,7 @@ const AssetDetail = () => {
   // Headline hero counts: size-1 probes of the same searches feeding the lists
   // below, plus the expectation posture aggregated by the dashboard engine.
   const findingsTotal = useSearchTotal(useCallback(
-    (input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input),
+    (input: SearchPaginationInput) => searchFindingsOnEndpoint(id, input),
     [id],
   ));
   const injectsTotal = useSearchTotal(fetchInjectsPlayed);
@@ -470,7 +470,7 @@ const AssetDetail = () => {
           <SectionBlock title={t('Findings')}>
             <FindingList
               filterLocalStorageKey="endpoint-findings"
-              searchDistinctFindings={(input: SearchPaginationInput) => searchDistinctFindingsOnEndpoint(id, input)}
+              searchFindings={(input: SearchPaginationInput) => searchFindingsOnEndpoint(id, input)}
               contextId={id}
             />
           </SectionBlock>

@@ -1,8 +1,8 @@
 import { HubOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
+import { searchFindingOccurrences } from '../../../actions/findings/finding-actions';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -11,79 +11,68 @@ import useBodyItemsStyles from '../../../components/common/queryable/style/style
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
-import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
-import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOccurrenceOutput, FindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import { emptyFilled } from '../../../utils/String';
 import FindingContextLink from './FindingContextLink';
-import { buildOccurrencesFilter, occurrenceTargetLink, occurrenceTargets } from './FindingOccurrencesUtils';
-
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
-}));
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
+  findingId: string;
+  findingType: FindingOutput['finding_type'];
   contextId?: string;
 }
 
-// One row per occurrence (= per inject): the inject leads, followed by its execution context
-// (simulation / scenario / atomic) and a single merged targets column, closed by one "Seen" date -
-// per-occurrence first/last seen collapse to the same detection event, so two date columns would
-// just repeat each other.
-const FindingOccurrencesList = ({ searchFindings, finding, contextId }: Props) => {
-  const { classes } = useStyles();
+const inlineStyles: Record<string, CSSProperties> = ({
+  finding_occurrence_inject: { width: '32%' },
+  finding_occurrence_context: { width: '24%' },
+  finding_occurrence_field: { width: '22%' },
+  finding_occurrence_date: { width: '22%' },
+});
+
+// One row per occurrence: the inject that detected the finding, its execution context
+// (simulation / scenario / atomic), the output field it came from, and when it was seen.
+const FindingOccurrencesList = ({ findingId, findingType, contextId }: Props) => {
   const { t, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const [loading, setLoading] = useState<boolean>(true);
-
-  const availableFilterNames = [
-    'finding_created_at',
-    'finding_updated_at',
-    'finding_asset_groups',
-    'finding_assets',
-    'finding_inject_id',
-    'finding_simulation',
-    'finding_scenario',
-  ];
-
-  const [occurrences, setOccurrences] = useState<RelatedFindingOutput[]>([]);
+  const [occurrences, setOccurrences] = useState<FindingOccurrenceOutput[]>([]);
 
   const {
     queryableHelpers,
     searchPaginationInput,
-  } = useQueryableWithLocalStorage(`finding-occurrences-${finding.finding_type}-${finding.finding_value}-${contextId}`, buildSearchPagination({
+  } = useQueryableWithLocalStorage(`finding-occurrences-${findingId}`, buildSearchPagination({
     // Most recent occurrence first: it tells whether the finding is still alive.
-    sorts: initSorting('finding_updated_at', 'DESC'),
-    filterGroup: buildOccurrencesFilter(finding),
+    sorts: initSorting('finding_occurrence_date', 'DESC'),
   }));
 
-  const searchOccurrencesToLoad = (input: SearchPaginationInput) => {
+  const searchOccurrencesToLoad = (input: SearchPaginationInput): Promise<{ data: Page<FindingOccurrenceOutput> }> => {
     setLoading(true);
-    return searchFindings(input).finally(() => {
+    return searchFindingOccurrences(findingId, input).finally(() => {
       setLoading(false);
     });
   };
 
   const headers = [
     {
-      field: 'finding_inject',
+      field: 'finding_occurrence_inject',
       label: 'Inject',
       isSortable: false,
-      value: (occurrence: RelatedFindingOutput) => <FindingContextLink finding={occurrence} type={INJECT} />,
+      value: (occurrence: FindingOccurrenceOutput) => <FindingContextLink occurrence={occurrence} type={INJECT} />,
     },
     {
-      field: 'finding_context',
+      field: 'finding_occurrence_context',
       label: 'Context',
       isSortable: false,
-      value: (occurrence: RelatedFindingOutput) => {
-        if (occurrence.finding_simulation) {
-          return <FindingContextLink finding={occurrence} type={SIMULATION} />;
+      value: (occurrence: FindingOccurrenceOutput) => {
+        if (occurrence.finding_occurrence_simulation) {
+          return <FindingContextLink occurrence={occurrence} type={SIMULATION} />;
         }
-        if (occurrence.finding_scenario) {
-          return <FindingContextLink finding={occurrence} type={SCENARIO} />;
+        if (occurrence.finding_occurrence_scenario) {
+          return <FindingContextLink occurrence={occurrence} type={SCENARIO} />;
+        }
+        if (!occurrence.finding_occurrence_inject) {
+          return '-';
         }
         return (
           <Typography variant="body2" color="textSecondary" component="span">
@@ -93,30 +82,18 @@ const FindingOccurrencesList = ({ searchFindings, finding, contextId }: Props) =
       },
     },
     {
-      field: 'finding_targets',
-      label: 'Impacted targets',
+      field: 'finding_occurrence_field',
+      label: 'Field',
       isSortable: false,
-      value: (occurrence: RelatedFindingOutput) => (
-        <ItemTargets
-          targets={occurrenceTargets(occurrence)}
-          getTargetLink={occurrenceTargetLink}
-        />
-      ),
+      value: (occurrence: FindingOccurrenceOutput) => <>{emptyFilled(occurrence.finding_occurrence_field)}</>,
     },
     {
-      field: 'finding_updated_at',
+      field: 'finding_occurrence_date',
       label: 'Seen',
       isSortable: true,
-      value: (occurrence: RelatedFindingOutput) => <>{nsdt(occurrence.finding_updated_at)}</>,
+      value: (occurrence: FindingOccurrenceOutput) => <>{nsdt(occurrence.finding_occurrence_date)}</>,
     },
   ];
-
-  const inlineStyles: Record<string, CSSProperties> = ({
-    finding_inject: { width: '30%' },
-    finding_context: { width: '22%' },
-    finding_targets: { width: '30%' },
-    finding_updated_at: { width: '18%' },
-  });
 
   return (
     <div>
@@ -124,15 +101,16 @@ const FindingOccurrencesList = ({ searchFindings, finding, contextId }: Props) =
         fetch={searchOccurrencesToLoad}
         searchPaginationInput={searchPaginationInput}
         setContent={setOccurrences}
-        entityPrefix="finding"
-        availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
+        searchEnable={false}
+        disableFilters
       />
       <List>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
+        <ListItem sx={{
+          textTransform: 'uppercase',
+          paddingTop: 0,
+        }}
         >
           <ListItemIcon />
           <ListItemText
@@ -147,12 +125,12 @@ const FindingOccurrencesList = ({ searchFindings, finding, contextId }: Props) =
         </ListItem>
         {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : occurrences.map(occurrence => (
           <ListItem
-            key={occurrence.finding_id}
-            classes={{ root: classes.item }}
+            key={occurrence.finding_occurrence_id}
+            sx={{ height: 50 }}
             divider
           >
             <ListItemIcon>
-              <FindingIcon findingType={occurrence.finding_type} tooltip />
+              <FindingIcon findingType={findingType} tooltip />
             </ListItemIcon>
             <ListItemText
               primary={(
@@ -165,7 +143,7 @@ const FindingOccurrencesList = ({ searchFindings, finding, contextId }: Props) =
                         ...inlineStyles[header.field],
                       }}
                     >
-                      {header.value && header.value(occurrence)}
+                      {header.value(occurrence)}
                     </div>
                   ))}
                 </div>

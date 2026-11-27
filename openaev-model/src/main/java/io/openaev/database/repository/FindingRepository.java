@@ -27,7 +27,6 @@ public interface FindingRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  /** The findings of a tenant among the given ids. */
   List<Finding> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
 
   /** The findings whose pending re-test is the given inject. */

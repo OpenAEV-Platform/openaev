@@ -213,8 +213,7 @@ import io.openaev.rest.exercise.ExerciseImportApi;
 import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.service.ExerciseService;
-import io.openaev.rest.finding.FindingDistinctSearchService;
-import io.openaev.rest.finding.FindingSearchApi;
+import io.openaev.rest.finding.FindingApi;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.inject.InjectApi;
@@ -1722,9 +1721,8 @@ class TenantActiveTableAccessArchTest {
           .doNotBelongToAnyOf(
               // HTTP read/write paths: every entrypoint carries a TxCtx and the aspect scopes the
               // transaction (pinned by TenantScopedEntrypointsTxCtxArchTest).
-              FindingSearchApi.class,
+              FindingApi.class,
               FindingService.class,
-              FindingDistinctSearchService.class,
               // Counterpart facts (finding counts per asset or CVE), reached only from the
               // TxCtx-carrying CounterpartApi lookups, inside their scoped read-only transaction.
               LocalObjectService.class,

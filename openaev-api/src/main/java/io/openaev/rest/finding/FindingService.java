@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,6 +12,7 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.database.specification.FindingSpecification;
 import io.openaev.finding.identity.DetectedFinding;
 import io.openaev.finding.identity.LocationIdentity;
 import io.openaev.finding.identity.LocationIdentity.AssetLocation;
@@ -20,6 +22,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -29,6 +32,8 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,6 +92,18 @@ public class FindingService {
             this.findingRepository.countDistinctUsers(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Finding> searchFindings(
+      @NotNull final Specification<Finding> scope,
+      @NotNull final SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            this.findingRepository.findAll(
+                scope.and(FindingSpecification.matching(specification)), pageable),
+        searchPaginationInput,
+        Finding.class);
   }
 
   /**

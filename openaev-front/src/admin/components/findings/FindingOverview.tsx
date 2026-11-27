@@ -1,52 +1,39 @@
 import { Chip } from '@filigran/design-system';
-import { DevicesOutlined, FormatListNumberedOutlined, Groups3Outlined, PersonOutlined, ShieldOutlined } from '@mui/icons-material';
+import { FormatListNumberedOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
+import { fetchFinding } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
+import ItemTargets from '../../../components/ItemTargets';
 import Loader from '../../../components/Loader';
 import XtmCounterpartsEmblem from '../../../components/xtm/XtmCounterpartsEmblem';
-import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import type { FindingOutput } from '../../../utils/api-types';
 import useExplorationGraph from '../../../utils/hooks/useExplorationGraph';
-import { useAbility } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { emptyFilled } from '../../../utils/String';
 import ExploreInGraphButton from '../graph/ExploreInGraphButton';
 import ContractOutputElementType from './ContractOutputElementType';
-import FindingImpactSections from './FindingImpactSections';
-import { IMPACTED_ASSETS_ANCHOR } from './FindingImpactUtils';
 import FindingOccurrences from './FindingOccurrences';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 
-// Full-page finding overview: one deduplicated finding (type + value) with its
-// group-wide summary (true first/last seen, occurrences, impact spread), the
-// vulnerability context when it is a CVE, and the occurrence timeline.
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
-  const ability = useAbility();
   const { findingId } = useParams() as { findingId: string };
   // The hero actions and the OpenCTI / OpenCRQ cards belong to the exploration graph preview
   // feature (off by default); off, the page is the one shipped before it.
   const graphEnabled = useExplorationGraph();
 
   const [finding, setFinding] = useState<FindingOutput | null>(null);
-  // Group-wide aggregates are computed server-side: a Finding row is ONE
-  // occurrence (per inject), so its own dates/links cannot answer "since when
-  // and how widely has this been seen?".
-  const [summary, setSummary] = useState<FindingSummaryOutput | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFinding(findingId).then(response => setFinding(response.data as FindingOutput));
-    fetchFindingSummary(findingId).then(response => setSummary(response.data as FindingSummaryOutput));
   }, [findingId]);
 
   const typeLabel = useMemo(
@@ -59,10 +46,6 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
-  // The counter pivots to the impacted assets section only when there is something to open.
-  const impactedAssetsLink = (summary?.finding_assets_count ?? 0) > 0 && ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS)
-    ? `#${IMPACTED_ASSETS_ANCHOR}`
-    : undefined;
 
   return (
     <Box sx={{
@@ -103,16 +86,7 @@ const FindingOverview = () => {
           : undefined}
         stats={(
           <>
-            <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} to={impactedAssetsLink} />
-            {/* Team / person spread only shows when the finding actually touched people
-                (e.g. phishing credentials): machine findings keep a compact stat row. */}
-            {(summary?.finding_teams_count ?? 0) > 0 && (
-              <HeroStat icon={Groups3Outlined} label={t('Impacted teams')} value={summary?.finding_teams_count ?? '-'} color={theme.palette.success.main} />
-            )}
-            {(summary?.finding_users_count ?? 0) > 0 && (
-              <HeroStat icon={PersonOutlined} label={t('Impacted persons')} value={summary?.finding_users_count ?? '-'} color={theme.palette.success.main} />
-            )}
+            <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={finding.finding_occurrences_count ?? '-'} />
             {isCVE && (
               <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={cvssScore != null ? cvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
             )}
@@ -142,12 +116,11 @@ const FindingOverview = () => {
             {finding.finding_value}
           </Box>
         </Field>
-        <Field label={t('Field')}>{emptyFilled(finding.finding_field)}</Field>
-        {/* Group-wide dates from the summary: the fetched row's own dates only
-            cover one occurrence and would understate the group (the historical
-            "first seen shows a later date" bug). */}
-        <Field label={t('First seen')}>{summary ? fldt(summary.finding_first_seen) : '-'}</Field>
-        <Field label={t('Last seen')}>{summary ? fldt(summary.finding_last_seen) : '-'}</Field>
+        <Field label={t('Target')}>
+          {finding.finding_location ? <ItemTargets targets={[finding.finding_location]} /> : '-'}
+        </Field>
+        <Field label={t('First seen')}>{fldt(finding.finding_first_seen)}</Field>
+        <Field label={t('Last seen')}>{fldt(finding.finding_last_seen)}</Field>
         <Field label={t('Tags')}>
           <ItemTags variant="list" tags={finding.finding_tags ?? []} />
         </Field>
@@ -162,16 +135,12 @@ const FindingOverview = () => {
         />
       )}
 
-      {/* Pivots: the impacted assets and asset groups, and the scenarios and simulations the
-          finding was produced in, across all its occurrences. */}
-      <FindingImpactSections searchFindings={searchFindings} finding={finding} />
-
       {/* Occurrence timeline: one entry per inject that produced this finding,
           as a table or a horizontal time strip. */}
       <div style={{ marginTop: theme.spacing(1) }}>
         <FindingOccurrences
-          searchFindings={searchFindings}
-          finding={finding}
+          findingId={findingId}
+          findingType={finding.finding_type}
           contextId={findingId}
         />
       </div>

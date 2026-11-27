@@ -1247,7 +1247,6 @@ class TenantStatementInspectorTest {
   @Nested
   @DisplayName("the findings indexing query survives findings being active")
   class FindingIndexingQuery {
-
     private String indexingSql() throws Exception {
       return io.openaev.database.repository.FindingRepository.class
           .getMethod("findForIndexing", java.time.Instant.class, String.class, int.class)

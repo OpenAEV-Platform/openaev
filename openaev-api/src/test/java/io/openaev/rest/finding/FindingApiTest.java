@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.SensitiveValueMaskingUtils.MASK;
 import static io.openaev.utils.fixtures.FindingFixture.createDefaultTextFindingWithRandomValue;
+import static io.openaev.utils.fixtures.FindingOccurrenceFixture.createOccurrence;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,9 +24,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
-import io.openaev.database.specification.FindingSpecification;
-import io.openaev.rest.finding.form.AggregatedFindingOutput;
-import io.openaev.rest.finding.form.RelatedFindingOutput;
+import io.openaev.rest.finding.form.FindingSimple;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -39,15 +38,12 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -80,7 +76,6 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingMapper findingMapper;
-  @Autowired private FindingDistinctSearchService findingDistinctSearchService;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -266,9 +261,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .getContentAsString();
 
         // every finding is visible, whatever the simulation it comes from
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAll()).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -338,9 +333,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .getContentAsString();
 
         // every finding is visible, including those of the running simulations
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAll()).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -400,9 +395,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAllById(expectedFindingIds)).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -453,21 +448,17 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
                             .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
-                .map(findingMapper::toRelatedFindingOutput)
                 .sorted(
-                    (o1, o2) -> {
-                      if (o1.getCreationDate().equals(o2.getCreationDate())) {
-                        return o1.getValue().compareTo(o2.getValue());
-                      }
-                      return o1.getCreationDate().compareTo(o2.getCreationDate());
-                    })
+                    Comparator.comparing(Finding::getCreationDate)
+                        .thenComparing(Finding::getValueDisplay))
+                .map(findingMapper::toFindingSimple)
                 .limit(input.getSize())
                 .toList();
 
@@ -516,12 +507,12 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
                         findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .limit(input.getSize())
                 .toList();
 
@@ -612,9 +603,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         previousSimulationFindings.forEach(finding -> expectedFindingIds.add(finding.getId()));
         latestFindingWrappers.forEach(wrapper -> expectedFindingIds.add(wrapper.get().getId()));
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAllById(expectedFindingIds)).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -691,9 +682,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         previousSimulationFindings.forEach(finding -> expectedFindingIds.add(finding.getId()));
         atomicFindingWrappers.forEach(wrapper -> expectedFindingIds.add(wrapper.get().getId()));
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAllById(expectedFindingIds)).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -794,9 +785,9 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         previousSimulationFindings.forEach(finding -> expectedFindingIds.add(finding.getId()));
         latestFindingWrappers.forEach(wrapper -> expectedFindingIds.add(wrapper.get().getId()));
 
-        List<RelatedFindingOutput> expectedFindings =
+        List<FindingSimple> expectedFindings =
             fromIterable(findingRepository.findAllById(expectedFindingIds)).stream()
-                .map(findingMapper::toRelatedFindingOutput)
+                .map(findingMapper::toFindingSimple)
                 .toList();
 
         // The expectation is read through the SAME transaction the request just scoped: the aspect
@@ -918,6 +909,98 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.totalElements").value(0));
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"scenarios", "exercises", "injects", "endpoints"})
+    @DisplayName("Finding search scoped to a container of tenant X should NOT answer from tenant Y")
+    void given_containerInTenantX_should_notBeSearchableFromTenantY(String container)
+        throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.ACCESS_FINDINGS,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.ACCESS_ASSETS,
+                  Capability.MANAGE_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.ACCESS_FINDINGS,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.ACCESS_ASSETS));
+      ContainerIds ids = createContainersWithFindingInTenant(tenantX.getId());
+      entityManager.flush();
+      entityManager.clear();
+      String containerId =
+          switch (container) {
+            case "scenarios" -> ids.scenarioId();
+            case "exercises" -> ids.simulationId();
+            case "injects" -> ids.injectId();
+            default -> ids.endpointId();
+          };
+
+      // -------- Act --------
+      int contentLength =
+          mvc.perform(
+                  post("/api/tenants/"
+                          + tenantY.getId()
+                          + "/findings/"
+                          + container
+                          + "/"
+                          + containerId
+                          + "/search")
+                      .content(asJsonString(PaginationFixture.getDefault().build()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getContentLength();
+
+      // -------- Assert --------
+      assertThat(contentLength).isZero();
+    }
+
+    private record ContainerIds(
+        String scenarioId, String simulationId, String injectId, String endpointId) {}
+
+    private ContainerIds createContainersWithFindingInTenant(String tenantId) {
+      String previousTenant = TenantContext.getCurrentTenant();
+      tenantIsolationHelper.switchToTenant(tenantId, entityManager);
+
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(createDefaultTextFindingWithRandomValue())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withFinding(findingWrapper);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.getScenario())
+              .withSimulation(
+                  simulationComposer
+                      .forExercise(ExerciseFixture.createFinishedAttackExercise())
+                      .withInject(injectWrapper))
+              .persist()
+              .get();
+      Exercise simulation = scenario.getExercises().iterator().next();
+      Inject inject = simulation.getInjects().getFirst();
+
+      tenantIsolationHelper.switchToTenant(previousTenant, entityManager);
+      return new ContainerIds(
+          scenario.getId(),
+          simulation.getId(),
+          inject.getId(),
+          inject.getAssets().getFirst().getId());
+    }
   }
 
   @Nested
@@ -972,11 +1055,13 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     @DisplayName("Search global findings")
     @Test
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      finding.setLocation(persistAssetLocation(savedEndpoint));
       MarkingDefinition marking = persistClearedMarking();
       savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
+              .forFinding(finding)
               .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
               .withInject(injectWrapper)
               .withTag(tagComposer.forTag(TagFixture.getTagWithText("Finding")))
@@ -1011,6 +1096,39 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
                   .value(savedSimulation.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_scenario.scenario_id").value(savedScenario.getId()));
+    }
+
+    @Test
+    @DisplayName("Should read a finding with its dates, occurrence count and location")
+    void given_twoOccurrences_should_returnDatesCountAndLocation() throws Exception {
+      // Arrange
+      Instant firstSeen = Instant.now().truncatedTo(ChronoUnit.SECONDS).minus(3, ChronoUnit.DAYS);
+      Instant lastSeen = firstSeen.plus(1, ChronoUnit.DAYS);
+      Finding finding = createDefaultTextFindingWithRandomValue();
+      finding.setLocation(persistAssetLocation(savedEndpoint));
+      finding.setFirstSeen(firstSeen);
+      finding.setLastSeen(lastSeen);
+      findingComposer.forFinding(finding).persist();
+      entityManager.persist(createOccurrence(finding, null, lastSeen, "field"));
+      entityManager.persist(createOccurrence(finding, null, firstSeen, "field"));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String response =
+          mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(Instant.parse(JsonPath.read(response, "$.finding_first_seen")))
+          .isEqualTo(firstSeen);
+      assertThat(Instant.parse(JsonPath.read(response, "$.finding_last_seen"))).isEqualTo(lastSeen);
+      assertThat((Integer) JsonPath.read(response, "$.finding_occurrences_count")).isEqualTo(2);
+      assertThat((String) JsonPath.read(response, "$.finding_location.target_id"))
+          .isEqualTo(savedEndpoint.getId());
     }
 
     @Test
@@ -1158,8 +1276,7 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       entityManager.clear();
 
       performCallbackRequest(FINDING_URI + "/scenarios/" + savedScenario.getId() + "/search", input)
-          .andExpect(
-              jsonPath("$.content.[0].finding_scenario.scenario_id").value(savedScenario.getId()))
+          .andExpect(jsonPath("$.content.[0].finding_id").value(savedFinding.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           // Credentials hold secret material: the API never returns the cleartext value.
@@ -1169,9 +1286,11 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     @Test
     @DisplayName("Search findings by endpoint")
     void should_return_findings_by_endpoint() throws Exception {
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      finding.setLocation(persistAssetLocation(savedEndpoint));
       Finding savedFinding =
           findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
+              .forFinding(finding)
               .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
               .withInject(injectWrapper)
               .withTag(tagComposer.forTag(TagFixture.getTagWithText("Finding Text")))
@@ -1182,179 +1301,10 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
               ContractOutputType.Text, savedFinding, null, null, savedEndpoint, null);
 
       performCallbackRequest(FINDING_URI + "/endpoints/" + savedEndpoint.getId() + "/search", input)
-          .andExpect(
-              jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(jsonPath("$.content.[0].finding_asset.asset_id").value(savedEndpoint.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"));
-    }
-
-    @Test
-    void distinctTypeValueWithFilter_returnsDistinctFindings() {
-      scopeToAmbientTenant();
-      // Create two findings with the same type and value (duplicates)
-      Finding f1 =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-
-      Finding f2 =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper2)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-
-      // Create a unique finding with different type or value
-      Finding f3 =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultIPV6Finding())
-              .withInject(injectWrapper)
-              .persist()
-              .get();
-
-      // base specification can be null (no additional filtering)
-      Specification<Finding> baseSpec = null;
-
-      Specification<Finding> distinctSpec =
-          FindingSpecification.distinctTypeValueWithFilter(baseSpec);
-
-      List<Finding> results = findingRepository.findAll(distinctSpec);
-
-      // Should return only 2 distinct findings (f1/f2 collapse to one)
-      assertThat(results).hasSize(2);
-
-      Set<String> distinctPairs =
-          results.stream()
-              .map(f -> f.getType().getLabel() + "::" + f.getValue())
-              .collect(Collectors.toSet());
-
-      assertThat(distinctPairs)
-          .containsExactlyInAnyOrder(
-              f1.getType().getLabel() + "::" + f1.getValue(),
-              f3.getType().getLabel() + "::" + f3.getValue());
-    }
-
-    @Test
-    @DisplayName("Distinct list uses the most recent occurrence as representative (issue #7273)")
-    void distinctList_usesMostRecentOccurrenceAsRepresentative() {
-      scopeToAmbientTenant();
-      // Group A: the SAME (type, value) reported by two injects, i.e. two runs. finding_updated_at
-      // is set via native SQL because the JPA listeners overwrite it on persist.
-      Finding olderA =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      Finding newerA =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper2)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      // Group B: a single, different (type, value) whose last seen sits between group A's two runs,
-      // so a correct sort by finding_updated_at DESC must place group A (latest run) before it.
-      Finding onlyB =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultIPV6Finding())
-              .withInject(injectWrapper)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-
-      Instant aCreatedEarliest = Instant.parse("2026-01-01T00:00:00Z");
-      Instant aUpdatedOlder = Instant.parse("2026-01-02T00:00:00Z");
-      Instant aCreatedLater = Instant.parse("2026-03-01T00:00:00Z");
-      Instant aUpdatedNewest = Instant.parse("2026-03-02T00:00:00Z");
-      Instant bUpdated = Instant.parse("2026-02-01T00:00:00Z");
-      setFindingDates(olderA.getId(), aCreatedEarliest, aUpdatedOlder);
-      setFindingDates(newerA.getId(), aCreatedLater, aUpdatedNewest);
-      setFindingDates(onlyB.getId(), bUpdated, bUpdated);
-
-      entityManager.flush();
-      entityManager.clear();
-
-      SearchPaginationInput input = PaginationFixture.getDefault().size(500).build();
-      input.setSorts(List.of(new SortField("finding_updated_at", "desc", null)));
-
-      Page<AggregatedFindingOutput> page =
-          findingDistinctSearchService.searchDistinctFindings(input);
-
-      // Exactly two groups, none duplicated
-      assertThat(page.getContent()).hasSize(2);
-      List<AggregatedFindingOutput> groupA =
-          page.getContent().stream().filter(o -> o.getValue().equals(olderA.getValue())).toList();
-      assertThat(groupA).as("group A must appear exactly once").hasSize(1);
-      AggregatedFindingOutput representativeA = groupA.getFirst();
-
-      // (a) the representative is the MOST RECENT occurrence
-      assertThat(representativeA.getId()).isEqualTo(newerA.getId());
-      // (b) displayed last seen == latest updateDate, first seen == earliest creationDate
-      assertThat(representativeA.getUpdateDate()).isEqualTo(aUpdatedNewest);
-      assertThat(representativeA.getCreationDate()).isEqualTo(aCreatedEarliest);
-      // (c) sort by finding_updated_at DESC orders groups by their group-wide last seen: group A
-      // (last seen 2026-03-02) must come before group B (last seen 2026-02-01)
-      assertThat(page.getContent().getFirst().getValue()).isEqualTo(olderA.getValue());
-      assertThat(page.getContent().getLast().getValue()).isEqualTo(onlyB.getValue());
-    }
-
-    @Test
-    @DisplayName("A group does not vanish when a filter matches only an older occurrence (#7273)")
-    void distinctList_groupSurvivesFilterMatchingOnlyOlderOccurrence() {
-      scopeToAmbientTenant();
-      Finding olderA =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      Finding newerA =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper2)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-
-      setFindingDates(
-          olderA.getId(),
-          Instant.parse("2026-01-01T00:00:00Z"),
-          Instant.parse("2026-01-02T00:00:00Z"));
-      setFindingDates(
-          newerA.getId(),
-          Instant.parse("2026-03-01T00:00:00Z"),
-          Instant.parse("2026-03-02T00:00:00Z"));
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // Filter matches only the OLDER occurrence (its own inject). The group must still appear,
-      // with
-      // the older occurrence promoted to representative (most recent among the matching rows).
-      SearchPaginationInput input = new SearchPaginationInput();
-      Filters.FilterGroup group = new Filters.FilterGroup();
-      group.setMode(Filters.FilterMode.and);
-      group.setFilters(
-          List.of(
-              buildFilter(
-                  "finding_inject_id",
-                  Filters.FilterOperator.contains,
-                  List.of(olderA.getInject().getId()))));
-      input.setFilterGroup(group);
-
-      Page<AggregatedFindingOutput> page =
-          findingDistinctSearchService.searchDistinctFindings(input);
-
-      assertThat(page.getContent()).hasSize(1);
-      assertThat(page.getContent().getFirst().getId()).isEqualTo(olderA.getId());
     }
 
     @Nested
@@ -1382,18 +1332,6 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
 
         // -------- Act & Assert --------
         mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.finding_value").value("admin:ad" + MASK));
-      }
-
-      @Test
-      @DisplayName("Should mask the value in the finding summary")
-      void given_aSensitiveFinding_should_maskTheValueInTheSummary() throws Exception {
-        // -------- Arrange --------
-        Finding finding = persistSensitiveFinding();
-
-        // -------- Act & Assert --------
-        mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.finding_value").value("admin:ad" + MASK));
       }
@@ -1571,42 +1509,6 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
       }
 
       @Test
-      @DisplayName("Should group two secrets displayed alike into one row in distinct mode")
-      void given_twoSecretsDisplayedAlike_should_formOneRowInDistinctMode() throws Exception {
-        // -------- Arrange --------
-        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
-        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
-        flushAndClear();
-
-        // -------- Act & Assert --------
-        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
-            .andExpect(jsonPath("$.totalElements").value(1))
-            .andExpect(jsonPath("$.content.[0].finding_value").value("jdoe:Su" + MASK));
-      }
-
-      @Test
-      @DisplayName(
-          "Should leave out of distinct mode the findings without a displayed value, rather than"
-              + " list each one apart")
-      void given_findingsWithoutDisplayedValue_should_notBeListedInDistinctMode() throws Exception {
-        // -------- Arrange --------
-        Finding first = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
-        Finding second = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
-        entityManager.flush();
-        // What a pod of the previous version writes during a rolling deploy
-        entityManager
-            .createNativeQuery(
-                "UPDATE findings SET finding_value_display = NULL WHERE finding_id IN (:ids)")
-            .setParameter("ids", List.of(first.getId(), second.getId()))
-            .executeUpdate();
-        entityManager.clear();
-
-        // -------- Act & Assert --------
-        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
-            .andExpect(jsonPath("$.totalElements").value(0));
-      }
-
-      @Test
       @DisplayName(
           "Should list every occurrence of a displayed value, as the Occurrences drawer does")
       void given_theDisplayedValue_should_listEveryOccurrence() throws Exception {
@@ -1619,21 +1521,6 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
         performCallbackRequest(
                 FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "jdoe:Su" + MASK))
             .andExpect(jsonPath("$.totalElements").value(2));
-      }
-
-      @Test
-      @DisplayName("Should count the same occurrences in the summary as in the grouped row")
-      void given_twoSecretsDisplayedAlike_should_countBothInTheSummary() throws Exception {
-        // -------- Arrange --------
-        Finding finding = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
-        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
-        flushAndClear();
-
-        // -------- Act & Assert --------
-        mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.finding_value").value("jdoe:Su" + MASK))
-            .andExpect(jsonPath("$.finding_occurrences").value(2));
       }
 
       @ParameterizedTest(name = "\"{0}\" searched with \"{1}\" -> {2}")
@@ -1807,59 +1694,79 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     }
 
     @Test
-    @DisplayName("Distinct search aggregates detection times across a group (#9846)")
-    void given_aGroupOfOccurrences_should_aggregateSeenWithFallback() {
-      scopeToAmbientTenant();
-      Finding detected =
+    @DisplayName("Search rows keep the deprecated fields API clients read, distinct flag included")
+    void given_aFinding_should_keepTheDeprecatedFieldsOnSearchRows() throws Exception {
+      // Arrange
+      Finding finding =
           findingComposer
               .forFinding(FindingFixture.createDefaultTextFinding())
               .withInject(injectWrapper)
               .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
               .persist()
               .get();
-      Finding legacy =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultTextFinding())
-              .withInject(injectWrapper2)
-              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
-              .persist()
-              .get();
-      // The detected row was rewritten late (T2); the legacy row has no detection times.
-      setFindingDates(
-          detected.getId(),
-          Instant.parse("2026-01-05T00:00:00Z"),
-          Instant.parse("2026-11-24T22:28:00Z"));
-      setFindingSeen(
-          detected.getId(),
-          Instant.parse("2026-01-01T00:00:00Z"),
-          Instant.parse("2026-03-02T00:00:00Z"));
-      setFindingDates(
-          legacy.getId(),
-          Instant.parse("2026-02-01T00:00:00Z"),
-          Instant.parse("2026-04-01T00:00:00Z"));
-      setFindingSeen(legacy.getId(), null, null);
-
       entityManager.flush();
       entityManager.clear();
 
-      Page<AggregatedFindingOutput> page =
-          findingDistinctSearchService.searchDistinctFindings(new SearchPaginationInput());
+      // Act
+      String body =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-      assertThat(page.getContent()).hasSize(1);
-      AggregatedFindingOutput group = page.getContent().getFirst();
-      // MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen, updateDate)), the rule
-      // of the summary aggregate: the legacy row's update time wins over the detected row's last
-      // seen, the detected row's late write does not count as a detection.
-      assertThat(group.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
-      assertThat(group.getLastSeen()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
-      assertThat(group.getCreationDate()).isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
-      assertThat(group.getUpdateDate()).isEqualTo(Instant.parse("2026-11-24T22:28:00Z"));
+      // Assert
+      assertThat(JsonPath.<Integer>read(body, "$.content.length()")).isEqualTo(1);
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_assets[0].asset_id"))
+          .isEqualTo(savedEndpoint.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_assets[0].asset_type"))
+          .isEqualTo(savedEndpoint.getType());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_asset_groups[0].asset_group_id"))
+          .isEqualTo(savedAssetGroup.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_inject.inject_id"))
+          .isEqualTo(finding.getInject().getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_simulation.exercise_id"))
+          .isEqualTo(savedSimulation.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_scenario.scenario_id"))
+          .isEqualTo(savedScenario.getId());
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_created_at")).isNotBlank();
+      assertThat(JsonPath.<String>read(body, "$.content[0].finding_updated_at")).isNotBlank();
+    }
 
-      FindingRepository.FindingSeenAggregate seen =
-          findingRepository.findSeenAggregate(
-              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
-      assertThat(seen.getFirstSeen()).isEqualTo(group.getFirstSeen());
-      assertThat(seen.getLastSeen()).isEqualTo(group.getLastSeen());
+    @Test
+    @DisplayName("Get keeps the lifecycle fields and the deprecated links of the former output")
+    void given_aFinding_should_keepTheLifecycleAndDeprecatedFieldsOnGet() throws Exception {
+      // Arrange
+      Finding finding =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String body =
+          mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(JsonPath.<String>read(body, "$.finding_status")).isEqualTo("OPEN");
+      assertThat(JsonPath.<String>read(body, "$.finding_inject_id"))
+          .isEqualTo(finding.getInject().getId());
+      assertThat(JsonPath.<List<String>>read(body, "$.finding_assets"))
+          .containsExactly(savedEndpoint.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_simulation.exercise_id"))
+          .isEqualTo(savedSimulation.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_scenario.scenario_id"))
+          .isEqualTo(savedScenario.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_asset_groups[0].asset_group_id"))
+          .isEqualTo(savedAssetGroup.getId());
+      assertThat(JsonPath.<String>read(body, "$.finding_updated_at")).isNotBlank();
     }
 
     private Instant readInstant(String json, String path) {
@@ -1955,6 +1862,14 @@ class FindingApiTest extends ProductionTablesIntegrationTest {
     filter.setOperator(operator);
     filter.setValues(values);
     return filter;
+  }
+
+  private FindingLocation persistAssetLocation(Asset asset) {
+    FindingLocation location = new FindingLocation();
+    location.setAsset(asset);
+    location.setLocationKey(FindingLocationKeys.keyOf(asset.getId(), null));
+    entityManager.persist(location);
+    return location;
   }
 
   private ResultActions performCallbackRequest(String uri, SearchPaginationInput input)

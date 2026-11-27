@@ -1,11 +1,14 @@
 package io.openaev.service.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.FindingOccurrenceRepository;
+import io.openaev.database.specification.FindingOccurrenceSpecification;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -14,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +30,19 @@ public class FindingOccurrenceService {
   /** When the inject was sent, now when it was not. */
   public static Instant occurrenceDate(Inject inject) {
     return Optional.ofNullable(inject.getSentAt()).orElseGet(Instant::now);
+  }
+
+  // -- SEARCH --
+
+  @Transactional(readOnly = true)
+  public Page<FindingOccurrence> searchOccurrences(
+      String findingId, SearchPaginationInput searchPaginationInput) {
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            findingOccurrenceRepository.findAll(
+                FindingOccurrenceSpecification.ofFinding(findingId).and(specification), pageable),
+        searchPaginationInput,
+        FindingOccurrence.class);
   }
 
   // -- CREATE --
@@ -76,6 +93,11 @@ public class FindingOccurrenceService {
   @Transactional(readOnly = true)
   public Optional<FindingOccurrence> occurrence(String findingId, String injectId) {
     return findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId);
+  }
+
+  @Transactional(readOnly = true)
+  public long countOccurrences(String findingId) {
+    return findingOccurrenceRepository.countByFindingId(findingId);
   }
 
   // -- PRIVATE --

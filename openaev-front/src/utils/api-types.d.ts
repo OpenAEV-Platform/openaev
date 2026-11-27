@@ -183,78 +183,6 @@ export interface AgentTarget {
     | "SUCCESS";
 }
 
-export interface AggregatedFindingOutput {
-  /**
-   * Asset groups linked to assets
-   * @uniqueItems true
-   */
-  finding_asset_groups?: AssetGroupSimple[];
-  /**
-   * Assets linked to the finding (any asset type, not only endpoints)
-   * @uniqueItems true
-   */
-  finding_assets: EndpointSimple[];
-  /**
-   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
-   * @format date-time
-   */
-  finding_created_at: string;
-  /**
-   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
-   * @format date-time
-   */
-  finding_first_seen?: string;
-  /**
-   * Finding Id
-   * @minLength 1
-   */
-  finding_id: string;
-  /**
-   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
-   * @format date-time
-   */
-  finding_last_seen?: string;
-  /**
-   * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
-   */
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /**
-   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
-   * @format date-time
-   */
-  finding_updated_at: string;
-  /**
-   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
-   * @minLength 1
-   */
-  finding_value: string;
-}
-
 export interface AiAttack {
   ai_attack_category?: string;
   ai_attack_content?: string;
@@ -6614,9 +6542,28 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
+export interface FindingOccurrenceContext {
+  /** @minLength 1 */
+  context_id: string;
+  context_name?: string;
+}
+
+export interface FindingOccurrenceOutput {
+  /** @format date-time */
+  finding_occurrence_date: string;
+  finding_occurrence_field?: string;
+  /** @minLength 1 */
+  finding_occurrence_id: string;
+  /** Null once the inject is deleted or its simulation reset */
+  finding_occurrence_inject?: InjectSimple;
+  finding_occurrence_scenario?: FindingOccurrenceContext;
+  finding_occurrence_simulation?: FindingOccurrenceContext;
+}
+
 export interface FindingOutput {
   /**
-   * Asset groups targeted by the inject that produced the finding
+   * Deprecated: asset groups that contain an asset of the finding
+   * @deprecated
    * @uniqueItems true
    */
   finding_asset_groups?: AssetGroupSimple[];
@@ -6628,10 +6575,10 @@ export interface FindingOutput {
    */
   finding_created_at: string;
   /**
-   * Contract output field the finding was extracted from
-   * @minLength 1
+   * Deprecated: contract output field of the latest occurrence
+   * @deprecated
    */
-  finding_field: string;
+  finding_field?: string;
   /**
    * First time the finding was detected; the creation time when the detection time is unknown
    * @format date-time
@@ -6654,13 +6601,26 @@ export interface FindingOutput {
    * @format date-time
    */
   finding_last_tested?: string;
+  /** Asset or player the finding was detected on, absent when unknown */
+  finding_location?: TargetSimple;
   /** Finding name */
   finding_name?: string;
+  /**
+   * Number of occurrences, one per inject that detected the finding
+   * @format int64
+   */
+  finding_occurrences_count?: number;
   /** Re-test inject queued and not finished yet */
   finding_retest_inject_id?: string;
-  /** Scenario the finding was produced in */
+  /**
+   * Deprecated: scenario of the latest occurrence
+   * @deprecated
+   */
   finding_scenario?: ScenarioSimple;
-  /** Simulation the finding was produced in */
+  /**
+   * Deprecated: simulation of the latest occurrence
+   * @deprecated
+   */
   finding_simulation?: ExerciseSimple;
   /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
   finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
@@ -6735,6 +6695,102 @@ export interface FindingRetestOutput {
    * @minLength 1
    */
   retest_inject_id: string;
+}
+
+export interface FindingSimple {
+  /** Asset the finding was detected on, null when it is not on an asset */
+  finding_asset?: EndpointSimple;
+  /**
+   * Deprecated: asset groups that contain an asset of the finding.
+   * @deprecated
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /**
+   * Deprecated: assets linked to the finding (any asset type), use finding_asset.
+   * @deprecated
+   * @uniqueItems true
+   */
+  finding_assets: EndpointSimple[];
+  /**
+   * Deprecated: when the finding row was created, a storage time. Read finding_first_seen for the detection.
+   * @deprecated
+   * @format date-time
+   */
+  finding_created_at?: string;
+  /** @format date-time */
+  finding_first_seen: string;
+  /** @minLength 1 */
+  finding_id: string;
+  /**
+   * Deprecated: inject of the latest occurrence, search the occurrences of the finding instead.
+   * @deprecated
+   */
+  finding_inject?: InjectSimple;
+  /** @format date-time */
+  finding_last_seen: string;
+  /**
+   * Deprecated: scenario of the latest occurrence's simulation.
+   * @deprecated
+   */
+  finding_scenario?: ScenarioSimple;
+  /**
+   * Deprecated: simulation of the latest occurrence's inject.
+   * @deprecated
+   */
+  finding_simulation?: ExerciseSimple;
+  /**
+   * Deprecated: teams linked to the finding.
+   * @deprecated
+   * @uniqueItems true
+   */
+  finding_teams?: TargetSimple[];
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Deprecated: when the finding row was last written, any write moves it. Read finding_last_seen for the last detection.
+   * @deprecated
+   * @format date-time
+   */
+  finding_updated_at?: string;
+  /**
+   * Deprecated: players linked to the finding.
+   * @deprecated
+   * @uniqueItems true
+   */
+  finding_users?: TargetSimple[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
+  finding_value: string;
 }
 
 export interface FindingSummaryOutput {
@@ -9701,25 +9757,6 @@ export interface OutputParserSimple {
   output_parser_type: "REGEX";
 }
 
-export interface PageAggregatedFindingOutput {
-  content?: AggregatedFindingOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageAsset {
   content?: Asset[];
   empty?: boolean;
@@ -9950,6 +9987,44 @@ export interface PageEndpointOutput {
 
 export interface PageExerciseSimple {
   content?: ExerciseSimple[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageFindingOccurrenceOutput {
+  content?: FindingOccurrenceOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageFindingSimple {
+  content?: FindingSimple[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10387,25 +10462,6 @@ export interface PageRawPaginationImportMapper {
 
 export interface PageRawPaginationScenario {
   content?: RawPaginationScenario[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageRelatedFindingOutput {
-  content?: RelatedFindingOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -11968,94 +12024,6 @@ export interface RelatedEntityOutput {
   context?: string;
   id?: string;
   name?: string;
-}
-
-export interface RelatedFindingOutput {
-  /**
-   * Asset groups linked to assets
-   * @uniqueItems true
-   */
-  finding_asset_groups?: AssetGroupSimple[];
-  /**
-   * Assets linked to the finding (any asset type, not only endpoints)
-   * @uniqueItems true
-   */
-  finding_assets: EndpointSimple[];
-  /**
-   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
-   * @format date-time
-   */
-  finding_created_at: string;
-  /**
-   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
-   * @format date-time
-   */
-  finding_first_seen?: string;
-  /**
-   * Finding Id
-   * @minLength 1
-   */
-  finding_id: string;
-  /** Inject linked to finding */
-  finding_inject: InjectSimple;
-  /**
-   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
-   * @format date-time
-   */
-  finding_last_seen?: string;
-  /** Scenario linked to inject */
-  finding_scenario?: ScenarioSimple;
-  /** Simulation linked to inject */
-  finding_simulation?: ExerciseSimple;
-  /**
-   * Teams linked to the finding occurrence
-   * @uniqueItems true
-   */
-  finding_teams?: TargetSimple[];
-  /**
-   * Represents the data type being extracted.
-   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
-   */
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /**
-   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
-   * @format date-time
-   */
-  finding_updated_at: string;
-  /**
-   * Players (persons) linked to the finding occurrence
-   * @uniqueItems true
-   */
-  finding_users?: TargetSimple[];
-  /**
-   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
-   * @minLength 1
-   */
-  finding_value: string;
 }
 
 export interface Relationship {

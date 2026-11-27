@@ -19,15 +19,15 @@ import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { OpenCrqRowMark } from '../../../components/xtm/XtmOpenCrq';
 import { OpenCtiRowMark } from '../../../components/xtm/XtmPivot';
-import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type FindingSimple, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import ContractOutputElementType from './ContractOutputElementType';
 
 interface Props {
-  searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
+  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<FindingSimple> }>;
   filterLocalStorageKey: string;
   contextId?: string;
-  // Column fields to hide (e.g. ['finding_asset_groups']) — defaults to showing all columns.
+  // Column fields to hide (e.g. ['finding_first_seen']) — defaults to showing all columns.
   hiddenFields?: string[];
   // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
   // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
@@ -35,16 +35,15 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '13%' },
-  finding_value: { width: '27%' },
-  finding_assets: { width: '17%' },
-  finding_markings: { width: '12%' },
-  finding_asset_groups: { width: '15%' },
-  finding_created_at: { width: '14%' },
-  finding_updated_at: { width: '14%' },
+  finding_type: { width: '15%' },
+  finding_value: { width: '35%' },
+  finding_asset: { width: '15%' },
+  finding_markings: { width: '15%' },
+  finding_first_seen: { width: '10%' },
+  finding_last_seen: { width: '10%' },
 });
 
-const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
+const FindingList = ({ searchFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const markingEnabled = isFeatureEnabled('MARKING');
@@ -52,13 +51,13 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
 
   const availableFilterNames = [
     'finding_type',
-    'finding_created_at',
-    'finding_updated_at',
+    'finding_first_seen',
+    'finding_last_seen',
     'finding_asset_groups',
     'finding_assets',
   ];
 
-  const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
+  const [findings, setFindings] = useState<FindingSimple[]>([]);
   // Total across all pages, tracked in compact mode (no pager) so we can tell the user when the list is
   // truncated instead of silently hiding findings beyond the page.
   const [total, setTotal] = useState<number>(0);
@@ -66,18 +65,18 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   // "showing X of N" note still appears if a run produces more than this.
   const compactPageSize = 100;
   // Default sort on last seen: the most recent activity is what tells whether a finding is still
-  // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
-  // previous "first seen" default pick up the new one instead of restoring the stale sort.
+  // alive or has been solved. The storage key is suffixed (-v3) so browsers that persisted a sort
+  // on the former date fields pick up the new one instead of restoring a sort the API refuses.
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
-    `${filterLocalStorageKey}-v2`,
+    `${filterLocalStorageKey}-v3`,
     buildSearchPagination({
-      sorts: initSorting('finding_updated_at', 'DESC'),
+      sorts: initSorting('finding_last_seen', 'DESC'),
       ...(compact ? { size: compactPageSize } : {}),
     }),
   );
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchDistinctFindings(input)
+    return searchFindings(input)
       .then((res) => {
         setTotal(res.data.totalElements);
         return res;
@@ -92,7 +91,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       field: 'finding_type',
       label: 'Type',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => (
+      value: (finding: FindingSimple) => (
         <span style={{
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -110,7 +109,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       isSortable: true,
       // Findings are technical values (ports, sockets, hostnames, credentials...): render them
       // as inline code, mirroring the <pre> block of the finding overview page.
-      value: (finding: AggregatedFindingOutput) => (
+      value: (finding: FindingSimple) => (
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -154,51 +153,39 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       ),
     },
     {
-      field: 'finding_assets',
-      label: 'Assets',
+      field: 'finding_asset',
+      label: 'Asset',
       isSortable: false,
-      value: (finding: AggregatedFindingOutput) => (
+      value: (finding: FindingSimple) => (
         <ItemTargets
-          targets={(finding.finding_assets || []).map(asset => ({
-            target_id: asset.asset_id,
-            target_name: asset.asset_name,
-            target_type: 'ASSETS',
-            // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
-            // for host-like endpoints) - same rendering as the asset pages.
-            target_category: asset.asset_category,
-            target_subtype: asset.endpoint_platform,
-          })) as TargetSimple[]}
+          targets={finding.finding_asset
+            ? [{
+                target_id: finding.finding_asset.asset_id,
+                target_name: finding.finding_asset.asset_name,
+                target_type: 'ASSETS',
+                // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
+                // for host-like endpoints) - same rendering as the asset pages.
+                target_category: finding.finding_asset.asset_category,
+                target_subtype: finding.finding_asset.endpoint_platform,
+              } as TargetSimple]
+            : []}
         />
       ),
     },
     ...(markingEnabled
-      ? [markingsColumn('finding_markings', (finding: AggregatedFindingOutput) => (finding.finding_assets ?? []).flatMap(asset => asset.asset_markings ?? []))]
+      ? [markingsColumn('finding_markings', (finding: FindingSimple) => finding.finding_asset?.asset_markings ?? [])]
       : []),
     {
-      field: 'finding_asset_groups',
-      label: 'Asset groups',
-      isSortable: false,
-      value: (finding: AggregatedFindingOutput) => (
-        <ItemTargets
-          targets={(finding.finding_asset_groups || []).map(group => ({
-            target_id: group.asset_group_id,
-            target_name: group.asset_group_name,
-            target_type: 'ASSETS_GROUPS',
-          })) as TargetSimple[]}
-        />
-      ),
-    },
-    {
-      field: 'finding_created_at',
+      field: 'finding_first_seen',
       label: 'First seen',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_created_at)}</>,
+      value: (finding: FindingSimple) => <>{nsdt(finding.finding_first_seen)}</>,
     },
     {
-      field: 'finding_updated_at',
+      field: 'finding_last_seen',
       label: 'Last seen',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
+      value: (finding: FindingSimple) => <>{nsdt(finding.finding_last_seen)}</>,
     },
   ];
 
