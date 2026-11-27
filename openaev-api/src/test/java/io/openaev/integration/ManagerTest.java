@@ -154,7 +154,10 @@ public class ManagerTest {
         .put(
             throwingInstance,
             new TestIntegrationStartThrows(
-                componentRequestEngine, throwingInstance, connectorInstanceService));
+                componentRequestEngine,
+                throwingInstance,
+                connectorInstanceService,
+                Tenant.DEFAULT_TENANT_UUID));
 
     assertThatNoException().isThrownBy(manager::monitorIntegrations);
 

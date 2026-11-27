@@ -152,7 +152,8 @@ public class CalderaExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
@@ -177,7 +178,8 @@ public class CalderaExecutorIntegrationTest {
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    Integration integration =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID).getFirst();
     // The integration has started: it holds the source under which it reports to the banner
     org.springframework.test.util.ReflectionTestUtils.setField(
         integration, "bannerSource", "tenant.executor");
@@ -206,7 +208,8 @@ public class CalderaExecutorIntegrationTest {
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    Integration integration =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID).getFirst();
     // The integration has started: it holds the source under which it reports to the banner
     org.springframework.test.util.ReflectionTestUtils.setField(
         integration, "bannerSource", "tenant.executor");
@@ -238,7 +241,8 @@ public class CalderaExecutorIntegrationTest {
     // so the sync exercises the stopped path instead of attempting a real start.
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), Tenant.DEFAULT_TENANT_UUID);
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(CalderaExecutorIntegration.class);
@@ -290,7 +294,8 @@ public class CalderaExecutorIntegrationTest {
 
     integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
-    Integration integration = integrationFactory.spawn(new ConnectorInstanceInMemory());
+    Integration integration =
+        integrationFactory.spawn(new ConnectorInstanceInMemory(), Tenant.DEFAULT_TENANT_UUID);
     assertThat(FieldUtils.computeAllFieldValues(integration).get("encryptionService")).isNull();
   }
 
@@ -312,6 +317,7 @@ public class CalderaExecutorIntegrationTest {
                 new CalderaExecutorIntegration(
                     instance,
                     connectorInstanceService,
+                    Tenant.DEFAULT_TENANT_UUID,
                     endpointService,
                     agentService,
                     executorService,
@@ -342,7 +348,7 @@ public class CalderaExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
@@ -370,7 +376,7 @@ public class CalderaExecutorIntegrationTest {
     instance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     connectorInstanceService.save(instance);
 
-    Integration integration = integrationFactory.spawn(instance);
+    Integration integration = integrationFactory.spawn(instance, Tenant.DEFAULT_TENANT_UUID);
     try {
       integration.initialise();
     } catch (Exception ignored) {

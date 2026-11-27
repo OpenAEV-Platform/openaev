@@ -15,7 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
 import io.openaev.context.TenantContext;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
@@ -68,9 +67,6 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @MockitoBean private ImapService imapService;
-
-  @MockitoBean
-  private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
 
   @MockitoSpyBean private AuditLogger auditLogger;
 

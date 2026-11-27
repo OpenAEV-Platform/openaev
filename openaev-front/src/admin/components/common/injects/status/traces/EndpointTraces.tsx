@@ -26,7 +26,7 @@ const EndpointTraces = ({ tracesByAgent }: Props) => {
   }, [tracesByAgent]);
 
   return (
-    <div>
+    <div data-testid="endpoint-traces-container">
       {groupedTraces.map(([agentId, traces]) => (
         agentId === 'unknown'
           ? <MainTraces key="unknown" traces={traces} />

@@ -63,10 +63,9 @@ export const installAgent = async (browser: Browser): Promise<InstalledAgent> =>
 
 export const waitForRegisteredAgent = async (page: Page, hostname: string): Promise<void> => {
   await expect(async () => {
-    await page.goto(tenantUrl('/admin/assets'));
     const endpointList = new EndpointListPage(page);
-    await endpointList.waitForLoad();
-    await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
+    await endpointList.goto();
+    await expect(endpointList.getEndpointByName(hostname)).toBeVisible();
   }).toPass({
     intervals: [5_000],
     timeout: 150_000,

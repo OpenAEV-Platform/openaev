@@ -17,8 +17,9 @@ public class TestIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      EncryptionService encryptionService) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+      EncryptionService encryptionService,
+      String tenantId) {
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
   }
 
   @Override

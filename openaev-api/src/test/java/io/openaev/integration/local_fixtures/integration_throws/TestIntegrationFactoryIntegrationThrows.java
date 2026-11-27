@@ -47,13 +47,13 @@ public class TestIntegrationFactoryIntegrationThrows extends IntegrationFactory 
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance)
+  public Integration spawn(ConnectorInstance instance, String tenantId)
       throws JsonProcessingException,
           InvocationTargetException,
           NoSuchMethodException,
           InstantiationException,
           IllegalAccessException {
     return new TestIntegrationStartThrows(
-        componentRequestEngine, instance, connectorInstanceService);
+        componentRequestEngine, instance, connectorInstanceService, tenantId);
   }
 }

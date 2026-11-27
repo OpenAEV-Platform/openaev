@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,12 +60,18 @@ public class XtmHubClient {
           + " available_news_feed_types } }";
   private static final ObjectMapper NEWS_FEED_MAPPER = new ObjectMapper();
   private static final String URL_PATH_METADATA_KEY = "url_path";
+  // Kept out of the metadata: the URL path has its own field, and the slug only serves the Hub.
+  private static final Set<String> IGNORED_METADATA_KEYS =
+      Set.of(URL_PATH_METADATA_KEY, "blog_post_slug");
   // Bounds a Hub that never answers: the collector runs on a shared scheduler thread.
   static final Timeout NEWS_FEED_TIMEOUT = Timeout.ofSeconds(30);
   // What the Hub answers when the platform id and token headers do not match a registration: the
-  // error code when it sends one, else (older Hubs) a message containing one of these values.
+  // error code when it sends one, else (older Hubs) a message containing one of these values. The
+  // code is PLATFORM_NOT_REGISTERED from its resolver (e.g. a deployment request token), or
+  // UNAUTHENTICATED from its guard when it cannot build a platform principal: OpenAEV always sends
+  // both headers, so on this mutation UNAUTHENTICATED means a rejected token.
   private static final List<String> TOKEN_REJECTED_CODES =
-      List.of("PLATFORM_NOT_REGISTERED", "INVALID_PLATFORM_ID");
+      List.of("PLATFORM_NOT_REGISTERED", "INVALID_PLATFORM_ID", "UNAUTHENTICATED");
   private static final List<String> TOKEN_REJECTED_MESSAGES =
       List.of(
           "Invalid token provided",
@@ -510,23 +518,42 @@ public class XtmHubClient {
   }
 
   private ProvisionedNewsFeedItem toProvisionedNewsFeedItem(HubNewsFeedItem item) {
-    String urlPath =
+    List<HubNewsFeedMetadata> hubMetadata =
         item.metadata() == null
-            ? null
-            : item.metadata().stream()
-                .filter(
-                    metadata -> metadata != null && URL_PATH_METADATA_KEY.equals(metadata.key()))
-                .findFirst()
-                .map(HubNewsFeedMetadata::value)
-                .orElse(null);
+            ? List.of()
+            : item.metadata().stream().filter(Objects::nonNull).toList();
+    String urlPath =
+        hubMetadata.stream()
+            .filter(metadata -> URL_PATH_METADATA_KEY.equals(metadata.key()))
+            .findFirst()
+            .map(HubNewsFeedMetadata::value)
+            .orElse(null);
     return new ProvisionedNewsFeedItem(
         required(item.id(), "id"),
         required(item.title(), "title"),
         required(item.type(), "type"),
         item.tags() == null ? List.of() : item.tags().stream().filter(Objects::nonNull).toList(),
         urlPath,
+        toMetadata(hubMetadata),
         Instant.parse(required(item.creationDate(), "creation_date")),
         item.deleted());
+  }
+
+  /**
+   * The metadata the Hub sent, whatever their keys, but the ignored ones. An entry without a key or
+   * a value is skipped, and a key sent twice keeps its first value.
+   */
+  private static Map<String, String> toMetadata(List<HubNewsFeedMetadata> hubMetadata) {
+    Map<String, String> metadata = new LinkedHashMap<>();
+    for (HubNewsFeedMetadata entry : hubMetadata) {
+      if (entry.key() != null
+          && !entry.key().isBlank()
+          && entry.value() != null
+          && !IGNORED_METADATA_KEYS.contains(entry.key())) {
+        metadata.putIfAbsent(entry.key(), entry.value());
+      }
+    }
+    return metadata;
   }
 
   private String describeNewsFeedItem(JsonNode hubItem) {

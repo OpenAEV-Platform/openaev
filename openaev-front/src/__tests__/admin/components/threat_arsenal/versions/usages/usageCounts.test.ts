@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { olderVersionsInUse, scenarioCount, usageCount } from '../../../../../../admin/components/threat_arsenal/versions/usages/usageCounts';
+import { olderUsageCount, olderVersionsInUse, scenarioCount, usageCount } from '../../../../../../admin/components/threat_arsenal/versions/usages/usageCounts';
 import { aUsage, aVersion, someUsages } from '../../threatArsenalTestUtils';
 
 describe('usageCounts', () => {
@@ -59,32 +59,35 @@ describe('usageCounts', () => {
     });
   });
 
-  describe('olderVersionsInUse', () => {
-    it('given versions with and without usages should keep the other versions in use', () => {
-      // Arrange
-      const latest = aVersion({
-        payload_id: 'payload-v3',
-        payload_action_id: 'action-v3',
-      });
-      const used = aVersion({
-        payload_id: 'payload-v2',
-        payload_action_id: 'action-v2',
-      });
-      const unused = aVersion();
-      const usages = {
-        'payload-v3': someUsages([aUsage()]),
-        'payload-v2': someUsages([], 2),
-        'payload-v1': someUsages([]),
-      };
+  describe('older versions', () => {
+    const latest = aVersion({
+      payload_id: 'payload-v3',
+      payload_action_id: 'action-v3',
+    });
+    const used = aVersion({
+      payload_id: 'payload-v2',
+      payload_action_id: 'action-v2',
+    });
+    const unused = aVersion();
+    const counts = {
+      'payload-v3': 1,
+      'payload-v2': 2,
+    };
 
+    it('given versions with and without usages should keep the other versions in use', () => {
       // Act
-      const older = olderVersionsInUse([latest, used, unused], usages, 'action-v3');
+      const older = olderVersionsInUse([latest, used, unused], counts, 'action-v3');
 
       // Assert
-      expect(older).toEqual([{
-        version: used,
-        usages: usages['payload-v2'],
-      }]);
+      expect(older).toEqual([used]);
+    });
+
+    it('given versions with and without usages should count the usages left on the other versions', () => {
+      // Act
+      const count = olderUsageCount([latest, used, unused], counts, 'action-v3');
+
+      // Assert
+      expect(count).toBe(2);
     });
   });
 });

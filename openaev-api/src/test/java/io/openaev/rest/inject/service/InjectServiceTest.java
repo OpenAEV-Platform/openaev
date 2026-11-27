@@ -21,6 +21,7 @@ import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.utils.ExecutorUtils;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -136,7 +137,8 @@ class InjectServiceTest {
 
   @Spy
   private InjectorContractContentUtils injectorContractContentUtils =
-      new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
+      new InjectorContractContentUtils(
+          ObjectMapperHelper.openAEVJsonMapper(), new ExpectationPropertiesConfig());
 
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private ObjectProvider<PermissionService> permissionServiceProvider;

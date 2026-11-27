@@ -22,6 +22,9 @@ public interface FindingRepository
 
   Optional<Finding> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  Optional<Finding> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   List<Finding> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);

@@ -23,7 +23,6 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ScenarioCard from './card/ScenarioCard';
 import useScenarioCatalogStates from './card/useScenarioCatalogStates';
-import useScenarioUpdatesAvailable from './card/useScenarioUpdatesAvailable';
 import ScenariosList from './list/ScenariosList';
 import ScenariosHeaderActions from './page/ScenariosHeaderActions';
 import ScenariosHero from './page/ScenariosHero';
@@ -56,7 +55,6 @@ const SORT_OPTIONS = [
 ];
 
 const Scenarios = () => {
-  const updates = useScenarioUpdatesAvailable();
   const { t } = useFormatter();
   const theme = useTheme();
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
@@ -89,7 +87,7 @@ const Scenarios = () => {
   const isChecked = (scenario: ScenarioRow) => (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
     || scenario.scenario_id in (selectedElements || {});
 
-  const catalogStates = useScenarioCatalogStates(viewMode === 'grid' ? scenarios : []);
+  const catalogStates = useScenarioCatalogStates(viewMode === 'grid' ? scenarios.filter(scenario => scenario.scenario_version).map(scenario => scenario.scenario_id) : []);
 
   const removeScenarios = (ids: string[]) => {
     setScenarios(prev => prev.filter(s => !ids.includes(s.scenario_id)));
@@ -112,7 +110,7 @@ const Scenarios = () => {
 
   return (
     <MarketplaceBrowser
-      hero={<ScenariosHero updatesAvailable={updates.size} />}
+      hero={<ScenariosHero />}
       tabs={<MarketplaceCatalogTabs active="active" baseUrl={SCENARIO_BASE_URL} />}
       sidebar={<ScenariosSidebar searchPaginationInput={searchPaginationInput} filterHelpers={queryableHelpers.filterHelpers} />}
       toolbar={(
@@ -157,7 +155,7 @@ const Scenarios = () => {
                 <ScenarioCard
                   key={scenario.scenario_id}
                   scenario={scenario}
-                  newerVersion={updates.get(scenario.scenario_id)}
+                  newerVersion={catalogStates[scenario.scenario_id]?.scenario_catalog_state_newer_version}
                   catalogState={catalogStates[scenario.scenario_id]}
                   onDelete={id => removeScenarios([id])}
                 />

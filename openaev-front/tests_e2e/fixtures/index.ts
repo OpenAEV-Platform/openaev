@@ -2,6 +2,7 @@ import { mergeTests } from '@playwright/test';
 
 import authFixture from './auth.fixture';
 import credentialFixture from './credential.fixture';
+import markingDefinitionFixture from './marking-definition.fixture';
 import scenarioFixture from './scenario.fixture';
 import teamFixture from './team.fixture';
 
@@ -10,4 +11,5 @@ export const test = mergeTests(
   teamFixture,
   scenarioFixture,
   credentialFixture,
+  markingDefinitionFixture,
 );

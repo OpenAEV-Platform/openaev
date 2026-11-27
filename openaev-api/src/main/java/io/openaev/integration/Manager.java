@@ -151,7 +151,7 @@ public class Manager {
           factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
-      List<Integration> newIntegrations = factory.sync(newInstances);
+      List<Integration> newIntegrations = factory.sync(newInstances, tenantId);
 
       for (Integration integration : newIntegrations) {
         spawnedIntegrations.put(integration.getConnectorInstance(), integration);

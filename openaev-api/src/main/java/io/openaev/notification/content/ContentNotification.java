@@ -1,12 +1,11 @@
 package io.openaev.notification.content;
 
-import io.openaev.api.threat_arsenal.dto.PayloadUsageOutput;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.Payload;
+import io.openaev.database.raw.RawScenarioUsageCount;
 import io.openaev.notification.engine.NotificationResourceCatalog;
 import java.util.List;
-import java.util.Map;
-import java.util.function.IntFunction;
+import java.util.function.LongFunction;
 
 /** A catalogue content event, with its message, ready for the notification engine. */
 public record ContentNotification(
@@ -26,20 +25,20 @@ public record ContentNotification(
 
   /** One per scenario, its message told from how many of its injects and steps are concerned. */
   public static List<ContentNotification> scenarios(
-      Map<String, List<PayloadUsageOutput>> usagesByScenario,
+      List<RawScenarioUsageCount> scenarioUsages,
       NotificationTriggerEventType eventType,
-      IntFunction<String> what) {
-    return usagesByScenario.values().stream()
+      LongFunction<String> what) {
+    return scenarioUsages.stream()
         .map(
-            usages ->
+            scenario ->
                 new ContentNotification(
                     NotificationResourceCatalog.SCENARIO,
-                    usages.getFirst().scenarioId(),
+                    scenario.getScenarioId(),
                     eventType,
                     "[scenario] "
-                        + usages.getFirst().scenarioName()
+                        + scenario.getScenarioName()
                         + ": "
-                        + what.apply(usages.size())))
+                        + what.apply(scenario.getUsageCount())))
         .toList();
   }
 

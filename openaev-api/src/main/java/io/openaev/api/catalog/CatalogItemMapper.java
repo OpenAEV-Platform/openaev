@@ -7,7 +7,6 @@ import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioRequirementOutput;
-import io.openaev.api.catalog.dto.scenario.CatalogScenarioVersionOutput;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.CatalogPayload;
@@ -141,24 +140,8 @@ public class CatalogItemMapper {
         requirement.label(), requirement.name(), requirement.integrationId(), requirement.status());
   }
 
-  public CatalogScenarioVersionOutput toVersionOutput(CatalogScenario version) {
-    return new CatalogScenarioVersionOutput(
-        version.getVersion(),
-        version.getPublishedAt(),
-        version.getChangelog(),
-        version.getMainFocus(),
-        version.getSeverity(),
-        version.getInjectsCount());
-  }
-
   public CatalogPayloadOutput toOutput(CatalogPayload version) {
     return new CatalogPayloadOutput(
-        version.getExternalId(),
-        version.getVersion(),
-        version.getName(),
-        version.getDescription(),
-        version.getDomain(),
-        version.getPlatforms(),
-        version.getPublishedAt());
+        version.getExternalId(), version.getVersion(), version.getName(), version.getPublishedAt());
   }
 }

@@ -299,7 +299,7 @@ public class ExpectationsDriftService {
       return new ExpectationsRealignOutput(0);
     }
     String operationId =
-        bulkOperationMonitor.start("realign", "inject expectations", drifted.size());
+        bulkOperationMonitor.start(ctx, "realign", "inject expectations", drifted.size());
     try {
       for (int start = 0; start < drifted.size(); start += CHUNK_SIZE) {
         List<Inject> chunk = drifted.subList(start, Math.min(start + CHUNK_SIZE, drifted.size()));

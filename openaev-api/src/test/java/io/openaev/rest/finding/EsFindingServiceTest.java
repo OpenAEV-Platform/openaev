@@ -5,7 +5,9 @@ import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import jakarta.persistence.EntityNotFoundException;
@@ -50,7 +52,9 @@ class EsFindingServiceTest extends IntegrationTest {
     FindingComposer.Composer wrapper = createFindingComposer();
 
     // -- EXECUTE --
-    Finding result = findingService.finding(wrapper.get().getId());
+    Finding finding = wrapper.get();
+    Finding result =
+        findingService.finding(TxCtx.forTenant(finding.getTenant().getId()), finding.getId());
 
     // -- ASSERT --
     assertNotNull(result);
@@ -60,6 +64,8 @@ class EsFindingServiceTest extends IntegrationTest {
   @Test
   void given_invalid_finding_id_should_throw_exception() {
     // -- EXECUTE & ASSERT --
-    assertThrows(EntityNotFoundException.class, () -> findingService.finding("id"));
+    assertThrows(
+        EntityNotFoundException.class,
+        () -> findingService.finding(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), "id"));
   }
 }

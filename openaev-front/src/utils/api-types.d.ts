@@ -2736,12 +2736,9 @@ export interface CatalogInstallOutput {
 }
 
 export interface CatalogPayloadOutput {
-  catalog_payload_description?: string;
-  catalog_payload_domain?: string;
   /** @minLength 1 */
   catalog_payload_external_id: string;
   catalog_payload_name?: string;
-  catalog_payload_platforms: string[];
   /** @format date-time */
   catalog_payload_published_at?: string;
   /** @minLength 1 */
@@ -2782,18 +2779,6 @@ export interface CatalogScenarioRequirementOutput {
   /** @minLength 1 */
   requirement_name: string;
   requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
-}
-
-export interface CatalogScenarioVersionOutput {
-  catalog_scenario_changelog?: string;
-  /** @format int32 */
-  catalog_scenario_injects_count?: number;
-  catalog_scenario_main_focus?: string;
-  /** @format date-time */
-  catalog_scenario_published_at?: string;
-  catalog_scenario_severity?: string;
-  /** @minLength 1 */
-  catalog_scenario_version: string;
 }
 
 export interface CatalogSettingsInput {
@@ -6938,23 +6923,6 @@ export interface GlobalScoreBySimulationEndDate {
   simulation_end_date: string;
 }
 
-export interface Grant {
-  grant_group?: string;
-  /** @minLength 1 */
-  grant_id: string;
-  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_resource?: string;
-  grant_resource_type?:
-    | "SCENARIO"
-    | "SIMULATION"
-    | "ATOMIC_TESTING"
-    | "AUTONOMOUS_RUN"
-    | "THREAT_ARSENAL"
-    | "PAYLOAD"
-    | "UNKNOWN";
-  listened?: boolean;
-}
-
 export interface GraphEdgeOutput {
   edge_id: string;
   edge_result?: "SUCCESS" | "PENDING" | "FAILED";
@@ -7066,21 +7034,6 @@ export interface GraphStartingPointOutput {
 
 export interface GraphStartingPointsOutput {
   starting_points: GraphStartingPointOutput[];
-}
-
-export interface Group {
-  group_auto_new_marking?: boolean;
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  group_grants?: Grant[];
-  /** @minLength 1 */
-  group_id: string;
-  group_markings?: string[];
-  /** @minLength 1 */
-  group_name: string;
-  group_roles?: string[];
-  group_users?: string[];
-  listened?: boolean;
 }
 
 export interface GroupGrantInput {
@@ -9316,6 +9269,16 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemMetadataOutput {
+  /**
+   * Key of the detail, as XTM Hub sends it
+   * @minLength 1
+   */
+  news_feed_item_metadata_key: string;
+  /** Value of the detail, as XTM Hub sends it */
+  news_feed_item_metadata_value: string;
+}
+
 export interface NewsFeedItemOutput {
   /**
    * Creation date of the item
@@ -9334,6 +9297,8 @@ export interface NewsFeedItemOutput {
   news_feed_item_id: string;
   /** Whether the item was read */
   news_feed_item_is_read: boolean;
+  /** Details XTM Hub sends with the item (description, image, authors...), all optional and sorted by key */
+  news_feed_item_metadata: NewsFeedItemMetadataOutput[];
   /** Tags of the item */
   news_feed_item_tags: string[];
   /**
@@ -9342,7 +9307,7 @@ export interface NewsFeedItemOutput {
    */
   news_feed_item_title: string;
   /** Type of the item, absent when OpenAEV no longer knows its type */
-  news_feed_item_type?: "RESOURCE_SCENARIO";
+  news_feed_item_type?: "RESOURCE_SCENARIO" | "BLOG_POST";
   /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
   news_feed_item_url_path?: string;
 }
@@ -9353,16 +9318,18 @@ export interface NewsFeedSettingsInput {
    * @maxItems 50
    * @minItems 0
    */
-  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+  news_feed_settings_subscribed_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
 }
 
 export interface NewsFeedSettingsOutput {
+  /** The news feed types XTM Hub provisions for the tenants in scope that serve the news feed, none when no tenant in scope does */
+  news_feed_settings_available_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
   /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
   news_feed_settings_hub_connected: boolean;
   /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
   news_feed_settings_hub_registered: boolean;
   /** The news feed types the current user is subscribed to */
-  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+  news_feed_settings_subscribed_types: ("RESOURCE_SCENARIO" | "BLOG_POST")[];
 }
 
 export interface NotificationBulkProcessingInput {
@@ -10094,25 +10061,6 @@ export interface PageFullTextSearchResult {
   totalPages?: number;
 }
 
-export interface PageGroup {
-  content?: Group[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageInjectResultOutput {
   content?: InjectResultOutput[];
   empty?: boolean;
@@ -10628,6 +10576,25 @@ export interface PageTagRuleOutput {
 
 export interface PageTeamOutput {
   content?: TeamOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageTenantGroupOutput {
+  content?: TenantGroupOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -11213,6 +11180,13 @@ export interface PayloadUpsertInput {
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
+}
+
+export interface PayloadUsageCountOutput {
+  /** @minLength 1 */
+  payload_id: string;
+  /** @format int64 */
+  payload_usage_count: number;
 }
 
 export interface PayloadUsageMoveInput {
@@ -12582,6 +12556,7 @@ export interface ScenarioBulkProcessingInput {
 
 export interface ScenarioCatalogStateOutput {
   scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_newer_version?: string;
   scenario_catalog_state_revoked: boolean;
 }
 
@@ -12593,7 +12568,6 @@ export interface ScenarioChallengesReader {
 
 export interface ScenarioChangeOutput {
   scenario_change_applied?: JsonNode;
-  scenario_change_base?: JsonNode;
   scenario_change_editable: boolean;
   scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
   scenario_change_field_key?: string;
@@ -14166,6 +14140,22 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupGrantOutput {
+  grant_group?: string;
+  /** @minLength 1 */
+  grant_id: string;
+  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
+}
+
 export interface TenantGroupMarkingsOutput {
   group_auto_new_marking?: boolean;
   /**
@@ -14183,6 +14173,21 @@ export interface TenantGroupMarkingsOutput {
    * @minLength 1
    */
   group_name: string;
+}
+
+export interface TenantGroupOutput {
+  group_auto_new_marking?: boolean;
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  group_grants?: TenantGroupGrantOutput[];
+  /** @minLength 1 */
+  group_id: string;
+  /** @uniqueItems true */
+  group_markings?: string[];
+  /** @minLength 1 */
+  group_name: string;
+  group_roles?: string[];
+  group_users?: string[];
 }
 
 export interface TenantInput {

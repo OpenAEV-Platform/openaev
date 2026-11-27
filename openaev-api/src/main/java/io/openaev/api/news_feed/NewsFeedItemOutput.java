@@ -28,6 +28,13 @@ public record NewsFeedItemOutput(
                 "Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub"
                     + " sent none")
         String urlPath,
+    @JsonProperty("news_feed_item_metadata")
+        @Schema(
+            description =
+                "Details XTM Hub sends with the item (description, image, authors...), all"
+                    + " optional and sorted by key")
+        @NotNull
+        List<NewsFeedItemMetadataOutput> metadata,
     @JsonProperty("news_feed_item_creation_date")
         @Schema(description = "Creation date of the item")
         @NotNull

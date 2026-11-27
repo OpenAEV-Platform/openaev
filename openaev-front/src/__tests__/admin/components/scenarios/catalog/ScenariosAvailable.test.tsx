@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type CatalogScenarioOutput, type SearchPaginationInput } from '../../../../../utils/api-types';
+import { type CatalogScenarioOutput, type ScenarioCatalogStateOutput, type SearchPaginationInput } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   installAllCatalogScenarios: vi.fn(),
   navigate: vi.fn(),
   loadMore: { current: () => {} },
-  updates: new Map<string, string>(),
+  catalogStates: {} as Record<string, ScenarioCatalogStateOutput>,
   fetchScenarioVersions: vi.fn(),
 }));
 
@@ -49,7 +49,7 @@ vi.mock(import('../../../../../utils/utils'), async importOriginal => ({
   isFeatureEnabled: () => true,
 }));
 vi.mock('../../../../../admin/components/scenarios/page/ScenariosHero', () => ({ default: () => null }));
-vi.mock('../../../../../admin/components/scenarios/card/useScenarioUpdatesAvailable', () => ({ default: () => mocks.updates }));
+vi.mock('../../../../../admin/components/scenarios/card/useScenarioCatalogStates', () => ({ default: () => mocks.catalogStates }));
 vi.mock('../../../../../actions/scenarios/scenario-update-actions', () => ({ fetchScenarioVersions: mocks.fetchScenarioVersions }));
 vi.mock('../../../../../admin/components/scenarios/scenario/versions/ScenarioUpdateDialog', () => ({ default: ({ target }: { target: { title: string } }) => <div role="dialog">{target.title}</div> }));
 vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer', () => ({ default: () => null }));
@@ -97,7 +97,7 @@ const cardTitles = () => screen.queryAllByTestId('scenario-catalog-card').map(ca
 describe('ScenariosAvailable', () => {
   beforeEach(() => {
     localStorage.clear();
-    mocks.updates = new Map();
+    mocks.catalogStates = {};
     vi.spyOn(MESSAGING$, 'notifySuccess').mockImplementation(() => undefined);
     vi.stubGlobal('IntersectionObserver', class {
       constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
@@ -218,7 +218,12 @@ describe('ScenariosAvailable', () => {
       ...RANSOMWARE,
       catalog_scenario_installed_scenario_id: 'installed-ransomware',
     }]));
-    mocks.updates = new Map([['installed-phishing', '1.2.0']]);
+    mocks.catalogStates = {
+      'installed-phishing': {
+        scenario_catalog_state_revoked: false,
+        scenario_catalog_state_newer_version: '1.2.0',
+      },
+    };
     mocks.fetchScenarioVersions.mockResolvedValue({
       scenario_simulations_count: 0,
       scenario_versions: [{

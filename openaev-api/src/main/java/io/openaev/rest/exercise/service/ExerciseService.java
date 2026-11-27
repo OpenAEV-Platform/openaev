@@ -213,18 +213,6 @@ public class ExerciseService {
   // -- READ --
 
   /**
-   * Validates that the exercise exists for the current tenant. Throws if not found. For work that
-   * runs without a request scope and sets the ambient tenant itself; a request uses {@link
-   * #existsInScope(TxCtx, String)}.
-   */
-  public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
-    if (!this.exerciseRepository.existsByIdAndTenantId(
-        exerciseId, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException("Exercise not found");
-    }
-  }
-
-  /**
    * Loads an exercise in the current tenant. For work that runs without a request scope and sets
    * the ambient tenant itself; a request uses {@link #exercise(TxCtx, String)}.
    */

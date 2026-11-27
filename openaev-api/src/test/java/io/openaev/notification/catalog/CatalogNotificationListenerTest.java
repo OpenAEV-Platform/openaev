@@ -2,6 +2,7 @@ package io.openaev.notification.catalog;
 
 import static io.openaev.database.model.NotificationTriggerEventType.INSTALLED_AUTOMATICALLY;
 import static io.openaev.database.model.NotificationTriggerEventType.RELEASE_RECEIVED;
+import static io.openaev.database.model.NotificationTriggerEventType.REVOKED;
 import static io.openaev.database.model.NotificationTriggerEventType.SYNC_BLOCKED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,7 +78,7 @@ class CatalogNotificationListenerTest {
 
   private static AddedVersion added(
       ContentType type, String externalId, String name, String version, boolean isNew) {
-    return new AddedVersion(type, REPOSITORY, externalId, name, version, isNew);
+    return new AddedVersion(type, REPOSITORY, externalId, name, version, isNew, false);
   }
 
   private static CatalogReleaseApplied applied(boolean firstSync, List<AddedVersion> added) {
@@ -134,6 +135,45 @@ class CatalogNotificationListenerTest {
               "[catalog] Release 1.261030.0: 1 new scenario (EASM);"
                   + " 1 installed scenario with an update available (Ransomware v1.2.0);"
                   + " 1 new action");
+    }
+
+    @Test
+    @DisplayName(
+        "An installed scenario the release revokes is told on the scenario, not as an update")
+    void given_installedScenarioRevoked_should_notifyTheScenario() {
+      // Arrange
+      when(catalogScenarioService.installedScenarioIds(eq(TENANT), any()))
+          .thenReturn(Map.of(CatalogOffer.key(REPOSITORY, "ransomware"), "scenario-id"));
+
+      // Act
+      listener.onReleaseApplied(
+          applied(
+              false,
+              List.of(
+                  new AddedVersion(
+                      ContentType.SCENARIO,
+                      REPOSITORY,
+                      "ransomware",
+                      "Ransomware",
+                      "1.2.0",
+                      false,
+                      true))));
+
+      // Assert
+      verify(engine)
+          .handleEventWithMessage(
+              NotificationResourceCatalog.SCENARIO,
+              "scenario-id",
+              TENANT,
+              REVOKED,
+              "[scenario] Ransomware revoked by Filigran");
+      verify(engine, never())
+          .handleEventWithMessage(
+              eq(NotificationResourceCatalog.CATALOG_SYNC),
+              anyString(),
+              anyString(),
+              any(),
+              anyString());
     }
 
     @Test

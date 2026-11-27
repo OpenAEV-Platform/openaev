@@ -25,6 +25,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.utils.BulkDeleteChunkRunner;
@@ -66,7 +67,8 @@ class ExpectationsDriftServiceTest {
             injectRepository,
             scenarioRepository,
             exerciseRepository,
-            new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()),
+            new InjectorContractContentUtils(
+                ObjectMapperHelper.openAEVJsonMapper(), new ExpectationPropertiesConfig()),
             bulkOperationMonitor,
             chunkRunner,
             MAPPER);
@@ -303,7 +305,7 @@ class ExpectationsDriftServiceTest {
     ObjectNode alignedContentBefore = aligned.getContent().deepCopy();
     stubScenarioInjects(drifted, aligned);
     stubChunkRunnerPassthrough();
-    when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
+    when(bulkOperationMonitor.start(any(), anyString(), anyString(), anyInt())).thenReturn("op-1");
     when(injectRepository.updateContent(anyString(), any(), any())).thenReturn(1);
 
     ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
@@ -321,7 +323,7 @@ class ExpectationsDriftServiceTest {
     assertThat(aligned.getContent()).isEqualTo(alignedContentBefore);
     // Realigned injects no longer drift.
     assertThat(service.hasDrift(drifted)).isFalse();
-    verify(bulkOperationMonitor).start("realign", "inject expectations", 1);
+    verify(bulkOperationMonitor).start(TxCtx.missing(), "realign", "inject expectations", 1);
     verify(bulkOperationMonitor).progress("op-1", 1);
     verify(bulkOperationMonitor).complete("op-1");
     verify(bulkOperationMonitor, never()).fail(anyString());
@@ -357,7 +359,7 @@ class ExpectationsDriftServiceTest {
     Inject drifted = injectWith(contract, expectationNode("PREVENTION", false, 100, true));
     stubScenarioInjects(drifted);
     stubChunkRunnerPassthrough();
-    when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
+    when(bulkOperationMonitor.start(any(), anyString(), anyString(), anyInt())).thenReturn("op-1");
     when(injectRepository.updateContent(anyString(), any(), any())).thenReturn(1);
 
     ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
@@ -380,7 +382,7 @@ class ExpectationsDriftServiceTest {
     Inject drifted = injectWith(contract, expectationNode("PREVENTION", false, 100, true));
     stubScenarioInjects(drifted);
     stubChunkRunnerPassthrough();
-    when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
+    when(bulkOperationMonitor.start(any(), anyString(), anyString(), anyInt())).thenReturn("op-1");
     when(injectRepository.updateContent(anyString(), any(), any()))
         .thenThrow(new IllegalStateException("boom"));
 

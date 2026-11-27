@@ -1,6 +1,7 @@
 package io.openaev.rest.mapper;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -217,13 +218,14 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (importInjectIntoScenarioFromXLS reads InjectorContract#
-      // getFirstInjector() to attach an injector to each previewed inject).
+      // The TxCtx parameter sets the tenant scope of this read (importInjectIntoScenarioFromXLS
+      // reads InjectorContract#getFirstInjector() to attach an injector to each previewed inject)
+      // and names the tenant the transient mapper resolves its injector contracts in.
       @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
-    ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());
+    ImportMapper importMapper =
+        mapperService.createImportMapper(input.getImportMapper(), requireOneTenantOfScope(ctx));
     importMapper
         .getInjectImporters()
         .forEach(

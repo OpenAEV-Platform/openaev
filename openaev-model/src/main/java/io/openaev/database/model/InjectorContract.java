@@ -45,7 +45,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 // default tenant instead of failing. Reads are scoped by the request scope, writes are attributed
 // explicitly (TenantWriteScopeResolver, or the owning row's tenant for a dependent write).
 @EntityListeners({ModelBaseListener.class, InjectorContractDeleteGuard.class})
-public class InjectorContract implements TenantBase, CompositeIdResolvableI, Authored {
+public class InjectorContract implements TenantBase, CompositeIdResolvableI, Authored, Cloneable {
 
   public static final String ID_FIELD_NAME = "id";
   public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
@@ -687,6 +687,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
   public static final String CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR =
       "targeted-asset-separator";
 
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS_TYPE = "expectation_type";
+  public static final String CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS_EXPIRATION_TIME =
+      "expectation_expiration_time";
+
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET = "asset";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_TEAM = "team";
@@ -699,4 +703,15 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
           CONTRACT_ELEMENT_CONTENT_KEY_ARTICLES,
           CONTRACT_ELEMENT_CONTENT_KEY_CHALLENGES,
           CONTRACT_ELEMENT_CONTENT_KEY_ATTACHMENTS);
+
+  @Override
+  public InjectorContract clone() {
+    try {
+      InjectorContract clone = (InjectorContract) super.clone();
+      // TODO: copy mutable state here, so the clone can't change the internals of the original
+      return clone;
+    } catch (CloneNotSupportedException e) {
+      throw new AssertionError();
+    }
+  }
 }

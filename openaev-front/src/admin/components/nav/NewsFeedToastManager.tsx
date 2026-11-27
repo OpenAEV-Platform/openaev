@@ -1,7 +1,8 @@
 import { IconButton, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Close, OpenInNewOutlined } from '@mui/icons-material';
+import { ArrowForward, Close, OpenInNewOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
 import { searchMyNewsFeedItems } from '../../../actions/news_feed/news-feed-actions';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -11,7 +12,8 @@ import { computeBannerSettings } from '../../../public/components/systembanners/
 import useAuth from '../../../utils/hooks/useAuth';
 import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../utils/utils';
-import { buildConfiguredHubUrl } from '../profile/news_feed/newsFeedUtils';
+import { NEWS_FEED_PATH } from '../profile/news_feed/NewsFeedTabs';
+import { buildConfiguredHubUrl, buildNewsFeedBlogSeeAllUrl, NEWS_FEED_BLOG_POST_TYPE } from '../profile/news_feed/newsFeedUtils';
 import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';
 import NewsFeedToastItem, { type NewsFeedToastData } from './NewsFeedToastItem';
 import { useNewsFeedToastStyles } from './newsFeedToastSurface';
@@ -76,8 +78,27 @@ const NewsFeedToastManager: FunctionComponent = () => {
   }
 
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const hiddenCount = toasts.length - MAX_VISIBLE_TOASTS;
-  const hubLibraryUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
+  const hiddenToasts = toasts.slice(MAX_VISIBLE_TOASTS);
+  const hiddenCount = hiddenToasts.length;
+  const isOnlyBlogPostHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE);
+  // Every type but the blogposts is a resource of XTM Hub, including a type this version does not know.
+  const isOnlyResourceHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type !== NEWS_FEED_BLOG_POST_TYPE);
+  // The blogposts live on the Filigran blog, the resources on XTM Hub, and the news feed of the platform lists both.
+  let overflowUrl: string | null = NEWS_FEED_PATH;
+  let isOverflowExternal = false;
+  let overflowMessage = t('(+{count}) Click to view all the new items', { count: String(hiddenCount) });
+  let overflowLinkLabel = t('View all');
+  if (isOnlyBlogPostHidden) {
+    overflowUrl = buildNewsFeedBlogSeeAllUrl(settings.xtm_hub_url);
+    isOverflowExternal = true;
+    overflowMessage = t('(+{count}) Click to view all the new blogposts', { count: String(hiddenCount) });
+    overflowLinkLabel = t('See all');
+  } else if (isOnlyResourceHidden) {
+    overflowUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
+    isOverflowExternal = true;
+    overflowMessage = t('(+{count}) Click to view all the new resources on the Hub', { count: String(hiddenCount) });
+    overflowLinkLabel = t('View all on XTM Hub');
+  }
 
   // The live region stays mounted, empty, so that the toasts inserted in it are announced.
   return (
@@ -125,7 +146,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
         {toasts.slice(0, MAX_VISIBLE_TOASTS).map(toast => (
           <NewsFeedToastItem key={toast.news_feed_item_id} item={toast} />
         ))}
-        {hiddenCount > 0 && hubLibraryUrl && (
+        {hiddenCount > 0 && overflowUrl && (
           <div style={card}>
             <Text
               variant="content-compact-bold"
@@ -135,7 +156,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
                 color: theme.palette.primary.main,
               }}
             >
-              {t('(+{count}) Click to view all the new resources on the Hub', { count: hiddenCount })}
+              {overflowMessage}
             </Text>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -143,13 +164,15 @@ const NewsFeedToastManager: FunctionComponent = () => {
                   asChild
                   priority="tertiary"
                   size="sm"
-                  aria-label={t('View all on XTM Hub')}
-                  icon={<OpenInNewOutlined fontSize="small" />}
+                  aria-label={overflowLinkLabel}
+                  icon={isOverflowExternal ? <OpenInNewOutlined fontSize="small" /> : <ArrowForward fontSize="small" />}
                 >
-                  <a href={hubLibraryUrl} target="_blank" rel="noopener noreferrer" />
+                  {isOverflowExternal
+                    ? <a href={overflowUrl} target="_blank" rel="noopener noreferrer" />
+                    : <Link to={overflowUrl} />}
                 </IconButton>
               </TooltipTrigger>
-              <TooltipContent>{t('View all on XTM Hub')}</TooltipContent>
+              <TooltipContent>{overflowLinkLabel}</TooltipContent>
             </Tooltip>
           </div>
         )}

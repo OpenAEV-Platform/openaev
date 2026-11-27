@@ -12,7 +12,8 @@ To see the Collectors you can deploy, open **Integrations** and the **Available*
 These Collectors connect to SIEM (Security Information and Event Management), XDR (Extended Detection and Response), EDR (Endpoint Detection and Response) and NDR (Network Detection and Response) tools. They fill the detection and prevention expectations of Injects.
 If no matching data is found before the expectation expires (6 hours by default), the Inject is marked as not detected or not prevented.
 {% if feature_visible("LOGGING_EXPECTATION") %}
-Some SIEM Collectors also fill Logging Expectations (see [Logging with SIEM](#logging-with-siem)).
+Some SIEM and EDR Collectors also fill Logging Expectations (see [Logging with SIEM](#logging-with-siem) and
+[Logging with EDR](#logging-with-edr)).
 {% endif %}
 
 #### Detection & prevention with EDR
@@ -39,6 +40,26 @@ Expectation first.
 
 The [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector does this
 when Logging is enabled in its configuration.
+
+#### Logging with EDR
+
+An EDR also keeps the raw events its agent records on each endpoint (processes, files, network connections), whether
+or not they raise an alert. An EDR Collector can search them to fill Logging Expectations, the same way as a SIEM
+Collector: it looks for the parent process name or the IP addresses of the attack, inside the time window of the
+Inject.
+
+The [SentinelOne](https://github.com/OpenAEV-Platform/collectors/tree/main/sentinelone) Collector does this when
+Logging and Deep Visibility search are enabled in its configuration. It searches Event Search (SDL) on SaaS consoles,
+and Deep Visibility on self-hosted consoles. Its API token needs access to Deep Visibility (Event Search).
+
+!!! note
+
+    The parent process name identifies the Inject itself, so a match on it is the strongest evidence. An IP address
+    only identifies a host, which also records its own unrelated traffic: an IP match alone is weaker evidence. The
+    trace of each Logging Expectation shows which of the two matched.
+
+    On self-hosted consoles, Deep Visibility support is best effort: SentinelOne removes this API on 2027-02-15.
+
 {% endif %}
 
 ### Threat intelligence

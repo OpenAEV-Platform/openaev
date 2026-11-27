@@ -12,9 +12,13 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -70,6 +74,21 @@ public class NewsFeedItem implements Base, UserScoped {
   @Column(name = "news_feed_item_url_path")
   @JsonProperty("news_feed_item_url_path")
   private String urlPath;
+
+  /**
+   * The details XTM Hub sends with the item (description, image, authors...), as flat key/value
+   * pairs, replaced in full when the item changes. Not serialized: the event published for each row
+   * would load it one row at a time, and the outputs map it themselves.
+   */
+  @ElementCollection
+  @CollectionTable(
+      name = "news_feed_items_metadata",
+      joinColumns = @JoinColumn(name = "news_feed_item_id"))
+  @MapKeyColumn(name = "news_feed_item_metadata_key")
+  @Column(name = "news_feed_item_metadata_value")
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  private Map<String, String> metadata = new HashMap<>();
 
   @Column(name = "news_feed_item_creation_date")
   @JsonProperty("news_feed_item_creation_date")

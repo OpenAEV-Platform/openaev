@@ -39,13 +39,14 @@ public class OpenCTIInjectorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
+      String tenantId,
       InjectorService injectorService,
       OpenCTIContract openCTIContract,
       InjectorContext injectorContext,
       OpenCTIService openCTIService,
       InjectExpectationService injectExpectationService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder) {
-    super(componentRequestEngine, connectorInstance, connectorInstanceService);
+    super(componentRequestEngine, connectorInstance, connectorInstanceService, tenantId);
     this.injectorService = injectorService;
     this.openCTIContract = openCTIContract;
     this.openCTIService = openCTIService;

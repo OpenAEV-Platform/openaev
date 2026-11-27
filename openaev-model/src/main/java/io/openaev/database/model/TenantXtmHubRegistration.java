@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.xtmhub.XtmHubCommercialModel;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
@@ -61,6 +63,13 @@ public class TenantXtmHubRegistration implements TenantBase {
   @Column(name = "registration_commercial_model")
   @JsonProperty("registration_commercial_model")
   private XtmHubCommercialModel commercialModel;
+
+  // The news feed types XTM Hub provisions, as it sent them: stored raw so a type this version does
+  // not know yet is kept for the next one.
+  @Type(StringArrayType.class)
+  @Column(name = "registration_available_news_feed_types", columnDefinition = "text[]")
+  @JsonProperty("registration_available_news_feed_types")
+  private String[] availableNewsFeedTypes = new String[0];
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

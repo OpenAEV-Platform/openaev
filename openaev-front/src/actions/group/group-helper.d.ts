@@ -1,3 +1,3 @@
-import { type Group } from '../../utils/api-types';
+import { type TenantGroupOutput } from '../../utils/api-types';
 
-export interface GroupHelper { getGroup: (groupId: string) => Group }
+export interface GroupHelper { getGroup: (groupId: string) => TenantGroupOutput }

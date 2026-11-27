@@ -1,4 +1,5 @@
 import { Button, CardBanner } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -27,6 +28,7 @@ interface Props {
 }
 
 const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalogState, onDelete }) => {
+  const theme = useTheme();
   const { t, nsd, fsd } = useFormatter();
   const navigate = useNavigate();
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => helper.getDomains());
@@ -102,7 +104,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, newerVersion, catalo
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
+            gap: theme.spacing(0.5),
           }}
           >
             {catalog && canLaunch && (

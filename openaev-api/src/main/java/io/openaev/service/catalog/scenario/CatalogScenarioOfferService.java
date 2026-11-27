@@ -2,6 +2,7 @@ package io.openaev.service.catalog.scenario;
 
 import static io.openaev.database.specification.CatalogItemSpecification.scenarioInstalled;
 import static io.openaev.database.specification.CatalogItemSpecification.scenarioNotInstalled;
+import static io.openaev.database.specification.CatalogItemSpecification.scenarioTypeIn;
 import static io.openaev.database.specification.CatalogItemSpecification.scenarioUpdateAvailable;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -154,7 +155,10 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
     Map<String, Specification<CatalogItem>> installation = new LinkedHashMap<>();
     installation.put(INSTALLED, scenarioInstalled(tenantId));
     installation.put(NOT_INSTALLED, scenarioNotInstalled(tenantId));
-    installation.put(UPDATE_AVAILABLE, scenarioUpdateAvailable(tenantId));
+    installation.put(
+        UPDATE_AVAILABLE,
+        scenarioUpdateAvailable(tenantId)
+            .and(scenarioTypeIn(CatalogScenarioType.updatableNames())));
     return List.of(
         new CatalogFacet.Condition(CatalogFacet.INSTALLATION_KEY, installation),
         new CatalogFacet.Grouped(CatalogFacet.SCENARIO_TYPE_KEY),

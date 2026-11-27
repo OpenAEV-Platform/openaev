@@ -17,7 +17,7 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { GROUP_BASE_URL, ROLE_BASE_URL } from '../../../../constants/BaseUrls';
-import { type CapabilityOutput, type Group, type PlatformGroupOutput, type RoleOutput } from '../../../../utils/api-types';
+import { type CapabilityOutput, type PlatformGroupOutput, type RoleOutput, type TenantGroupOutput } from '../../../../utils/api-types';
 import useCapabilities from '../../../../utils/hooks/useCapabilities';
 import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -81,7 +81,7 @@ const RoleDetail = () => {
   const [role, setRole] = useState<RoleOutput | null>(null);
   const [platformRole, setPlatformRole] = useState<RoleOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<TenantGroupOutput[]>([]);
   const [platformGroupsUsingRole, setPlatformGroupsUsingRole] = useState<PlatformGroupOutput[]>([]);
 
   useEffect(() => {
@@ -111,7 +111,7 @@ const RoleDetail = () => {
       fetchRoleById(roleId)
         .then(response => setRole(response.data as RoleOutput))
         .catch(() => setNotFound(true));
-      fetchAllGroups().then(response => setGroups((response.data?.content ?? []) as Group[]));
+      fetchAllGroups().then(response => setGroups((response.data?.content ?? []) as TenantGroupOutput[]));
     }
   }, [roleId, isPlatform]);
 

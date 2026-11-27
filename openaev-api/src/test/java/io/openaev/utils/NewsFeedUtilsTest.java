@@ -47,6 +47,23 @@ class NewsFeedUtilsTest {
   }
 
   @Nested
+  @DisplayName("fromHubValues")
+  class FromHubValues {
+
+    @Test
+    @DisplayName("Given Hub values, should keep the known types once, in the order sent")
+    void given_hubValues_should_keepKnownTypesOnceInOrder() {
+      // Act
+      List<NewsFeedType> types =
+          NewsFeedUtils.fromHubValues(
+              List.of("BLOG_POST", "RESOURCE_PLAYBOOK", "RESOURCE_SCENARIO", "BLOG_POST"));
+
+      // Assert
+      assertThat(types).containsExactly(NewsFeedType.BLOG_POST, NewsFeedType.RESOURCE_SCENARIO);
+    }
+  }
+
+  @Nested
   @DisplayName("isUnsubscribed")
   class IsUnsubscribed {
 
@@ -109,10 +126,11 @@ class NewsFeedUtilsTest {
     }
 
     @Test
-    @DisplayName("Given the type unsubscribed, should not subscribe to it")
+    @DisplayName("Given the type unsubscribed, should not subscribe to it but to the others")
     void given_typeUnsubscribed_should_notSubscribeToIt() {
       // Act & Assert
-      assertThat(NewsFeedUtils.subscribedTypes(new String[] {"RESOURCE_SCENARIO"})).isEmpty();
+      assertThat(NewsFeedUtils.subscribedTypes(new String[] {"RESOURCE_SCENARIO"}))
+          .containsExactly(NewsFeedType.BLOG_POST);
     }
 
     @Test

@@ -1,5 +1,6 @@
 import { type APIRequestContext } from '@playwright/test';
 
+import { type InjectInput, type InjectOutput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
 
 class ScenarioApiHelpers {
@@ -24,6 +25,15 @@ class ScenarioApiHelpers {
         scenario_message_footer: 'SIMULATION FOOTER',
       },
     });
+    return response.json();
+  }
+
+  async createInject(scenarioId: string, input: InjectInput): Promise<InjectOutput> {
+    const uri = `${this.scenarioUri}/${scenarioId}/injects`;
+    const response = await this.request.post(uri, { data: input });
+    if (!response.ok()) {
+      throw new Error(`Failed to create inject (POST ${uri}): ${response.status()} ${response.statusText()} - ${await response.text()}`);
+    }
     return response.json();
   }
 
