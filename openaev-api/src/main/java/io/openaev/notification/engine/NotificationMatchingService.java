@@ -34,9 +34,9 @@ public class NotificationMatchingService {
   private final EntityManager entityManager;
 
   /**
-   * Returns true when the trigger matches the given entity. Background callers must carry both
-   * scopes for the trigger tenant: {@code TenantContext} for v1-filtered reads and {@code TxCtx}
-   * for v2-active table reads.
+   * Returns true when the trigger matches the given entity. Background callers run it in a
+   * transaction scoped to the trigger tenant ({@code TxCtx}), which scopes the reads of the
+   * tenant-active tables.
    */
   @Transactional(readOnly = true)
   public boolean matches(

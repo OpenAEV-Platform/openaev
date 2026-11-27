@@ -1,6 +1,5 @@
 package io.openaev.scheduler;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import jakarta.validation.constraints.NotNull;
@@ -9,19 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Runs background work under BOTH tenant scopes of the platform: the v2 primitive (transaction GUC,
- * read by the inspector for activated tables such as collectors) and the v1 thread-local {@link
- * TenantContext}, which {@code TenantBaseListener} stamps on new rows and tenant-keyed lookups
- * read.
- *
- * <p>The v1 bridge is not optional: {@link TenantContext#getCurrentTenant()} falls back to the
- * DEFAULT tenant when the thread-local is unset, so without this a write the listener stamps lands
- * in the default tenant. It stays invisible in single-tenant deployments, where that fallback
- * happens to be the right tenant.
- *
- * <p>Callers may run on the shared {@code ForkJoinPool.commonPool} (nested {@code parallelStream}),
- * which also borrows the calling thread: restore the previous value instead of clearing, so the
- * scope of whatever else runs on that thread survives.
+ * Runs background work inside a transaction scoped to one tenant, the v2 primitive: the statement
+ * inspector reads its scope, and every write of that work names its tenant from the row it belongs
+ * to.
  */
 @Component
 @RequiredArgsConstructor
@@ -30,48 +19,22 @@ public class TenantScopedJobRunner {
   private final TenantScopedTransaction tenantTx;
 
   public void runInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      tenantTx.execute(TxCtx.forTenant(tenantId), work);
-    } finally {
-      if (previousTenant == null) {
-        TenantContext.clearCurrentTenant();
-      } else {
-        TenantContext.setCurrentTenant(previousTenant);
-      }
-    }
+    tenantTx.execute(TxCtx.forTenant(tenantId), work);
   }
 
   /**
    * Same as {@link #runInTenant} for work that returns a value: opens one tenant-scoped transaction
-   * and returns what {@code work} produces. Used where the scoped unit must hand a result back to
-   * the caller (a background read that must run under the v2 primitive, e.g. a JOIN FETCH on an
-   * active table, or a scoped write returning the persisted row). Kept as its own method (not the
-   * body of {@link #runInTenant}) so {@code runInTenant} keeps calling the {@code Runnable}
-   * overload of the primitive directly.
+   * and returns what {@code work} produces, for a scoped unit that hands a result back to the
+   * caller (a background read under the v2 primitive, or a scoped write returning the persisted
+   * row).
    */
   public <T> T supplyInTenant(@NotNull final String tenantId, @NotNull final Supplier<T> work) {
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
-    } finally {
-      if (previousTenant == null) {
-        TenantContext.clearCurrentTenant();
-      } else {
-        TenantContext.setCurrentTenant(previousTenant);
-      }
-    }
+    return tenantTx.execute(TxCtx.forTenant(tenantId), work);
   }
 
   /**
    * Cross-tenant read for the engine loaders (schedule, notification): opens the primitive under
-   * {@link TxCtx#allTenants()}. No v1 {@link TenantContext} bridge here, unlike {@link
-   * #supplyInTenant}: {@code allTenants()} has no single tenant to bridge to, and callers that join
-   * still-v1 tables disable the v1 filter themselves.
+   * {@link TxCtx#allTenants()}.
    */
   public <T> T supplyAcrossTenants(@NotNull final Supplier<T> work) {
     return tenantTx.execute(TxCtx.allTenants(), work);
@@ -88,9 +51,6 @@ public class TenantScopedJobRunner {
    * whose select finds nothing and Hibernate rejects the entity outright ({@code
    * StaleObjectStateException}), failing the caller's whole unit of work. And a status written in a
    * separate transaction would outlive a caller rollback that also removes the row it describes.
-   *
-   * <p>No v1 {@link TenantContext} bridge: the caller thread's ambient tenant is already whatever
-   * it should be, and swapping it here would leak into the caller's remaining work.
    */
   public void runInCurrentTenantTransaction(
       @NotNull final String tenantId, @NotNull final Runnable work) {

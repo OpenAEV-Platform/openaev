@@ -616,13 +616,8 @@ class StepEventServiceTest {
   @Nested
   class TenantPropagation {
 
-    // The chaining worker carries no tenant; the fix restores it from the event on BOTH mechanisms:
-    // the MT v2 primitive (GUC, tenant-active writes) and the v1 TenantContext (@Filter reads).
-    // These
-    // pin the propagation: the consumer MUST open the scope under the event's tenant (and the
-    // default
-    // when absent), and must clear TenantContext after, so a regression that drops either is
-    // caught.
+    // The chaining worker carries no tenant: the consumer opens the transaction scope under the
+    // event's tenant (the default one when absent) and sets no thread-local tenant.
 
     @Test
     void handleReadyStepEvent_opensTheScopeUnderTheEventTenant() {
@@ -635,17 +630,15 @@ class StepEventServiceTest {
     }
 
     @Test
-    void handleReadyStepEvent_scopesV1TenantContextDuringWork_andClearsAfter() {
+    void given_readyEvent_should_setNoThreadLocalTenantDuringTheWork() {
+      // Arrange
       StepEvent event =
           StepEvent.builder().stepId(UUID.randomUUID().toString()).tenantId("tenant-B").build();
-      // Capture the v1 @Filter scope (TenantContext) visible while the primitive's work runs: the
-      // v1
-      // entities the run reads (injector contract, endpoints, assets) resolve through it, not the
-      // GUC.
-      AtomicReference<String> seenDuringWork = new AtomicReference<>();
+      TenantContext.clearCurrentTenant();
+      AtomicReference<Boolean> threadLocalDuringWork = new AtomicReference<>();
       doAnswer(
               invocation -> {
-                seenDuringWork.set(TenantContext.getCurrentTenant());
+                threadLocalDuringWork.set(TenantContext.hasCurrentTenant());
                 Runnable work = invocation.getArgument(1);
                 work.run();
                 return null;
@@ -653,9 +646,12 @@ class StepEventServiceTest {
           .when(tenantTx)
           .execute(any(TxCtx.class), any(Runnable.class));
 
+      // Act
       stepEventService.handleReadyStepEvent(event);
 
-      assertEquals("tenant-B", seenDuringWork.get());
+      // Assert
+      verify(tenantTx).execute(eq(TxCtx.forTenant("tenant-B")), any(Runnable.class));
+      assertFalse(threadLocalDuringWork.get(), "the transaction scope carries the tenant");
       assertFalse(TenantContext.hasCurrentTenant(), "TenantContext must not leak past the event");
     }
 

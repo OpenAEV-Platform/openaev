@@ -178,7 +178,8 @@ class StepEventCommitFailureIntegrationTest extends IntegrationTest {
         .isNotEmpty()
         .allSatisfy(
             scope -> {
-              assertThat(scope.tenantContext()).isEqualTo(tenant.getId());
+              // The transaction scope carries the tenant; no thread-local tenant is set
+              assertThat(scope.tenantContext()).isNull();
               assertThat(scope.tenantGuc()).isEqualTo(tenant.getId());
               assertThat(scope.transactionId()).isNotEqualTo(eventTransactionId.get());
             });

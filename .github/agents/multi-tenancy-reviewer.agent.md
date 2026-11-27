@@ -36,8 +36,10 @@ Steps whose order or severity matters (rules in `multi-tenancy.instructions.md`)
   a table is in `active-tables` changes what "correct" looks like and what severity a gap
   gets. Do not apply the explicit `WHERE tenant_id` checklist to an active table, or the
   `TxCtx` checklist to an inactive one: each produces false positives on the other's table.
-- **Step 5 (background contexts)**: [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes). Flag the *absence* of the ambient tenant as 🔴 CRITICAL,
-  never its presence, unless every removal condition of that section holds. A cross-tenant read through
+- **Step 5 (background contexts)**: [Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope). Flag as 🔴 CRITICAL a background unit
+  that reads tenant rows with no transaction scope or writes a row that names no tenant, and as 🟠 HIGH
+  a write of a row with no tenant column under a scope of several tenants (its events carry the default
+  tenant). A cross-tenant read through
   `session.disableFilter("tenantFilter")` → ask for the primitive with an explicit scope. A line added to
   `v1-tenant-construct-baseline.txt` → 🟠 HIGH.
 - **Step 3 (native queries)**: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 2 and 8 — look at what the join is *keyed on*; an unwaived join on a
@@ -72,9 +74,9 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | 🟠 **HIGH** | Dual-scope entity with one service, or unscoped `findAll()` / `findById()`: [Dual-Scope Pattern](../instructions/multi-tenancy.instructions.md#dual-scope-pattern) | `issue (blocking):` — cross-scope data leak risk |
 | 🟠 **HIGH** | Tenant-scoped endpoint also on `/api/...`: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 9 | `issue (blocking):` — ambiguous write for a user in several tenants |
 | 🟡 **MEDIUM** | Service calling `TenantContext` directly: [code-review › Multi-Tenancy](../instructions/code-review.instructions.md#multi-tenancy) | `suggestion (blocking):` — hidden coupling, breaks testability and async safety |
-| 🔴 **CRITICAL** | Background job / queue consumer / async task reading tenant rows with no tenant scope, or writing rows that name no tenant without `TenantScopedJobRunner` ([multi-tenancy › Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes)) | `issue (blocking):` — reads silently come back empty, writes land in the default tenant |
-| 🟡 **MEDIUM** | Background job still setting the ambient tenant when every removal condition of [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes) holds | `suggestion (non-blocking):` — dead v1 call; a false positive reintroduces the DEFAULT_TENANT_UUID attribution bug |
-| 🟠 **HIGH** | Ambient tenant set on a pooled thread without a `finally` restore: [Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes) | `issue (blocking):` — leaks the scope into the next task on that thread |
+| 🔴 **CRITICAL** | Background job / queue consumer / async task reading tenant rows with no tenant scope, or writing rows that name no tenant (`TenantScopedJobRunner` sets the transaction scope only) ([multi-tenancy › Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope)) | `issue (blocking):` reads silently come back empty, writes land in the default tenant |
+| 🟡 **MEDIUM** | A baseline site setting the ambient tenant in background code whose rows all name their tenant and whose readers all take a `TxCtx` ([Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope)) | `suggestion (non-blocking):` remove the site and its baseline line |
+| 🟠 **HIGH** | Ambient tenant set on a pooled thread without a `finally` restore: [Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope) | `issue (blocking):` leaks the scope into the next task on that thread |
 | 🟡 **MEDIUM** | Cache key without the tenant: [Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules) 11 | `suggestion (non-blocking):` — cross-tenant cache poisoning risk |
 | 🟢 **LOW** | Entity could be tenant-scoped but isn't yet (tech debt tracking) | `note:` — informational |
 

@@ -210,10 +210,17 @@ class ExerciseScenarioCreateTenantAttributionTest extends IntegrationTest {
       // Arrange
       String exerciseId = seedExercise(tenantA);
 
-      // Act
-      Exercise duplicate =
-          tenantScopedJobRunner.supplyInTenant(
-              tenantA, () -> exerciseService.getDuplicateExercise(exerciseId));
+      // Act: the duplicate is reached from the tenant route only, whose request sets the
+      // thread-local tenant the simulation lookup reads
+      Exercise duplicate;
+      TenantContext.setCurrentTenant(tenantA);
+      try {
+        duplicate =
+            tenantScopedJobRunner.supplyInTenant(
+                tenantA, () -> exerciseService.getDuplicateExercise(exerciseId));
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
 
       // Assert
       assertThat(duplicate.getId()).isNotEqualTo(exerciseId);

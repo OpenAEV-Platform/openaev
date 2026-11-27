@@ -56,19 +56,17 @@ import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * Scheduled inject execution must carry the inject's tenant in BOTH scopes: the v2 primitive and
- * the v1 thread-local {@link TenantContext}, which the listener and tenant-keyed lookups read.
+ * Scheduled inject execution runs in a transaction scoped to the inject's tenant and sets no
+ * thread-local {@link TenantContext}: every tenant table is read under that scope.
  *
- * <p>Regression: only the primitive was set, so {@link TenantContext#getCurrentTenant()} fell back
- * to the DEFAULT tenant on the executor thread. Everything the execution resolves through a
- * Criteria query - asset groups, endpoints, agents - therefore came from the default tenant, and a
- * customer simulation created its expectations against another tenant's endpoints while its own
- * targets got none. Invisible in single-tenant deployments, where the fallback is the right tenant:
- * these assertions are the guard, since a unit test can name the tenant the default is not.
+ * <p>The guard: an execution run in the default tenant resolves the default tenant's asset groups,
+ * endpoints and agents, and creates a customer simulation's expectations against them.
+ * Single-tenant deployments never see it, the default being the right tenant there: a unit test
+ * names a tenant the default is not.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("Scheduled inject execution runs under the inject's tenant (v1 + v2 scopes)")
+@DisplayName("Scheduled inject execution runs under the inject's tenant")
 class InjectsExecutionJobTenantScopeTest {
 
   private static final String INJECT_TENANT = "11111111-2222-3333-4444-555555555555";
@@ -94,10 +92,15 @@ class InjectsExecutionJobTenantScopeTest {
   /** The scope the v2 primitive was opened with. */
   private final AtomicReference<TxCtx> primitiveScope = new AtomicReference<>();
 
+  // The sweep runs injects on parallel workers: each reads the scope its own thread opened.
+  private final ThreadLocal<TxCtx> scopeOfThisThread = new ThreadLocal<>();
+
   private final AtomicReference<String> tenantDuringFailStatus = new AtomicReference<>();
 
   @BeforeEach
   void setUp() throws Exception {
+    // A Quartz worker starts with no thread-local tenant; the test harness leaves the default one.
+    TenantContext.clearCurrentTenant();
     ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
 
     // The scoping is what this suite asserts, so the runner is the real one over the mocked
@@ -139,6 +142,7 @@ class InjectsExecutionJobTenantScopeTest {
     doAnswer(
             invocation -> {
               primitiveScope.set(invocation.getArgument(0));
+              scopeOfThisThread.set(invocation.getArgument(0));
               invocation.getArgument(1, Runnable.class).run();
               return null;
             })
@@ -147,6 +151,7 @@ class InjectsExecutionJobTenantScopeTest {
     doAnswer(
             invocation -> {
               primitiveScope.set(invocation.getArgument(0));
+              scopeOfThisThread.set(invocation.getArgument(0));
               Supplier<?> work = invocation.getArgument(1);
               return work.get();
             })
@@ -156,16 +161,27 @@ class InjectsExecutionJobTenantScopeTest {
     when(executor.executePhase1(any(ExecutableInject.class)))
         .thenAnswer(
             invocation -> {
-              tenantDuringExecution.set(TenantContext.getCurrentTenant());
+              tenantDuringExecution.set(tenantOfTheWork());
               return Executor.ExecutionPhase1Result.completed(null);
             });
     doAnswer(
             invocation -> {
-              tenantDuringFailStatus.set(TenantContext.getCurrentTenant());
+              tenantDuringFailStatus.set(tenantOfTheWork());
               return null;
             })
         .when(injectStatusService)
         .persistErrorStatusInTransaction(anyString(), anyString());
+  }
+
+  /**
+   * The tenant the work runs in: the scope of the transaction it runs in, when no thread-local
+   * tenant is set.
+   */
+  private String tenantOfTheWork() {
+    if (TenantContext.hasCurrentTenant()) {
+      return "thread-local " + TenantContext.getCurrentTenant();
+    }
+    return scopeOfThisThread.get() == null ? null : scopeOfThisThread.get().toGuc();
   }
 
   @AfterEach
@@ -217,7 +233,7 @@ class InjectsExecutionJobTenantScopeTest {
   }
 
   @Test
-  @DisplayName("the v1 tenant filter scope is the inject's tenant, never the default fallback")
+  @DisplayName("the execution runs in the inject's tenant, never the default fallback")
   void executionRunsUnderTheInjectTenant() throws Exception {
     job.execute(null);
 
@@ -302,6 +318,7 @@ class InjectsExecutionJobTenantScopeTest {
     doAnswer(
             invocation -> {
               primitiveScope.set(invocation.getArgument(0));
+              scopeOfThisThread.set(invocation.getArgument(0));
               invocation.getArgument(1, Runnable.class).run();
               if (transactions.incrementAndGet() == 1) {
                 throw new IllegalStateException(
@@ -314,6 +331,7 @@ class InjectsExecutionJobTenantScopeTest {
     doAnswer(
             invocation -> {
               primitiveScope.set(invocation.getArgument(0));
+              scopeOfThisThread.set(invocation.getArgument(0));
               Object result = invocation.<Supplier<?>>getArgument(1).get();
               if (transactions.incrementAndGet() == 1) {
                 throw new IllegalStateException(
@@ -367,7 +385,7 @@ class InjectsExecutionJobTenantScopeTest {
             invocation -> {
               ExecutableInject arg = invocation.getArgument(0);
               String injectId = arg.getInjection().getInject().getId();
-              tenantSeenPerInject.put(injectId, TenantContext.getCurrentTenant());
+              tenantSeenPerInject.put(injectId, tenantOfTheWork());
               return Executor.ExecutionPhase1Result.completed(null);
             });
 
@@ -422,7 +440,7 @@ class InjectsExecutionJobTenantScopeTest {
 
   @Test
   @DisplayName(
-      "recording a published inject's outcome runs under the inject's tenant, in both scopes")
+      "recording a published inject's outcome runs under the inject's tenant, in its transaction scope")
   void given_nonDefaultTenant_should_recordPublishSuccessUnderItsScopes() throws Exception {
     // Arrange
     Executor.ExternalPublish pending =
@@ -433,7 +451,7 @@ class InjectsExecutionJobTenantScopeTest {
     AtomicReference<String> primitiveGuc = new AtomicReference<>();
     doAnswer(
             invocation -> {
-              ambientTenant.set(TenantContext.getCurrentTenant());
+              ambientTenant.set(tenantOfTheWork());
               primitiveGuc.set(primitiveScope.get().toGuc());
               return null;
             })
@@ -449,7 +467,8 @@ class InjectsExecutionJobTenantScopeTest {
   }
 
   @Test
-  @DisplayName("recording a failed publish runs under the inject's tenant, in both scopes")
+  @DisplayName(
+      "recording a failed publish runs under the inject's tenant, in its transaction scope")
   void given_nonDefaultTenant_should_recordPublishFailureUnderItsScopes() throws Exception {
     // Arrange
     Executor.ExternalPublish pending =
@@ -461,7 +480,7 @@ class InjectsExecutionJobTenantScopeTest {
     AtomicReference<String> primitiveGuc = new AtomicReference<>();
     doAnswer(
             invocation -> {
-              ambientTenant.set(TenantContext.getCurrentTenant());
+              ambientTenant.set(tenantOfTheWork());
               primitiveGuc.set(primitiveScope.get().toGuc());
               return null;
             })
