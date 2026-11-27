@@ -1941,7 +1941,7 @@
                     },
                     "NMAP_SCAN_TIMEOUT": {
                         "default": null,
-                        "description": "Hard ceiling in seconds for a whole Nmap run. When exceeded, nmap is terminated, the hosts it finished are reported, the others are marked not scanned (scan time limit reached) and the inject ends WARNING (ERROR when no host was scanned). Unset (default): derived from the platform's inject execution threshold (runtime setting inject_execution_threshold_minutes) minus 60 s, or 540 s when the platform does not expose it. An inject may set its own ceiling with the scan_timeout_seconds field. Any ceiling is capped below the platform threshold, past which the platform no longer accepts the results.",
+                        "description": "Hard ceiling in seconds for a whole Nmap run, greater than 0 when set. When exceeded, nmap is terminated, the hosts it finished are reported, the others are marked not scanned (scan time limit reached) and the inject ends WARNING (ERROR when no host was scanned). Unset (default): derived from the platform's inject execution threshold (runtime setting inject_execution_threshold_minutes) minus 60 s, or 540 s when the platform does not expose it. An inject may set its own ceiling with the scan_timeout_seconds field. Any ceiling is capped below the platform threshold, past which the platform no longer accepts the results.",
                         "exclusiveMinimum": 0,
                         "type": "integer"
                     }

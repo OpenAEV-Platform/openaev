@@ -55,6 +55,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1150,13 +1151,14 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
                   .with(csrf()))
           // Assert
           .andExpect(status().is2xxSuccessful());
-      assertTrue(
+      assertEquals(
+          Map.of(nmapKeys.get(0), "3600", nmapKeys.get(1), "600", nmapKeys.get(2), "3"),
           connectorInstanceConfigurationRepository
               .findByConnectorInstanceId(connectorInstance.getId())
               .stream()
-              .map(ConnectorInstanceConfiguration::getKey)
-              .toList()
-              .containsAll(nmapKeys));
+              .collect(
+                  Collectors.toMap(
+                      ConnectorInstanceConfiguration::getKey, c -> c.getValue().asText())));
     }
 
     @ParameterizedTest

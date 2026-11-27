@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class CatalogConnectorFixture {
@@ -102,7 +103,9 @@ public class CatalogConnectorFixture {
   public static JsonNode getShippedCatalogContract(String slug) throws IOException {
     try (InputStream catalog =
         CatalogConnectorFixture.class.getResourceAsStream(
-            CatalogConnectorIngestionRunner.resourcePath)) {
+            CatalogConnectorIngestionRunner.RESOURCE_PATH)) {
+      Objects.requireNonNull(
+          catalog, CatalogConnectorIngestionRunner.RESOURCE_PATH + " not found on the classpath");
       for (JsonNode contract : new ObjectMapper().readTree(catalog).path("contracts")) {
         if (slug.equals(contract.path("slug").asText())) {
           return contract;
