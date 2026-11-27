@@ -1,16 +1,15 @@
-import { FormControlLabel, Switch } from '@mui/material';
+import { Switch } from '@filigran/design-system';
 import type React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 interface Props {
   label: React.ReactNode;
   name: string;
-  size?: 'small' | 'medium';
   required?: boolean;
   disabled?: boolean;
 }
 
-const SwitchFieldController = ({ name, label, size = 'medium', required = false, disabled = false }: Props) => {
+const SwitchFieldController = ({ name, label, required = false, disabled = false }: Props) => {
   const { control } = useFormContext();
 
   return (
@@ -18,8 +17,14 @@ const SwitchFieldController = ({ name, label, size = 'medium', required = false,
       name={name}
       control={control}
       render={({ field }) => (
-        <FormControlLabel
-          control={<Switch {...field} size={size} checked={!!field?.value} disabled={disabled} required={required} />}
+        <Switch
+          ref={field.ref}
+          name={field.name}
+          onBlur={field.onBlur}
+          checked={!!field?.value}
+          onCheckedChange={checked => field.onChange(checked === true)}
+          disabled={disabled}
+          required={required}
           label={label}
         />
       )}

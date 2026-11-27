@@ -1,7 +1,7 @@
-import { Button } from '@filigran/design-system';
+import { Button, Switch } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FormControlLabel, Stack, Switch } from '@mui/material';
-import { type ChangeEvent, type FunctionComponent, useState } from 'react';
+import { Stack } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -100,22 +100,24 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
     ),
   });
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
+  const handleChange = (nextChecked: boolean) => {
+    if (nextChecked) {
       reset(defaultFormValues());
     }
-    setChecked(event.target.checked);
+    setChecked(nextChecked);
   };
 
   return (
     <form id="exerciseDateForm" onSubmit={handleSubmit(submit)}>
       {/* The switch is one of the fields, not a caption above them: same 16px
           between it and the date as between the date and the time. */}
-      <FormControlLabel
-        control={<Switch onChange={handleChange} checked={checked} />}
-        label={t('Manual launch')}
-        sx={{ marginBottom: 2 }}
-      />
+      <div style={{ marginBottom: 16 }}>
+        <Switch
+          checked={checked}
+          onCheckedChange={next => handleChange(next === true)}
+          label={t('Manual launch')}
+        />
+      </div>
 
       <Stack spacing={{ xs: 2 }}>
         <DateField

@@ -1,7 +1,7 @@
-import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -441,20 +441,18 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     control={control}
                     name="onlyWeekday"
                     render={({ field }) => (
-                      <FormControlLabel
-                        sx={{
-                          // The default label margins would shrink its column.
-                          marginInline: 0,
-                          height: 36,
-                        }}
-                        control={(
-                          <Switch
-                            checked={field.value}
-                            onChange={field.onChange}
-                          />
-                        )}
-                        label={t('Only weekday')}
-                      />
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: 36,
+                      }}
+                      >
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={checked => field.onChange(checked === true)}
+                          label={t('Only weekday')}
+                        />
+                      </div>
                     )}
                   />
                 )}

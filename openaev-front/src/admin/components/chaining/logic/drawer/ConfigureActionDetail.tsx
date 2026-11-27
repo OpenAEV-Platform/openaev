@@ -433,7 +433,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                   name="inject_all_teams"
                   label={<strong>{t('All teams')}</strong>}
                   disabled={readOnly || teamFieldEnhanced?.readOnly}
-                  size="small"
                 />
               )}
             >

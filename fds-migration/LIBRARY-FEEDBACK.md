@@ -2610,3 +2610,23 @@ Both held MUI X and, with it, the `LocalizationProvider` the rest of the product
 **Product need.** A pivot to OpenCTI or OpenCRQ shows what the click brings before the click: the counterpart's name, type and key facts, or, when not connected, a teaser with example placeholders. That content is a small card, not a label, and it must open on hover and on focus.
 
 **The request.** A `HoverCard` (or a `Popover` with a hover trigger) that takes structured content and opens on hover and focus, or a ruling that `Tooltip` may carry a short structured card. **Removal condition:** that component ships; the pivot preview then moves to it in one commit.
+
+## 73. `Switch` has no size variant
+
+**Status.** Answered by the library, kept as the design. The single size is by design (Switch RFC, Q1); the grey off thumb in the light theme is the Figma token `feedback-neutral-off`; the focus ring around the track is the library's standard focus ring. The product accepted the single size for the Switch adoption.
+
+**Needed.** The product laid its toggles out on MUI's two sizes: 40x24 (small) in list rows and dense forms, 58x38 (medium) in forms and dialogs.
+
+**Today.** The library `Switch` is a single fixed size, 36x20 (`h-5 w-9`, no `size` prop), measured on the installed build.
+
+**Consequence.** It cannot match MUI's 40x24 small / 58x38 medium layouts, so every adoption is a visual change: the control goes from 58x38 (medium) or 40x24 (small) to 36x20, a labelled form row from 38px to 20px high. The product accepted the single size for this adoption; the `size` prop on `SwitchFieldController` is kept for callers but has no effect.
+
+**Ask.** A `size` prop (at least a 24px-high `sm` for forms and list rows, matching the other controls' `sm`), or a ruling that the single size is the design for every context.
+
+**Other differences seen in the same adoption** (measured before/after in both themes; the product cannot change them without restyling the library control, so they are recorded, not fixed):
+
+- **Label.** The integrated label renders at the library's compact text (12px, 18px line height) with an 8px gap (`gap-2`) to the control; the MUI `FormControlLabel` label was larger and sat further from the track.
+- **Focus.** Keyboard focus draws the library's focus ring around the track; MUI showed a halo around the thumb.
+- **Light theme, off state.** The unchecked thumb is grey; the MUI one was white.
+
+**Ask.** A ruling on each of the three: kept as the design, or aligned in the library.

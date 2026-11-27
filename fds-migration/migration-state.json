@@ -1147,6 +1147,23 @@
       "files": [
         "openaev-front/src/admin/components/scenarios/card/ScenarioCard.tsx"
       ]
+    },
+    {
+      "component": "Switch",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Switch wave 1: form, list-row and dialog toggles. The library Switch has a single size (36x20); the size change was explicitly accepted for this adoption (LIBRARY-FEEDBACK entry 73 asks for a size variant). Labels go in the Switch's own label prop, label-less toggles carry an aria-label.",
+      "files": [
+        "openaev-front/src/components/fields/SwitchFieldController.tsx",
+        "openaev-front/src/admin/components/common/scheduling/SchedulingDialog.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/ExerciseDateForm.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingSchedulesTab.tsx",
+        "openaev-front/src/admin/components/settings/experience/EnterpriseEditionSettings.tsx",
+        "openaev-front/src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/FieldOutputLink.tsx"
+      ]
     }
   ],
   "migratedZones": [

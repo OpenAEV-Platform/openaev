@@ -264,7 +264,6 @@ const InjectContentForm = ({
           name="inject_all_teams"
           label={<strong>{t('All teams')}</strong>}
           disabled={enhancedFieldsMapByType.get('team')?.readOnly || readOnly}
-          size="small"
         />
       ),
       render: () => renderTeams((teamFieldKey && errors[teamFieldKey]?.message as string) || null),

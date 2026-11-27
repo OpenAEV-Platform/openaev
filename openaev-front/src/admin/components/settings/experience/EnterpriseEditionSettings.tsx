@@ -1,4 +1,4 @@
-import { Button, Icon, Text } from '@filigran/design-system';
+import { Button, Icon, Switch, Text } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesomeOutlined,
@@ -8,10 +8,10 @@ import {
   SupportAgentOutlined,
   VpnKeyOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { type ChangeEvent, useState } from 'react';
+import { useState } from 'react';
 
 import { updateChatbotAiCguStatus, updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -53,8 +53,8 @@ const EnterpriseEditionSettings: React.FC = () => {
   const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
   const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
 
-  const handleCGUStatusChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
+  const handleCGUStatusChange = (checked: boolean) => {
+    if (checked) {
       setOpenValidateTermsOfUse(true);
     } else {
       dispatch(updateChatbotAiCguStatus({ status: 'disabled' }));
@@ -175,12 +175,11 @@ const EnterpriseEditionSettings: React.FC = () => {
                         </Button>
                       )
                     : (
-                        <Box sx={{ marginBlock: -0.75 }}>
-                          <Switch
-                            checked={chatbotCguStatus === 'enabled'}
-                            onChange={handleCGUStatusChange}
-                          />
-                        </Box>
+                        <Switch
+                          checked={chatbotCguStatus === 'enabled'}
+                          onCheckedChange={checked => handleCGUStatusChange(checked === true)}
+                          aria-label={t('XTM One (Agentic IA)')}
+                        />
                       )}
                 </ExperienceDetailRow>
               )}
