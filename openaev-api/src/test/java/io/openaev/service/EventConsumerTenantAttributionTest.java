@@ -8,7 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
@@ -94,7 +94,7 @@ import reactor.core.Disposable;
 @WithMockUser(isAdmin = true)
 @Import(EventConsumerTenantAttributionTest.ScopedWriterConfig.class)
 @DisplayName("Event consumers and job runner attribute their work to its tenant")
-class EventConsumerTenantAttributionTest extends ProductionTablesIntegrationTest {
+class EventConsumerTenantAttributionTest extends IntegrationTest {
 
   private static final String CONSUMER_THREAD = "event-consumer-under-test";
 
