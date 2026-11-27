@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TransactionTenantScope;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
@@ -62,12 +63,13 @@ public class BaseEvent implements Cloneable {
   private static final String WRITE_TENANT_ATTRIBUTE = BaseEvent.class.getName() + ".writeTenant";
 
   /**
-   * The tenant the change was made in: the one the request declared with {@link
+   * The tenant the change is made in: the one the request declared with {@link
    * #attributeRequestEventsTo} for the type of the entity, else {@link
-   * TenantContext#getCurrentTenant()} when the event was built. Null when the request declared an
-   * empty scope for the type with {@link #attributeRequestEventsToOneOf}: the change was made in no
-   * tenant. A value that depends on the tenant, such as the organization of a user, is only valid
-   * for the consumers of this tenant.
+   * TenantContext#getCurrentTenant()} when the event is built. Off a request, the one tenant the
+   * scope of the transaction pins comes first ({@link TransactionTenantScope#pinnedTenant()}): the
+   * row is written there. Null when the request declared an empty scope for the type with {@link
+   * #attributeRequestEventsToOneOf}: the change is made in no tenant. A value that depends on the
+   * tenant, such as the organization of a user, is only valid for the consumers of this tenant.
    */
   @JsonIgnore private final String tenantId;
 
@@ -243,7 +245,7 @@ public class BaseEvent implements Cloneable {
   private static String attributedTenantOf(
       RequestAttributes requestAttributes, Base data, String ambientTenant) {
     if (requestAttributes == null) {
-      return ambientTenant;
+      return TransactionTenantScope.pinnedTenant().orElse(ambientTenant);
     }
     Object attributions =
         requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);

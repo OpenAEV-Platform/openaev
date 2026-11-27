@@ -3,11 +3,15 @@ package io.openaev.notification.engine;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.NotificationTriggerEventType;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.stream.StreamVisibility;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -100,6 +104,11 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
 
   @AfterEach
   void sweep() {
+    TenantContext.clearCurrentTenant();
+    jdbc.update("DELETE FROM notifications WHERE tenant_id = ?", tenantId);
+    jdbc.update(
+        "DELETE FROM notification_triggers_notifiers WHERE notification_trigger_id = ?", triggerId);
+    jdbc.update("DELETE FROM notifiers WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM notification_events WHERE notification_trigger_id = ?", triggerId);
     jdbc.update("DELETE FROM notification_triggers WHERE notification_trigger_id = ?", triggerId);
     jdbc.update("DELETE FROM assets WHERE asset_id = ?", endpointId);
@@ -151,5 +160,76 @@ class NotificationLiveTriggerTenantScopeTest extends IntegrationTest {
             triggerId);
     assertEquals(
         0L, records, "the event belongs to another tenant and must not reach this trigger");
+  }
+
+  @Test
+  @DisplayName(
+      "given a trigger dispatched on a thread with no ambient tenant, should record its event and"
+          + " notify its recipient in the trigger's tenant")
+  void given_triggerDispatchedWithNoAmbientTenant_should_recordAndNotifyInItsTenant()
+      throws InterruptedException {
+    // Arrange
+    String notifierId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO notifiers (notifier_id, notifier_name, notifier_type,"
+            + " notifier_configuration, notifier_built_in, tenant_id,"
+            + " notifier_created_at, notifier_updated_at)"
+            + " VALUES (?, 'notif-scope-ui', 'UI', CAST('{}' AS jsonb), false, ?, now(), now())",
+        notifierId,
+        tenantId);
+    jdbc.update(
+        "INSERT INTO notification_triggers_notifiers (notification_trigger_id, notifier_id)"
+            + " VALUES (?, ?)",
+        triggerId,
+        notifierId);
+    triggerCacheService.invalidate();
+
+    // Act: an async engine thread starts with no ambient tenant, whose fallback is the default one
+    onThreadWithNoAmbientTenant(
+        () ->
+            notificationEngineService.handleEvent(
+                NotificationResourceCatalog.ASSET,
+                endpointId,
+                tenantId,
+                NotificationTriggerEventType.CREATE,
+                endpointName,
+                () -> StreamVisibility.UNFILTERED));
+
+    // Assert
+    assertEquals(
+        List.of(tenantId),
+        jdbc.queryForList(
+            "SELECT tenant_id FROM notification_events WHERE notification_trigger_id = ?",
+            String.class,
+            triggerId),
+        "the trigger records its event in its own tenant");
+    assertEquals(
+        List.of(tenantId),
+        jdbc.queryForList(
+            "SELECT tenant_id FROM notifications WHERE user_id = ? AND notification_name = ?",
+            String.class,
+            testUserHolder.get().getId(),
+            "notif-scope-trigger"),
+        "the recipient is notified in the trigger's tenant");
+  }
+
+  private static void onThreadWithNoAmbientTenant(Runnable work) throws InterruptedException {
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                TenantContext.clearCurrentTenant();
+                assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+                work.run();
+              } catch (Throwable t) {
+                failure.set(t);
+              }
+            });
+    thread.start();
+    thread.join();
+    if (failure.get() != null) {
+      throw new AssertionError("the engine thread failed", failure.get());
+    }
   }
 }

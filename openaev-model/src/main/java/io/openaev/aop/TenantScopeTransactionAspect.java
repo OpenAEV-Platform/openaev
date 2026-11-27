@@ -2,6 +2,7 @@ package io.openaev.aop;
 
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
+import io.openaev.context.TransactionTenantScope;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
@@ -183,11 +184,7 @@ public class TenantScopeTransactionAspect {
   }
 
   private void setScope(String scope) {
-    entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
-        .setFlushMode(FlushModeType.COMMIT)
-        .setParameter("scope", scope)
-        .getSingleResult();
+    TransactionTenantScope.write(entityManager, scope);
   }
 
   private void setMarkingScope(String scope) {

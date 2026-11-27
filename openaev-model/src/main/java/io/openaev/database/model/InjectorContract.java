@@ -652,7 +652,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
 
   @Override
   public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
-    String tenantId = TenantContext.getCurrentTenant();
+    String namedTenant = CompositeIdResolvableI.namedTenant(ctxt);
+    String tenantId = namedTenant != null ? namedTenant : TenantContext.getCurrentTenant();
     InjectorContractId compositeId = new InjectorContractId();
     compositeId.setId(rawId);
     compositeId.setTenantId(tenantId);

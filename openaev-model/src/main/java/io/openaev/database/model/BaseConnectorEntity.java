@@ -26,6 +26,8 @@ public abstract class BaseConnectorEntity implements Base, CompositeIdResolvable
 
   @Override
   public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
-    return new ConnectorCompositeId(rawId, TenantContext.getCurrentTenant());
+    String tenantId = CompositeIdResolvableI.namedTenant(ctxt);
+    return new ConnectorCompositeId(
+        rawId, tenantId != null ? tenantId : TenantContext.getCurrentTenant());
   }
 }

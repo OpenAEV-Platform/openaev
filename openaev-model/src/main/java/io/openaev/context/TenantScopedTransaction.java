@@ -216,10 +216,11 @@ public class TenantScopedTransaction {
    * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
    * one, so it must be (re)set here too rather than inherited from whatever ran before.
    *
-   * <p>A transaction already scoped to exactly these tenants is left as it is, marking scope
-   * included: there is no boundary to cross. This is what keeps a shared service that only needs
-   * the tenant scope (e.g. {@code ScenarioToExerciseService.toExercise}) from widening an HTTP
-   * request to the system clearance for the rest of its transaction: the request keeps the user's
+   * <p>A transaction already scoped to exactly these tenants leaves its marking scope as it is:
+   * there is no boundary to cross. Its tenant scope is written again, so the tenant it pins is the
+   * one of this scope whoever wrote the setting before. So a shared service that only needs the
+   * tenant scope (e.g. {@code ScenarioToExerciseService.toExercise}) does not widen an HTTP request
+   * to the system clearance for the rest of its transaction: the request runs at the user's
    * clearance. A transaction the primitive scoped already runs at the system clearance.
    */
   public void setScopeOnCurrentTransaction(TxCtx ctx) {
@@ -231,6 +232,7 @@ public class TenantScopedTransaction {
     }
     TxCtx resolved = intentionResolver.resolve(ctx);
     if (tenants(resolved.toGuc()).equals(tenants(currentScope()))) {
+      setScope(resolved.toGuc());
       return;
     }
     setScope(resolved.toGuc());
@@ -610,11 +612,7 @@ public class TenantScopedTransaction {
   }
 
   private void setScope(String scope) {
-    entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
-        .setFlushMode(FlushModeType.COMMIT)
-        .setParameter("scope", scope)
-        .getSingleResult();
+    TransactionTenantScope.write(entityManager, scope);
   }
 
   private String currentScope() {

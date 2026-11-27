@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -17,7 +18,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
@@ -25,6 +25,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.executors.Executor;
+import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -668,7 +669,8 @@ public class InjectExecutionStep implements ActionStep {
       return;
     }
 
-    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
+    List<BaseInjectExpectation> expectations =
+        injectExpectationService.findAllByInjectId(injectId, inject.getTenant().getId());
 
     boolean hasExecutionTraces = !injectStatus.getTraces().isEmpty();
     boolean allExpectationsResolved =
@@ -1201,8 +1203,20 @@ public class InjectExecutionStep implements ActionStep {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     try {
-      // GET INJECT FROM JSON
-      Inject inject = om.readValue(step.getData(), Inject.class);
+      // GET INJECT FROM JSON. The inject belongs to the tenant of its step, and the step data
+      // does not carry it: the references are resolved in that tenant and the inject is stamped
+      // with it. A step built in memory and never saved has no tenant: its references resolve in
+      // the ambient tenant, and the inject is stamped on save.
+      String tenantId = step.getTenant() != null ? step.getTenant().getId() : null;
+      ObjectReader injectReader = om.readerFor(Inject.class);
+      Inject inject =
+          (tenantId != null
+                  ? injectReader.withAttribute(CompositeIdResolvableI.TENANT_ATTRIBUTE, tenantId)
+                  : injectReader)
+              .readValue(step.getData());
+      if (tenantId != null) {
+        inject.setTenant(new Tenant(tenantId));
+      }
 
       // Ensure dependsDuration has a default value - it is a legacy scheduling field
       // that may not be present in the serialized step data but has a @NotNull constraint.
@@ -1272,8 +1286,6 @@ public class InjectExecutionStep implements ActionStep {
                       new ChainingException(
                           "Injector contract not found for step (READY) ID: " + step.getId()));
 
-      injectorContract.setCompositeId(
-          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
       inject.setInjectorContract(injectorContract);
 
       // GET INJECTOR
@@ -1614,7 +1626,7 @@ public class InjectExecutionStep implements ActionStep {
   private List<BaseInjectExpectation> formatExpectationToOutput(
       Inject inject, List<Map<String, JsonElement>> output) {
     List<BaseInjectExpectation> expectations =
-        injectExpectationService.findAllByInjectId(inject.getId());
+        injectExpectationService.findAllByInjectId(inject.getId(), inject.getTenant().getId());
     for (BaseInjectExpectation expectation : expectations) {
       for (InjectExpectationResult result : expectation.getResults()) {
         if (isTechnicalExpectation(expectation)

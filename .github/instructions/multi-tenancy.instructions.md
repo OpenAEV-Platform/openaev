@@ -89,56 +89,54 @@ under-scopes an unrelated read.
     `deleteAllById`, `findAll(Specification)` or `entityManager.find`: a reviewer reads for them.
 11. A cache key includes the tenant id
 
-## Background Threads Carry Both Scopes
+<a id="background-threads-carry-both-scopes"></a>
+
+## Background Threads Carry Their Transaction Scope
 
 On an HTTP request `TenantInterceptor` sets the thread-local `TenantContext`, and
 `TxCtxArgumentResolver` resolves the v2 `TxCtx`. Nothing does either on a Quartz job, a queue
-consumer, an `@Async` task or a `parallelStream` worker, so a background entry point that does not
-meet the conditions below for dropping the ambient tenant sets them itself:
+consumer, an `@Async` task or a `parallelStream` worker, so a background entry point opens a
+transaction scoped to the tenant of what it handles:
 
 ```java
-tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // both scopes, previous value restored
+tenantScopedJobRunner.runInTenant(tenantId, () -> work());  // a transaction scoped to tenantId
 ```
 
-Without the v2 scope, a read on an active table returns no rows (`can_access_tenant` is false when no tenant is set).
+Without that scope, a read on an active table returns no rows (`can_access_tenant` is false when no tenant is set).
 
-Setting only the v2 primitive is **not** enough for a write that names no tenant: `TenantBaseListener`
-stamps that insert from the ambient tenant. Under the production list (`openaev.tenant.active-tables=*`)
-the insert fails with `unattributed tenant write` when no ambient tenant is set
-(`TenantBaseListener.manageTenant`). On a list that does not name the table, the listener falls back to
-`Tenant.DEFAULT_TENANT_UUID` and the row lands in the default tenant with no error; single-tenant
-deployments never see it, because the fallback is the right tenant. This shipped once: scheduled
-inject execution resolved another tenant's endpoints and created a customer simulation's expectations
-against them (`InjectsExecutionJob#executeInTenant`).
+The runner sets the transaction scope only: it sets no thread-local tenant, and off a request the
+thread-local tenant reads as `Tenant.DEFAULT_TENANT_UUID`. So background work meets three conditions:
+
+- every row it writes names its tenant, set from the owning row, or takes it from its parent row
+  (`ParentTenant.inherit`). `TenantBaseListener` stamps a row that names no tenant from the ambient
+  tenant: under the production list (`openaev.tenant.active-tables=*`) the insert fails with
+  `unattributed tenant write` when no ambient tenant is set (`TenantBaseListener.manageTenant`). On a
+  list that does not name the table, the listener falls back to `Tenant.DEFAULT_TENANT_UUID` and the
+  row lands in the default tenant with no error; single-tenant deployments never see it, because the
+  fallback is the right tenant. This shipped once: scheduled inject execution resolved another
+  tenant's endpoints and created a customer simulation's expectations against them
+  (`InjectsExecutionJob#executeInTenant`);
+- no code it reaches reads the ambient tenant (`TenantContext`, `AmbientTenantBridge`): each such
+  reader takes the tenant of its row or a `TxCtx` first;
+- the entity events it publishes take their tenant from the transaction scope. Off a request, a
+  `BaseEvent` takes the tenant its transaction scope pins (`TransactionTenantScope.pinnedTenant()`),
+  set by `TenantScopedTransaction` and by the transaction aspect alike. Only a scope of exactly one
+  tenant pins it: a scope of several tenants (`allTenants()`, `forTenants(...)`) pins none, and the
+  event falls back to `Tenant.DEFAULT_TENANT_UUID`. The stream reads that tenant for the markings of
+  a row with no tenant column (an expectation, a status) and for the fields of a user, and the
+  notification engine for the deletion of a grant-managed root (a scenario, a simulation, an atomic
+  testing). So a write of such a row runs in a one-tenant scope.
 
 A green `findById` proves nothing about scoping on a table outside `active-tables`, and a
 deliberately cross-tenant sweep must set the tenant explicitly on anything it writes. A cross-tenant
 read goes through `TenantScopedTransaction` with an explicit scope; there is no Hibernate filter to
 disable, and `TenantFilterRemovedArchTest` fails any call that tries.
 
-**v2 activation does not retire `TenantContext.setCurrentTenant()` on its own.** Converting a job's
-reads to `TenantScopedTransaction` only changes read isolation. A job drops the ambient tenant when all
-four hold:
-
-- every row it writes names its tenant, set from the owning row, or takes it from its parent row
-  (`ParentTenant.inherit`), so `TenantBaseListener` never has to stamp it;
-- no code it reaches reads the ambient tenant (`TenantContext`, `AmbientTenantBridge`): each such reader
-  takes the tenant of its row or a `TxCtx` first;
-- no `BaseEvent` it publishes is read for its own tenant, which is the ambient one: the stream reads it
-  for the markings of a row with no tenant column and for the fields of a user, and the notification
-  engine for the deletion of a grant-managed root (a scenario, a simulation, an atomic testing);
-- `openaev.tenant.active-tables=*` is armed, so a write that names no tenant fails with `unattributed
-  tenant write` rather than landing in `Tenant.DEFAULT_TENANT_UUID`.
-
-`TenantScopedJobRunner` sets the ambient tenant the listener reads, for the callers whose writes or
-readers do not meet these conditions yet. A job that does not meet them runs its writes through it,
-not through a direct `TenantContext` call (the next rule refuses a new call).
-
 **No new v1 construct in production code**: a call to `TenantContext` or `AmbientTenantBridge`, an
 `@EntityListeners` naming a listener that reads the ambient tenant, or a `#tenantContext` SpEL
 expression in a `@Query` fails `V1TenantConstructArchTest` unless its site is in
-`v1-tenant-construct-baseline.txt`, which lists the remaining sites and only shrinks. A job whose writes the
-listener stamps runs them through `TenantScopedJobRunner`, until it meets the conditions above.
+`v1-tenant-construct-baseline.txt`, which lists the remaining sites and only shrinks. A job whose
+writes the listener stamps names their tenant: no runner sets the ambient tenant for it.
 
 ## Anti-Patterns
 
@@ -148,7 +146,8 @@ listener stamps runs them through `TenantScopedJobRunner`, until it meets the co
 | `@Column(unique = true)` on tenant-scoped field | Composite `UNIQUE (field, tenant_id)` |
 | Single service for dual-scope entity | Split `PlatformXxxService` / `TenantXxxService` |
 | `tenant_id` in API response | `@JsonIgnore` on tenant relation |
-| Background job setting only `TxCtx` that writes a table stamped by `TenantBaseListener` | Name the tenant of every row it writes; until then, run the write through `TenantScopedJobRunner` (it sets the tenant the listener reads and puts back the value the thread carried); a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
+| Background job writing a row that names no tenant, relying on `TenantBaseListener` to stamp it | Name the tenant of every row it writes, from the owning row or its parent (`ParentTenant.inherit`); `TenantScopedJobRunner` sets the transaction scope only, and a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
+| Background write of a row with no tenant column under a scope of several tenants | Run it in a one-tenant scope (`runInTenant`, `TxCtx.forTenant`), so its entity events carry that tenant |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
 | A Hibernate `@Filter` or `enableFilter` call on a tenant entity | Leave it out: `*` arms the table and `TenantFilterRemovedArchTest` forbids the filter |

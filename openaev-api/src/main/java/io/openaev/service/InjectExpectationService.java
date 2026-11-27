@@ -20,7 +20,6 @@ import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -241,18 +240,19 @@ public class InjectExpectationService {
   }
 
   /**
-   * Retrieves all inject expectations for a given inject ID, scoped to the current tenant.
+   * Retrieves the technical expectations of an inject, in the tenant of the inject.
    *
    * <p>Pre-loads agent / asset / assetGroup relations of technical expectations via a JOIN FETCH
    * JPQL query before issuing the native query, so the Hibernate session cache serves already
    * hydrated instances and avoids N+1 lazy loads when callers access those relations.
    *
    * @param injectId the inject ID
+   * @param tenantId the tenant of the inject
    * @return the list of expectations for the inject
    */
   @Transactional(readOnly = true)
-  public List<BaseInjectExpectation> findAllByInjectId(@NotBlank final String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public List<BaseInjectExpectation> findAllByInjectId(
+      @NotBlank final String injectId, @NotBlank final String tenantId) {
     return this.injectExpectationRepository.findTechnicalByInjectIdWithRelations(
         injectId, tenantId);
   }

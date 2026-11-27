@@ -1,7 +1,6 @@
 package io.openaev.notification.engine;
 
 import io.openaev.config.cache.MarkingClearanceCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
@@ -291,25 +290,21 @@ public class NotificationEngineService {
 
   /**
    * Runs {@code prepare} and dispatches what it returns in the trigger's scope, the only place the
-   * live stage opens one: TenantContext keeps v1 paths correct on the async thread, the
-   * TenantScopedTransaction / TxCtx scopes v2-active reads, and every dispatch is made in the work
-   * of that scope.
+   * live stage opens one: a transaction scoped to the trigger's tenant ({@code TxCtx}) scopes the
+   * reads, every row written names that tenant, and every dispatch is made in the work of that
+   * scope. No ambient tenant is set: the permission checks run in the trigger's tenant through
+   * {@link NotificationRecipientFilter}.
    */
   private void inTriggerScope(
       ResolvedNotificationTrigger trigger, Supplier<List<Dispatch>> prepare) {
-    TenantContext.setCurrentTenant(trigger.tenantId());
-    try {
-      tenantTx.execute(
-          TxCtx.forTenant(trigger.tenantId()),
-          () -> {
-            for (Dispatch dispatch : prepare.get()) {
-              dispatchService.dispatch(
-                  trigger, NotificationTriggerType.LIVE, dispatch.users(), dispatch.groups());
-            }
-          });
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    tenantTx.execute(
+        TxCtx.forTenant(trigger.tenantId()),
+        () -> {
+          for (Dispatch dispatch : prepare.get()) {
+            dispatchService.dispatch(
+                trigger, NotificationTriggerType.LIVE, dispatch.users(), dispatch.groups());
+          }
+        });
   }
 
   /**

@@ -53,7 +53,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 Since multi-tenancy is actively being developed, pay special attention to:
 
 1. **New entities, native queries, unique constraints, API responses, caching**: [multi-tenancy › Critical Rules](../instructions/multi-tenancy.instructions.md#critical-rules)
-2. **Background jobs/async**: [multi-tenancy › Background Threads Carry Both Scopes](../instructions/multi-tenancy.instructions.md#background-threads-carry-both-scopes)
+2. **Background jobs/async**: [multi-tenancy › Background Threads Carry Their Transaction Scope](../instructions/multi-tenancy.instructions.md#background-threads-carry-their-transaction-scope)
 3. **Grant filtering**: Do services apply `applyGrantFilter()` consistently on search, list, and options endpoints?
 
 ## Output Format

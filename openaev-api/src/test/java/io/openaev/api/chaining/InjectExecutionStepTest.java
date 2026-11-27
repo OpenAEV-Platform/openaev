@@ -1995,6 +1995,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     return injectStatus;
   }
 
+  private static final String INJECT_TENANT_ID = "inject-tenant";
+
   private BaseInjectExpectation mockExpectation(boolean hasResult) {
     BaseInjectExpectation expectation = mock(BaseInjectExpectation.class);
     List<InjectExpectationResult> results =
@@ -2015,7 +2017,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
     when(injectService.inject(injectId)).thenReturn(inject);
     List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
-    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+    when(inject.getTenant()).thenReturn(new Tenant(INJECT_TENANT_ID));
+    when(injectExpectationService.findAllByInjectId(injectId, INJECT_TENANT_ID))
+        .thenReturn(expectations);
 
     // ACT
     injectExecutionStep.end(stepRun);
@@ -2038,7 +2042,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // One resolved, one still pending -> not all resolved
     List<BaseInjectExpectation> expectations =
         List.of(mockExpectation(true), mockExpectation(false));
-    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+    when(inject.getTenant()).thenReturn(new Tenant(INJECT_TENANT_ID));
+    when(injectExpectationService.findAllByInjectId(injectId, INJECT_TENANT_ID))
+        .thenReturn(expectations);
 
     // ACT
     injectExecutionStep.end(stepRun);
@@ -2092,7 +2098,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
     when(injectService.inject(injectId)).thenReturn(inject);
     List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
-    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+    when(inject.getTenant()).thenReturn(new Tenant(INJECT_TENANT_ID));
+    when(injectExpectationService.findAllByInjectId(injectId, INJECT_TENANT_ID))
+        .thenReturn(expectations);
 
     // ACT
     injectExecutionStep.end(stepRun);

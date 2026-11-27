@@ -3,7 +3,6 @@ package io.openaev.service.chaining;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import io.openaev.api.chaining.ActionStep;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
@@ -42,10 +41,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * {@code TransactionTemplate}. This sets the v2 GUC ({@code app.current_tenants}), scoping the
    * tenant-active tables the run writes (e.g. {@code attackpath_execution}).
    *
-   * <p>Each consumer also sets {@link TenantContext} to the run's tenant for the duration of the
-   * event (set-then-finally-clear on the pooled worker thread), for the code it reaches that reads
-   * the ambient tenant. Both scopes carry the same tenant: the primitive scopes the reads, {@link
-   * TenantContext} serves the ambient readers.
+   * <p>Each consumer runs its event in a transaction scoped to the run's tenant and sets no ambient
+   * tenant: every row it writes names its tenant, and the entity events it publishes take the one
+   * tenant that scope pins.
    */
   private final TenantScopedTransaction tenantTx;
 
@@ -69,16 +67,13 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   public void handleReadyStepEvent(StepEvent stepEvent) {
-    // #6357: the chaining worker thread carries no tenant scope, so the event is scoped to its
-    // run's tenant on both mechanisms. The v2 transaction scope covers the tenant-active tables the
-    // run reads and writes (injector contracts, endpoints and assets, attack path executions), and
-    // TenantContext covers the code that reads the ambient tenant. TenantContext is set on the
-    // pooled worker thread and cleared in finally so it never leaks to the next event. A null
-    // tenantId (legacy/in-flight message) falls back to the default tenant. Per-event scoping
-    // stops a failing event from rolling the rest of the batch back.
+    // #6357: the chaining worker thread carries no tenant scope, so the event runs in a transaction
+    // scoped to its run's tenant, which covers the tenant-active tables the run reads and writes
+    // (injector contracts, endpoints and assets, attack path executions). A null tenantId
+    // (legacy/in-flight message) falls back to the default tenant. Per-event scoping stops a
+    // failing event from rolling the rest of the batch back.
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
-    TenantContext.setCurrentTenant(tenantId);
     AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
     try {
       tenantTx.execute(
@@ -133,7 +128,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       }
     } finally {
       evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
-      TenantContext.clearCurrentTenant();
     }
   }
 
@@ -277,10 +271,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param events list of events
    * @return consumed list of events
    */
-  // #6357: NOT @Transactional. A batch-level transaction would run once with the (context-less)
-  // default tenant for every event in the batch, defeating the per-event tenant restore below.
-  // Each event runs in its own transaction with its tenant set first (mirrors
-  // handleReadyStepEvent), which also isolates a failing event from the rest of the batch.
+  // #6357: NOT @Transactional. A batch-level transaction runs once, with no tenant, for every event
+  // in the batch. Each event runs in its own transaction scoped to its tenant (as
+  // handleReadyStepEvent does), which also isolates a failing event from the rest of the batch.
   public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
     events.forEach(this::handleExternalUpdateEvent);
     return events;
@@ -293,22 +286,15 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
-    // #6357: same dual scoping as the ready path (see handleReadyStepEvent) - the MT v2 primitive
-    // for the scoped reads, TenantContext for the tenant the listener stamps, both on the run's
-    // tenant, set-then-finally-clear on the pooled worker thread. Null tenantId (legacy/in-flight
-    // message) falls back to the default tenant.
+    // #6357: same scoping as the ready path (see handleReadyStepEvent): a transaction scoped to the
+    // run's tenant. Null tenantId (legacy/in-flight message) falls back to the default tenant.
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
-      tenantTx.execute(
-          TxCtx.forTenant(tenantId),
-          () -> processExternalUpdateEvent(stepEvent).ifPresent(toEvaluate::set));
-      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
+    tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> processExternalUpdateEvent(stepEvent).ifPresent(toEvaluate::set));
+    evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
   }
 
   /**
