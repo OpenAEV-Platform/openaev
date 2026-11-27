@@ -37,6 +37,13 @@ public class AssetBulkUpdateInput extends AssetBulkProcessingInput {
   @Schema(types = {"string", "null"})
   private AssetCriticality criticality;
 
+  @JsonProperty("asset_internet_facing")
+  @Schema(
+      types = {"boolean", "null"},
+      description =
+          "Sets the internet-facing flag of every selected asset; null leaves it unchanged")
+  private Boolean internetFacing;
+
   @JsonProperty("asset_tags_to_add")
   @Schema(description = "Tag ids added to every selected asset (existing tags are kept)")
   private List<String> tagIdsToAdd;

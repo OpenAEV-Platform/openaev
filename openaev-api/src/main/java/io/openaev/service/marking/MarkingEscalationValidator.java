@@ -37,10 +37,7 @@ public final class MarkingEscalationValidator {
    */
   public static void assertCanAssignMarkings(
       MarkingCtx clearance, Collection<MarkingDefinition> requested) {
-    Set<String> held =
-        clearance instanceof MarkingCtx.Restricted restricted
-            ? Set.copyOf(restricted.markingIds())
-            : Set.of();
+    Set<String> held = heldIds(clearance);
 
     List<String> unheld =
         requested.stream()
@@ -55,6 +52,16 @@ public final class MarkingEscalationValidator {
       throw new ForbiddenException(
           "Cannot assign markings you do not hold: " + String.join(", ", unheld));
     }
+  }
+
+  public static boolean holdsAll(MarkingCtx clearance, Collection<String> markingIds) {
+    return heldIds(clearance).containsAll(markingIds);
+  }
+
+  private static Set<String> heldIds(MarkingCtx clearance) {
+    return clearance instanceof MarkingCtx.Restricted restricted
+        ? Set.copyOf(restricted.markingIds())
+        : Set.of();
   }
 
   /**

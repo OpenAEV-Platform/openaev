@@ -114,7 +114,7 @@ class ScenarioUpdateApiTest extends IntegrationTest {
   private static final String NEXT_PAYLOAD = "1.4.0";
   private static final String NEXT_PAYLOAD_VERSION = "1.1.0";
   private static final String CHAINED = "2.0.0";
-  private static final String REVOKED = "2.1.0";
+  private static final String REVOKED = "0.9.0";
   private static final String NEW_TITLE = "whoami, verbose";
   private static final String MY_TITLE = "My whoami";
   private static final String TARGET = "10.0.0.1";
@@ -506,15 +506,15 @@ class ScenarioUpdateApiTest extends IntegrationTest {
               jsonPath("$.scenario_versions[*].scenario_version")
                   .value(
                       contains(
-                          REVOKED,
                           CHAINED,
                           NEXT_PAYLOAD,
                           LINKING_CHALLENGES,
                           RESHAPED,
                           NEWER,
                           SAME_CONTENT,
-                          INSTALLED)))
-          .andExpect(jsonPath("$.scenario_versions[0].scenario_version_status").value("REVOKED"))
+                          INSTALLED,
+                          REVOKED)))
+          .andExpect(jsonPath("$.scenario_versions[7].scenario_version_status").value("REVOKED"))
           .andExpect(
               jsonPath(
                       "$.scenario_versions[?(@.scenario_version_current == true)].scenario_version")
@@ -614,6 +614,23 @@ class ScenarioUpdateApiTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(true))
           .andExpect(jsonPath(state + ".scenario_catalog_state_last_update").isEmpty());
+    }
+
+    @Test
+    @DisplayName("says a scenario is revoked when its newest version is, whatever version it runs")
+    void given_newestVersionRevoked_should_sayRevoked() throws Exception {
+      // Arrange
+      Scenario scenario = install();
+      revoke(CHAINED);
+      String state = "$['" + scenario.getId() + "']";
+
+      // Act
+      ResultActions states = catalogStates(scenario.getId());
+
+      // Assert
+      states
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(state + ".scenario_catalog_state_revoked").value(true));
     }
   }
 

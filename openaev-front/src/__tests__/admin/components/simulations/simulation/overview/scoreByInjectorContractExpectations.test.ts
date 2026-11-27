@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isTopLevelScoredExpectation } from '../../../../../../admin/components/simulations/simulation/overview/scoreByInjectorContractExpectations';
+import { injectorContractKey, isTopLevelScoredExpectation } from '../../../../../../admin/components/simulations/simulation/overview/scoreByInjectorContractExpectations';
 import { type InjectExpectationOutput } from '../../../../../../utils/api-types';
 
 const expectation = (overrides: Partial<InjectExpectationOutput>): InjectExpectationOutput => ({
@@ -61,5 +61,32 @@ describe('isTopLevelScoredExpectation (#8396)', () => {
 
   it('drops an expectation with no target at all', () => {
     expect(isTopLevelScoredExpectation(expectation({}))).toBe(false);
+  });
+});
+
+describe('injectorContractKey (#9931)', () => {
+  const scoredOn = (injectorContractId?: string) => {
+    const contract = injectorContractId ? { injector_contract_id: injectorContractId } : undefined;
+    return { inject_expectation_inject: { inject_injector_contract: contract } };
+  };
+
+  it('given expectations of two injector contracts should put them in two series', () => {
+    // Arrange
+    const expectations = [scoredOn('contract-email'), scoredOn('contract-command'), scoredOn('contract-email')];
+
+    // Act
+    const series = Object.groupBy(expectations, injectorContractKey);
+
+    // Assert
+    expect(Object.keys(series)).toEqual(['contract-email', 'contract-command']);
+    expect(series['contract-email']).toHaveLength(2);
+  });
+
+  it('given an inject without injector contract should use the empty key', () => {
+    // Act
+    const key = injectorContractKey(scoredOn());
+
+    // Assert
+    expect(key).toBe('');
   });
 });

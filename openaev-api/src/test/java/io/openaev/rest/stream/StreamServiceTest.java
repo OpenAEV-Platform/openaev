@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -91,6 +92,12 @@ public class StreamServiceTest {
 
   @BeforeEach
   public void setup() throws Exception {
+    // The consumer's rights are read in its tenant, as the real service enters it.
+    when(permissionService.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                new AmbientTenantBridge()
+                    .callInTenant(invocation.getArgument(0), invocation.getArgument(1)));
     // Marking filtering is opt-in per test: by default every reader sees everything.
     when(streamClearanceService.clearanceFor(any(), any())).thenReturn(MarkingCtx.all());
     when(streamVisibilityService.visibilityOrUnresolved(any(), any()))
@@ -1120,7 +1127,13 @@ public class StreamServiceTest {
     // Arrange: a non-admin consumer whose only right is READ on this simulation — the case that
     // proves the gate consults grants instead of falling back to "admins only".
     FluxSink<Object> sink = registerTenantConsumer(TENANT_ID);
-    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID)).thenReturn(true);
+    when(attackPathAccessControl.canRead(mockUser, SIMULATION_ID))
+        .thenAnswer(
+            invocation -> {
+              // The check reads the grants of the consumer's tenant, not the default tenant.
+              assertEquals(TENANT_ID, TenantContext.getCurrentTenant());
+              return true;
+            });
 
     // Act
     streamService.listenAttackPathVersion(

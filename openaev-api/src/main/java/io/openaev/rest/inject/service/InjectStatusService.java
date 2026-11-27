@@ -354,13 +354,15 @@ public class InjectStatusService {
   }
 
   /**
-   * The TIMEOUT trace of the reporter: the agent's own one, or the inject's one for an agent-less
-   * trace. A TIMEOUT of another reporter is never returned, its message would not be true.
+   * The TIMEOUT trace the platform wrote for the reporter: the agent's own one, or the inject's one
+   * for an agent-less trace. A TIMEOUT of another reporter is never returned, its message would not
+   * be true; nor is a TIMEOUT completion the reporter sent itself (an injector stopped at its own
+   * time limit): a later trace of that reporter follows a report already received.
    */
   private Optional<ExecutionTrace> findTimeoutTrace(
       InjectStatus injectStatus, @Nullable Agent agent) {
     return completeTraces(injectStatus.getTraces())
-        .filter(t -> ExecutionTraceStatus.TIMEOUT.equals(t.getStatus()))
+        .filter(ExecutionTraceUtils::isPlatformTimeoutTrace)
         .filter(t -> agent == null ? t.getAgent() == null : isAgentTrace(t, agent.getId()))
         .findFirst();
   }

@@ -6,6 +6,7 @@ import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
+import ThemeDark from '../../../../../../components/ThemeDark';
 import { defineAbility } from '../../../../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
 
@@ -19,6 +20,7 @@ type FlowProps = {
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
   onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
+  legend?: ReactNode;
 };
 
 // Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
@@ -35,11 +37,18 @@ const mocks = vi.hoisted(() => ({
   flowProps: { current: null as FlowProps | null },
   // Read by the useEnterpriseEdition mock below; a test flips it to exercise the unlicensed path.
   licenceValidated: true,
+  // Read by the isFeatureEnabled mock below: the LOGGING_EXPECTATION preview feature.
+  loggingFeature: false,
 }));
 
 // The exploration graph preview feature reads the platform settings from the store; the attack
 // path renders without one here, so the flag is read on.
 vi.mock('../../../../../../utils/hooks/useExplorationGraph', () => ({ default: () => true }));
+// The Logging preview feature is read from the settings store, absent here.
+vi.mock('../../../../../../utils/utils', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  isFeatureEnabled: () => mocks.loggingFeature,
+}));
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraph: mocks.fetchAttackPathGraph,
   fetchAttackPathGraphDelta: mocks.fetchAttackPathGraphDelta,
@@ -62,7 +71,7 @@ vi.mock('../../../../../../components/i18n', () => ({
 vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/canvas/AttackPathCanvas', () => ({
   default: (props: FlowProps) => {
     mocks.flowProps.current = props;
-    return <div data-testid="attack-path-flow" />;
+    return <div data-testid="attack-path-flow">{props.legend}</div>;
   },
 }));
 
@@ -139,7 +148,7 @@ vi.mock('../../../../../../admin/components/common/entreprise_edition/EEChip', (
 const ability = defineAbility([], {}, false);
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <ThemeProvider theme={createTheme()}>
+  <ThemeProvider theme={createTheme(ThemeDark())}>
     <TooltipProvider>
       <AbilityProvider value={ability}>{children}</AbilityProvider>
     </TooltipProvider>
@@ -148,8 +157,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 // One steady-state graph read plus a delta poll that reports "nothing changed": the default the tests
 // override when they exercise a live update.
-const setup = () => {
-  mocks.fetchAttackPathGraph.mockResolvedValue({ data: graphDto });
+const setup = (graph = graphDto) => {
+  mocks.fetchAttackPathGraph.mockResolvedValue({ data: graph });
   mocks.fetchAttackPathGraphDelta.mockResolvedValue({
     data: {
       sinceVersion: 0,
@@ -205,6 +214,7 @@ const setup = () => {
       targetPlatform: 'Linux',
       preventionStatus: 'FAILED',
       detectionStatus: 'DETECTED',
+      loggingStatus: 'Logged',
       // The platforms that actually acted, as the backend resolves them from the inject's
       // expectations — the panel renders these, it never fabricates a platform row.
       securityPlatforms: [{
@@ -216,6 +226,12 @@ const setup = () => {
           id: 'alert-1',
           title: 'Suspicious activity flagged',
         }],
+      }, {
+        platformName: 'Splunk',
+        platformType: 'openaev_splunk',
+        bucket: 'LOGGING',
+        status: 'SUCCESS',
+        alerts: [],
       }],
       findings: [{
         type: 'credentials',
@@ -311,16 +327,18 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(feedRow);
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
 
-    // Header (agent · privilege) + both tabs render; the Result tab shows the prevention/detection
-    // rows, each carrying the expectation's own verdict and the platforms the run actually recorded
-    // (detection by CrowdStrike here; prevention has no platform, so it says so instead of inventing
-    // one).
+    // Header (agent · privilege) + both tabs render; the Result tab shows the prevention/detection/
+    // logging rows, each carrying the expectation's own verdict and the platforms the run actually
+    // recorded (detection by CrowdStrike and logging by Splunk here; prevention has no platform, so it
+    // says so instead of inventing one).
     expect(await screen.findByText('agent-x · user')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
     expect(screen.getByText('Prevention')).toBeTruthy();
     expect(screen.getByText('Detection')).toBeTruthy();
     expect(screen.getByText('CrowdStrike')).toBeTruthy();
+    expect(screen.getByText('Logging')).toBeTruthy();
+    expect(screen.getByText('Splunk')).toBeTruthy();
     expect(screen.getByText('Not Prevented')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.
@@ -343,6 +361,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
         endpointKey: 'host-x',
         preventionStatus: 'FAILED',
         detectionStatus: 'DETECTED',
+        loggingStatus: 'Logged',
         securityPlatforms: [],
         command: 'nmap -p 445 host-x',
         terminalOutput: 'open',
@@ -359,10 +378,20 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByText('Prevention')).toBeTruthy();
     // A non-admin cannot act on the licence dialog, so the chip must be informational only.
     expect(screen.getByTestId('ee-chip').getAttribute('data-clickable')).toBe('false');
-    expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(2);
+    expect(screen.getAllByText('Platform attribution requires Enterprise Edition').length).toBe(3);
     expect(screen.queryByText('Not Detected')).toBeNull();
     // The verdicts themselves still come from the run — the licence gates attribution, not results.
     expect(screen.getByText('DETECTED')).toBeTruthy();
+    // ...and keep their attack-path colours: orange for a detection, yellow for a log.
+    const theme = createTheme(ThemeDark());
+    const iconColor = (heading: string) => screen.getByText(heading).parentElement?.previousElementSibling as HTMLElement;
+    const cssColor = (color: string) => {
+      const probe = document.createElement('div');
+      probe.style.color = color;
+      return probe.style.color;
+    };
+    expect(iconColor('Detection').style.color).toBe(cssColor(theme.palette.designSystem.alert.warning.primary));
+    expect(iconColor('Logging').style.color).toBe(cssColor(theme.palette.designSystem.alert.alert.primary));
   });
 
   it('opens the injector panel listing its own executions, one click from the execution detail', async () => {
@@ -656,5 +685,46 @@ describe('SimulationAttackPath live delta updates', () => {
     mocks.fetchAttackPathGraphDelta.mockResolvedValue(growthDelta(13, 'host-c'));
     await tick();
     expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(afterSecondGrowth);
+  });
+});
+
+describe('SimulationAttackPath logging verdicts', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    mocks.flowProps.current = null;
+    mocks.loggingFeature = false;
+  });
+
+  it('keeps the logged only legend entry for a verdict recorded while Logging was on', async () => {
+    // Arrange
+    setup({
+      ...graphDto,
+      attackPathNodes: graphDto.attackPathNodes.map(node => (node.id === ENDPOINT_NODE
+        ? {
+            ...node,
+            status: 'YELLOW',
+          }
+        : node)),
+    });
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: 'Toggle legend' }));
+
+    // Assert
+    expect(screen.getByText('Logged only')).toBeDefined();
+    expect(screen.getByText('Not prevented, detected or logged')).toBeDefined();
+  });
+
+  it('keeps the legend without Logging while the feature is off and nothing was logged only', async () => {
+    // Arrange
+    setup();
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: 'Toggle legend' }));
+
+    // Assert
+    expect(screen.queryByText('Logged only')).toBeNull();
+    expect(screen.getByText('Neither prevented nor detected')).toBeDefined();
   });
 });

@@ -85,6 +85,7 @@ public class UserUpdateStreamAfterSessionTest extends ProductionTablesIntegratio
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserService userService;
   @Autowired private AttackPathAccessControl attackPathAccessControl;
+  @Autowired private PermissionService permissionService;
 
   private JdbcTemplate jdbc;
   private User member;
@@ -160,6 +161,10 @@ public class UserUpdateStreamAfterSessionTest extends ProductionTablesIntegratio
     // -- PREPARE --
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+    when(permissions.inTenant(any(), any()))
+        .thenAnswer(
+            invocation ->
+                permissionService.inTenant(invocation.getArgument(0), invocation.getArgument(1)));
     StreamService stream =
         new StreamService(
             permissions,

@@ -850,7 +850,10 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.launch_check_revoked_injects[0].inject_id").value(inject.getId()))
           .andExpect(
               jsonPath("$.launch_check_revoked_injects[0].inject_action_id")
-                  .value(inject.getInjectorContract().orElseThrow().getId()));
+                  .value(inject.getInjectorContract().orElseThrow().getId()))
+          .andExpect(
+              jsonPath("$.launch_check_revoked_injects[0].inject_action_name")
+                  .value(inject.getInjectorContract().orElseThrow().getPayload().getName()));
     }
 
     @Test

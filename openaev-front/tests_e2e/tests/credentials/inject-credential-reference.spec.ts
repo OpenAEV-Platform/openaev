@@ -7,6 +7,7 @@ import { test } from '../../fixtures';
 import AtomicTestingPage from '../../model/atomic-testings/AtomicTestingPage';
 import CredentialApiMock from '../../model/credentials/CredentialApiMock';
 import InjectCredentialReferenceComponent from '../../model/injects/InjectCredentialReferenceComponent';
+import { disableAnimations } from '../../utils/animations';
 
 // Requires the CREDENTIAL_ASSET preview feature (enabled by the `ci` and `dev` backend profiles).
 // The cloud injectors (e.g. "AWS - Detonate a custom Stratus technique") are external and not
@@ -57,16 +58,7 @@ test.describe('Inject form - Credential reference', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      const style = document.createElement('style');
-      style.innerHTML = `
-        *, *::before, *::after {
-          transition: none !important;
-          animation: none !important;
-        }
-      `;
-      document.head.appendChild(style);
-    });
+    await disableAnimations(page);
     atomicTestingPage = new AtomicTestingPage(page);
     credentialSection = new InjectCredentialReferenceComponent(page);
     runId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;

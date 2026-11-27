@@ -2,11 +2,12 @@ package io.openaev.api.asset;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.service.marking.MarkingEscalationValidator.holdsAll;
 import static io.openaev.utils.MarkingUtils.markingIds;
 
 import io.openaev.api.asset.dto.AssetBulkReplaceMarkingsInput;
-import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
@@ -29,10 +30,10 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Writes the markings carried by an asset (design step 3.3).
@@ -57,53 +58,19 @@ public class AssetMarkingsService {
   private final AssetService assetService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
-  /**
-   * Replaces an asset's marking set, behind three guards: existence/tenant (a marking from another
-   * tenant never comes back, so a mismatch is a 404, not a silent partial write), escalation
-   * ({@link io.openaev.service.marking.MarkingEscalationValidator} refuses assigning a marking you
-   * don't hold, so "can write assets" never implies "can read every marked row"), and capability
-   * ({@code MANAGE_MARKING_ASSIGNMENT}, required unconditionally - the same upfront shape as {@link
-   * #bulkReplaceAssetMarkings} and {@code AssetService.bulkDeleteAssets}).
-   *
-   * <p>No cache eviction here: the marking-set predicate re-reads the row on every query, only the
-   * clearance itself is cached, so evicting on a write would be a no-op that looks like protection.
-   * Eviction only matters when a clearance shrinks.
-   *
-   * <p>Self-lockout is impossible by construction, not by a separate check: since {@code requested
-   * ⊆ clearance} and visibility is {@code row_markings ⊆ clearance}, the asset you just marked
-   * stays readable by you.
-   *
-   * @param tenantId the tenant whose clearance and capabilities the caller is checked against
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public Asset updateAssetMarkings(
-      @NotBlank final String tenantId,
-      @NotBlank final String assetId,
-      final AssetUpdateMarkingsInput input) {
-    // Tenant-scoped lookup: a plain findById skips Hibernate's filters, and once marking-active,
-    // the statement inspector too - so an unreadable asset here is a 404, not a declassification.
-    Asset asset =
-        assetRepository
-            .findByIdAndTenantId(assetId, tenantId)
-            .orElseThrow(() -> new ElementNotFoundException("Asset not found: " + assetId));
-
-    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
-    List<MarkingDefinition> markings = new ArrayList<>();
-    markingDefinitionRepository
-        .findAllByIdInTenant(uniqueMarkingIds, tenantId)
-        .forEach(markings::add);
-    if (markings.size() != uniqueMarkingIds.size()) {
-      throw new ElementNotFoundException(
-          "One or more marking definitions not found in the current tenant");
+  // Unchanged markings need no check: a caller without the capability can still edit the asset.
+  public void markAsset(
+      @NotBlank final String tenantId, @NotNull final Asset asset, final Set<String> markingIds) {
+    if (markingIds == null || markingIds.equals(markingIds(asset))) {
+      return;
     }
+    replaceMarkings(tenantId, asset, markingIds);
+  }
 
+  private void replaceMarkings(String tenantId, Asset asset, Set<String> markingIds) {
     User currentUser = userService.currentUser();
-    assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
-    assertMarkingAssignmentCapability(tenantId, currentUser);
-
-    Set<String> removed = applyAssetMarkings(asset, uniqueMarkingIds);
-    Asset saved = assetRepository.save(asset);
+    assertCanAssign(tenantId, currentUser, markingIds, () -> resolveMarkings(tenantId, markingIds));
+    Set<String> removed = applyAssetMarkings(asset, markingIds);
     // Only removals are logged (design §4.3): adding a marking narrows who can read the asset and
     // needs no explaining, while removing one widens it, and widening is the direction that turns
     // into an incident. Logged rather than raised as a domain event because the platform has no
@@ -114,9 +81,32 @@ public class AssetMarkingsService {
           asset.getId(),
           currentUser.getId(),
           removed,
-          uniqueMarkingIds);
+          markingIds);
     }
-    return saved;
+  }
+
+  private List<MarkingDefinition> resolveMarkings(String tenantId, Set<String> markingIds) {
+    List<MarkingDefinition> markings = new ArrayList<>();
+    markingDefinitionRepository.findAllByIdInTenant(markingIds, tenantId).forEach(markings::add);
+    if (markings.size() != markingIds.size()) {
+      throw new ElementNotFoundException(
+          "One or more marking definitions not found in the current tenant");
+    }
+    return markings;
+  }
+
+  // The markings are read only to explain a refusal: 404 when unknown, 403 when not held.
+  private void assertCanAssign(
+      String tenantId,
+      User currentUser,
+      Set<String> markingIds,
+      Supplier<List<MarkingDefinition>> markings) {
+    MarkingCtx clearance =
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId);
+    if (!holdsAll(clearance, markingIds)) {
+      assertCanAssignMarkings(clearance, markings.get());
+    }
+    assertMarkingAssignmentCapability(tenantId, currentUser);
   }
 
   /**
@@ -138,9 +128,8 @@ public class AssetMarkingsService {
 
   /**
    * Writes {@code requested} to {@code asset}, records the assign/unassign metrics, and returns the
-   * markings that were removed, for the caller to log - the one place both {@link
-   * #updateAssetMarkings} and {@link #bulkReplaceAssetMarkings} apply a replace, so they cannot
-   * drift apart.
+   * markings that were removed, for the caller to log - the one place both {@link #markAsset} and
+   * {@link #bulkReplaceAssetMarkings} apply a replace, so they cannot drift apart.
    */
   private Set<String> applyAssetMarkings(Asset asset, Set<String> requested) {
     Set<String> previous = markingIds(asset);
@@ -155,14 +144,14 @@ public class AssetMarkingsService {
   }
 
   /**
-   * Bulk mirror of {@link #updateAssetMarkings}, chunk by chunk via {@link
+   * Bulk mirror of {@link #markAsset}, chunk by chunk via {@link
    * BulkDeleteExecutor#processInChunks} - the same sorted-chunk / deadlock-retry / progress /
    * session-clear machinery the other bulk operations use, generalized past deletes.
    *
-   * <p>Same shape as the single-asset path and the other bulk operations' capability gate (e.g.
-   * {@code AssetService.bulkDeleteAssets}): {@code MANAGE_MARKING_ASSIGNMENT} is required
-   * unconditionally, upfront. With no later conditional recheck, a chunk needs no row lock either:
-   * plain {@code findAllById} is enough.
+   * <p>Same shape as the other bulk operations' capability gate (e.g. {@code
+   * AssetService.bulkDeleteAssets}): {@code MANAGE_MARKING_ASSIGNMENT} is required unconditionally,
+   * upfront. With no later conditional recheck, a chunk needs no row lock either: plain {@code
+   * findAllById} is enough.
    *
    * @param tenantId the tenant whose clearance the caller is checked against
    * @return the ids of the assets whose markings were updated
@@ -173,25 +162,14 @@ public class AssetMarkingsService {
       @NotNull final AssetBulkReplaceMarkingsInput input) {
     Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.getMarkingIds());
 
-    List<MarkingDefinition> markings =
-        bulkDeleteExecutor.resolveInTransaction(
-            ctx,
-            () -> {
-              List<MarkingDefinition> found = new ArrayList<>();
-              markingDefinitionRepository
-                  .findAllByIdInTenant(uniqueMarkingIds, tenantId)
-                  .forEach(found::add);
-              if (found.size() != uniqueMarkingIds.size()) {
-                throw new ElementNotFoundException(
-                    "One or more marking definitions not found in the current tenant");
-              }
-              return found;
-            });
-
     User currentUser = userService.currentUser();
-    assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
-    assertMarkingAssignmentCapability(tenantId, currentUser);
+    assertCanAssign(
+        tenantId,
+        currentUser,
+        uniqueMarkingIds,
+        () ->
+            bulkDeleteExecutor.resolveInTransaction(
+                ctx, () -> resolveMarkings(tenantId, uniqueMarkingIds)));
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
 
