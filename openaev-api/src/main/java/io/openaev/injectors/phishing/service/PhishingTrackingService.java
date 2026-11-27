@@ -85,10 +85,10 @@ import org.springframework.transaction.annotation.Transactional;
  * #markOpened}): both "email opened" and "link clicked" flip on the landing page's interaction
  * confirmation.
  *
- * <p>All methods are tenant-scoped: the executor runs inside the inject execution job (tenant
- * filter set), and the public endpoints set the tenant before calling in - {@code HostedPublicApi}
- * resolves it from the token, while the legacy {@code PhishingPublicApi} routes take it from the
- * {@code tenantId} path segment.
+ * <p>All methods are tenant-scoped: the executor runs inside the inject execution job, and the
+ * public endpoints call in under the scope of the tracking row's tenant - {@code HostedPublicApi}
+ * resolves it from the token, the {@code PhishingPublicApi} routes take it from the {@code
+ * tenantId} path segment.
  */
 @Slf4j
 @Service

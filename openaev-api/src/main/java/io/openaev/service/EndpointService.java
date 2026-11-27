@@ -16,6 +16,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -34,6 +35,7 @@ import io.openaev.service.settings.RuntimeSetting;
 import io.openaev.service.settings.RuntimeSettingsService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -281,6 +283,13 @@ public class EndpointService implements AuditLoggedService {
     return endpoint(endpointId, tenantId);
   }
 
+  /** The endpoint of one of the tenants of the request scope, 404 when none holds it. */
+  public Endpoint endpointInScope(@NotNull final TxCtx ctx, @NotBlank final String endpointId) {
+    return this.endpointRepository
+        .findByIdAndTenantIdIn(endpointId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
+        .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
+  }
+
   public Page<Endpoint> searchEndpoints(SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         (Specification<Endpoint> specification, Pageable pageable) ->
@@ -316,12 +325,17 @@ public class EndpointService implements AuditLoggedService {
         Endpoint.class);
   }
 
+  /**
+   * Applies the input to the endpoint of the request scope. The linked user and the tags resolve in
+   * the endpoint's own tenant.
+   */
   public Endpoint buildUpdatedEndpoint(
+      @NotNull final TxCtx ctx,
       @NotBlank final String endpointId,
-      @NotNull final EndpointInput input,
-      @NotNull final String tenantId) {
+      @NotNull final EndpointInput input) {
+    Endpoint toUpdate = endpointInScope(ctx, endpointId);
+    String tenantId = toUpdate.getTenant().getId();
     validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
-    Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
     AssetCategorizationValidator.validate(toUpdate.getCategory(), toUpdate.getSubcategory());
     ensureSeenIp(toUpdate);

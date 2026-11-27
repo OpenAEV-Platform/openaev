@@ -89,6 +89,7 @@ class PhishingLandingPageServiceTest {
   void synchronise_should_beNoopWhenInjectorMissing() {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     when(injectorRepository.findByPhishingContractTypeByTenantId(eq(PhishingContract.TYPE), any()))
@@ -108,6 +109,7 @@ class PhishingLandingPageServiceTest {
   void synchronise_should_setPhishingAttackPatterns() throws Exception {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
 
@@ -169,6 +171,7 @@ class PhishingLandingPageServiceTest {
     // contract must declare that output - otherwise getProviding() (and the Threat Arsenal drawer)
     // report the action as producing nothing.
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     landingPage.setCaptureSubmittedData(true);
@@ -195,6 +198,7 @@ class PhishingLandingPageServiceTest {
   void synchronise_should_declareNoOutputWhenNotCapturing() throws Exception {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Awareness only");
     landingPage.setCaptureSubmittedData(false);
@@ -218,6 +222,7 @@ class PhishingLandingPageServiceTest {
   void synchronise_should_declareOrderedResistedOutcomeSteps() throws Exception {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     arrangeSynchroniseStubs();
@@ -304,6 +309,7 @@ class PhishingLandingPageServiceTest {
   void delete_should_removeLandingPageAndContract() {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
@@ -329,6 +335,7 @@ class PhishingLandingPageServiceTest {
     // collect the doomed inject ids BEFORE the delete and notify the engine AFTER, mirroring
     // InjectorContractService.deleteInjectorContract.
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
@@ -353,6 +360,7 @@ class PhishingLandingPageServiceTest {
   void delete_should_skipDeindexWhenNoContract() {
     // -- ARRANGE --
     PhishingLandingPage landingPage = new PhishingLandingPage();
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
@@ -478,9 +486,11 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPage first = new PhishingLandingPage();
     first.setId("lp-1");
     first.setName("First");
+    first.setTenant(new Tenant("tenant-1"));
     PhishingLandingPage second = new PhishingLandingPage();
     second.setId("lp-2");
     second.setName("Second");
+    second.setTenant(new Tenant("tenant-1"));
     when(landingPageRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(first, second));
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(first));

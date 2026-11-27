@@ -157,8 +157,9 @@ For more details, see [this migration guide](breaking-changes/MigrationVersion-w
 
 Starting with **OpenAEV \[MigrationVersion\]**, endpoints called on the non-prefixed API routes (`/api/...`) read the
 tenants of the request scope: the tenant named in the `X-Tenant-Ids` header, or every tenant of the caller without the
-header. Finding reads, session endpoints, the profile organization, the import mapper dry run and bulk operations are
-concerned. The tenant-prefixed routes, which the web interface uses, are unchanged.
+header. Finding reads, session endpoints, the profile organization, the import mapper dry run, bulk operations, the
+expectation polls of the collectors, the endpoint read and update and the agent installer are concerned. The
+tenant-prefixed routes, which the web interface uses, are unchanged.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-non-prefixed-route-tenant.md)
 

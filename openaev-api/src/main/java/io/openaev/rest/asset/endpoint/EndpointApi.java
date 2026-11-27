@@ -9,7 +9,6 @@ import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.api.asset.dto.MarkedEndpointInput;
 import io.openaev.config.RequireTenantSelector;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
@@ -205,12 +204,13 @@ public class EndpointApi extends RestBehavior {
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (the endpoint's agents eager-load their executor).
+  // ctx names the tenants the endpoint is read in, and the aspect scopes this transaction with it
+  // (the endpoint's agents eager-load their executor, a v2-active table). With no selector, a
+  // caller
+  // of several tenants reads in the default tenant, whose rights the access check reads.
   public EndpointOverviewOutput endpoint(
-      TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
-    Endpoint endpoint =
-        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant());
+      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
+    Endpoint endpoint = this.endpointService.endpointInScope(ctx, endpointId);
     return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
   }
 
@@ -270,14 +270,15 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (the endpoint's agents eager-load their executor).
+  // ctx names the tenants the endpoint is read in, and the aspect scopes this transaction with it
+  // (the endpoint's agents eager-load their executor, a v2-active table). With no selector, a
+  // caller
+  // of several tenants reads in the default tenant, whose rights the access check reads.
   public EndpointOverviewOutput updateEndpoint(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final MarkedEndpointInput input) {
-    Endpoint endpoint =
-        endpointService.buildUpdatedEndpoint(endpointId, input, TenantContext.getCurrentTenant());
+    Endpoint endpoint = endpointService.buildUpdatedEndpoint(ctx, endpointId, input);
     assetMarkingsService.markAsset(endpoint.getTenant().getId(), endpoint, input.getMarkingIds());
     endpoint = endpointService.updateEndpoint(endpoint);
     return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);

@@ -73,11 +73,30 @@ class TxCtxArgumentResolverTest {
   }
 
   private void requireSelector() {
-    // lenient: the resolver now checks @RunTenantScope first, so hasParameterAnnotation is also
-    // invoked with RunTenantScope.class - which must not trip strict stubbing's PotentialStubbing
-    // guard on this RequireTenantSelector stub.
-    lenient().when(parameter.hasParameterAnnotation(RequireTenantSelector.class)).thenReturn(true);
+    requireSelector("refusing");
   }
+
+  /** Stubs the annotation of the parameter of one of the two handlers below. */
+  private void requireSelector(String handler) {
+    try {
+      RequireTenantSelector annotation =
+          getClass()
+              .getDeclaredMethod(handler, TxCtx.class)
+              .getParameters()[0]
+              .getAnnotation(RequireTenantSelector.class);
+      lenient()
+          .when(parameter.getParameterAnnotation(RequireTenantSelector.class))
+          .thenReturn(annotation);
+    } catch (NoSuchMethodException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  private void refusing(@RequireTenantSelector TxCtx ctx) {}
+
+  @SuppressWarnings("unused")
+  private void keeping(@RequireTenantSelector(refuseAmbiguousCaller = false) TxCtx ctx) {}
 
   private TxCtx resolve() {
     return (TxCtx) resolver.resolveArgument(parameter, null, webRequest, null);
@@ -108,6 +127,22 @@ class TxCtxArgumentResolverTest {
     requireSelector();
 
     assertThatThrownBy(this::resolve).isInstanceOf(TenantSelectorRequiredException.class);
+  }
+
+  @Test
+  @DisplayName(
+      "given a parameter that keeps the ambiguous caller, should resolve a multi-tenant caller"
+          + " without default-tenant access to its full allowed set")
+  void given_parameterKeepingTheAmbiguousCaller_should_resolveItsFullAllowedSet() {
+    // Arrange
+    authorizeTenants("tenant-1", "tenant-2");
+    requireSelector("keeping");
+
+    // Act
+    TxCtx resolved = resolve();
+
+    // Assert
+    assertThat(resolved.toGuc()).isEqualTo("tenant-1,tenant-2");
   }
 
   @Test

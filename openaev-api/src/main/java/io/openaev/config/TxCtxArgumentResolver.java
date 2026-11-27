@@ -89,8 +89,9 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     Set<String> authorized =
         new LinkedHashSet<>(
             membershipCache.findTenantIdsByUserId(SessionHelper.currentUser().getId()));
-    if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
-      selector = fallbackSelector(authorized);
+    RequireTenantSelector required = parameter.getParameterAnnotation(RequireTenantSelector.class);
+    if (selector.isEmpty() && required != null) {
+      selector = fallbackSelector(authorized, required.refuseAmbiguousCaller());
     }
     return scopeResolver.resolve(selector, authorized);
   }
@@ -171,9 +172,12 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
    * convention for requests without an explicit tenant context (see {@link
    * io.openaev.context.TenantContext#getCurrentTenant()}, issues #6331 / #6332). Only a
    * multi-tenant caller without access to the default tenant remains genuinely ambiguous and is
-   * refused (400), since silently picking one of its tenants could read or write the wrong one.
+   * refused (400), since silently picking one of its tenants could read or write the wrong one,
+   * unless the parameter asks to keep its full allowed set ({@link
+   * RequireTenantSelector#refuseAmbiguousCaller()}).
    */
-  private static Set<String> fallbackSelector(Set<String> authorized) {
+  private static Set<String> fallbackSelector(
+      Set<String> authorized, boolean refuseAmbiguousCaller) {
     if (authorized.size() <= 1) {
       // resolve() maps an empty selector to the caller's full allowed set, which is already a
       // single-tenant (or fail-closed empty) scope here.
@@ -181,6 +185,9 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     }
     if (authorized.contains(Tenant.DEFAULT_TENANT_UUID)) {
       return Set.of(Tenant.DEFAULT_TENANT_UUID);
+    }
+    if (!refuseAmbiguousCaller) {
+      return Set.of();
     }
     throw new TenantSelectorRequiredException();
   }
