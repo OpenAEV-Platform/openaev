@@ -47,9 +47,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 @Getter
 public class BaseEvent implements Cloneable {
 
-  /** The session ID from the current request context, if available. */
-  @JsonIgnore private final String sessionId;
-
   /** The entity instance that triggered this event. */
   @JsonIgnore private final Base instance;
 
@@ -110,7 +107,6 @@ public class BaseEvent implements Cloneable {
     // progress events instead (see BulkOperationContext).
     this.listened = data.isListened() && !BulkOperationContext.isActive();
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-    this.sessionId = requestAttributes != null ? requestAttributes.getSessionId() : null;
     String resolvedPermissionResourceId = data.getId();
     ResourceType resolvedPermissionResourceType = data.getResourceType();
     try {
