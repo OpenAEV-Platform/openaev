@@ -5,7 +5,6 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import java.io.InputStream;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
@@ -58,25 +57,8 @@ public class FileService {
   private final MinioService minioService;
 
   /**
-   * Uploads a file from an input stream to MinIO.
-   *
-   * @param name the target file path/name in the bucket
-   * @param data the input stream containing the file data
-   * @param size the size of the file in bytes
-   * @param contentType the MIME type of the file
-   * @throws Exception if the upload fails
-   */
-  public void uploadFile(String name, InputStream data, long size, String contentType)
-      throws Exception {
-    minioService.uploadFileInTenantPath(name, data, size, contentType);
-  }
-
-  /**
-   * Uploads a file from an input stream under an explicitly named tenant path.
-   *
-   * <p>Use this when the write tenant is resolved from the request scope, so the object is stored
-   * under the same tenant the owning row is attributed to and a later read of that row resolves the
-   * object, whatever the ambient {@link io.openaev.context.TenantContext}.
+   * Uploads a file from an input stream under the path of the named tenant, the tenant of the row
+   * the object belongs to, so a later read of that row resolves the object.
    *
    * @param tenantId the tenant whose path the object is written under
    * @param name the target file path/name in the bucket
@@ -104,24 +86,8 @@ public class FileService {
   }
 
   /**
-   * Uploads a stream to MinIO with metadata.
-   *
-   * @param path the directory path within the bucket
-   * @param name the filename
-   * @param data the input stream containing the file data
-   * @return the full path of the uploaded file
-   * @throws Exception if the upload fails
-   */
-  public String uploadStream(String path, String name, InputStream data) throws Exception {
-    String file = path.endsWith("/") ? path + name : path + "/" + name;
-    minioService.uploadStreamInTenantPath(file, name, data);
-    return file;
-  }
-
-  /**
-   * Uploads a stream under an explicitly named tenant path rather than the ambient {@link
-   * io.openaev.context.TenantContext}. Use this when the write tenant is resolved from the request
-   * or job scope, so the object lands under the same tenant the owning row is attributed to.
+   * Uploads a stream with its filename as metadata, under the path of the named tenant, the tenant
+   * of the row the object belongs to.
    *
    * @param tenantId the tenant whose path the object is written under
    * @param path the directory path within the bucket
@@ -155,79 +121,25 @@ public class FileService {
   }
 
   /**
-   * Deletes a file from MinIO.
-   *
-   * @param name the file path/name to delete
-   * @throws Exception if the deletion fails
-   */
-  public void deleteFile(String name) throws Exception {
-    minioService.deleteFileInTenantPath(name);
-  }
-
-  /**
    * Deletes a document's stored object under the tenant that owns it, the delete-side counterpart
-   * of {@link #getFile(Document, String)}. The caller passes the tenant of the row being deleted,
-   * so the object is removed from the same tenant path it was written under, whatever the ambient
-   * {@link io.openaev.context.TenantContext}. A {@code null} tenant is a platform asset with no
-   * boundary and keeps the ambient-path deletion.
+   * of {@link #getFile(Document, String)}: the caller passes the tenant of the row being deleted.
    *
-   * @param tenantId the owning tenant, or {@code null} for a platform asset with no tenant
+   * @param tenantId the owning tenant
    * @param name the object name/path to delete
    * @throws Exception if the deletion fails
    */
   public void deleteFile(String tenantId, String name) throws Exception {
-    if (tenantId == null) {
-      minioService.deleteFileInTenantPath(name);
-    } else {
-      minioService.deleteFileForTenant(tenantId, name);
-    }
+    minioService.deleteFileForTenant(tenantId, name);
   }
 
   /**
-   * Deletes all files in a directory recursively.
-   *
-   * <p>This method lists all objects with the given directory prefix and deletes them. Errors
-   * during individual deletions are logged but do not stop the operation.
-   *
-   * @param directory the directory prefix to delete
-   */
-  public void deleteDirectory(String directory) {
-    minioService.deleteDirectoryInTenantPath(directory);
-  }
-
-  /**
-   * Deletes all files in a directory recursively, under an explicitly named tenant path rather than
-   * the ambient {@link io.openaev.context.TenantContext}. Use this when the owning row's tenant is
-   * known, so the objects are removed from the same path they were written to, whatever scope the
-   * caller runs under.
+   * Deletes all files in a directory recursively, under the path of the tenant that owns them.
    *
    * @param tenantId the tenant whose path the directory is removed from
    * @param directory the directory prefix to delete
    */
   public void deleteDirectory(String tenantId, String directory) {
     minioService.deleteDirectoryForTenant(tenantId, directory);
-  }
-
-  /**
-   * Uploads a multipart file to MinIO.
-   *
-   * @param name the target file path/name in the bucket
-   * @param file the multipart file from an HTTP request
-   * @throws Exception if the upload fails
-   */
-  public void uploadFile(String name, MultipartFile file) throws Exception {
-    uploadFile(name, file.getInputStream(), file.getSize(), file.getContentType());
-  }
-
-  /**
-   * Retrieves a file from MinIO as an input stream.
-   *
-   * @param name the file path/name to retrieve
-   * @return an Optional containing the input stream, or empty if the file doesn't exist or an error
-   *     occurs
-   */
-  private Optional<InputStream> getFilePath(String name) {
-    return minioService.getFilePathInTenant(name);
   }
 
   /**
@@ -239,8 +151,7 @@ public class FileService {
    * generation, or the document's own tenant for an id-addressed read that already checked the
    * request scope). A document whose tenant differs from that owning tenant was reached through a
    * parent in another tenant, so its bytes are not served: the result is empty, the same as a
-   * missing object. A document with no tenant is a platform asset with no boundary and keeps the
-   * ambient-path resolution.
+   * missing object.
    *
    * @param document the document entity containing the file target path
    * @param owningTenantId the tenant the document is served under; the object is returned only if
@@ -248,18 +159,25 @@ public class FileService {
    * @return an Optional containing the file input stream, or empty if not found or out of tenant
    */
   public Optional<InputStream> getFile(Document document, String owningTenantId) {
-    Tenant tenant = document.getTenant();
-    if (tenant == null || tenant.getId() == null) {
-      return getFilePath(document.getTarget());
-    }
-    if (!tenant.getId().equals(owningTenantId)) {
+    String documentTenantId = document.getTenant().getId();
+    if (!documentTenantId.equals(owningTenantId)) {
       return Optional.empty();
     }
-    return minioService.getFilePathForTenant(tenant.getId(), document.getTarget());
+    return minioService.getFilePathForTenant(documentTenantId, document.getTarget());
   }
 
+  /**
+   * Serves a connector's image, from the requesting tenant's path first, then from the default
+   * tenant's path (see {@link #getPlatformImage}).
+   *
+   * @param tenantId the tenant the request reads in
+   * @param connectorType the kind of connector
+   * @param type the connector type
+   * @param cacheControl the cache policy of the image, which depends on the route it is served on
+   * @return the image, or 404 when neither path holds it
+   */
   public ResponseEntity<InputStreamResource> getConnectorImage(
-      ConnectorType connectorType, String type) {
+      String tenantId, ConnectorType connectorType, String type, CacheControl cacheControl) {
     String filePath;
     switch (connectorType) {
       case ConnectorType.COLLECTOR -> filePath = COLLECTORS_IMAGES_BASE_PATH;
@@ -269,14 +187,14 @@ public class FileService {
       default -> throw new IllegalArgumentException("Unsupported connector type: " + connectorType);
     }
 
-    Optional<InputStream> image = this.getPlatformImage(filePath + type + EXT_PNG);
+    Optional<InputStream> image = this.getPlatformImage(tenantId, filePath + type + EXT_PNG);
     if (image.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
 
     try {
       return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+          .cacheControl(cacheControl)
           .body(new InputStreamResource(image.get()));
     } catch (Exception e) {
       log.warn("Unable to read connector image {}", type, e);
@@ -287,21 +205,23 @@ public class FileService {
   /**
    * Retrieves a collector's image file.
    *
+   * @param tenantId the tenant the request reads in
    * @param collectorId the collector identifier
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCollectorImage(String collectorId) {
-    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
+  public Optional<InputStream> getCollectorImage(String tenantId, String collectorId) {
+    return getPlatformImage(tenantId, COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
   }
 
   /**
    * Retrieves an executor's banner image file.
    *
+   * @param tenantId the tenant the request reads in
    * @param executorId the executor identifier
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorBannerImage(String executorId) {
-    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
+  public Optional<InputStream> getExecutorBannerImage(String tenantId, String executorId) {
+    return getPlatformImage(tenantId, EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
@@ -336,36 +256,24 @@ public class FileService {
   }
 
   /**
-   * Retrieves a platform image, checking the current tenant path first (for externally registered
-   * integrations) then falling back to the default tenant (for built-in platform assets uploaded at
-   * startup).
+   * Retrieves a connector image, from the given tenant's path first (an integration registered in
+   * that tenant), then from the default tenant's path (built-in assets uploaded at startup).
    *
+   * @param tenantId the tenant the request reads in
    * @param filePath the file path to retrieve
    * @return an Optional containing the image input stream, or empty if not found
    */
-  private Optional<InputStream> getPlatformImage(String filePath) {
-    Optional<InputStream> tenantFile = getFilePath(filePath);
-    if (tenantFile.isPresent()) {
+  private Optional<InputStream> getPlatformImage(String tenantId, String filePath) {
+    Optional<InputStream> tenantFile = minioService.getFilePathForTenant(tenantId, filePath);
+    if (tenantFile.isPresent() || Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
       return tenantFile;
     }
     return minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**
-   * Retrieves a file with its metadata as a FileContainer.
-   *
-   * @param fileTarget the target file path
-   * @return an Optional containing the FileContainer with filename, content type, and stream
-   */
-  public Optional<FileContainer> getFileContainer(String fileTarget) {
-    return minioService.getFileContainerInTenant(fileTarget);
-  }
-
-  /**
-   * Retrieves a file with its metadata as a FileContainer, under an explicitly named tenant path
-   * rather than the ambient {@link io.openaev.context.TenantContext}. Use this when the owning
-   * row's tenant is known, so the object is read from the same path it was written to, whatever
-   * scope the caller runs under.
+   * Retrieves a file with its metadata as a FileContainer, under the path of the tenant that owns
+   * it.
    *
    * @param tenantId the tenant whose path the object is read from
    * @param fileTarget the target file path

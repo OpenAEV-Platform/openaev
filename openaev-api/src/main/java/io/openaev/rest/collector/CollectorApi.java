@@ -1,6 +1,8 @@
 package io.openaev.rest.collector;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.config.TenantUriUtils.tenantImageCacheControl;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
@@ -27,6 +29,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.io.InputStream;
@@ -139,8 +142,14 @@ public class CollectorApi extends RestBehavior {
   @Operation(summary = "Get collector image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getCollectorImage(
-      TxCtx ctx, @PathVariable String collectorType) {
-    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String collectorType,
+      HttpServletRequest request) {
+    return this.fileService.getConnectorImage(
+        requireOneTenantOfScope(ctx),
+        ConnectorType.COLLECTOR,
+        collectorType,
+        tenantImageCacheControl(request));
   }
 
   @GetMapping(
@@ -154,14 +163,21 @@ public class CollectorApi extends RestBehavior {
   @Transactional
   // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
   public ResponseEntity<InputStreamResource> getCollectorImageById(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String collectorId,
+      HttpServletRequest request)
+      throws IOException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Collector> collector =
         collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId));
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collector.get().getType());
+    return this.fileService.getConnectorImage(
+        tenantId,
+        ConnectorType.COLLECTOR,
+        collector.get().getType(),
+        tenantImageCacheControl(request));
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})

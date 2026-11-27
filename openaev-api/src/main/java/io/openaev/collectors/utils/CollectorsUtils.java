@@ -8,4 +8,5 @@ public final class CollectorsUtils {
   public static final String SPLUNK = "openaev_splunk_es";
   public static final String MICROSOFT_SENTINEL = "openaev_microsoft_sentinel";
   public static final String MICROSOFT_DEFENDER = "openaev_microsoft_defender";
+  public static final String FAKE_DETECTOR = "openaev_fake_detector";
 }

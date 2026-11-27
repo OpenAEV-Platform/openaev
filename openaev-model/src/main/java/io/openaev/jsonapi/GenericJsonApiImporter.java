@@ -205,14 +205,12 @@ public class GenericJsonApiImporter<T extends Base> {
             } else if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
                 String contentType = Files.probeContentType(Path.of(target));
-                // Store the object under the resolved write tenant, so it stays co-located with the
-                // document row attributed to the same tenant and a later read resolves it whatever
-                // the ambient TenantContext. A null write tenant keeps the ambient-path upload.
-                if (writeTenantId != null) {
-                  fileService.uploadFile(writeTenantId, target, in, fileBytes.length, contentType);
-                } else {
-                  fileService.uploadFile(target, in, fileBytes.length, contentType);
-                }
+                fileService.uploadFile(
+                    Objects.requireNonNull(writeTenantId, "writeTenantId"),
+                    target,
+                    in,
+                    fileBytes.length,
+                    contentType);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

@@ -5,9 +5,11 @@ import io.openaev.utils.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerMapping;
 
@@ -31,11 +33,9 @@ public final class TenantUriUtils {
   private final RequestUtils requestUtils;
 
   public Optional<String> getTenantIdFromRequestUrl(HttpServletRequest request) {
-    Object pathVariablesAttribute =
-        request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-    if (pathVariablesAttribute instanceof Map<?, ?> pathVariables
-        && pathVariables.get(TENANT_ID_PATH_VARIABLE) instanceof String tenantId) {
-      return Optional.of(tenantId);
+    Optional<String> pathTenantId = pathTenantId(request);
+    if (pathTenantId.isPresent()) {
+      return pathTenantId;
     }
 
     // Fallback for callers running before handler mapping populated the path variables
@@ -50,6 +50,36 @@ public final class TenantUriUtils {
       }
     }
 
+    return Optional.empty();
+  }
+
+  /**
+   * Whether a request mapped to a controller came in on a tenant-prefixed route, whose URL names
+   * the tenant it reads in.
+   */
+  public static boolean isTenantPrefixedRoute(HttpServletRequest request) {
+    return pathTenantId(request).isPresent();
+  }
+
+  /**
+   * Cache policy of an image whose bytes depend on the tenant it is read in. A tenant-prefixed URL
+   * names that tenant, so the image is cacheable for five minutes. A non-prefixed URL takes the
+   * tenant from the caller ({@code X-Tenant-Ids} or its memberships), so callers of different
+   * tenants share that URL and the image is not stored.
+   */
+  public static CacheControl tenantImageCacheControl(HttpServletRequest request) {
+    return isTenantPrefixedRoute(request)
+        ? CacheControl.maxAge(5, TimeUnit.MINUTES)
+        : CacheControl.noStore();
+  }
+
+  private static Optional<String> pathTenantId(HttpServletRequest request) {
+    Object pathVariablesAttribute =
+        request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+    if (pathVariablesAttribute instanceof Map<?, ?> pathVariables
+        && pathVariables.get(TENANT_ID_PATH_VARIABLE) instanceof String tenantId) {
+      return Optional.of(tenantId);
+    }
     return Optional.empty();
   }
 }

@@ -428,11 +428,9 @@ class ImapServiceTenantScopeTest {
       // Act
       ReflectionTestUtils.invokeMethod(imapService, "parseMessages", messages, false);
 
-      // Assert - the object must land under the inject's own tenant, not the job's ambient one
-      // (this background job never sets TenantContext, so the ambient tenant always defaults).
+      // Assert - the object lands under the inject's own tenant
       verify(fileService)
           .uploadStream(eq(tenantId), anyString(), anyString(), any(InputStream.class));
-      verify(fileService, never()).uploadStream(anyString(), anyString(), any(InputStream.class));
     }
   }
 

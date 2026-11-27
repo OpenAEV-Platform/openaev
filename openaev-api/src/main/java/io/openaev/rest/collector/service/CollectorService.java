@@ -280,7 +280,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       throws Exception {
 
     if (iconStream != null) {
-      fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
+      fileService.uploadStream(tenantId, COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
     CollectorType collectorType = ensureCollectorTypeExists(tenantId, type);

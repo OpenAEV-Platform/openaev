@@ -1,9 +1,12 @@
 package io.openaev.rest.document;
 
+import static io.openaev.collectors.utils.CollectorsUtils.FAKE_DETECTOR;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.config.TenantUriUtils.tenantImageCacheControl;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 import static io.openaev.utils.mapper.DocumentMapper.toDocumentRelationsOutput;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -35,13 +38,13 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
@@ -50,7 +53,6 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -393,7 +395,7 @@ public class DocumentApi extends RestBehavior {
     // document is addressed by its own id, so its own tenant is where its bytes belong. The
     // argument locates the object, it does not check anything, unlike the routes that reach a
     // document through a parent and pass the parent's tenant.
-    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
+    return buildDocumentDownloadResponse(document, tenantIdOf(document));
   }
 
   @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
@@ -411,11 +413,11 @@ public class DocumentApi extends RestBehavior {
     Document document = documentService.document(documentId);
     // Same as above: the scope of the lookup is the boundary, the owning tenant only locates the
     // object.
-    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
+    return buildDocumentDownloadResponse(document, tenantIdOf(document));
   }
 
-  private static String tenantIdOrNull(TenantBase entity) {
-    return entity.getTenant() == null ? null : entity.getTenant().getId();
+  private static String tenantIdOf(TenantBase entity) {
+    return entity.getTenant().getId();
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(
@@ -432,11 +434,11 @@ public class DocumentApi extends RestBehavior {
         .body(new InputStreamResource(in));
   }
 
-  public ResponseEntity<InputStreamResource> downloadCollectorImage(
-      @PathVariable String collectorType) {
+  private ResponseEntity<InputStreamResource> downloadCollectorImage(
+      String tenantId, String collectorType) {
     InputStream in =
         fileService
-            .getCollectorImage(collectorType)
+            .getCollectorImage(tenantId, collectorType)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
@@ -462,12 +464,12 @@ public class DocumentApi extends RestBehavior {
     // document bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
       return buildDocumentDownloadResponse(
-          securityPlatform.getLogoDark(), tenantIdOrNull(securityPlatform));
+          securityPlatform.getLogoDark(), tenantIdOf(securityPlatform));
     } else if (securityPlatform.getLogoLight() != null) {
       return buildDocumentDownloadResponse(
-          securityPlatform.getLogoLight(), tenantIdOrNull(securityPlatform));
+          securityPlatform.getLogoLight(), tenantIdOf(securityPlatform));
     } else {
-      return downloadCollectorImage("openaev_fake_detector");
+      return downloadCollectorImage(tenantIdOf(securityPlatform), FAKE_DETECTOR);
     }
   }
 
@@ -494,11 +496,11 @@ public class DocumentApi extends RestBehavior {
     // The logo is served under the channel's tenant, the parent it is reached through: a document
     // bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoDark(), tenantIdOrNull(channel));
+      return buildDocumentDownloadResponse(channel.getLogoDark(), tenantIdOf(channel));
     } else if (channel.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoLight(), tenantIdOrNull(channel));
+      return buildDocumentDownloadResponse(channel.getLogoLight(), tenantIdOf(channel));
     } else {
-      return downloadCollectorImage("openaev_fake_detector");
+      return downloadCollectorImage(tenantIdOf(channel), FAKE_DETECTOR);
     }
   }
 
@@ -511,8 +513,14 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
-      TxCtx ctx, @PathVariable String executorId) {
-    return this.fileService.getConnectorImage(ConnectorType.EXECUTOR, executorId);
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String executorId,
+      HttpServletRequest request) {
+    return this.fileService.getConnectorImage(
+        requireOneTenantOfScope(ctx),
+        ConnectorType.EXECUTOR,
+        executorId,
+        tenantImageCacheControl(request));
   }
 
   @GetMapping(
@@ -524,13 +532,15 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorBannerImage(
-      TxCtx ctx, @PathVariable String executorId) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String executorId,
+      HttpServletRequest request) {
     return fileService
-        .getExecutorBannerImage(executorId)
+        .getExecutorBannerImage(requireOneTenantOfScope(ctx), executorId)
         .map(
             inputStream ->
                 ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .cacheControl(tenantImageCacheControl(request))
                     .body(new InputStreamResource(inputStream)))
         .orElse(null);
   }
@@ -645,12 +655,11 @@ public class DocumentApi extends RestBehavior {
     Document doc = document.orElseThrow(() -> new ElementNotFoundException("File not found"));
     // Serve the player document under the tenant of the exercise or scenario it is reached through,
     // never under the document's own tenant: a document bound to a parent in another tenant must
-    // not
-    // have its bytes served to a player of this one.
+    // not have its bytes served to a player of this one.
     String owningTenantId =
         exerciseOpt
-            .map(DocumentApi::tenantIdOrNull)
-            .orElseGet(() -> scenarioOpt.map(DocumentApi::tenantIdOrNull).orElse(null));
+            .map(DocumentApi::tenantIdOf)
+            .orElseGet(() -> tenantIdOf(scenarioOpt.orElseThrow()));
     InputStream in =
         fileService
             .getFile(doc, owningTenantId)

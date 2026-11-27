@@ -159,10 +159,9 @@ class ExerciseServiceUnitTest {
           .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
 
       // Assert - the directory is removed from both the simulation's own tenant path and the
-      // default tenant's prefix, never the ambient (1-arg) method.
+      // default tenant's prefix.
       verify(fileService).deleteDirectory(eq(owningTenantId), eq(exerciseId));
       verify(fileService).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
-      verify(fileService, never()).deleteDirectory(anyString());
     }
 
     @Test
@@ -203,7 +202,6 @@ class ExerciseServiceUnitTest {
 
       // Assert - a single delete, not a second one for the same path
       verify(fileService, times(1)).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
-      verify(fileService, never()).deleteDirectory(anyString());
     }
   }
 

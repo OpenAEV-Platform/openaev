@@ -124,7 +124,7 @@ class InjectImportTest extends IntegrationTest {
     staticArticleWrappers.clear();
 
     for (String filename : FileFixture.WELL_KNOWN_FILES.keySet()) {
-      fileService.deleteFile(filename);
+      fileService.deleteFile(TenantContext.getCurrentTenant(), filename);
     }
 
     clearEntityManager();

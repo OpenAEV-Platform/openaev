@@ -660,11 +660,15 @@ public class CollectorApiTest extends IntegrationTest {
   @DisplayName("Collector image")
   class CollectorImage {
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given existing collector image should return image by type")
     void given_existingCollectorImage_should_returnImageByType() throws Exception {
       // -- Arrange --
       String collectorType = "test-collector-type";
       fileService.uploadStream(
+          Tenant.DEFAULT_TENANT_UUID,
           FileService.COLLECTORS_IMAGES_BASE_PATH,
           collectorType + FileService.EXT_PNG,
           new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
@@ -679,6 +683,7 @@ public class CollectorApiTest extends IntegrationTest {
       // -- Arrange --
       Collector collector = getCollector("test-collector-by-id");
       fileService.uploadStream(
+          collector.getTenantId(),
           FileService.COLLECTORS_IMAGES_BASE_PATH,
           collector.getType() + FileService.EXT_PNG,
           new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
@@ -689,6 +694,9 @@ public class CollectorApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given missing collector image should return 404")
     void given_missingCollectorImage_should_return404() throws Exception {
       // -- Act / Assert --
