@@ -4,6 +4,7 @@ import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -64,8 +65,8 @@ public class BulkDeleteExecutor {
   }
 
   /**
-   * Deletes the given ids chunk by chunk, each chunk in its own transaction, retrying chunks that
-   * lose a deadlock against a concurrent writer.
+   * Deletes the given ids chunk by chunk, each chunk in its own transaction scoped by {@code ctx},
+   * retrying chunks that lose a deadlock against a concurrent writer.
    *
    * <p>Chunks that already committed stay deleted if a later chunk ultimately fails: bulk deletion
    * is not atomic across chunks (re-running the same request completes the remainder). Callers must
@@ -73,19 +74,11 @@ public class BulkDeleteExecutor {
    * chunked commits are impossible, so the whole deletion runs inline in the caller's transaction,
    * without retry.
    *
+   * @param ctx tenant scope of each chunk transaction
    * @param entityLabel human label for logs (e.g. "scenarios")
    * @param ids ids to delete, in any order
    * @param chunkDeleter performs the actual deletion of one chunk of ids
    * @return the ids submitted for deletion, sorted
-   */
-  public List<String> deleteInChunks(
-      String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
-    return processInChunks(null, "delete", entityLabel, ids, chunkDeleter);
-  }
-
-  /**
-   * Same as {@link #deleteInChunks(String, List, Consumer)} with an explicit tenant scope on each
-   * chunk transaction, so tenant-active tables are visible to the deleter.
    */
   public List<String> deleteInChunks(
       TxCtx ctx, String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
@@ -112,6 +105,7 @@ public class BulkDeleteExecutor {
       String entityLabel,
       List<String> ids,
       Consumer<List<String>> chunkAction) {
+    Objects.requireNonNull(ctx, "ctx must not be null");
     if (ids.isEmpty()) {
       return List.of();
     }
@@ -122,7 +116,7 @@ public class BulkDeleteExecutor {
       chunkAction.accept(sortedIds);
       return sortedIds;
     }
-    String operationId = bulkOperationMonitor.start(action, entityLabel, sortedIds.size());
+    String operationId = bulkOperationMonitor.start(ctx, action, entityLabel, sortedIds.size());
     try {
       for (int start = 0; start < sortedIds.size(); start += CHUNK_SIZE) {
         List<String> chunk =
@@ -160,10 +154,7 @@ public class BulkDeleteExecutor {
                     chunkAction.accept(chunk);
                     return null;
                   };
-              if (ctx != null) {
-                return chunkRunner.call(ctx, work);
-              }
-              return chunkRunner.call(work);
+              return chunkRunner.call(ctx, work);
             });
         return;
       } catch (ConcurrencyFailureException e) {

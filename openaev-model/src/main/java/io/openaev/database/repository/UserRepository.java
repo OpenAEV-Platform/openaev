@@ -116,6 +116,13 @@ public interface UserRepository
       nativeQuery = true)
   List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
 
+  // Native: users_tenants is a join table with no entity of its own; a read, so no listener side
+  // effect is lost.
+  @Query(
+      value = "select distinct ut.user_id from users_tenants ut where ut.tenant_id in :tenantIds",
+      nativeQuery = true)
+  List<String> findUserIdsByTenantIdIn(@Param("tenantIds") Collection<String> tenantIds);
+
   /**
    * Returns a projection rather than {@code User} entities, because loading one user also loads its
    * groups (EAGER), then each group's grants, roles and other members, and the audit listener

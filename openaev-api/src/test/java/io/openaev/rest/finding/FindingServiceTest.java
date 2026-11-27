@@ -98,7 +98,9 @@ class FindingServiceTest extends IntegrationTest {
       switchToTenant(tenantY);
 
       // -------- Act & Assert --------
-      assertThrows(EntityNotFoundException.class, () -> findingService.finding(finding.getId()));
+      assertThrows(
+          EntityNotFoundException.class,
+          () -> findingService.finding(TxCtx.forTenant(tenantY), finding.getId()));
     }
 
     @Test
@@ -111,7 +113,7 @@ class FindingServiceTest extends IntegrationTest {
       switchToTenant(tenantX);
 
       // -------- Act --------
-      Finding result = findingService.finding(finding.getId());
+      Finding result = findingService.finding(TxCtx.forTenant(tenantX), finding.getId());
 
       // -------- Assert --------
       assertEquals(finding.getId(), result.getId());

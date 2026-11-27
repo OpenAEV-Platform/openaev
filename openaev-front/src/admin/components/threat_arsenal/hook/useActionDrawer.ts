@@ -2,12 +2,13 @@ import { useEffect, useReducer, useState } from 'react';
 
 import { installCatalogPayload } from '../../../../actions/catalog/payload-catalog-actions';
 import { useFormatter } from '../../../../components/i18n';
-import { type ThreatArsenalAction } from '../../../../utils/api-types';
+import { type PayloadVersionOutput, type ThreatArsenalAction } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import useCatalogPayloadVersions from '../catalog/useCatalogPayloadVersions';
 import useCustomization from '../customization/useCustomization';
-import { olderVersionsInUse, totalUsageCount } from '../versions/usages/usageCounts';
+import { olderUsageCount } from '../versions/usages/usageCounts';
+import useUsageCounts from '../versions/usages/useUsageCounts';
 import useUsagesByVersion from '../versions/usages/useUsagesByVersion';
 import useAfterNewVersion from '../versions/useAfterNewVersion';
 import usePayloadVersions from '../versions/usePayloadVersions';
@@ -38,8 +39,24 @@ const useActionDrawer = (
   const versions = usePayloadVersions(action?.injector_contract_id ?? '', open && showVersions, versionsKey);
   // A move changes the usages of two versions: they are all loaded again.
   const [usagesKey, reloadUsages] = useReducer(increment, 0);
-  // The Overview only counts what is left on older versions.
-  const usages = useUsagesByVersion(tab === 'versions' ? versions : versions?.filter(version => !version.payload_is_latest) ?? null, usagesKey);
+  const counts = useUsageCounts(open && showVersions ? action?.injector_contract_id : undefined, usagesKey);
+  // The usages of a version load when it is opened, and are kept while the drawer is.
+  const openedFor = open ? action?.injector_contract_id : undefined;
+  const [openedVersions, setOpenedVersions] = useState({
+    openedFor,
+    ids: new Set<string>(),
+  });
+  if (openedVersions.openedFor !== openedFor) setOpenedVersions({
+    openedFor,
+    ids: new Set(),
+  });
+  const openVersion = ({ payload_id }: PayloadVersionOutput) => setOpenedVersions(previous => (previous.ids.has(payload_id)
+    ? previous
+    : {
+        ...previous,
+        ids: new Set(previous.ids).add(payload_id),
+      }));
+  const usages = useUsagesByVersion(versions?.filter(version => openedVersions.ids.has(version.payload_id)) ?? [], usagesKey);
   const customization = useCustomization(open ? action : null);
   const { shownId, show, installed, shownAction, notInstalledVersion } = useShownVersion(action, versions);
 
@@ -56,7 +73,7 @@ const useActionDrawer = (
   const shownCatalogueVersion = catalogue.find(item => item.catalog_payload_version === notInstalledVersion);
 
   const latest = versions?.find(version => version.payload_is_latest);
-  const toMove = versions && usages && latest ? totalUsageCount(olderVersionsInUse(versions, usages, latest.payload_action_id)) : 0;
+  const toMove = versions && counts && latest ? olderUsageCount(versions, counts, latest.payload_action_id) : 0;
 
   const [installing, setInstalling] = useState<string | null>(null);
   const install = (version: string) => {
@@ -82,7 +99,9 @@ const useActionDrawer = (
     setTab,
     showVersions,
     versions,
+    counts,
     usages,
+    openVersion,
     reloadUsages,
     customization,
     shownId,

@@ -4,7 +4,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
@@ -19,6 +18,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.service.finding.FindingRecordingService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotNull;
@@ -59,20 +59,21 @@ public class FindingService {
     return fromIterable(this.findingRepository.findAll());
   }
 
-  public Finding finding(@NotNull final String id) {
+  /** Loads a finding inside the request's tenant scope. Throws if not found there. */
+  public Finding finding(@NotNull final TxCtx ctx, @NotNull final String id) {
     return this.findingRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantIdIn(id, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
   /**
    * Resolves the group-wide data backing the summary of a finding - the group being every
-   * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
-   * to the mapper.
+   * occurrence sharing its (type, value) in the tenant of the finding - and delegates the assembly
+   * of the output to the mapper.
    */
-  public FindingSummaryOutput findingSummary(@NotNull final String id) {
-    Finding finding = finding(id);
-    String tenantId = TenantContext.getCurrentTenant();
+  public FindingSummaryOutput findingSummary(@NotNull final TxCtx ctx, @NotNull final String id) {
+    Finding finding = finding(ctx, id);
+    String tenantId = finding.getTenant().getId();
     ContractOutputType type = finding.getType();
     String displayValue = finding.getValueDisplay();
 

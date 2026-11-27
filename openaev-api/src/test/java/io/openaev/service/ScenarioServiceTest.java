@@ -400,7 +400,9 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
 
     // -- EXECUTE --
-    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+    Scenario scenarioDuplicated =
+        scenarioService.getDuplicateScenario(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), scenario.getId());
 
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
@@ -440,7 +442,8 @@ class ScenarioServiceTest extends IntegrationTest {
       entityManager.flush();
 
       // -- EXECUTE --
-      Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+      Scenario scenarioDuplicated =
+          scenarioService.getDuplicateScenario(TxCtx.forTenant(tenant.getId()), scenario.getId());
 
       // -- ASSERT --
       Team duplicatedContextualTeam =
@@ -473,7 +476,9 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+    Scenario scenarioDuplicated =
+        scenarioService.getDuplicateScenario(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), scenario.getId());
 
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
     assertFalse(scenarioDuplicated.isLessonsEnabled());

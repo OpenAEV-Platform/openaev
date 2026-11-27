@@ -1,5 +1,8 @@
 package io.openaev.service.catalog.scenario;
 
+import java.util.Arrays;
+import java.util.List;
+
 /** How a catalogue scenario runs: its injects on a timeline, or the steps of a workflow. */
 public enum CatalogScenarioType {
   TIME_BASED(true, true),
@@ -28,5 +31,12 @@ public enum CatalogScenarioType {
   /** Whether an installed one can move to another version; a chained one cannot yet. */
   public boolean updatable() {
     return updatable;
+  }
+
+  /**
+   * The types an installed scenario can move to another version of, as the catalogue stores them.
+   */
+  public static List<String> updatableNames() {
+    return Arrays.stream(values()).filter(CatalogScenarioType::updatable).map(Enum::name).toList();
   }
 }

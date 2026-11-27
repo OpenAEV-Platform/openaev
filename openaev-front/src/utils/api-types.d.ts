@@ -11127,6 +11127,13 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageCountOutput {
+  /** @minLength 1 */
+  payload_id: string;
+  /** @format int64 */
+  payload_usage_count: number;
+}
+
 export interface PayloadUsageMoveInput {
   /** @minLength 1 */
   target_payload_id: string;
@@ -12582,6 +12589,7 @@ export interface ScenarioBulkProcessingInput {
 
 export interface ScenarioCatalogStateOutput {
   scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_newer_version?: string;
   scenario_catalog_state_revoked: boolean;
 }
 
