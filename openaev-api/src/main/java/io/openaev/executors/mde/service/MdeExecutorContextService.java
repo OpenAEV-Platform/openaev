@@ -4,6 +4,7 @@ import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -64,7 +65,7 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
 
     mdeAgents = executorService.manageWithoutPlatformAgents(mdeAgents, injectStatus);
 
-    Injector injector = ImplantCommand.injectorOf(inject);
+    Injector injector = injectorOf(inject);
 
     List<MdeAction> actions = new ArrayList<>();
     actions.addAll(

@@ -9,7 +9,6 @@ import io.openaev.database.model.Endpoint.PLATFORM_ARCH;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
 import java.util.UUID;
 import java.util.regex.Matcher;
 
@@ -56,17 +55,6 @@ public record ImplantCommand(ArchSource archSource, String windowsTemplatePrefix
     abstract String templateArch(Agent agent);
 
     abstract String adapt(String template, PLATFORM_TYPE platform);
-  }
-
-  /** Falls back to the contract's injector for legacy injects without inject_injector. */
-  public static Injector injectorOf(Inject inject) {
-    if (inject.getInjector() != null) {
-      return inject.getInjector();
-    }
-    return inject
-        .getInjectorContract()
-        .map(InjectorContract::getFirstInjector)
-        .orElseThrow(() -> new UnsupportedOperationException("Inject does not have a contract"));
   }
 
   public String build(

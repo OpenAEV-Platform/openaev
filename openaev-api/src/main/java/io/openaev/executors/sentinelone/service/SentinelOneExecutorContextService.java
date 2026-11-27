@@ -2,6 +2,7 @@ package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -56,7 +57,7 @@ public class SentinelOneExecutorContextService
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     sentinelOneAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Injector injector = ImplantCommand.injectorOf(inject);
+    Injector injector = injectorOf(inject);
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);

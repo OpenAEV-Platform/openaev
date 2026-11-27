@@ -2,6 +2,7 @@ package io.openaev.executors.tanium.service;
 
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -56,7 +57,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
 
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
 
-    Injector injector = ImplantCommand.injectorOf(inject);
+    Injector injector = injectorOf(inject);
 
     List<TaniumAction> actions = new ArrayList<>();
     // Set implant script for each agent

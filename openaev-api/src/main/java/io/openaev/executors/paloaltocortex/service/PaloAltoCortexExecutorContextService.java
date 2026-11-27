@@ -3,6 +3,7 @@ package io.openaev.executors.paloaltocortex.service;
 import static io.openaev.executors.ExecutorHelper.POWERSHELL_CMD;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -63,7 +64,7 @@ public class PaloAltoCortexExecutorContextService
     paloAltoCortexAgents =
         executorService.manageWithoutPlatformAgents(paloAltoCortexAgents, injectStatus);
 
-    Injector injector = ImplantCommand.injectorOf(inject);
+    Injector injector = injectorOf(inject);
 
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     // Set implant script for each agent

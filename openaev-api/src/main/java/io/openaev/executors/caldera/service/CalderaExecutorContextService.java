@@ -1,5 +1,7 @@
 package io.openaev.executors.caldera.service;
 
+import static io.openaev.utils.InjectUtils.injectorOf;
+
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -70,16 +72,7 @@ public class CalderaExecutorContextService extends ExecutorContextService {
     if (!this.calderaExecutorConfig.isEnable()) {
       throw new AgentException("Fatal error: Caldera executor is not enabled", agent);
     }
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
+    Injector injector = injectorOf(inject);
     if (this.injectorExecutorAbilities.containsKey(injector.getId())) {
       List<Map<String, String>> additionalFields =
           List.of(

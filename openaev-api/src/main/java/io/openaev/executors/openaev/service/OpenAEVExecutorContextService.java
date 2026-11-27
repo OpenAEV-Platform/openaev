@@ -2,6 +2,7 @@ package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 import static java.time.Instant.now;
 
 import io.openaev.config.OpenAEVConfig;
@@ -32,16 +33,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       Endpoint.PLATFORM_TYPE platform,
       Endpoint.PLATFORM_ARCH arch,
       String token) {
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
+    Injector injector = injectorOf(inject);
 
     return switch (platform) {
       case Windows, Linux, MacOS -> {

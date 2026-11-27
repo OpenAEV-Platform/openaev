@@ -309,6 +309,17 @@ public class InjectUtils {
    * @param row the Excel row to check
    * @return {@code true} if the row is empty, {@code false} otherwise
    */
+  /** Falls back to the contract's first injector for legacy injects without inject_injector. */
+  public static Injector injectorOf(Inject inject) {
+    if (inject.getInjector() != null) {
+      return inject.getInjector();
+    }
+    return inject
+        .getInjectorContract()
+        .map(InjectorContract::getFirstInjector)
+        .orElseThrow(() -> new UnsupportedOperationException("Inject does not have a contract"));
+  }
+
   public static boolean checkIfRowIsEmpty(Row row) {
     if (row == null) {
       return true;

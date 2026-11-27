@@ -2,6 +2,7 @@ package io.openaev.executors.crowdstrike.service;
 
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -56,7 +57,7 @@ public class CrowdStrikeExecutorContextService
 
     csAgents = executorService.manageWithoutPlatformAgents(csAgents, injectStatus);
 
-    Injector injector = ImplantCommand.injectorOf(inject);
+    Injector injector = injectorOf(inject);
 
     List<CrowdStrikeAction> actions = new ArrayList<>();
     // Set implant script for Windows CS agents
