@@ -14,7 +14,6 @@ import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -47,7 +46,7 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
 
   @BeforeEach
   void seed() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-consistency-tenant"));
+    tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
     // One execution on host-x produces a linked credentials finding.
     String execId = execution("nmap", "host-x", "Prevented", "Not Detected");
     linkedFinding("host-x", "credentials", "admin:secret", execId);
@@ -63,6 +62,12 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
     execution("hydra", "host-orange", "Not Prevented", "Detected"); // worst-case -> ORANGE
     execution("nmap", "host-mixed-null", "Prevented", "Not Detected");
     execution("hydra", "host-mixed-null", null, null); // null row must still rank RED (worst-case)
+    execution("nmap", "host-yellow", "Not Prevented", "Not Detected", "Logged"); // -> YELLOW
+    // Logged only outranks detected: the worst case of the two is YELLOW.
+    execution("nmap", "host-yellow-orange", "Not Prevented", "Detected", "Logged");
+    execution("hydra", "host-yellow-orange", "Not Prevented", "Not Detected", "Logged");
+    // A detected execution stays ORANGE when it was logged too.
+    execution("nmap", "host-orange-logged", "Not Prevented", "Detected", "Logged");
     entityManager.flush();
   }
 
@@ -92,7 +97,8 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("full and collapsed agree on endpoint severity, including RED and null statuses")
+  @DisplayName(
+      "full and collapsed agree on endpoint severity, including YELLOW, RED and null statuses")
   void full_and_collapsed_agree_on_severity() {
     Map<String, String> full = coloursByEndpoint(graphService.buildGraph(SIM, "full"));
     Map<String, String> collapsed = coloursByEndpoint(graphService.buildGraph(SIM, "collapsed"));
@@ -105,7 +111,10 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
         .containsEntry(AttackPathIds.endpointNode("host-orange"), "ORANGE")
         .containsEntry(AttackPathIds.endpointNode("host-red"), "RED")
         .containsEntry(AttackPathIds.endpointNode("host-null"), "RED")
-        .containsEntry(AttackPathIds.endpointNode("host-mixed-null"), "RED");
+        .containsEntry(AttackPathIds.endpointNode("host-mixed-null"), "RED")
+        .containsEntry(AttackPathIds.endpointNode("host-yellow"), "YELLOW")
+        .containsEntry(AttackPathIds.endpointNode("host-yellow-orange"), "YELLOW")
+        .containsEntry(AttackPathIds.endpointNode("host-orange-logged"), "ORANGE");
   }
 
   private static Map<String, String> coloursByEndpoint(AttackPathDTO dto) {
@@ -119,6 +128,11 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
   }
 
   private String execution(String injector, String endpoint, String prevention, String detection) {
+    return execution(injector, endpoint, prevention, detection, null);
+  }
+
+  private String execution(
+      String injector, String endpoint, String prevention, String detection, String logging) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
@@ -131,6 +145,7 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
     e.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
     e.setPreventionStatus(prevention);
     e.setDetectionStatus(detection);
+    e.setLoggingStatus(logging);
     return executionRepository.save(e).getId();
   }
 

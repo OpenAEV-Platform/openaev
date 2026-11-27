@@ -23,7 +23,14 @@ public enum PreviewFeature {
   CREDENTIAL_ASSET("CREDENTIAL_ASSET"),
   MARKING("MARKING"),
   RATE_LIMITING("RATE_LIMITING"),
-  BULK_SNAPSHOT_EXPORT("BULK_SNAPSHOT_EXPORT");
+  BULK_SNAPSHOT_EXPORT("BULK_SNAPSHOT_EXPORT"),
+  XTM_HUB_NEWS_FEED("XTM_HUB_NEWS_FEED"),
+  LOGGING_EXPECTATION("LOGGING_EXPECTATION"),
+  CATALOG("CATALOG"),
+  EXPLORATION_GRAPH("EXPLORATION_GRAPH"),
+  // The cross-product counterparts (the XTM One emblem and its surface): the /xtm routes and every
+  // outbound counterpart call. Separate from EXPLORATION_GRAPH (Sam, 23 Nov 2026).
+  XTM_COUNTERPARTS("XTM_COUNTERPARTS");
 
   private final String value;
 

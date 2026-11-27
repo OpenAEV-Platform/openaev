@@ -27,6 +27,7 @@ public record AttackPathExecutionRow(
     String preventionStatus,
     String detectionStatus,
     String vulnerabilityStatus,
+    String loggingStatus,
     String stepTemplateId,
     // Injector node enrichment: the frozen contract external id resolves the ATT&CK techniques, and
     // the injector type labels the node with what actually ran.
@@ -42,4 +43,6 @@ public record AttackPathExecutionRow(
     // the Result drawer's detail read does, so a row's "did it actually run" status ships with the
     // graph instead of costing two client round-trips per visible row.
     String stepId,
-    String payloadId) {}
+    String payloadId,
+    // The tenant of the execution, which the contracts the graph names are read in.
+    String tenantId) {}

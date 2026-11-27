@@ -348,6 +348,18 @@ public class ConditionService {
     return condition;
   }
 
+  private Condition findConditionRootById(String conditionRootId, String tenantId) {
+    Condition condition =
+        conditionRepository
+            .findByIdAndTenantId(conditionRootId, tenantId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition root not found: " + conditionRootId));
+    if (condition.getConditionParent() != null) {
+      throw new EntityNotFoundException("Condition root not found: " + conditionRootId);
+    }
+    return condition;
+  }
+
   /**
    * Finds a condition by id, returning {@code null} instead of throwing when no condition has that
    * id (unlike {@link #findConditionRootById}, which throws). It returns whatever condition carries
@@ -695,8 +707,11 @@ public class ConditionService {
    * Evaluates all DEPEND_ON conditions for a step.
    *
    * <p>Each DEPEND_ON condition references a step template ID in its value. The condition is
-   * satisfied if and only if that step template has been executed at least once in the given
-   * workflow run.
+   * satisfied if and only if that step template has run in the given workflow run and every one of
+   * its run steps has ended ({@link StepStatus#END}), in success or in error: none is still {@code
+   * READY} or {@code RUN}, and no target of it waits in the delay queue (held back by the rate
+   * limit). A step that depends on another therefore starts once the other has finished on every
+   * target, not as soon as it was launched.
    *
    * <p>All DEPEND_ON conditions must be satisfied
    *
@@ -721,6 +736,15 @@ public class ConditionService {
       if (!executed) {
         log.debug(
             "[Chaining] DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            dependentStepTemplateId,
+            workflowRun.getId());
+        return false;
+      }
+
+      if (stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+          dependentStepTemplateId, workflowRun.getId())) {
+        log.debug(
+            "[Chaining] DEPEND_ON not satisfied: step template {} has not ended in workflow run {}",
             dependentStepTemplateId,
             workflowRun.getId());
         return false;
@@ -905,7 +929,8 @@ public class ConditionService {
   }
 
   /**
-   * Links existing condition roots to a step via the conditions_steps join table.
+   * Links existing condition roots to a step via the conditions_steps join table. A condition of
+   * another tenant than the step's is an unknown id.
    *
    * @param step the step to link
    * @param conditionRootIds IDs of existing root conditions to link; ignored if null or empty
@@ -914,8 +939,9 @@ public class ConditionService {
     if (conditionRootIds == null || conditionRootIds.isEmpty()) {
       return;
     }
+    String tenantId = step.getTenant().getId();
     for (String conditionRootId : conditionRootIds) {
-      Condition root = findConditionRootById(conditionRootId);
+      Condition root = findConditionRootById(conditionRootId, tenantId);
       linkToStep(root, step, true);
       conditionRepository.save(root);
     }
@@ -940,7 +966,8 @@ public class ConditionService {
     // Remove duplicates while preserving order
     List<String> uniqueStepIds = new ArrayList<>(new LinkedHashSet<>(stepIds));
 
-    List<Step> steps = stepRepository.findAllById(uniqueStepIds);
+    // A step of another tenant than the condition's is an unknown id.
+    List<Step> steps = stepRepository.findAllByIdInTenant(uniqueStepIds, root.getTenant().getId());
 
     if (steps.size() != uniqueStepIds.size()) {
       Set<String> found = steps.stream().map(Step::getId).collect(Collectors.toSet());
@@ -1086,7 +1113,12 @@ public class ConditionService {
   }
 
   /**
-   * Removes the link between a condition and a step.
+   * Removes the link between a condition and a step, from both the condition and the step
+   * collections.
+   *
+   * <p>Both collections own the link with orphan removal: a link left on one side while removed
+   * from the other is deleted at the next flush and then reached again by a cascade from the side
+   * still holding it, which fails the save with {@code ObjectDeletedException}.
    *
    * @param condition the condition to unlink
    * @param stepId the step ID to remove from the condition's step list
@@ -1102,7 +1134,16 @@ public class ConditionService {
     }
 
     conditionSteps.removeIf(
-        link -> link.getStep() != null && Objects.equals(link.getStep().getId(), stepId));
+        link -> {
+          Step step = link.getStep();
+          if (step == null || !Objects.equals(step.getId(), stepId)) {
+            return false;
+          }
+          if (step.getConditionSteps() != null) {
+            step.getConditionSteps().removeIf(stepLink -> stepLink == link);
+          }
+          return true;
+        });
   }
 
   /**

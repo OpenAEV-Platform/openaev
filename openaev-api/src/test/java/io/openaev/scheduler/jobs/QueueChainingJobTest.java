@@ -2,27 +2,32 @@ package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Cwe;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
-import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -30,10 +35,14 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -65,29 +74,17 @@ class QueueChainingJobTest extends IntegrationTest {
   @Autowired private StepRepository stepRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private TenantRepository tenantRepository;
-  @Autowired private CweRepository cweRepository;
   @Autowired private TenantScopedTransaction tenantTx;
-  @MockitoSpyBean private StepService stepService;
 
-  private final List<String> committedCweIds = new ArrayList<>();
+  @Autowired private EntityManager entityManager;
+  @MockitoSpyBean private StepService stepService;
+  @MockitoSpyBean private WorkflowService workflowService;
+
   private final List<String> committedTenantIds = new ArrayList<>();
 
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
-    // cwes is v2-active and these rows were committed under whichever tenant the thread-local
-    // carried at the time, which is the very thing under test. With no scope the delete reads
-    // nothing and silently leaves them behind, so it runs under an enumerated all-tenants scope.
-    if (!committedCweIds.isEmpty()) {
-      List<String> toDelete = List.copyOf(committedCweIds);
-      tenantTx.execute(
-          TxCtx.allTenants(),
-          () -> {
-            cweRepository.deleteAllById(toDelete);
-            return null;
-          });
-    }
-    committedCweIds.clear();
     stepDelayQueueRepository.deleteAll(stepDelayQueueRepository.findAll());
     // Workflow FKs (scenario_id) must be cleared before the scenario itself is deleted.
     workflowRepository.deleteAll(
@@ -144,14 +141,81 @@ class QueueChainingJobTest extends IntegrationTest {
     StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
     doThrow(new IllegalStateException("processing blew up"))
         .when(stepService)
-        .createReadySteps(any(), any(), any(), anyInt());
+        .createReadySteps(any(), any(), any());
 
     // Act & Assert: the exception escapes the job's top-level transaction uncaught ...
     assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
 
     // ... which rolls back the DELETE...RETURNING pop: the entry is not lost, it stays queued for
-    // the next tick, exactly as before the job was moved onto TenantScopedTransaction.
-    assertThat(stepDelayQueueRepository.findById(dueEntry.getId())).isPresent();
+    // the next tick, exactly as before the job was moved onto TenantScopedTransaction. Read in the
+    // scope the next tick pops it in.
+    assertThat(
+            tenantTx.execute(
+                TxCtx.allTenants(), () -> stepDelayQueueRepository.findById(dueEntry.getId())))
+        .isPresent();
+  }
+
+  @Test
+  @DisplayName(
+      "an entry popped without a ready step evaluates its workflow run once the pop is committed")
+  void given_entryPoppedWithoutReadyStep_should_evaluateItsRunAfterCommit() throws Exception {
+    // Arrange: a step that depends on the entry's template (DEPEND_ON) waits while the entry is
+    // queued; once it is gone without a step, nothing else would evaluate the run again
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
+    String runId = dueEntry.getWorkflowRun().getId();
+    doReturn(List.of()).when(stepService).createReadySteps(any(), any(), any());
+    AtomicBoolean entryGoneWhenEvaluated = new AtomicBoolean();
+    doAnswer(
+            invocation -> {
+              entryGoneWhenEvaluated.set(!stepDelayQueueRepository.existsById(dueEntry.getId()));
+              return invocation.getArgument(0);
+            })
+        .when(workflowService)
+        .evaluateWorkflowProgress(any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService).evaluateWorkflowProgress(argThat(run -> runId.equals(run.getId())));
+    assertThat(entryGoneWhenEvaluated).isTrue();
+  }
+
+  @Test
+  @DisplayName("an entry whose ready step cannot be published evaluates its run after commit")
+  void given_readyStepNotPublished_should_evaluateItsRunAfterCommit() throws Exception {
+    // Arrange: publishing ends the step and throws; no READY event follows to wake its dependents
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    StepDelayQueue dueEntry = persistDueDelayQueueEntry(scenarioBackedRun);
+    String runId = dueEntry.getWorkflowRun().getId();
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any());
+    doThrow(new ChainingException("broker down")).when(stepService).enqueueReadySteps(any(), any());
+    doAnswer(invocation -> invocation.getArgument(0))
+        .when(workflowService)
+        .evaluateWorkflowProgress(any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService).evaluateWorkflowProgress(argThat(run -> runId.equals(run.getId())));
+  }
+
+  @Test
+  @DisplayName("an entry popped with ready steps leaves the evaluation to their events")
+  void given_entryPoppedWithReadySteps_should_notEvaluate() throws Exception {
+    // Arrange
+    Workflow scenarioBackedRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    persistDueDelayQueueEntry(scenarioBackedRun);
+    doReturn(List.of(new Step())).when(stepService).createReadySteps(any(), any(), any());
+    doNothing().when(stepService).enqueueReadySteps(any(), any());
+
+    // Act
+    job.execute(null);
+
+    // Assert
+    verify(workflowService, never()).evaluateWorkflowProgress(any());
   }
 
   @Test
@@ -169,25 +233,20 @@ class QueueChainingJobTest extends IntegrationTest {
   class TenantThreadLocalAfterAPass {
 
     @Test
-    @DisplayName("A failed pass leaves no tenant behind for the next write on the thread")
-    void given_failedPassOnAnotherTenant_should_notStampTheNextWriteWithThatTenant()
-        throws Exception {
+    @DisplayName("A failed pass leaves no tenant behind on the thread")
+    void given_failedPassOnAnotherTenant_should_leaveNoTenantOnTheThread() throws Exception {
       // Arrange
       Tenant otherTenant = persistTenant();
       persistDueEntryOf(otherTenant);
       doThrow(new IllegalStateException("processing blew up"))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       TenantContext.clearCurrentTenant();
 
       // Act
       assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
-      Cwe nextWrite = persistCweWithoutTenant();
 
-      // Assert
-      assertThat(nextWrite.getTenant().getId())
-          .isNotEqualTo(otherTenant.getId())
-          .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      // Assert: the tenant of the failed pass is not left on the thread
       assertThat(TenantContext.hasCurrentTenant()).isFalse();
     }
 
@@ -199,7 +258,7 @@ class QueueChainingJobTest extends IntegrationTest {
       persistDueEntryOf(otherTenant);
       doThrow(new IllegalStateException("processing blew up"))
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
@@ -208,6 +267,50 @@ class QueueChainingJobTest extends IntegrationTest {
       // Assert
       assertThat(TenantContext.hasCurrentTenant()).isTrue();
       assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    @DisplayName("Entries of two tenants in one pass each run in the tenant of their own owner")
+    void given_entriesOfTwoTenantsInOnePass_should_runEachInItsOwnersTenant() throws Exception {
+      // Arrange: both runs are scenario-backed, one in the default tenant and one in another. The
+      // entries share the pass's transaction, so the second one's owner is read after the first
+      // one narrowed the scope to its own tenant.
+      Tenant otherTenant = persistTenant();
+      String otherRunId = persistDueEntryOf(otherTenant).getWorkflowRun().getId();
+      String defaultRunId =
+          persistDueDelayQueueEntry(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+              .getWorkflowRun()
+              .getId();
+      Map<String, String> tenantOfRun = new HashMap<>();
+      Map<String, String> scopeOfRun = new HashMap<>();
+      doAnswer(
+              invocation -> {
+                Workflow run = invocation.getArgument(1);
+                tenantOfRun.put(run.getId(), TenantContext.getCurrentTenant());
+                scopeOfRun.put(
+                    run.getId(),
+                    (String)
+                        entityManager
+                            .createNativeQuery(
+                                "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                            .getSingleResult());
+                return List.of(new Step());
+              })
+          .when(stepService)
+          .createReadySteps(any(), any(), any());
+      doNothing().when(stepService).enqueueReadySteps(any(), any());
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      job.execute(null);
+
+      // Assert
+      assertThat(tenantOfRun)
+          .containsEntry(otherRunId, otherTenant.getId())
+          .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);
+      assertThat(scopeOfRun)
+          .containsEntry(otherRunId, otherTenant.getId())
+          .containsEntry(defaultRunId, Tenant.DEFAULT_TENANT_UUID);
     }
 
     private Tenant persistTenant() {
@@ -219,19 +322,11 @@ class QueueChainingJobTest extends IntegrationTest {
       return tenant;
     }
 
-    private void persistDueEntryOf(Tenant tenant) {
+    private StepDelayQueue persistDueEntryOf(Tenant tenant) {
       Scenario scenario = ScenarioFixture.getScenario();
       scenario.setTenant(tenant);
-      persistDueDelayQueueEntry(
+      return persistDueDelayQueueEntry(
           WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN), scenario);
-    }
-
-    private Cwe persistCweWithoutTenant() {
-      Cwe cwe = new Cwe();
-      cwe.setExternalId("CWE-" + UUID.randomUUID());
-      cwe = cweRepository.save(cwe);
-      committedCweIds.add(cwe.getId());
-      return cwe;
     }
   }
 }

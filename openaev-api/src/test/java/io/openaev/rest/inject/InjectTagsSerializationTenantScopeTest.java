@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -40,13 +41,8 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -87,13 +83,7 @@ class InjectTagsSerializationTenantScopeTest extends IntegrationTest {
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    String activeTables = props.getProperty("openaev.tenant.active-tables", "");
+    String activeTables = String.join(",", ProductionActiveTables.names());
     registry.add("openaev.tenant.active-tables", () -> activeTables);
   }
 
@@ -265,6 +255,8 @@ class InjectTagsSerializationTenantScopeTest extends IntegrationTest {
       InjectInput input = new InjectInput();
       input.setTitle(inject.getTitle());
       input.setTagIds(tagIds);
+      // The form re-sends the secret references it was filled with: the update replaces them.
+      input.setSecretReferences(secretReferenceIds(inject));
       return input;
     }
   }

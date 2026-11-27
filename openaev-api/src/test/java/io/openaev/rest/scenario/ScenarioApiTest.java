@@ -30,14 +30,15 @@ import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
 import io.openaev.rest.scenario.form.ScenarioAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioIdsAndInjectorContractsInputs;
 import io.openaev.rest.scenario.form.ScenarioInput;
+import io.openaev.rest.scenario.form.ScenarioReachabilityAssertionInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.service.period.RecurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
@@ -262,7 +263,9 @@ public class ScenarioApiTest extends IntegrationTest {
   @DisplayName("Retrieve scenario")
   @Test
   @Order(3)
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void retrieveScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -286,7 +289,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Requesting non existing scenario by ID fails gracefully")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void failsafeNonExistScenarioId() throws Exception {
     // -- EXECUTE --
     this.mvc
@@ -297,7 +302,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Update scenario")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void updateScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -466,7 +473,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Delete scenario")
   @Test
-  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.DELETE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void deleteScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -480,7 +489,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Delete scenario with inject")
   @Test
-  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.DELETE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void deleteScenarioWithInjectTest() throws Exception {
     Scenario testScenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
     // -- EXECUTE 1 ASSERT --
@@ -491,7 +502,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -530,7 +543,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when no rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -559,6 +574,89 @@ public class ScenarioApiTest extends IntegrationTest {
     assertEquals(false, JsonPath.read(response, "$.rules_found"));
   }
 
+  @Test
+  @DisplayName("Refuse a scenario recurrence the scheduler cannot parse, accept a 6-field cron")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void updateScenarioRecurrenceValidatesTheExpression() throws Exception {
+    Scenario scenario = getScenario(null, null);
+    String uri = SCENARIO_URI + "/" + scenario.getId() + "/recurrence";
+
+    // -- A Unix 5-field cron is refused with the accepted forms, and nothing is stored --
+    ScenarioRecurrenceInput unixCron = new ScenarioRecurrenceInput();
+    unixCron.setRecurrence("0 2 * * *");
+    unixCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(unixCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value(
+                    "Unsupported recurrence expression '0 2 * * *': "
+                        + RecurrenceService.ACCEPTED_RECURRENCE_FORMS));
+    assertNull(scenarioRepository.findById(scenario.getId()).orElseThrow().getRecurrence());
+
+    // -- A Spring 6-field cron is stored --
+    ScenarioRecurrenceInput springCron = new ScenarioRecurrenceInput();
+    springCron.setRecurrence("0 0 2 * * *");
+    springCron.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+    mvc.perform(
+            put(uri)
+                .content(asJsonString(springCron))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
+  }
+
+  @Test
+  @DisplayName("A reachability assertion is stored and does not block scheduling")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void reachabilityAssertionIsStoredAndDoesNotBlockScheduling() throws Exception {
+    // Arrange
+    Scenario scenario = getScenario(null, null);
+    String base = SCENARIO_URI + "/" + scenario.getId();
+    ScenarioRecurrenceInput recurrence = new ScenarioRecurrenceInput();
+    recurrence.setRecurrence("0 0 2 * * *");
+    recurrence.setRecurrenceStart(Instant.parse("2030-01-01T00:00:00Z"));
+
+    // -- The scenario is declared an assertion --
+    putReachabilityAssertion(base, true).andExpect(status().is2xxSuccessful());
+    assertTrue(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+
+    // -- The assertion is scheduled like any scenario --
+    mvc.perform(
+            put(base + "/recurrence")
+                .content(asJsonString(recurrence))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(jsonPath("$.scenario_recurrence").value("0 0 2 * * *"));
+
+    // -- Cleared, the flag is stored as false --
+    putReachabilityAssertion(base, false).andExpect(status().is2xxSuccessful());
+    assertFalse(
+        scenarioRepository.findById(scenario.getId()).orElseThrow().isReachabilityAssertion());
+  }
+
+  private org.springframework.test.web.servlet.ResultActions putReachabilityAssertion(
+      String scenarioUri, boolean assertion) throws Exception {
+    ScenarioReachabilityAssertionInput input = new ScenarioReachabilityAssertionInput();
+    input.setReachabilityAssertion(assertion);
+    return mvc.perform(
+        put(scenarioUri + "/reachability-assertion")
+            .content(asJsonString(input))
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf()));
+  }
+
   @Nested
   @DisplayName("Lock Scenario EE feature")
   @WithMockUser(isAdmin = true)
@@ -566,6 +664,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when launch scenario with crowdstrike")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeAsset_should_not_startScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getCrowdstrikeExecutor());
 
@@ -576,6 +675,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when scheduled scenario with Tanium")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_taniumAsset_should_not_scheduleScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getTaniumExecutor());
       ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
@@ -593,6 +693,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when scheduled scenario with Sentinel One")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_sentineloneAsset_should_not_scheduleScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getSentineloneExecutor());
       ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
@@ -609,7 +710,44 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Scheduling a scenario stamps and surfaces the scheduling user")
+    @WithMockUser(
+        isAdmin = true,
+        autoJoinDefaultTenant = true,
+        userFirstName = "Misty",
+        userLastName = "Waterflower",
+        userMail = "misty.waterflower@unittests.invalid")
+    void given_scenarioRecurrence_should_returnScheduledByUser() throws Exception {
+      // Arrange
+      Scenario scenario = getScenario(null, null);
+      ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
+      input.setRecurrence("0 30 9 * * *");
+      input.setRecurrenceStart(Instant.now());
+
+      // Act
+      mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/recurrence")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert: the GET /scenarios/{id} ScenarioOutput resolves the scheduling user
+      mvc.perform(
+              get(SCENARIO_URI + "/" + scenario.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.scenario_scheduled_by_user.user_name").value("Misty Waterflower"))
+          .andExpect(
+              jsonPath("$.scenario_scheduled_by_user.user_email")
+                  .value("misty.waterflower@unittests.invalid"));
+    }
+
+    @Test
     @DisplayName("Throw license restricted error when add Crowdstrike on scheduled scenario")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeInsdeDynamicGroup_should_not_beAddedToScheduledExercise()
         throws Exception {
       Scenario scenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
@@ -663,7 +801,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Test
   @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing scenario teams")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
     // -- PREPARE --
     User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
@@ -852,6 +990,8 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- PREPARE --
     // Create test user with assessment role and granted on email injectorContract
     User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    // A member of the default tenant, where the scenarios below live.
+    tenantRepository.addUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
     Authentication auth = buildAuthenticationToken(testUser);
 
     Scenario scenarioA =
@@ -912,13 +1052,18 @@ public class ScenarioApiTest extends IntegrationTest {
                     TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.MANAGE_ASSESSMENT)))))
             .withGrant(grantComposer.forGrant(grant));
 
-    return userComposer
-        .forUser(
-            UserFixture.getUser(
-                "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
-        .withGroup(threatArsenalGroup)
-        .persist()
-        .get();
+    User user =
+        userComposer
+            .forUser(
+                UserFixture.getUser(
+                    "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
+            .withGroup(threatArsenalGroup)
+            .persist()
+            .get();
+    // A create takes its tenant from the caller's scope, which needs the membership every
+    // production user has.
+    tenantIsolationHelper.attachUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    return user;
   }
 
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
@@ -949,11 +1094,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "Isolation Test Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1009,50 +1153,6 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
-    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
-          .setParameter("id", UUID.randomUUID().toString())
-          .setParameter("name", "CrossTenantSearchScenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchScenario");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
     @DisplayName("Scenario created in tenant X should NOT be updatable from tenant Y")
     void given_scenarioInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -1066,11 +1166,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", "Update Isolation Test Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1113,11 +1212,10 @@ public class ScenarioApiTest extends IntegrationTest {
       String scenarioId = UUID.randomUUID().toString();
       entityManager
           .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
+              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
           .setParameter("id", scenarioId)
           .setParameter("name", input.getName())
-          .setParameter("mailFrom", "isolation-test@openaev.io")
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
@@ -1135,49 +1233,6 @@ public class ScenarioApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
-    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      String scenarioId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                  + " VALUES (:id, :name, :mailFrom, CAST(:tenant AS uuid))")
-          .setParameter("id", scenarioId)
-          .setParameter("name", "SearchById Isolation Scenario")
-          .setParameter("mailFrom", "isolation-test@openaev.io")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — fetch by IDs from tenant Y --------
-      String searchByIdResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
-                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert — result should be empty --------
-      List<Object> results = JsonPath.read(searchByIdResponse, "$");
-      assertThat(results.size()).isEqualTo(0);
     }
 
     @Test

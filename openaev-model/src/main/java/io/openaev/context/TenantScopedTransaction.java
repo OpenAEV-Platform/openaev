@@ -1,16 +1,20 @@
 package io.openaev.context;
 
-import io.openaev.database.repository.MarkingDefinitionRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -31,8 +35,15 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Self-invocation is not a concern for this class: it is called explicitly, no proxy is
  * involved, so there is no intra-class call that could bypass it.
  *
- * <p>Background-only: HTTP code must not reach for this class (guarded by an ArchUnit rule); the
- * HTTP path carries its scope through {@code @Transactional} + {@code TxCtx} and the aspect.
+ * <p>Opening a transaction here ({@link #execute}, {@link #executeNew}, {@link #forEachTenant}) is
+ * for background code; the HTTP path carries its scope through {@code @Transactional} + {@code
+ * TxCtx} and the aspect. An ArchUnit rule refuses any direct dependency on this class from the
+ * {@code rest} and {@code api} packages and from controller-annotated classes; it does not follow
+ * calls through services. The two methods that change the scope of a transaction already open,
+ * {@link #setScopeOnCurrentTransaction} and {@link #executeOnCurrentTransaction}, are called from
+ * services that requests reach as well as from background code: neither checks the tenant it is
+ * given against the scope the transaction was opened with, so the classes calling them directly are
+ * a reasoned list that an architecture test keeps exact.
  *
  * <p>Interaction with the aspect, for per-tenant loops: inside a resolved {@code allTenants()}
  * scope, a joined {@code @Transactional} service method carrying a NARROWER {@code TxCtx} argument
@@ -57,7 +68,9 @@ public class TenantScopedTransaction {
   private final PlatformTransactionManager transactionManager;
   private final EntityManager entityManager;
   private final TenantScopeIntentionResolver intentionResolver;
-  private final MarkingDefinitionRepository markingDefinitionRepository;
+  // A provider, as in the scope aspect: the implementation lives in openaev-api and reaches
+  // services that are themselves built on this primitive.
+  private final ObjectProvider<MarkingScopeSupplier> markingScopeSupplier;
 
   /** Opens a background transaction carrying {@code ctx}; refuses to run inside an active one. */
   public <T> T execute(TxCtx ctx, Supplier<T> work) {
@@ -67,7 +80,7 @@ public class TenantScopedTransaction {
               + " primitive call is an explicit scope boundary. Use executeNew() for deliberate"
               + " nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, false, work);
   }
 
   /** Same as {@link #execute(TxCtx, Supplier)} for work that returns nothing. */
@@ -78,6 +91,22 @@ public class TenantScopedTransaction {
           work.run();
           return null;
         });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, in a read-only transaction: the session's flush mode
+   * is MANUAL for its duration, so a managed entity of a session that outlives the transaction (the
+   * request's, under open-in-view) is never written by it. For a load that must not write what the
+   * caller left pending, as a repository's own {@code findById} does not.
+   */
+  public <T> T executeReadOnly(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeReadOnly() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use executeNew() for"
+              + " deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, true, work);
   }
 
   /**
@@ -92,12 +121,69 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNew() is for deliberate nesting inside an active"
               + " transaction. At the top level, open through execute().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, false, work);
   }
 
   /** Same as {@link #executeNew(TxCtx, Supplier)} for work that returns nothing. */
   public void executeNew(TxCtx ctx, Runnable work) {
     executeNew(
+        ctx,
+        () -> {
+          work.run();
+          return null;
+        });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, and also marks the transaction platform-write (see
+   * {@code app.platform_write}, checked by {@code can_write_tenant} before a write reaches a
+   * dual-scope table's platform row). For a background entry point that genuinely needs to create
+   * or update a platform row, such as the startup bootstrap, the scheduled health-check and banner
+   * writers of the settings. Which methods write a platform row, and that every path to one crosses
+   * this method, {@link #executeNewAsPlatformWrite}, {@link #setPlatformWriteOnCurrentTransaction}
+   * or {@code @PlatformWrite}, is checked by the {@code
+   * parameters_platform_row_writers_run_under_platform_write} architecture rule in {@code
+   * TenantActiveTableAccessArchTest}, which also lists what it cannot see. Never call this from
+   * code reachable by a tenant request.
+   */
+  public <T> T executeAsPlatformWrite(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeAsPlatformWrite() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use"
+              + " executeNewAsPlatformWrite() for deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, false, work);
+  }
+
+  /** Same as {@link #executeAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
+  public void executeAsPlatformWrite(TxCtx ctx, Runnable work) {
+    executeAsPlatformWrite(
+        ctx,
+        () -> {
+          work.run();
+          return null;
+        });
+  }
+
+  /**
+   * Same as {@link #executeNew(TxCtx, Supplier)}, and also marks the new transaction
+   * platform-write; see {@link #executeAsPlatformWrite(TxCtx, Supplier)}. For deliberate nesting
+   * inside an already active transaction that is not itself platform-write (e.g. a tenant-scoped
+   * background job that also needs to update a platform-wide operational status, never user data).
+   */
+  public <T> T executeNewAsPlatformWrite(TxCtx ctx, Supplier<T> work) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeNewAsPlatformWrite() is for deliberate nesting inside an"
+              + " active transaction. At the top level, open through executeAsPlatformWrite().");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, false, work);
+  }
+
+  /** Same as {@link #executeNewAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
+  public void executeNewAsPlatformWrite(TxCtx ctx, Runnable work) {
+    executeNewAsPlatformWrite(
         ctx,
         () -> {
           work.run();
@@ -122,9 +208,19 @@ public class TenantScopedTransaction {
    *
    * <p>Refuses to run outside an active transaction: there is no ambient scope to join.
    *
+   * <p>Checks nothing about the caller: the scope it sets may lie outside the scope of the request
+   * that opened the transaction, and it is never put back. The classes allowed to call it are a
+   * reasoned list that may only shrink, pinned by an architecture test.
+   *
    * <p>Also sets the marking scope, same as {@link #run}: joining an ambient transaction is still a
    * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
    * one, so it must be (re)set here too rather than inherited from whatever ran before.
+   *
+   * <p>A transaction already scoped to exactly these tenants is left as it is, marking scope
+   * included: there is no boundary to cross. This is what keeps a shared service that only needs
+   * the tenant scope (e.g. {@code ScenarioToExerciseService.toExercise}) from widening an HTTP
+   * request to the system clearance for the rest of its transaction: the request keeps the user's
+   * clearance. A transaction the primitive scoped already runs at the system clearance.
    */
   public void setScopeOnCurrentTransaction(TxCtx ctx) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -134,8 +230,250 @@ public class TenantScopedTransaction {
               + " by the caller.");
     }
     TxCtx resolved = intentionResolver.resolve(ctx);
+    if (tenants(resolved.toGuc()).equals(tenants(currentScope()))) {
+      return;
+    }
     setScope(resolved.toGuc());
     setMarkingScope(systemClearance(resolved).toGuc());
+  }
+
+  /** Work run by {@link #executeOnCurrentTransaction}, allowed to throw a checked exception. */
+  @FunctionalInterface
+  public interface ScopedWork<T, E extends Exception> {
+    T get() throws E;
+  }
+
+  /**
+   * Moves the CURRENT, already-active transaction to the one tenant of {@code ctx}, runs {@code
+   * work} there, then puts back the tenant scope the transaction had before. For a row whose own
+   * tenant decides where its dependent rows are read and written, whatever the scope the
+   * transaction was opened with.
+   *
+   * <p>That tenant may lie outside the scope of the request that opened the transaction: this
+   * method does not check that the caller may see it. So the work either runs in the tenant of a
+   * row whose access the caller checked first, that row's own tenant ({@code WorkflowOwnerScope}),
+   * or loads a user with its eager associations in that user's ambient tenant, for a permission
+   * decision ({@code CallerRightsInTenant}). Architecture tests limit the callers of this method to
+   * these two classes, and the callers of each of them to an allowlist; they do not check which row
+   * or which user those callers pass.
+   *
+   * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
+   * made before it, its writes share the transaction's fate, and it never waits on a lock the
+   * suspended transaction holds. Pending changes are flushed before the scope changes, and flushed
+   * again before the scope is put back, whether the work returns or throws, so every statement runs
+   * under the scope its change was made in. A caller that catches the work's exception and commits
+   * therefore commits the work's changes as written in the work's tenant, the same outcome as a
+   * checked exception thrown without a scope change. If that flush fails, the persistence provider
+   * marks the transaction rollback-only, so nothing of the work can commit under the restored
+   * scope. When the work throws, its exception is the one thrown: a failure of the flush or of
+   * putting the scope back is added to it as suppressed. An association loaded inside the work and
+   * first read after it is read under the scope put back.
+   *
+   * <p>The method sets only the tenant scope, so the caller's clearance applies to what the work
+   * reads. Both scopes are put back afterwards: work that sets the scope of the transaction itself
+   * (for instance through {@link #setScopeOnCurrentTransaction}, which also sets a system
+   * clearance) does not change what the rest of the caller's transaction may read.
+   *
+   * <p>Refuses to run outside an active transaction, and refuses any scope but exactly one tenant.
+   */
+  public <T, E extends Exception> T executeOnCurrentTransaction(TxCtx ctx, ScopedWork<T, E> work)
+      throws E {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeOnCurrentTransaction() has nothing to join: no"
+              + " transaction is active.");
+    }
+    if (!(ctx instanceof TxCtx.Restricted restricted) || restricted.tenantIds().size() != 1) {
+      throw new IllegalArgumentException(
+          "executeOnCurrentTransaction() runs work in exactly one tenant, got " + ctx);
+    }
+    TxCtx resolved = intentionResolver.resolve(ctx);
+    String previousTenants = currentSetting("app.current_tenants");
+    String previousMarkings = currentSetting("app.current_markings");
+    entityManager.flush();
+    setScope(resolved.toGuc());
+    T result;
+    try {
+      result = work.get();
+    } catch (Throwable failure) {
+      addSuppressedOnFailure(failure, entityManager::flush);
+      addSuppressedOnFailure(failure, () -> putBack(previousTenants, previousMarkings));
+      throw failure;
+    }
+    try {
+      entityManager.flush();
+    } catch (RuntimeException failure) {
+      addSuppressedOnFailure(failure, () -> putBack(previousTenants, previousMarkings));
+      throw failure;
+    }
+    putBack(previousTenants, previousMarkings);
+    return result;
+  }
+
+  private void putBack(String tenants, String markings) {
+    setScope(tenants);
+    setMarkingScope(markings);
+  }
+
+  private static void addSuppressedOnFailure(Throwable failure, Runnable step) {
+    try {
+      step.run();
+    } catch (RuntimeException stepFailure) {
+      failure.addSuppressed(stepFailure);
+    }
+  }
+
+  /**
+   * Marks the CURRENT, already-active transaction platform-write; see {@link
+   * #executeAsPlatformWrite}. For code that must widen an ambient transaction it does not own
+   * (typically a test building a platform row directly, outside the HTTP entrypoint that would
+   * normally carry {@link io.openaev.aop.PlatformWrite}) rather than opening a new one.
+   */
+  public void setPlatformWriteOnCurrentTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.setPlatformWriteOnCurrentTransaction() has nothing to join: no"
+              + " transaction is active. It only makes sense inside an ambient transaction opened"
+              + " by the caller.");
+    }
+    setPlatformWrite();
+  }
+
+  /**
+   * Runs {@code work} on the CURRENT transaction with the system clearance (every marking of its
+   * tenants), then gives the transaction back the clearance it had. The tenant scope is not
+   * touched: {@code ctx} must name exactly the tenants already in scope, so only the marking
+   * dimension widens, and only for {@code work}.
+   *
+   * <p>The HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
+   * relaunch, scenario launch) that must keep the targets the requester is not cleared for. It
+   * joins the request's transaction rather than opening one, so it sees what the request already
+   * wrote. Work that only needs committed data reaches system clearance through {@link #executeNew}
+   * instead (ADR-025). The persistence context is flushed and cleared on both sides of {@code
+   * work}: nothing loaded under one clearance is reused under the other, and the caller reloads
+   * what it needs.
+   *
+   * <p>If {@code work} fails, the clearance is still restored when the transaction can run one more
+   * statement. When it cannot (a failed statement aborted it), it can only roll back, and reads
+   * nothing more under either clearance.
+   */
+  public <T> T withSystemClearance(TxCtx ctx, Supplier<T> work) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.withSystemClearance() widens the clearance of the current"
+              + " transaction: no transaction is active.");
+    }
+    TxCtx resolved = intentionResolver.resolve(ctx);
+    String currentTenants = currentScope();
+    if (!tenants(resolved.toGuc()).equals(tenants(currentTenants))) {
+      throw new IllegalStateException(
+          "withSystemClearance() never changes the tenant scope: the transaction carries '"
+              + currentTenants
+              + "', the work asked for '"
+              + resolved.toGuc()
+              + "'.");
+    }
+    String previousClearance = currentMarkingScope();
+    entityManager.flush();
+    entityManager.clear();
+    setMarkingScope(systemClearance(resolved).toGuc());
+    boolean done = false;
+    try {
+      T result = work.get();
+      entityManager.flush();
+      done = true;
+      return result;
+    } finally {
+      entityManager.clear();
+      try {
+        setMarkingScope(previousClearance);
+      } catch (RuntimeException restoreFailure) {
+        if (done) {
+          throw restoreFailure;
+        }
+        log.warn("withSystemClearance: the transaction is aborted, its clearance is moot");
+      }
+    }
+  }
+
+  /**
+   * Captures the tenant scope and the marking scope of the CURRENT, already-active transaction, for
+   * a caller that narrows that transaction with {@link #setScopeOnCurrentTransaction} for part of
+   * its work only. Open it in a try-with-resources around that part: closing the handle puts both
+   * scopes back, so the rest of the transaction reads and writes with the scope and clearance it
+   * had before.
+   *
+   * <p>Capturing flushes the caller's pending changes first, while its scope and clearance still
+   * apply, and closing flushes again before putting them back, so every statement runs under the
+   * scope its change was made in. When the flush on closing fails, both scopes are still put back
+   * and the flush failure is the one thrown.
+   *
+   * <p>Refuses to run outside an active transaction: there is no scope to capture.
+   */
+  public CapturedScope captureScopeOfCurrentTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.captureScopeOfCurrentTransaction() has nothing to capture: no"
+              + " transaction is active.");
+    }
+    entityManager.flush();
+    return new CapturedScope(currentScope(), currentMarkingScope());
+  }
+
+  /**
+   * Refuses to go on unless the tenant scope of the CURRENT transaction holds every tenant of
+   * {@code tenantIds}. For a write that finds its rows through a scoped read: outside the scope the
+   * read returns nothing for a tenant, and the write then does nothing for it, without an error. An
+   * empty {@code tenantIds} is always covered. Reads the scope only: it changes nothing.
+   *
+   * @throws IllegalStateException when no transaction is active or the scope misses a tenant
+   */
+  public void requireScopeCovers(Collection<String> tenantIds) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.requireScopeCovers() has no scope to check: no transaction is"
+              + " active.");
+    }
+    Set<String> scoped = tenants(currentScope());
+    if (!scoped.containsAll(tenantIds)) {
+      throw new IllegalStateException(
+          "The transaction's tenant scope '%s' does not hold every tenant of %s"
+              .formatted(String.join(",", scoped), tenantIds));
+    }
+  }
+
+  /** The scopes of a transaction, put back by {@link #close()}. */
+  public final class CapturedScope implements AutoCloseable {
+
+    private final String tenants;
+    private final String markings;
+
+    private CapturedScope(String tenants, String markings) {
+      this.tenants = tenants;
+      this.markings = markings;
+    }
+
+    @Override
+    public void close() {
+      RuntimeException flushFailure = null;
+      try {
+        entityManager.flush();
+      } catch (RuntimeException failure) {
+        flushFailure = failure;
+      }
+      try {
+        setScope(tenants);
+        setMarkingScope(markings);
+      } catch (RuntimeException restoreFailure) {
+        if (flushFailure == null) {
+          throw restoreFailure;
+        }
+        flushFailure.addSuppressed(restoreFailure);
+      }
+      if (flushFailure != null) {
+        throw flushFailure;
+      }
+    }
   }
 
   /**
@@ -198,10 +536,12 @@ public class TenantScopedTransaction {
     }
   }
 
-  private <T> T run(TxCtx ctx, int propagation, Supplier<T> work) {
+  private <T> T run(
+      TxCtx ctx, int propagation, boolean platformWrite, boolean readOnly, Supplier<T> work) {
     requireScope(ctx);
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     transaction.setPropagationBehavior(propagation);
+    transaction.setReadOnly(readOnly);
     return transaction.execute(
         status -> {
           // Resolved inside the transaction: an intention is re-resolved at every short
@@ -209,6 +549,9 @@ public class TenantScopedTransaction {
           TxCtx resolved = intentionResolver.resolve(ctx);
           setScope(resolved.toGuc());
           setMarkingScope(systemClearance(resolved).toGuc());
+          if (platformWrite) {
+            setPlatformWrite();
+          }
           return work.get();
         });
   }
@@ -239,6 +582,11 @@ public class TenantScopedTransaction {
    *
    * <p>A tenant with no marking definitions yields {@link MarkingCtx#none()}, which is correct
    * rather than degraded: with nothing marked, every row is unmarked and therefore visible.
+   *
+   * <p>Resolved by {@link MarkingScopeSupplier#systemClearanceFor}, the same resolution a bypassing
+   * caller gets, and read fresh at every transaction (never cached). Unlike the aspect, a missing
+   * supplier is an error, not a fall back to {@code none()}: a job running without the marked rows
+   * would silently skip work, for instance the TLP:RED targets of an inject.
    */
   private MarkingCtx systemClearance(TxCtx resolved) {
     if (!(resolved instanceof TxCtx.Restricted restricted)) {
@@ -248,9 +596,17 @@ public class TenantScopedTransaction {
               + " can be resolved; got "
               + resolved.getClass().getSimpleName());
     }
-    List<String> markingIds =
-        markingDefinitionRepository.findAllIdsByTenantIds(restricted.tenantIds());
-    return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
+    return markingScopeSupplier.getObject().systemClearanceFor(restricted);
+  }
+
+  // The scope queries touch no table, so they must not trigger Hibernate's auto-flush.
+  private String currentSetting(String name) {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting(:name, true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .setParameter("name", name)
+            .getSingleResult();
   }
 
   private void setScope(String scope) {
@@ -261,11 +617,33 @@ public class TenantScopedTransaction {
         .getSingleResult();
   }
 
+  private String currentScope() {
+    return currentSetting("app.current_tenants");
+  }
+
+  private String currentMarkingScope() {
+    return currentSetting("app.current_markings");
+  }
+
+  private static Set<String> tenants(String guc) {
+    // A scope may list a tenant twice (TxCtx.forTenants accepts duplicates): Set.of would throw
+    return guc.isEmpty()
+        ? Set.of()
+        : Arrays.stream(guc.split(",")).collect(Collectors.toUnmodifiableSet());
+  }
+
   private void setMarkingScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
         .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
+        .getSingleResult();
+  }
+
+  private void setPlatformWrite() {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.platform_write', 'true', true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .getSingleResult();
   }
 }

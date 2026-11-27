@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -27,7 +28,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,10 +50,15 @@ import org.springframework.transaction.annotation.Transactional;
  * non-empty: an assertion on an empty result proves nothing about scoping.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_groups")
 @WithMockUser(isAdmin = true)
 @DisplayName("asset_groups read and write isolation through the real HTTP endpoints")
 class AssetGroupHttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String BY_ID = "/api/tenants/{tenantId}/asset_groups/{assetGroupId}";
 

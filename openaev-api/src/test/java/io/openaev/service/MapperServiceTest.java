@@ -73,6 +73,7 @@ public class MapperServiceTest extends IntegrationTest {
   @Mock private ObjectMapper objectMapper;
   @Mock private EndpointService endpointService;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
+  @Mock private UserService userService;
   @Mock private TagService tagService;
 
   private MapperService mapperService;
@@ -87,6 +88,7 @@ public class MapperServiceTest extends IntegrationTest {
             endpointRepository,
             endpointService,
             writeScopeResolver,
+            userService,
             tagService,
             objectMapper);
   }
@@ -417,40 +419,6 @@ public class MapperServiceTest extends IntegrationTest {
     assertEquals("tenant-test", captor.getValue().get(0).getTenant().getId());
   }
 
-  @DisplayName("createImportMapper without a resolved tenant falls back to the thread-local")
-  @Test
-  void given_noWriteScope_should_lookUpContractsUnderTheThreadLocal() {
-    // The single-argument overload is the transient dry-run path (no TxCtx resolved): it must use
-    // the ambient TenantContext, not crash, so the test-import flow keeps working.
-    TenantContext.setCurrentTenant("ambient-tenant");
-    try {
-      ImportMapperAddInput input = new ImportMapperAddInput();
-      input.setName("mapper");
-      input.setInjectTypeColumn("A");
-      InjectImporterAddInput importer = new InjectImporterAddInput();
-      importer.setInjectTypeValue("x");
-      importer.setInjectorContractId("contract-1");
-      importer.setRuleAttributes(List.of());
-      input.setImporters(List.of(importer));
-      when(injectorContractRepository.findAllById(any())).thenReturn(List.of());
-
-      ImportMapper built = mapperService.createImportMapper(input);
-
-      assertNotNull(built);
-      @SuppressWarnings("unchecked")
-      ArgumentCaptor<Iterable<InjectorContractId>> captor = ArgumentCaptor.forClass(Iterable.class);
-      verify(injectorContractRepository).findAllById(captor.capture());
-      List<String> tenants =
-          StreamSupport.stream(captor.getValue().spliterator(), false)
-              .map(InjectorContractId::getTenantId)
-              .distinct()
-              .toList();
-      assertEquals(List.of("ambient-tenant"), tenants);
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
-  }
-
   @DisplayName("createImportMapper resolves the importer contracts under the write-scope tenant")
   @Test
   void given_writeScopeTenant_should_lookUpContractsUnderThatTenant_notTheThreadLocal() {
@@ -547,7 +515,8 @@ public class MapperServiceTest extends IntegrationTest {
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
 
     // Assert
-    assertEquals("text/csv", response.getContentType());
+    assertTrue(response.getContentType().startsWith("text/csv"));
+    assertEquals("UTF-8", response.getCharacterEncoding());
     assertTrue(
         response
             .getHeader("Content-Disposition")

@@ -7,8 +7,6 @@ import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -47,21 +45,5 @@ public class GroupOutputProcessor extends FindingCapableOutputProcessor {
       return groupName + " (" + memberCount + " members)";
     }
     return groupName;
-  }
-
-  @Override
-  public List<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
-    if (assetIdNode == null) {
-      return Collections.emptyList();
-    }
-    if (assetIdNode.isArray()) {
-      List<String> result = new ArrayList<>();
-      for (JsonNode idNode : assetIdNode) {
-        result.add(idNode.asText());
-      }
-      return result;
-    }
-    return List.of(assetIdNode.asText());
   }
 }

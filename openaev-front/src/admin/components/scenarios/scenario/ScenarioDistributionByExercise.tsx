@@ -8,17 +8,12 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { expectationTypeColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
+import { expectationResultTypes, expectationTypeLabelKey } from '../../common/injects/expectations/Expectation';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { scenarioId: string }
-
-const EXPECTATION_TYPES = [
-  ['PREVENTION', 'Prevention'],
-  ['DETECTION', 'Detection'],
-  ['VULNERABILITY', 'Vulnerability'],
-  ['HUMAN_RESPONSE', 'Human Response'],
-] as const;
 
 function generateFakeDataFromDates(dates: string[], values: number[]): GlobalScoreBySimulationEndDate[] {
   return dates.map((date, index) => ({
@@ -28,8 +23,8 @@ function generateFakeDataFromDates(dates: string[], values: number[]): GlobalSco
 }
 
 // Illustrative, gently rising curves so the "never run" preview shows the exact
-// shape a real trend produces, per type.
-const generateFakeData = (): Record<string, GlobalScoreBySimulationEndDate[]> => {
+// shape a real trend produces, per type. Logging joins them while its preview feature is on.
+const generateFakeData = (isLoggingEnabled: boolean): Record<string, GlobalScoreBySimulationEndDate[]> => {
   const now = new Date();
   const dates = Array.from({ length: 6 }, (_, i) => {
     const newDate = new Date(now);
@@ -39,6 +34,7 @@ const generateFakeData = (): Record<string, GlobalScoreBySimulationEndDate[]> =>
   return {
     PREVENTION: generateFakeDataFromDates(dates, [41, 48, 52, 58, 63, 69]),
     DETECTION: generateFakeDataFromDates(dates, [60, 66, 71, 77, 81, 84]),
+    ...(isLoggingEnabled ? { LOGGING: generateFakeDataFromDates(dates, [72, 76, 80, 83, 87, 90]) } : {}),
     VULNERABILITY: generateFakeDataFromDates(dates, [12, 15, 18, 20, 22, 24]),
     HUMAN_RESPONSE: generateFakeDataFromDates(dates, [30, 33, 38, 41, 44, 46]),
   };
@@ -239,6 +235,7 @@ const TrendTile: FunctionComponent<{
 
 const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }) => {
   const { t } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
 
   const [loadingScenarioStatistics, setLoadingScenarioStatistics] = useState(true);
   const [statistic, setStatistic] = useState<ScenarioStatistic>();
@@ -250,11 +247,11 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
   }, [scenarioId]);
 
   const rawScores = statistic?.simulations_results_latest.global_scores_by_expectation_type || {};
-  const hasRealData = EXPECTATION_TYPES.some(([type]) => Array.isArray(rawScores[type]) && rawScores[type].length > 0);
-  const scores = hasRealData ? rawScores : generateFakeData();
+  const hasRealData = expectationResultTypes.some(type => Array.isArray(rawScores[type]) && rawScores[type].length > 0);
+  const scores = hasRealData ? rawScores : generateFakeData(isLoggingEnabled);
   const isFakeData = !hasRealData;
 
-  const presentTypes = EXPECTATION_TYPES.filter(([type]) => scores[type]?.length > 0);
+  const presentTypes = expectationResultTypes.filter(type => scores[type]?.length > 0);
 
   if (loadingScenarioStatistics) {
     return <Loader variant="inElement" />;
@@ -271,11 +268,11 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
       gap: 1.5,
     }}
     >
-      {presentTypes.map(([type, label]) => (
+      {presentTypes.map(type => (
         <TrendTile
           key={type}
           type={type}
-          label={label}
+          label={expectationTypeLabelKey(type) ?? type}
           scores={scores[type]}
         />
       ))}

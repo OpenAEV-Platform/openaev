@@ -22,19 +22,20 @@ export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(u
 
 const buildError = (data: AxiosError) => {
   const errorsExtractor = R.pipe(
-    R.pathOr({}, ['errors', 'children']),
-    R.toPairs(),
-    R.map((elem: unknown) => {
+    (source: { errors?: { children?: object } } | null | undefined) => source?.errors?.children ?? {},
+    Object.entries,
+    (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
       const extractErrorsPipe = R.pipe(
-        R.tail(),
-        R.head(),
-        R.propOr([], 'errors'),
-        R.head(),
+        (child: { errors?: unknown[] } | null | undefined) => child?.errors ?? [],
+        (errors: unknown[]) => errors[0],
       );
-      return [R.head(elem), extractErrorsPipe(elem)];
+      return [elem[0], extractErrorsPipe(elem[1])];
     }),
-    R.fromPairs(),
-    R.set(R.lensProp(FORM_ERROR), data.message),
+    Object.fromEntries,
+    (errors: Record<string, unknown>) => ({
+      ...errors,
+      [FORM_ERROR]: data.message,
+    }),
   );
   return errorsExtractor(data);
 };
@@ -273,4 +274,13 @@ export const sendErrorToBackend = async (error: Error, stack: ErrorInfo) => {
     level: 'SEVERE',
   };
   await simplePostCall('/api/logs', errorDetails);
+};
+
+export const sendErrorMessageToBackend = (message: string) => {
+  const errorDetails = {
+    message: OPENAEV_FRONTEND + message,
+    timestamp: new Date().toISOString(),
+    level: 'SEVERE',
+  };
+  simplePostCall('/api/logs', errorDetails, undefined, false).catch(() => {});
 };

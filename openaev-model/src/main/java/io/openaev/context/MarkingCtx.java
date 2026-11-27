@@ -30,6 +30,16 @@ public sealed interface MarkingCtx permits MarkingCtx.None, MarkingCtx.Restricte
   /** Value for {@code set_config('app.current_markings', …, true)}; never {@code null}. */
   String toGuc();
 
+  /**
+   * Whether this clearance allows a row carrying these markings: the same rule as {@code
+   * is_marking_set_allowed} in SQL. Every marking of the row must be held, and a row with no
+   * marking is allowed by any clearance. Used where rows are not read through SQL: the stream and
+   * the dispatch of an inject.
+   *
+   * @param markingIds the markings of the row, empty when it has none
+   */
+  boolean allows(Collection<String> markingIds);
+
   /** No marking held: marked rows are hidden, unmarked rows remain visible. */
   static MarkingCtx none() {
     return None.INSTANCE;
@@ -59,6 +69,11 @@ public sealed interface MarkingCtx permits MarkingCtx.None, MarkingCtx.Restricte
     public String toGuc() {
       return "";
     }
+
+    @Override
+    public boolean allows(Collection<String> markingIds) {
+      return markingIds.isEmpty();
+    }
   }
 
   /** An unresolved intention: it cannot reach the scope channel, only its resolution can. */
@@ -71,6 +86,12 @@ public sealed interface MarkingCtx permits MarkingCtx.None, MarkingCtx.Restricte
           "all() is an unresolved intention: it cannot be serialized to the scope channel. Only"
               + " TenantScopedTransaction resolves it into the explicit marking list of the"
               + " tenant(s) in scope; it is not usable on the HTTP path.");
+    }
+
+    /** Every row: the stream sends every event to a reader who sees every marked row. */
+    @Override
+    public boolean allows(Collection<String> markingIds) {
+      return true;
     }
   }
 
@@ -94,6 +115,11 @@ public sealed interface MarkingCtx permits MarkingCtx.None, MarkingCtx.Restricte
     @Override
     public String toGuc() {
       return String.join(",", markingIds);
+    }
+
+    @Override
+    public boolean allows(Collection<String> markingIds) {
+      return this.markingIds.containsAll(markingIds);
     }
   }
 }

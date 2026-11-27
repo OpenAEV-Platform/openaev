@@ -57,28 +57,19 @@ For every feature, ensure coverage of:
 
 ## What NOT to Test
 
-- Private methods directly — test them through public API
-- Framework behavior (Spring Security config, Hibernate internals)
-- Exact error message wording — test status codes and error structure
+- [testing › How Many Tests](../instructions/testing.instructions.md#how-many-tests)
 - Other team's code — only test the feature you're working on
 - Performance — leave that to the Performance Reviewer
 - Whether production isolation logic is correct — leave that to the Multi-Tenancy Reviewer
 
 ## Test Structure Conventions
 
-- `@TestInstance(PER_CLASS)` for integration tests
-- `@Nested` + `@DisplayName` for logical grouping
-- `given_<precondition>_should_<expected_outcome>()` naming
-- AAA comments: `// -- ARRANGE --`, `// -- ACT --`, `// -- ASSERT --` (or `// -- ACT & ASSERT --`)
-- OpenAEV's `@WithMockUser` (from `io.openaev.utils.mockUser`), **never Spring's**
-- Fixture + Composer pattern — no inline test data construction
-- `@BeforeAll` / `@AfterAll` with `composer.reset()` for cleanup
+- Backend: [testing › Integration Tests (API)](../instructions/testing.instructions.md#integration-tests-api) (AAA comments), [Fixtures](../instructions/testing.instructions.md#fixtures), [Composers](../instructions/testing.instructions.md#composers) (reset)
+- E2E: [testing › Frontend E2E Tests (Playwright)](../instructions/testing.instructions.md#frontend-e2e-tests-playwright)
 
 ## Coverage Requirements
 
-- **Line coverage**: ≥50% (enforced by `mvn jacoco:check`)
-- **Branch coverage**: ≥30% (enforced by `mvn jacoco:check`)
-- **Target for new code**: aim for 80%+ line coverage on new features
+[copilot-instructions.md › Testing](../copilot-instructions.md#testing) and [Important Notes](../copilot-instructions.md#important-notes) 9.
 
 ## Output Format
 
@@ -105,7 +96,7 @@ Test class: path/to/TestClass.java
 
 ## Verification
 - `mvn test -pl openaev-api -Dtest="{TestClass}"` → ✅ PASS
-- `mvn jacoco:check` → ✅ PASS
+- `check-patch-coverage.py` on the changed lines → ✅ ≥ 80%
 ```
 
 ## Boundaries
@@ -113,6 +104,6 @@ Test class: path/to/TestClass.java
 - Only create or modify test files, fixtures, and composers
 - Never change production code to make tests pass — flag the issue instead
 - Always verify: `mvn test -Dtest="{TestClass}"` after creating tests
-- Always check coverage: `mvn jacoco:check` after adding tests
+- Always check the coverage of the changed lines with `check-patch-coverage.py` after adding tests
 - If a test requires a complex setup, create a dedicated fixture — never inline test data
 - For tenant isolation tests: write the tests, then flag `multi-tenancy-reviewer` to verify the isolation logic is correct

@@ -2,7 +2,9 @@ package io.openaev.utils.mapper;
 
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -10,12 +12,14 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
+import io.openaev.service.InjectVisibleStatusService;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,6 +40,8 @@ public class InjectMapper {
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
   private final HealthCheckUtils healthCheckUtils;
+  private final ObjectMapper mapper;
+  private final InjectVisibleStatusService injectVisibleStatusService;
 
   /**
    * Converts an inject to a result overview output containing full execution details.
@@ -64,6 +70,7 @@ public class InjectMapper {
         primaryExpectations.isEmpty()
             ? new ArrayList<>(inject.getExpectations())
             : primaryExpectations;
+    List<HealthCheck> contentChecks = healthCheckUtils.runContentChecks(inject);
 
     return InjectResultOverviewOutput.builder()
         .id(inject.getId())
@@ -83,11 +90,25 @@ public class InjectMapper {
                 inject.getContent(),
                 expectationsForScoring,
                 InjectExpectationResultUtils::getScores))
-        .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
+        .isReady(contentChecks.isEmpty())
+        .missingMandatoryFields(HealthCheckUtils.missingMandatoryFields(contentChecks))
         .updatedAt(inject.getUpdatedAt())
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .launchedBy(toUserSimple(inject.getLaunchedBy()))
+        .scheduledBy(toUserSimple(inject.getScheduledBy()))
+        .build();
+  }
+
+  private UserSimple toUserSimple(User user) {
+    if (user == null) {
+      return null;
+    }
+    return UserSimple.builder()
+        .id(user.getId())
+        .name(user.getNameOrEmail())
+        .email(user.getEmail())
         .build();
   }
 
@@ -207,6 +228,33 @@ public class InjectMapper {
   }
 
   /**
+   * The JSON of an inject entity, as the endpoints that return {@code Inject} serialize it, but
+   * with the status its reader sees ({@link InjectVisibleStatusService#visibleStatus}) instead of
+   * the stored one. The entity is left untouched: a read path never changes a managed entity
+   * (#7092). With the MARKING preview feature off, the JSON is the entity's own.
+   *
+   * <p>TODO: replace by smaller outputs on new endpoints, then deprecate the routes returning the
+   * entity https://github.com/OpenAEV-Platform/openaev/issues/9439
+   *
+   * <p>Call it in the reader's transaction, whose marking scope hides the traces of the agents
+   * above their clearance.
+   */
+  public ObjectNode toJsonWithVisibleStatus(Inject inject) {
+    ObjectNode json = mapper.valueToTree(inject);
+    inject
+        .getStatus()
+        .filter(status -> status.getName() != null)
+        .ifPresent(
+            status -> {
+              if (json.get("inject_status") instanceof ObjectNode statusJson) {
+                statusJson.put(
+                    "status_name", injectVisibleStatusService.visibleStatus(status).name());
+              }
+            });
+    return json;
+  }
+
+  /**
    * Converts a set of injects to related entity outputs.
    *
    * <p>Used for showing inject references in document or other entity contexts.
@@ -284,7 +332,13 @@ public class InjectMapper {
     return injectOutput;
   }
 
+  /**
+   * Must run inside the request's scoped transaction: the output holds the inject's tags, which are
+   * loaded here, since the response is serialized after the commit where an isolated table reads
+   * zero rows.
+   */
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
+    Hibernate.initialize(inject.getTags());
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     String type = inject.getType();
     InjectOutput output =
@@ -305,6 +359,8 @@ public class InjectMapper {
             type,
             inject.getDependsOn(),
             healthchecks);
+    output.setSecretReferences(
+        inject.getSecretReferences().stream().map(SecretReference::getId).toList());
     output.setExpectations(toOutputs(inject.getExpectations()));
     return output;
   }

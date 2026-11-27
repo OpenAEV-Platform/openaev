@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,7 +54,7 @@ import org.hibernate.annotations.UuidGenerator;
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
 @DiscriminatorValue(AssetType.Values.ASSET_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Asset implements TenantBase {
+public class Asset implements TenantBase, Marked {
 
   // assets is on multi-tenancy v2 (#6438 / #6422).
   //
@@ -127,6 +128,12 @@ public class Asset implements TenantBase {
     INACTIVE,
     @JsonProperty("AGENTLESS")
     AGENTLESS,
+    /**
+     * Unseen for longer than the tenant's {@code asset_stale_after_days} (never when the setting is
+     * 0, the default): wins over the agent-derived values.
+     */
+    @JsonProperty("STALE")
+    STALE,
   }
 
   @Id
@@ -149,7 +156,7 @@ public class Asset implements TenantBase {
   @NotBlank
   private String name;
 
-  @Queryable(sortable = true)
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "asset_description")
   @JsonProperty("asset_description")
   private String description;
@@ -183,6 +190,52 @@ public class Asset implements TenantBase {
   @Column(name = "asset_internet_facing")
   @JsonProperty("asset_internet_facing")
   private Boolean internetFacing;
+
+  // -- FRESHNESS --
+  // When the asset was last observed and by what. Stamped by the observers (an agent registering
+  // or beating, ...) at most once per SEEN_THROTTLE so a heartbeat does not restream the asset
+  // every minute. Staleness is not stored: it is the STALE value of asset_status, read from
+  // asset_last_seen and the tenant's asset_stale_after_days; the freshness job only raises the
+  // transition event.
+
+  /** Minimum interval between two stamps of the same source on the same asset. */
+  public static final Duration SEEN_THROTTLE = Duration.ofHours(1);
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_last_seen")
+  @JsonProperty("asset_last_seen")
+  @AuditStateIgnore
+  private Instant lastSeen;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_last_seen_source")
+  @JsonProperty("asset_last_seen_source")
+  @AuditStateIgnore
+  private String lastSeenSource;
+
+  /**
+   * Records an observation of this asset. The stamp moves only forward, and at most once per {@link
+   * #SEEN_THROTTLE} for the same source. A stale asset seen again leaves STALE at once, since the
+   * status is read from the stamp.
+   *
+   * @return true when a field changed (the caller saves the asset), false for a no-op
+   */
+  public boolean markSeen(Instant seenAt, String source) {
+    if (seenAt == null) {
+      return false;
+    }
+    boolean changed = false;
+    boolean newer = this.lastSeen == null || seenAt.isAfter(this.lastSeen);
+    boolean sameSource = Objects.equals(this.lastSeenSource, source);
+    boolean throttled =
+        this.lastSeen != null && sameSource && seenAt.isBefore(this.lastSeen.plus(SEEN_THROTTLE));
+    if (newer && !throttled) {
+      this.lastSeen = seenAt;
+      this.lastSeenSource = source;
+      changed = true;
+    }
+    return changed;
+  }
 
   // -- CLOUD (CLOUD_RESOURCE assets) --
 
@@ -246,6 +299,7 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_url")
   private String url;
 
+  @Queryable(filterable = true)
   @Type(StringArrayType.class)
   @Column(name = "asset_mac_addresses")
   @JsonProperty("asset_mac_addresses")
@@ -270,7 +324,12 @@ public class Asset implements TenantBase {
    * there is <b>no foreign key</b> to {@code marking_definitions}. Validity of the ids is therefore
    * an application concern: writes must go through the marking write guard, and deleting a
    * definition must scrub the arrays (design §5.7).
+   *
+   * <p>{@code @Queryable(filterable = true)} is an unrelated, explicit opt-in: a caller choosing
+   * "only assets marked X" through the search Specification layer. It does not touch the
+   * clearance-based restriction above, which never goes through this annotation.
    */
+  @Queryable(filterable = true, dynamicValues = true)
   @Type(StringArrayType.class)
   @Column(name = "marking_ids", columnDefinition = "text[]")
   @JsonProperty("asset_markings")
@@ -343,10 +402,20 @@ public class Asset implements TenantBase {
   // Read-only activity status derived from the agents linked to this asset (agents live on the
   // Endpoint subclass, but the correlated subquery works on the base assets table for every
   // category - non-agent assets simply resolve to AGENTLESS). Filterable so the inventory can
-  // filter by status.
+  // filter by status. STALE comes first: an asset last seen before the tenant's
+  // asset_stale_after_days (a positive tenant row of parameters; none or 0 keeps it off).
+  // Mirrored by EndpointRepository.ACTIVITY_STATUS_SELECT for native queries.
   @Queryable(filterable = true, sortable = true, refEnumClazz = ASSET_ACTIVITY_STATUS.class)
   @Formula(
       "(CASE"
+          + " WHEN asset_last_seen IS NOT NULL AND EXISTS (SELECT 1 FROM parameters p"
+          + " WHERE p.tenant_id = tenant_id AND p.parameter_key = 'asset_stale_after_days'"
+          + " AND (CASE WHEN p.parameter_value ~ '^[0-9]+$'"
+          + " THEN to_number(p.parameter_value, '99999') ELSE 0 END) > 0"
+          + " AND date_part('epoch', now() - asset_last_seen) > (CASE WHEN"
+          + " p.parameter_value ~ '^[0-9]+$' THEN to_number(p.parameter_value, '99999')"
+          + " ELSE 0 END) * 86400)"
+          + " THEN 'STALE'"
           + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id)"
           + " THEN 'AGENTLESS'"
           + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id"
@@ -354,7 +423,10 @@ public class Asset implements TenantBase {
           + " ELSE 'INACTIVE' END)")
   @Enumerated(EnumType.STRING)
   @JsonProperty("asset_status")
-  @Schema(description = "Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS)")
+  @Schema(
+      description =
+          "Activity status: STALE when unseen past the tenant threshold, else derived from agents"
+              + " (ACTIVE / INACTIVE / AGENTLESS)")
   @AuditLogIgnore
   private ASSET_ACTIVITY_STATUS activityStatus;
 
@@ -418,6 +490,12 @@ public class Asset implements TenantBase {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return category == AssetCategory.AI_TARGET ? "aitargets" : null;
   }
 
   public Asset() {}

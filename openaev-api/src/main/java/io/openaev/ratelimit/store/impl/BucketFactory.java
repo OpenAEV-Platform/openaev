@@ -2,6 +2,7 @@ package io.openaev.ratelimit.store.impl;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
+import io.github.bucket4j.TimeMeter;
 import io.openaev.ratelimit.config.Limits;
 import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.store.LimitFactory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class BucketFactory implements LimitFactory<Bucket> {
   private final RateLimitConfig config;
+  private final TimeMeter timeMeter;
 
   @Override
   public Bucket createLimit(LimitConsumptionRequest key) {
@@ -24,6 +26,7 @@ public class BucketFactory implements LimitFactory<Bucket> {
                 .capacity(rps)
                 .refillIntervally(rps, Duration.ofMillis(Limits.REFILL_PERIOD_1000MS))
                 .build())
+        .withCustomTimePrecision(timeMeter)
         .build();
   }
 }

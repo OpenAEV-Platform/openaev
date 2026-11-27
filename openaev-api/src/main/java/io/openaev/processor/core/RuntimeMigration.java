@@ -4,11 +4,8 @@ import io.openaev.database.model.Tenant;
 import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.processor.Processable;
 import io.openaev.service.DataPackService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 
 @Slf4j
 /**
@@ -30,32 +27,11 @@ import org.hibernate.Session;
 public abstract class RuntimeMigration implements Processable {
   private final DataPackService dataPackService;
 
-  @PersistenceContext private EntityManager entityManager;
-
   protected RuntimeMigration(DataPackService dataPackService) {
     this.dataPackService = dataPackService;
   }
 
   protected abstract boolean doMigrate(Tenant tenant);
-
-  /**
-   * Enables the v1 Hibernate {@code tenantFilter} for the tenant being processed. Call this
-   * explicitly at the top of {@link #doMigrate(Tenant)} when the migration reads v1-scoped entities
-   * through JPQL / derived queries that are not explicitly tenant-parameterized (e.g. {@code
-   * InjectorContractRepository#findById(String)} on the composite-PK {@code injectors_contracts}
-   * table). Before migrations moved under {@code MigrationProcessor}'s tenant-scoped transactions,
-   * the {@code @Transactional} annotation on {@code process()} made {@code
-   * HibernateFilterTransactionAspect} enable this filter implicitly; the programmatic transaction
-   * does not, so migrations that depend on it must opt in.
-   */
-  // TODO v2: once all v1 tables read by runtime migrations are v2 activated, remove this method
-  // and all calls to it (and the v1 filter itself) - the SQL rewriter scopes them independently
-  protected void enableV1TenantFilter(Tenant tenant) {
-    entityManager
-        .unwrap(Session.class)
-        .enableFilter("tenantFilter")
-        .setParameter("tenantId", tenant.getId());
-  }
 
   @Getter private final String migrationId = getProcessableId();
 

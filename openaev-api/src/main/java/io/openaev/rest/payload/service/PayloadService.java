@@ -10,11 +10,13 @@ import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
 import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupField;
+import static io.openaev.injector_contract.fields.ContractDocument.documentField;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -41,29 +43,36 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.AuthorService;
+import io.openaev.service.PermissionService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,6 +82,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class PayloadService {
 
+  public static final String PAYLOAD_NAME_TAKEN = "A payload with this name already exists";
+
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY = "dynamic_hostname_key";
   public static final String DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE =
       "#{" + DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY + "}";
@@ -81,10 +92,15 @@ public class PayloadService {
   @Resource protected ObjectMapper mapper;
 
   private final PayloadRepository payloadRepository;
+  private final PayloadContentHashService payloadContentHashService;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final AuthorService authorService;
+  // PermissionService reaches the inject services, which reach this service through the threat
+  // arsenal services: @Lazy setter injection breaks the cycle, as in TenantGroupService.
+  private PermissionService permissionService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
   private final ResultsMetricCollector resultsMetricCollector;
@@ -94,22 +110,28 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PreviewFeatureService previewFeatureService;
 
   private final PayloadMapper payloadMapper;
 
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
+
+  // -- INJECTOR CONTRACT --
+
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // Every payload write passes here.
+    payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns).orElse(null));
     // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
     // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
     // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
     // rows. Narrow to the payload's own tenant before picking the reference injector and building
     // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
     // another tenant's injector or fail on the injectors_injector_contracts FK.
-    String payloadTenantId = payload.getTenant().getId();
-    List<Injector> injectors =
-        this.injectorRepository.findAllByPayloads(true).stream()
-            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
-            .toList();
+    List<Injector> injectors = payloadInjectors(payload.getTenant().getId());
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
@@ -124,6 +146,9 @@ public class PayloadService {
                   String contractId = String.valueOf(UUID.randomUUID());
                   InjectorContract newContract = new InjectorContract();
                   newContract.setId(contractId);
+                  // InjectorContract has no listener that stamps a tenant, so the new contract
+                  // takes its payload's tenant here: a contract lives in its payload's tenant.
+                  newContract.setTenant(payload.getTenant());
                   return newContract;
                 });
 
@@ -138,6 +163,34 @@ public class PayloadService {
         injectorIds, injectorContractSaved.getCompositeId().getId());
 
     return injectorContractSaved;
+  }
+
+  /** Without an injector running payloads in the tenant, no payload contract can be rebuilt. */
+  public boolean hasPayloadInjector(String tenantId) {
+    return !payloadInjectors(tenantId).isEmpty();
+  }
+
+  private List<Injector> payloadInjectors(String tenantId) {
+    return this.injectorRepository.findAllByPayloads(true).stream()
+        .filter(injector -> tenantId.equals(injector.getTenantId()))
+        .toList();
+  }
+
+  /**
+   * Saves the payload and rebuilds its contract, keeping the attack patterns, domains and tags of
+   * the contract. Empty when the payload has no contract, or no payload injector to rebuild it.
+   */
+  public Optional<InjectorContract> saveAndRebuildContract(Payload payload) {
+    Payload saved = payloadRepository.save(payload);
+    return injectorContractRepository
+        .findInjectorContractByPayload(saved)
+        .map(
+            contract ->
+                synchroniseInjectorContractBasedOnPayload(
+                    saved,
+                    contract.getAttackPatterns(),
+                    contract.getDomains(),
+                    contract.getTags()));
   }
 
   private void setInjectorContractPropertyBasedOnPayload(
@@ -238,6 +291,14 @@ public class PayloadService {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
+                } else if (PrimitiveType.Document == payloadArgument.getType()) {
+                  ContractElement documentField =
+                      documentField(
+                          payloadArgument.getKey(),
+                          payloadArgument.getKey(),
+                          payloadArgument.getDefaultValue());
+                  documentField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(documentField);
                 } else {
                   ContractElement textField =
                       textField(
@@ -277,6 +338,11 @@ public class PayloadService {
             this.expectationBuilderService.buildDetectionExpectation(),
             BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
             expectedSecurityPlatforms);
+    Expectation loggingExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildLoggingExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+            expectedSecurityPlatforms);
     Expectation vulnerableExpectation =
         withExpectedSecurityPlatforms(
             this.expectationBuilderService.buildVulnerabilityExpectation(),
@@ -288,57 +354,22 @@ public class PayloadService {
         switch (type) {
           case DETECTION -> detectionExpectation.setPredefined(true);
           case PREVENTION -> preventionExpectation.setPredefined(true);
+          case LOGGING -> loggingExpectation.setPredefined(true);
           case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    return expectationsField(
-        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
-  }
-
-  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
-      PayloadCreationService.PayloadInjectorContractCreationResult result) {
-    return payloadMapper.toPayloadOutput(
-        result.payload(),
-        result.injectorContract().getAttackPatterns().stream()
-            .map(AttackPattern::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getDomains().stream()
-            .map(Domain::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
-  }
-
-  public record PayloadWithRelatedEntities(
-      Payload payload,
-      List<String> attackPatternIds,
-      List<String> domainIds,
-      List<String> tagIds) {}
-
-  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
-    Payload payload =
-        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    RawPayloadRelatedIds relatedIds =
-        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
-
-    List<String> attackPatternIds =
-        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
-    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
-    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
-
-    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
-  }
-
-  /**
-   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
-   * types are single-select.
-   */
-  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
-    expectation.setMultiSelectable(
-        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
-    return expectation;
+    List<Expectation> expectations =
+        new ArrayList<>(List.of(detectionExpectation, preventionExpectation));
+    // The contract is stored at payload synchronisation: a contract built while the preview feature
+    // is off only offers LOGGING at its next synchronisation.
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      expectations.add(loggingExpectation);
+    }
+    expectations.add(vulnerableExpectation);
+    return expectationsField(expectations);
   }
 
   /**
@@ -360,6 +391,99 @@ public class PayloadService {
     return expectation;
   }
 
+  // -- OUTPUT --
+
+  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
+      PayloadCreationService.PayloadInjectorContractCreationResult result) {
+    return payloadMapper.toPayloadOutput(
+        result.payload(),
+        result.injectorContract().getAttackPatterns().stream()
+            .map(AttackPattern::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getDomains().stream()
+            .map(Domain::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
+  }
+
+  // -- READ --
+
+  public record PayloadWithRelatedEntities(
+      Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagIds) {}
+
+  public Payload payload(String tenantId, String payloadId) {
+    return payloadRepository
+        .findByIdAndTenantId(payloadId, tenantId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+  }
+
+  public List<Payload> findAllBySource(String tenantId, Payload.PAYLOAD_SOURCE source) {
+    return payloadRepository.findAllByTenantIdAndIdentitySource(tenantId, source);
+  }
+
+  /** Every version of a payload in the tenant. */
+  public List<Payload> versions(String tenantId, String externalId) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
+  }
+
+  /** Every version of these catalogue payloads in the tenant. */
+  public List<Payload> versions(String tenantId, Collection<String> externalIds) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalIdIn(tenantId, externalIds);
+  }
+
+  /** Every version of this payload in the tenant, itself included. */
+  public List<Payload> versionsOf(String tenantId, Payload payload) {
+    return payloadRepository.findAllVersionsByTenantIdAndPayloadId(tenantId, payload.getId());
+  }
+
+  /** The customized copies built on one of these versions, at their latest version. */
+  public List<Payload> latestCopiesOf(String tenantId, Collection<Payload> bases) {
+    return payloadRepository.findAllByTenantIdAndBaseIn(tenantId, bases).stream()
+        .filter(Payload::isLatest)
+        .toList();
+  }
+
+  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
+    Payload payload =
+        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    RawPayloadRelatedIds relatedIds =
+        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
+
+    List<String> attackPatternIds =
+        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
+    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
+    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
+
+    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  // -- NAME --
+
+  /** No other payload of the tenant may use this name; the versions of a payload share it. */
+  public void assertNameAvailable(String tenantId, String name, @Nullable String payloadId) {
+    if (name != null
+        && !name.isBlank()
+        && payloadRepository.existsByTenantIdAndNameOutsideVersionsOf(tenantId, name, payloadId)) {
+      throw new BadRequestException(PAYLOAD_NAME_TAKEN);
+    }
+  }
+
+  /** Keeping its name never fails: a tenant may already hold duplicates, e.g. from a catalogue. */
+  public void assertRenameAvailable(Payload payload, String name) {
+    if (!sameName(payload.getName(), name)) {
+      assertNameAvailable(payload.getTenant().getId(), name, payload.getId());
+    }
+  }
+
+  private static boolean sameName(String current, String name) {
+    return current != null && name != null && current.trim().equalsIgnoreCase(name.trim());
+  }
+
+  // -- DUPLICATE --
+
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin =
@@ -373,28 +497,23 @@ public class PayloadService {
         injectorContractRepository.findInjectorContractByPayload(origin);
 
     Payload duplicatedPayload = generateDuplicatedPayload(origin);
-    // A duplicate is a new manual payload: it is authored by the user performing the
-    // duplication. System flows without an authenticated user keep the author copied
-    // from the origin.
-    User duplicatingUser = userService.currentUserOrNull();
-    if (duplicatingUser != null) {
-      duplicatedPayload.setAuthorUser(duplicatingUser);
-      duplicatedPayload.setAuthorTeam(null);
-      duplicatedPayload.setAuthorOrganization(null);
-    }
-    Payload duplicated = payloadRepository.save(duplicatedPayload);
-    InjectorContract injectorContract =
-        this.synchroniseInjectorContractBasedOnPayload(
-            duplicated,
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getAttackPatterns()
-                : List.of(),
-            originInjectorContract.isPresent()
-                ? originInjectorContract.get().getDomains()
-                : Set.of(),
-            originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+    // A duplicate is a new manual payload, authored by the user duplicating it; without a user it
+    // keeps the author copied from the origin.
+    authorService.authorByCurrentUser(duplicatedPayload);
+    return saveWithContract(
+        duplicatedPayload,
+        originInjectorContract.isPresent()
+            ? originInjectorContract.get().getAttackPatterns()
+            : List.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getDomains() : Set.of(),
+        originInjectorContract.isPresent() ? originInjectorContract.get().getTags() : Set.of());
+  }
+
+  public PayloadCreationService.PayloadInjectorContractCreationResult saveWithContract(
+      Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    Payload saved = payloadRepository.save(payload);
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
-        duplicated, injectorContract);
+        saved, synchroniseInjectorContractBasedOnPayload(saved, attackPatterns, domains, tags));
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {
@@ -455,14 +574,19 @@ public class PayloadService {
     };
   }
 
+  // -- COLLECTOR --
+
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> payloadExternalIds =
-        payloadRepository.findAllExternalIdsByCollectorId(collectorId);
+        payloadRepository.findAllExternalIdsByCollectorId(collectorId, writeTenant);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        writeTenant);
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 
@@ -473,32 +597,62 @@ public class PayloadService {
         .toList();
   }
 
+  // -- SEARCH --
+
   /**
    * Search payloads with pagination and architecture filter, where the user is granted. The user
    * must have at least OBSERVER grant on the payloads to see them OR have the access capability on
-   * payloads.
+   * payloads. The access capability is read in the tenant of each payload, so the payloads of a
+   * tenant are returned whole only when the user holds it there.
    *
+   * @param ctx the request scope
    * @param searchPaginationInput the input containing pagination and search criteria
    * @return a paginated list of Payloads
    */
-  public Page<Payload> searchPayloads(@NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<Payload> searchPayloads(
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
-    BiFunction<Specification<Payload>, Pageable, Page<Payload>> grantFilteredFindAll =
-        SpecificationUtils.withGrantFilter(
-            this.payloadRepository,
-            Grant.GRANT_TYPE.OBSERVER,
-            currentUser.getId(),
-            currentUser.isAdminOrBypass(),
-            currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS));
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    // An empty scope reads no payload of an active table, so the ambient rights decide, as before.
+    Specification<Payload> readable =
+        tenantIds.isEmpty()
+            ? SpecificationUtils.hasGrantAccess(
+                currentUser.getId(),
+                currentUser.isAdminOrBypass(),
+                currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS),
+                Grant.GRANT_TYPE.OBSERVER)
+            : null;
+    for (String tenantId : tenantIds) {
+      Specification<Payload> inTenant = readableInTenant(tenantId, currentUser);
+      readable = readable == null ? inTenant : readable.or(inTenant);
+    }
+    Specification<Payload> readableSpecification = readable;
     return buildPaginationJPA(
         (spec, pageable) ->
-            grantFilteredFindAll.apply(
+            this.payloadRepository.findAll(
                 (spec == null ? Specification.<Payload>unrestricted() : spec)
-                    .and(PayloadSpecification.withCollectorType()),
+                    .and(PayloadSpecification.withCollectorType())
+                    .and(readableSpecification),
                 pageable),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
   }
+
+  /** The payloads of one tenant the user can read there: by capability, or by an OBSERVER grant. */
+  private Specification<Payload> readableInTenant(
+      @NotBlank final String tenantId, @NotNull final User user) {
+    boolean adminOrBypass = permissionService.holdsInTenant(tenantId, user::isAdminOrBypass);
+    boolean hasCapability =
+        permissionService.holdsInTenant(
+            tenantId, () -> user.getCapabilities().contains(Capability.ACCESS_PAYLOADS));
+    return ((Specification<Payload>)
+            (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId))
+        .and(
+            SpecificationUtils.hasGrantAccess(
+                user.getId(), adminOrBypass, hasCapability, Grant.GRANT_TYPE.OBSERVER));
+  }
+
+  // -- BUILT-IN PAYLOADS --
 
   /**
    * Retrieve the existing FileDrop Payload linked to the document id, or create a new one if it
@@ -639,6 +793,8 @@ public class PayloadService {
     return saved;
   }
 
+  // -- DELETE --
+
   // Transactional so the payload delete and the chaining step sweep commit or roll back together:
   // without it the deleteById commits first and a sweep failure would leave the ghost steps this
   // cleanup exists to prevent. Same pattern as InjectorService.deleteInjector.
@@ -652,10 +808,10 @@ public class PayloadService {
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on
     // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
-    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
-    // grouped by tenant and each sweep stays scoped to its own tenant: a payload backs at most one
-    // contract per tenant (injector_contract_payload_unique), and nothing in the schema stops a
-    // contract of another tenant from referencing it.
+    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory reads
+    // the contracts the caller's scope can see, grouped by tenant, and each sweep stays scoped to
+    // its own tenant: a payload backs at most one contract per tenant
+    // (injector_contract_payload_unique).
     String tenantId = payload.getTenant().getId();
     Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
         injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);

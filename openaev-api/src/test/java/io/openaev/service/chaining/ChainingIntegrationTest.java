@@ -113,7 +113,9 @@ class ChainingIntegrationTest extends IntegrationTest {
     injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
-    doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
+    doReturn(injectorContractSaved)
+        .when(injectorContractService)
+        .injectorContractInTenant(any(), any());
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
@@ -312,7 +314,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      String simulationId = JsonPath.read(simulationResult, "$.exercise_id");
+      String simulationId = JsonPath.read(simulationResult, "$.simulation_id");
       Exercise simulation = exerciseRepository.findById(simulationId).orElseThrow();
 
       assertNotNull(simulation);
@@ -427,7 +429,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      String simulationId = mapper.readTree(simulationResult).get("exercise_id").asText();
+      String simulationId = mapper.readTree(simulationResult).get("simulation_id").asText();
 
       // Snapshots before deletion
       List<String> stepIds =
@@ -604,7 +606,7 @@ class ChainingIntegrationTest extends IntegrationTest {
               .andReturn()
               .getResponse()
               .getContentAsString();
-      String simulationId = mapper.readTree(simulation).get("exercise_id").asText();
+      String simulationId = mapper.readTree(simulation).get("simulation_id").asText();
 
       // After launch the workflow may have already transitioned from RUN to END,
       // so we look for any execution workflow (non-TEMPLATE) linked to this simulation.

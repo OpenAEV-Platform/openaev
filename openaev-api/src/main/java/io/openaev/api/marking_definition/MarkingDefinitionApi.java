@@ -11,7 +11,6 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
@@ -50,40 +49,31 @@ public class MarkingDefinitionApi extends RestBehavior {
   // -- SEARCH --
 
   @LogExecutionTime
-  @GetMapping
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Get marking definitions",
-      description = "Get the list of marking definitions")
-  public List<MarkingDefinitionOutput> list(TxCtx ctx) {
-    return service.list(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
-  }
-
-  @LogExecutionTime
   @GetMapping("/assignable")
   @Transactional(readOnly = true)
   // No capability needed: the result is already narrowed to the caller's own clearance.
   @AccessControl(skipRBAC = true)
   @Operation(
-      summary = "Get the marking definitions the current user may assign",
+      summary = "Get the marking definitions the current user is cleared for",
       description =
-          "The tenant's marking definitions narrowed to the caller's own clearance (cumulative per"
-              + " type - holding TLP:AMBER also covers TLP:GREEN and TLP:CLEAR), the same rule"
-              + " enforced server-side when a marking is actually assigned. Built for an assignment"
-              + " picker: every definition returned here is one a submission is actually allowed to"
-              + " include.")
+          "The marking definitions of the tenants in scope narrowed to the caller's own clearance"
+              + " (cumulative per type - holding TLP:AMBER also covers TLP:GREEN and TLP:CLEAR), the"
+              + " same rule enforced server-side when a marking is actually assigned. Built for an"
+              + " assignment picker and for the marking filter's value picker.")
   public List<MarkingDefinitionOutput> assignable(TxCtx ctx) {
-    // tenantForWrite is a "write scope" resolver by name, but what it actually does - resolve the
-    // request scope to exactly one tenant or refuse an ambiguous one - is exactly what a clearance
-    // lookup needs too; this endpoint doesn't write anything.
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    User currentUser = userService.currentUser();
-    return service
-        .listAssignable(ctx, tenantId, currentUser.getId(), currentUser.isAdminOrBypass())
-        .stream()
-        .map(MarkingDefinitionMapper::toOutput)
-        .toList();
+    return service.listAssignable(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
+  }
+
+  @LogExecutionTime
+  @GetMapping("/{markingDefinitionId}/assigned")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#markingDefinitionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(summary = "Check if a marking definition is currently assigned to any entity")
+  public boolean assigned(TxCtx ctx, @PathVariable String markingDefinitionId) {
+    return service.isAssigned(ctx, markingDefinitionId);
   }
 
   @LogExecutionTime
@@ -106,7 +96,7 @@ public class MarkingDefinitionApi extends RestBehavior {
   public MarkingDefinitionOutput create(
       TxCtx ctx, @Valid @RequestBody MarkingDefinitionInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    MarkingDefinition created = service.create(input, tenantId);
+    MarkingDefinition created = service.create(input, tenantId, userService.currentUser().getId());
     return MarkingDefinitionMapper.toOutput(created);
   }
 
@@ -123,7 +113,8 @@ public class MarkingDefinitionApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String markingDefinitionId,
       @Valid @RequestBody MarkingDefinitionInput input) {
-    return MarkingDefinitionMapper.toOutput(service.update(ctx, markingDefinitionId, input));
+    return MarkingDefinitionMapper.toOutput(
+        service.update(ctx, markingDefinitionId, input, userService.currentUser().getId()));
   }
 
   // -- DELETE --
@@ -137,6 +128,6 @@ public class MarkingDefinitionApi extends RestBehavior {
       resourceType = ResourceType.MARKING_DEFINITION)
   @Operation(summary = "Delete a marking definition")
   public void delete(TxCtx ctx, @PathVariable String markingDefinitionId) {
-    service.delete(ctx, markingDefinitionId);
+    service.delete(ctx, markingDefinitionId, userService.currentUser().getId());
   }
 }

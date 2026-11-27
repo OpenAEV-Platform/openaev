@@ -4,7 +4,9 @@ import io.openaev.database.model.*;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Utility class for execution trace conversions.
@@ -20,6 +22,24 @@ import java.util.stream.Collectors;
 public class ExecutionTraceUtils {
 
   private ExecutionTraceUtils() {}
+
+  static final String SIMULATION_TIMEOUT_MESSAGE = "Inject stopped due to simulation timeout.";
+
+  /**
+   * The messages of the COMPLETE/TIMEOUT traces the platform writes itself (threshold reaper and
+   * simulation timeout), as opposed to a TIMEOUT completion an agent or an injector reports. A late
+   * report only makes the platform's TIMEOUT incomplete. Matched on the start of the message, so a
+   * message already completed with a late-report suffix still matches, and so do the traces stored
+   * before this matcher existed (no schema change).
+   */
+  private static final Pattern PLATFORM_TIMEOUT_MESSAGE =
+      Pattern.compile(
+          "^(Agent .* did not respond within the \\d+ minutes threshold\\."
+              + "|The inject did not complete within the \\d+ minutes threshold"
+              + " and was marked as timed out\\."
+              + "|"
+              + Pattern.quote(SIMULATION_TIMEOUT_MESSAGE)
+              + ")");
 
   // -- CONVERSION --
 
@@ -41,10 +61,34 @@ public class ExecutionTraceUtils {
 
   // -- QUERY --
 
+  /** Returns the COMPLETE traces, which close the execution of an agent or of the inject. */
+  public static Stream<ExecutionTrace> completeTraces(List<ExecutionTrace> traces) {
+    return traces.stream().filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+  }
+
+  /** Returns the traces of the given agent, agent-less traces excluded. */
+  public static Stream<ExecutionTrace> agentTraces(List<ExecutionTrace> traces, String agentId) {
+    return traces.stream().filter(t -> isAgentTrace(t, agentId));
+  }
+
+  /**
+   * Whether the trace is a COMPLETE/TIMEOUT the platform wrote (threshold reaper or simulation
+   * timeout), never a TIMEOUT completion reported by an agent or an injector.
+   */
+  public static boolean isPlatformTimeoutTrace(ExecutionTrace trace) {
+    return ExecutionTraceStatus.TIMEOUT.equals(trace.getStatus())
+        && ExecutionTraceAction.COMPLETE.equals(trace.getAction())
+        && trace.getMessage() != null
+        && PLATFORM_TIMEOUT_MESSAGE.matcher(trace.getMessage()).lookingAt();
+  }
+
+  public static boolean isAgentTrace(ExecutionTrace trace, String agentId) {
+    return trace.getAgent() != null && agentId.equals(trace.getAgent().getId());
+  }
+
   /** Returns the IDs of agents that already have a COMPLETE trace. */
   public static Set<String> getCompletedAgentIds(List<ExecutionTrace> traces) {
-    return traces.stream()
-        .filter(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()))
+    return completeTraces(traces)
         .filter(t -> t.getAgent() != null)
         .map(t -> t.getAgent().getId())
         .collect(Collectors.toSet());
@@ -59,19 +103,24 @@ public class ExecutionTraceUtils {
   public static void addTimeoutTrace(InjectStatus status, Agent agent, int thresholdMinutes) {
     status.addTrace(
         ExecutionTraceStatus.TIMEOUT,
-        "Agent "
-            + agent.getExecutedByUser()
-            + " did not respond within the "
-            + thresholdMinutes
-            + " minutes threshold.",
+        agentTimeoutMessage(agent.getExecutedByUser(), thresholdMinutes),
         ExecutionTraceAction.COMPLETE,
         agent);
+  }
+
+  /** The message of the TIMEOUT trace the reaper writes for an agent that did not respond. */
+  public static String agentTimeoutMessage(String executedByUser, int thresholdMinutes) {
+    return "Agent "
+        + executedByUser
+        + " did not respond within the "
+        + thresholdMinutes
+        + " minutes threshold.";
   }
 
   public static void addSimulationTimeoutTrace(InjectStatus status) {
     status.addTrace(
         ExecutionTraceStatus.TIMEOUT,
-        "Inject stopped due to simulation timeout.",
+        SIMULATION_TIMEOUT_MESSAGE,
         ExecutionTraceAction.COMPLETE,
         null);
   }
@@ -80,6 +129,21 @@ public class ExecutionTraceUtils {
     status.addTrace(
         ExecutionTraceStatus.INTERRUPTED,
         "Inject stopped due to simulation interruption.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
+  /**
+   * Adds an agentless COMPLETE/INTERRUPTED trace recording that a user stopped a running atomic
+   * testing, and who did.
+   *
+   * @param status the status of the atomic testing being stopped
+   * @param stoppedBy the name (or email) of the user who stopped it
+   */
+  public static void addAtomicTestingStoppedTrace(InjectStatus status, String stoppedBy) {
+    status.addTrace(
+        ExecutionTraceStatus.INTERRUPTED,
+        "Atomic testing stopped by " + stoppedBy + ".",
         ExecutionTraceAction.COMPLETE,
         null);
   }
@@ -101,11 +165,16 @@ public class ExecutionTraceUtils {
   public static void addAgentlessTimeoutTrace(InjectStatus status, int thresholdMinutes) {
     status.addTrace(
         ExecutionTraceStatus.TIMEOUT,
-        "The inject did not complete within the "
-            + thresholdMinutes
-            + " minutes threshold and was marked as timed out.",
+        agentlessTimeoutMessage(thresholdMinutes),
         ExecutionTraceAction.COMPLETE,
         null);
+  }
+
+  /** The message of the TIMEOUT trace the reaper writes for an agent-less inject. */
+  public static String agentlessTimeoutMessage(int thresholdMinutes) {
+    return "The inject did not complete within the "
+        + thresholdMinutes
+        + " minutes threshold and was marked as timed out.";
   }
 
   /**

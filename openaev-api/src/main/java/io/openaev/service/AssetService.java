@@ -5,13 +5,16 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.asset.AssetOptionOutput;
+import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exception.BadRequestException;
@@ -27,7 +30,10 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -42,11 +48,15 @@ import org.springframework.util.CollectionUtils;
 @Service
 public class AssetService {
 
+  /** Ids per query in {@link #visibleAssetIds}: well under the bind-parameter limit. */
+  private static final int VISIBLE_IDS_CHUNK = 1000;
+
   @PersistenceContext private EntityManager entityManager;
 
   private final AssetRepository assetRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TagRepository tagRepository;
 
   public Asset asset(@NotBlank final String assetId) {
     return this.assetRepository
@@ -56,6 +66,27 @@ public class AssetService {
 
   public List<Asset> assets(@NotNull final List<String> assetIds) {
     return fromIterable(this.assetRepository.findAllById(assetIds));
+  }
+
+  /** The assets among the given ids that belong to the given tenant. */
+  public List<Asset> assets(@NotNull final List<String> assetIds, @NotBlank final String tenantId) {
+    return this.assetRepository.findAllByIdInTenant(assetIds, tenantId);
+  }
+
+  /**
+   * The ids, among {@code assetIds}, of the assets the current transaction can read: the tenant and
+   * the reader's marking clearance apply, so an asset the reader is not cleared for is absent. One
+   * query per chunk and no entity loaded, so a caller can ask about every asset a page names.
+   */
+  public Set<String> visibleAssetIds(@NotNull final Collection<String> assetIds) {
+    Set<String> visible = new HashSet<>();
+    List<String> distinct = assetIds.stream().filter(Objects::nonNull).distinct().toList();
+    for (int from = 0; from < distinct.size(); from += VISIBLE_IDS_CHUNK) {
+      List<String> chunk =
+          distinct.subList(from, Math.min(from + VISIBLE_IDS_CHUNK, distinct.size()));
+      visible.addAll(this.assetRepository.findIdsByIdIn(chunk));
+    }
+    return visible;
   }
 
   public List<Asset> assets() {
@@ -78,8 +109,7 @@ public class AssetService {
    * fields such as platform / arch live on the subclass and cannot be resolved on the base root).
    */
   public Page<Asset> searchAssets(@NotNull final SearchPaginationInput searchPaginationInput) {
-    // Security platforms are a distinct concept with their own inventory, so they are excluded
-    // here; the unified asset inventory lists endpoints, AI targets and every other asset category.
+    // Security platforms have their own inventory and are excluded from this unified one.
     Specification<Asset> notSecurityPlatform =
         (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE);
     return buildPaginationJPA(
@@ -117,45 +147,7 @@ public class AssetService {
    */
   public List<String> bulkDeleteAssets(
       final TxCtx ctx, @NotNull final AssetBulkProcessingInput input) {
-    if ((CollectionUtils.isEmpty(input.getAssetIdsToProcess())
-            && input.getSearchPaginationInput() == null)
-        || (!CollectionUtils.isEmpty(input.getAssetIdsToProcess())
-            && input.getSearchPaginationInput() != null)) {
-      throw new BadRequestException(
-          "Either asset_ids_to_process or search_pagination_input must be provided, and not both at the same time");
-    }
-    List<String> assetIdsToDelete =
-        bulkDeleteExecutor.resolveInTransaction(
-            ctx,
-            () -> {
-              Specification<Asset> specification;
-              if (input.getSearchPaginationInput() != null) {
-                // Same specification chain as the inventory search (filter group + text search),
-                // so the deletion scope matches exactly what the user sees in the list.
-                specification =
-                    FilterUtilsJpa.<Asset>computeFilterGroupJpa(
-                            input.getSearchPaginationInput().getFilterGroup())
-                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
-              } else {
-                specification = SpecificationUtils.hasIdIn(input.getAssetIdsToProcess());
-              }
-              if (!CollectionUtils.isEmpty(input.getAssetIdsToIgnore())) {
-                List<String> idsToIgnore = input.getAssetIdsToIgnore();
-                specification =
-                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
-              }
-              // Security platforms are managed from their dedicated area and never surface in the
-              // unified inventory: keep them out of the bulk scope even when their ids are
-              // explicitly provided.
-              specification =
-                  specification.and(
-                      (root, query, cb) ->
-                          cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
-              // Project only the ids: bulk scopes can span very large inventories, so loading
-              // the full entities just to extract ids would create a needless memory spike and
-              // lengthen the scope-resolution transaction.
-              return resolveAssetIds(specification);
-            });
+    List<String> assetIdsToDelete = resolveBulkAssetIds(ctx, input);
     return bulkDeleteExecutor.deleteInChunks(
         ctx,
         "assets",
@@ -163,8 +155,146 @@ public class AssetService {
         chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));
   }
 
-  // Criteria query selecting only the id column, so scope resolution never materialises full
-  // Asset entities (goes through the Hibernate session, so the tenant filter still applies).
+  /**
+   * Bulk update of the classification of assets (category, subcategory, URL, criticality) and tag
+   * addition, over the same selection as {@link #bulkDeleteAssets} (explicit ids, or the inventory
+   * search input with exclusions; security platforms always out of scope).
+   *
+   * <p>A null attribute is left unchanged; tags are added to the existing ones. The subcategory is
+   * validated against its category ({@link AssetCategorizationValidator}): with a subcategory the
+   * category is required, so every selected asset ends with a consistent pair; with a category and
+   * no subcategory, an asset whose current subcategory belongs to another category has it cleared.
+   * Tag ids are resolved in the write tenant; an unknown one fails the whole call before any write.
+   *
+   * <p>Same chunked, non-request-wide transaction shape as the other bulk operations, so a large
+   * selection never holds row locks for its whole duration.
+   *
+   * @param tenantId the tenant the tags are resolved in (the caller's write scope)
+   * @return the ids of the updated assets
+   */
+  public List<String> bulkUpdateAssets(
+      final TxCtx ctx, @NotBlank final String tenantId, @NotNull final AssetBulkUpdateInput input) {
+    if (input.getCategory() == null
+        && input.getSubcategory() == null
+        && input.getUrl() == null
+        && input.getCriticality() == null
+        && input.getInternetFacing() == null
+        && CollectionUtils.isEmpty(input.getTagIdsToAdd())) {
+      throw new BadRequestException("Nothing to update: give at least one attribute");
+    }
+    if (input.getSubcategory() != null && input.getCategory() == null) {
+      throw new BadRequestException("asset_subcategory requires asset_category");
+    }
+    AssetCategorizationValidator.validate(input.getCategory(), input.getSubcategory());
+
+    Set<Tag> tagsToAdd =
+        CollectionUtils.isEmpty(input.getTagIdsToAdd())
+            ? Set.of()
+            : bulkDeleteExecutor.resolveInTransaction(
+                ctx,
+                () -> {
+                  Set<String> wanted = new HashSet<>(input.getTagIdsToAdd());
+                  Set<Tag> found =
+                      new HashSet<>(tagRepository.findAllByIdInTenant(wanted, tenantId));
+                  if (found.size() != wanted.size()) {
+                    throw new ElementNotFoundException(
+                        "One or more tags not found in the current tenant");
+                  }
+                  return found;
+                });
+
+    List<String> assetIds = resolveBulkAssetIds(ctx, input);
+    return bulkDeleteExecutor.processInChunks(
+        ctx,
+        "update",
+        "assets",
+        assetIds,
+        chunk -> {
+          List<Asset> assets = fromIterable(assetRepository.findAllById(chunk));
+          for (Asset asset : assets) {
+            applyBulkUpdate(asset, input, tagsToAdd);
+          }
+          assetRepository.saveAll(assets);
+        });
+  }
+
+  private static void applyBulkUpdate(
+      final Asset asset, final AssetBulkUpdateInput input, final Set<Tag> tagsToAdd) {
+    if (input.getCategory() != null) {
+      asset.setCategory(input.getCategory());
+      if (input.getSubcategory() != null) {
+        asset.setSubcategory(input.getSubcategory());
+      } else if (asset.getSubcategory() != null
+          && !asset.getSubcategory().getCategory().equals(input.getCategory())) {
+        asset.setSubcategory(null);
+      }
+    }
+    if (input.getUrl() != null) {
+      asset.setUrl(StringUtils.trimToNull(input.getUrl()));
+    }
+    if (input.getCriticality() != null) {
+      asset.setCriticality(input.getCriticality());
+    }
+    if (input.getInternetFacing() != null) {
+      asset.setInternetFacing(input.getInternetFacing());
+    }
+    if (!tagsToAdd.isEmpty()) {
+      Set<Tag> tags = asset.getTags() == null ? new HashSet<>() : new HashSet<>(asset.getTags());
+      tags.addAll(tagsToAdd);
+      asset.setTags(tags);
+    }
+  }
+
+  /**
+   * Resolves the ids of assets matched by a bulk selection (explicit ids, or a search input with
+   * optional exclusions - the same select-all pattern as {@link #bulkDeleteAssets}), always
+   * excluding security platforms. Shared by every bulk asset operation so the selection semantics -
+   * including the explicit-ids-XOR-search-input validation - stay identical across them (today:
+   * delete, bulk marking assignment, bulk update).
+   *
+   * <p>Resolved in a short read transaction (via {@code bulkDeleteExecutor}, despite the name a
+   * generic chunked-operation helper) so the Hibernate tenant filter applies to the query.
+   */
+  public List<String> resolveBulkAssetIds(
+      final TxCtx ctx, @NotNull final AssetBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getAssetIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getAssetIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either asset_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    return bulkDeleteExecutor.resolveInTransaction(
+        ctx,
+        () -> {
+          Specification<Asset> specification;
+          if (input.getSearchPaginationInput() != null) {
+            // Same specification chain as the inventory search, so the bulk scope matches the list.
+            specification =
+                FilterUtilsJpa.<Asset>computeFilterGroupJpa(
+                        input.getSearchPaginationInput().getFilterGroup())
+                    .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+          } else {
+            specification = SpecificationUtils.hasIdIn(input.getAssetIdsToProcess());
+          }
+          if (!CollectionUtils.isEmpty(input.getAssetIdsToIgnore())) {
+            List<String> idsToIgnore = input.getAssetIdsToIgnore();
+            specification =
+                specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+          }
+          // Keep security platforms out of the bulk scope even when their ids are explicitly
+          // provided.
+          specification =
+              specification.and(
+                  (root, query, cb) ->
+                      cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
+          // Project only the ids: loading full entities just to extract ids wastes memory at scale.
+          return resolveAssetIds(specification);
+        });
+  }
+
+  // Criteria query selecting only the id column, via the Hibernate session so the tenant filter
+  // still applies.
   private List<String> resolveAssetIds(final Specification<Asset> specification) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     CriteriaQuery<String> query = cb.createQuery(String.class);
@@ -181,8 +311,9 @@ public class AssetService {
     return securityPlatformRepository.findAllByIds(ids);
   }
 
-  public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {
-    return this.assetRepository.findAllById(assetIds);
+  public Iterable<Asset> assetFromIds(
+      @NotNull final List<String> assetIds, @NotBlank final String ownerTenantId) {
+    return this.assetRepository.findAllByIdInTenant(assetIds, ownerTenantId);
   }
 
   // -- OPTIONS --
@@ -194,8 +325,7 @@ public class AssetService {
    * asset category so pickers can group the inventory.
    */
   public List<AssetOptionOutput> getOptionsByName(final String searchText, Pageable pageable) {
-    // The repository query requires a non-null term (null binds break PostgreSQL type inference);
-    // an empty string matches every asset.
+    // A null bind breaks PostgreSQL type inference; an empty string matches every asset instead.
     String term = StringUtils.trimToEmpty(searchText);
     return this.assetRepository.findAllOptionsByName(term, pageable).stream()
         .map(
@@ -217,9 +347,7 @@ public class AssetService {
     if (CollectionUtils.isEmpty(ids)) {
       return List.of();
     }
-    // instanceof rather than the type discriminator string: the discriminator field is
-    // read-only (insertable = false) and not hydrated on entities created in the current
-    // persistence context, while the concrete class is always reliable.
+    // instanceof rather than the discriminator string: it's read-only and not always hydrated.
     return fromIterable(this.assetRepository.findAllById(ids)).stream()
         .filter(a -> !(a instanceof SecurityPlatform))
         .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
@@ -237,5 +365,13 @@ public class AssetService {
         entityManager.clear();
       }
     }
+  }
+
+  /**
+   * The assets whose hostname is one of the given lower-case keys, read in the caller's transaction
+   * so the tenant and marking scope applies. Used by the XTM counterpart lookup.
+   */
+  public List<Asset> findAllByHostnameIn(Collection<String> hostnames) {
+    return assetRepository.findAllByHostnameIn(hostnames);
   }
 }

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tenant;
@@ -20,7 +21,7 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
@@ -46,7 +47,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
 
@@ -72,7 +73,8 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
    * looks up the service-account token
    */
   private void ensureServiceAccount(String tenantId) {
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantId), tenantId);
     entityManager.flush();
     entityManager.clear();
   }
@@ -147,6 +149,88 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
 
           assertThat(jobs).satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
+        }
+
+        @Test
+        @DisplayName(
+            "Registering with an installation directory able to alter the script creates no upgrade job")
+        void registeringWithUnsafeInstallationDirCreatesNoUpgradeJob() throws Exception {
+          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+          EndpointRegisterInput input =
+              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+          input.setAgentVersion(agentVersion);
+          input.setInstallationDirectory("/tmp/x\"; echo unsafe; #");
+
+          entityManager.flush();
+          entityManager.clear();
+
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+          assertThat(fromIterable(assetAgentJobRepository.findAll())).isEmpty();
+          assertThat(fromIterable(endpointRepository.findAll())).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("Registering with a service name outside the agent family creates no job")
+        void registeringWithUnsafeServiceNameCreatesNoUpgradeJob() throws Exception {
+          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+          EndpointRegisterInput input =
+              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+          input.setAgentVersion(agentVersion);
+          input.setServiceName("sshd");
+
+          entityManager.flush();
+          entityManager.clear();
+
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+          assertThat(fromIterable(assetAgentJobRepository.findAll())).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Registering again with a plain directory creates the upgrade job")
+        void registeringAgainWithPlainDirCreatesTheUpgradeJob() throws Exception {
+          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+          EndpointRegisterInput input =
+              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+          input.setAgentVersion(agentVersion);
+          input.setInstallationDirectory("/tmp/x\"; echo unsafe; #");
+
+          entityManager.flush();
+          entityManager.clear();
+
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+          assertThat(fromIterable(assetAgentJobRepository.findAll())).isEmpty();
+
+          input.setInstallationDirectory("/opt/openaev-agent");
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+          assertThat(fromIterable(assetAgentJobRepository.findAll()))
+              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
         }
 
         @Test

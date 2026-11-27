@@ -12,7 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.injectors.phishing.form.PhishingLandingPageInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,12 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
  * #7901), on both routes: the tenant path and the {@code X-Tenant-Ids} header. Every row is seeded
  * with a raw native INSERT carrying an explicit tenant_id, never through v1 TenantContext.
  */
+@CoversTenantIsolation("phishing_landing_pages")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_landing_pages")
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName(
     "phishing_landing_pages read and write isolation through the real HTTP endpoint, both routes")
-class PhishingLandingPageHttpIsolationTest extends IntegrationTest {
+class PhishingLandingPageHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_PAGES = "/api/tenants/{tenantId}/phishing/landing-pages";
   private static final String PAGES = "/api/phishing/landing-pages";

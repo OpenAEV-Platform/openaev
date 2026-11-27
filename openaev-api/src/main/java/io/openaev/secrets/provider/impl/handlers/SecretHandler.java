@@ -34,4 +34,29 @@ public interface SecretHandler {
   default SecretConnectionResult validateConnection(Secret secret) {
     return SecretConnectionResult.unsupported();
   }
+
+  /**
+   * Applies the "null = untouched, blank = clear" rule of the optional text fields: a blank value
+   * removes the stored one, so a user can drop an override and fall back to the official endpoint.
+   *
+   * @param value the value of the request, null when the client left the field untouched
+   * @return {@code null} for a blank value, the value itself otherwise
+   */
+  static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
+  }
+
+  /**
+   * Whether a request points the secret at an endpoint (URL, URI or authority host) other than the
+   * stored one. An absent or blank value is not a redirection: the stored endpoint is kept, or
+   * dropped to fall back to the official one.
+   *
+   * @param storedEndpoint the endpoint currently stored, null when none
+   * @param requestedEndpoint the endpoint of the request, null when the client left it untouched
+   * @return {@code true} when the request sets a new, different endpoint
+   */
+  static boolean redirectsEndpoint(String storedEndpoint, String requestedEndpoint) {
+    String requested = blankToNull(requestedEndpoint);
+    return requested != null && !requested.equals(storedEndpoint);
+  }
 }

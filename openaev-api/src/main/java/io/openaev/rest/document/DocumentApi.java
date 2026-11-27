@@ -13,9 +13,9 @@ import io.openaev.aop.UrlAccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
 import io.openaev.database.repository.*;
@@ -24,11 +24,13 @@ import io.openaev.rest.document.form.DocumentRelationsOutput;
 import io.openaev.rest.document.form.DocumentTagUpdateInput;
 import io.openaev.rest.document.form.DocumentUpdateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,7 +44,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.hibernate.Hibernate;
 import org.springframework.core.io.InputStreamResource;
@@ -79,7 +80,9 @@ public class DocumentApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final UserRepository userRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final ReportingGenerationRepository reportingGenerationRepository;
@@ -103,9 +106,9 @@ public class DocumentApi extends RestBehavior {
     // must be refused with 400 whether the uploaded bytes match an existing document or not, not
     // only on the new-document branch. The new document below is attributed to this tenant.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
-    // document is only bound to parents of its own tenant.
+    // Documents, simulations, scenarios and tags are v2, so the bridge protects nothing on this
+    // path: the parents the caller names are read in the request scope, which is the write tenant
+    // alone because tenantForWrite refuses a scope that holds several.
     return ambientTenantBridge.callInTenantChecked(
         tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
   }
@@ -113,7 +116,11 @@ public class DocumentApi extends RestBehavior {
   private Document uploadDocumentInTenant(
       String tenantId, DocumentCreateInput input, MultipartFile file) throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
+    FileFingerprint fingerprint;
+    try (InputStream content = file.getInputStream()) {
+      fingerprint = FileFingerprint.of(content, extension);
+    }
+    String fileTarget = fingerprint.storageName();
     // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
     // ambient tenant filter, so on the header route a request scoped to B would find and mutate the
     // default tenant's document with the same bytes.
@@ -121,11 +128,12 @@ public class DocumentApi extends RestBehavior {
         documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
+      document.describeFile(fingerprint);
       // Compute exercises
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
         List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+            fromIterable(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
         exercises.addAll(inputExercises);
         document.setExercises(exercises);
       }
@@ -133,13 +141,14 @@ public class DocumentApi extends RestBehavior {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
       // Compute tags
       Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      List<Tag> inputTags =
+          fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
       tags.addAll(inputTags);
       document.setTags(tags);
       return documentService.save(document);
@@ -150,18 +159,21 @@ public class DocumentApi extends RestBehavior {
       fileService.uploadFile(tenantId, fileTarget, file);
       Document document = new Document();
       document.setTenant(new Tenant(tenantId));
-      document.setTarget(fileTarget);
+      document.describeFile(fingerprint);
       document.setName(DocumentService.sanitizeFileName(file.getOriginalFilename()));
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
         document.setExercises(
-            iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+            iterableToSet(
+                exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId)));
       }
       if (!input.getScenarioIds().isEmpty()) {
         document.setScenarios(
-            iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+            iterableToSet(
+                scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId)));
       }
-      document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      document.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
       document.setType(file.getContentType());
       return documentService.save(document);
     }
@@ -278,7 +290,9 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
     return documentService.withSerializedLinks(documentService.save(document));
   }
 
@@ -298,17 +312,23 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
-    // it keeps the parents of its own tenant and is never bound to those of another one.
+    // The bridge protects the inject attachments a removed simulation or scenario takes with it
+    // (injects are v1, scoped by the ambient tenant, which is the default one on the non-prefixed
+    // route). The simulations and scenarios themselves are v2: they follow the request scope and
+    // the update keeps those of the tenant of the document.
     return ambientTenantBridge.callInTenant(
         document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
   }
 
   private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
     String documentId = document.getId();
+    // The request scope can hold several tenants: a parent of another tenant is dropped like an
+    // unknown id, so the document only links simulations and scenarios of its own tenant.
+    String tenantId = document.getTenant().getId();
     document.setUpdateAttributes(input);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
 
     // Get removed exercises
     Stream<String> askExerciseIdsStream =
@@ -327,7 +347,8 @@ public class DocumentApi extends RestBehavior {
         document.getExercises().stream()
             .filter(exercise -> !askExerciseIds.contains(exercise.getId()))
             .toList();
-    document.setExercises(iterableToSet(exerciseRepository.findAllById(askExerciseIds)));
+    document.setExercises(
+        new HashSet<>(exerciseRepository.findAllByIdInTenant(askExerciseIds, tenantId)));
     // In case of exercise removal, all inject doc attachment for exercise
     removedExercises.forEach(
         exercise -> injectService.cleanInjectsDocExercise(exercise.getId(), documentId));
@@ -349,7 +370,8 @@ public class DocumentApi extends RestBehavior {
         document.getScenarios().stream()
             .filter(scenario -> !askScenarioIds.contains(scenario.getId()))
             .toList();
-    document.setScenarios(iterableToSet(scenarioRepository.findAllById(askScenarioIds)));
+    document.setScenarios(
+        new HashSet<>(scenarioRepository.findAllByIdInTenant(askScenarioIds, tenantId)));
     // In case of scenario removal, all inject doc attachment for scenario
     removedScenarios.forEach(
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
@@ -559,12 +581,8 @@ public class DocumentApi extends RestBehavior {
   public List<Document> playerDocuments(
       TxCtx ctx, @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = scenarioService.findInScope(ctx, exerciseOrScenarioId);
 
     final User user = impersonateUser(userRepository, userId);
 
@@ -598,12 +616,8 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String documentId,
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = scenarioService.findInScope(ctx, exerciseOrScenarioId);
 
     final User user = impersonateUser(userRepository, userId);
 

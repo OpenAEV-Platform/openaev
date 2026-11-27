@@ -265,7 +265,6 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
                       {bodyModules.map((module, index) => (
                         <Box
                           // Modules have no id; order is the identity.
-                          // eslint-disable-next-line react/no-array-index-key
                           key={index}
                           component="a"
                           href={`#reporting-section-${index + 1}`}
@@ -316,7 +315,6 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
                 {bodyModules.map((module, index) => (
                   <ModuleSection
                     // Modules have no id; order is the identity.
-                    // eslint-disable-next-line react/no-array-index-key
                     key={index}
                     id={`reporting-section-${index + 1}`}
                     title={moduleTitle(module, t)}

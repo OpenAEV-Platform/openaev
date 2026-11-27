@@ -40,10 +40,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * exist, and the response of the very endpoint that manages those links no longer reflects them.
  * The association must be initialized inside the scoped transaction.
  *
- * <p>The header route is covered with an exercise of the default tenant: the exercise lookup still
- * runs under the ambient tenant, which is the default one on that route, so only a default-tenant
- * exercise is reachable there until {@code exercises} activates. The documents side of the request
- * (the by-id lookups and the collection load) follows the header scope either way.
+ * <p>The header route is covered with an exercise of the default tenant, which the header then
+ * selects: the exercise lookup runs in the request's tenant scope, and so does the documents side
+ * of the request (the by-id lookups and the collection load).
  *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the scope would still be set during serialization and mask the failure. Rows are
@@ -280,8 +279,7 @@ class ExerciseDocumentsSerializationTenantScopeTest extends IntegrationTest {
   private String seedExercise(String tenantId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, tenant_id)"
-            + " VALUES (?, ?, 'noreply@openaev.io', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (?, ?, ?)",
         id,
         "exercise-documents-" + id,
         tenantId);
@@ -292,8 +290,8 @@ class ExerciseDocumentsSerializationTenantScopeTest extends IntegrationTest {
   private String seedExerciseWithLogos(String tenantId, String logoId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_logo_dark,"
-            + " exercise_logo_light, tenant_id) VALUES (?, ?, 'noreply@openaev.io', ?, ?, ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_logo_dark,"
+            + " exercise_logo_light, tenant_id) VALUES (?, ?, ?, ?, ?)",
         id,
         "exercise-documents-" + id,
         logoId,

@@ -2,8 +2,12 @@ package io.openaev.executors.sentinelone.service;
 
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,6 +21,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
+import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import io.openaev.executors.sentinelone.model.SentinelOneAgent;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -24,6 +29,9 @@ import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -111,6 +119,47 @@ public class SentinelOneExecutorServiceTest {
     assertEquals(
         sentinelOneAgent.getSiteId(),
         assetGroupCaptor.getAllValues().get(2).getExternalReference());
+  }
+
+  @Test
+  void given_agentsInDistinctGroups_should_addEachEndpointToTheGroupsOfItsAgent() {
+    // Arrange: two SentinelOne agents in distinct accounts, sites and groups
+    SentinelOneAgent otherSentinelOneAgent =
+        SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
+    otherSentinelOneAgent.setUuid("otherExternalRefSentinelOne");
+    otherSentinelOneAgent.setAccountId("otherAccountId");
+    otherSentinelOneAgent.setSiteId("otherSiteId");
+    otherSentinelOneAgent.setGroupId("otherGroupId");
+    when(client.agents()).thenReturn(Set.of(sentinelOneAgent, otherSentinelOneAgent));
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    Endpoint otherEndpoint = EndpointFixture.createEndpoint();
+    when(endpointService.syncAgentsEndpoints(any(), any(), any()))
+        .thenReturn(
+            List.of(
+                AgentFixture.createAgent(endpoint, sentinelOneAgent.getUuid()),
+                AgentFixture.createAgent(otherEndpoint, otherSentinelOneAgent.getUuid())));
+    sentinelOneExecutorService.setExecutor(sentinelOneExecutor);
+
+    // Act
+    sentinelOneExecutorService.run();
+
+    // Assert: each account, site and group holds the endpoint of its own agent only
+    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
+    verify(assetGroupService, times(6))
+        .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture(), any());
+    Map<String, List<Asset>> assetsByGroup = new HashMap<>();
+    assetGroupCaptor
+        .getAllValues()
+        .forEach(group -> assetsByGroup.put(group.getExternalReference(), group.getAssets()));
+    assertThat(assetsByGroup)
+        .containsOnlyKeys(
+            "accountId", "siteId", "groupId", "otherAccountId", "otherSiteId", "otherGroupId");
+    for (String groupId : List.of("accountId", "siteId", "groupId")) {
+      assertThat(assetsByGroup.get(groupId)).as(groupId).containsExactly(endpoint);
+    }
+    for (String groupId : List.of("otherAccountId", "otherSiteId", "otherGroupId")) {
+      assertThat(assetsByGroup.get(groupId)).as(groupId).containsExactly(otherEndpoint);
+    }
   }
 
   @Test
@@ -206,5 +255,45 @@ public class SentinelOneExecutorServiceTest {
     String decodedUnix =
         new String(Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_8);
     assertEquals("linuxcmd", decodedUnix);
+  }
+
+  @Test
+  void given_failureOnOneAgent_should_stillDispatchTheFollowingAgents() {
+    // Arrange: one batch of 3 actions, the second agent fails
+    sentinelOneExecutorContextService.setScheduler(immediateScheduler());
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(3);
+    List<SentinelOneAction> actions = new ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      SentinelOneAction action = new SentinelOneAction();
+      action.setAgentExternalReference("agent-" + i);
+      action.setScriptId("script");
+      action.setCommandEncoded("encoded-" + i);
+      actions.add(action);
+    }
+    lenient()
+        .doThrow(new RuntimeException("vendor unavailable"))
+        .when(client)
+        .executeScript(eq("agent-2"), any(), any());
+
+    // Act
+    assertDoesNotThrow(() -> sentinelOneExecutorContextService.executeActions(actions));
+
+    // Assert: agent 3 is still dispatched after the failure on agent 2
+    for (int i = 1; i <= 3; i++) {
+      verify(client).executeScript("agent-" + i, "script", "encoded-" + i);
+    }
+  }
+
+  private static ScheduledExecutorService immediateScheduler() {
+    ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+    doAnswer(
+            invocation -> {
+              Runnable runnable = invocation.getArgument(0);
+              runnable.run();
+              return mock(ScheduledFuture.class);
+            })
+        .when(scheduler)
+        .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+    return scheduler;
   }
 }

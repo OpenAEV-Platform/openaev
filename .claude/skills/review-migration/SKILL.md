@@ -25,11 +25,9 @@ ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -10
 ```
 
 Verify for each new migration:
-- ☐ Name follows `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`
-- ☐ `yyyyMMddHHmmssSSS` timestamp block is present (17 digits)
-- ☐ `{description}` uses snake_case (letters, digits, underscores)
+- ☐ Name follows [migration.instructions.md › Naming Convention](../../../.github/instructions/migration.instructions.md#naming-convention)
 - ☐ Migration filename is unique
-- ☐ No existing migration file was modified (Flyway checksums will break)
+- ☐ No existing migration file was modified (Flyway checksums will break), unless it is the ADR-023 in-place-fix exception (step 6 covers it)
 
 ## Step 3 — Verify class structure
 
@@ -108,22 +106,52 @@ Any `DROP` without a prior deprecation migration = 🔴 CRITICAL.
 grep -n "UPDATE\|INSERT INTO\|DELETE FROM" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
-Large data migrations must be batched in chunks of 1000 rows.
+On a small or catalog-sized table, batching in chunks of 1000 rows is enough. On a large table, follow
+ADR-023 (`migration.instructions.md` rule 5) instead:
+- ☐ No primary-key-order batching on a random (UUID) primary key: it scatters each batch across the
+  whole table
+- ☐ No `VACUUM` call inside the migration
+- ☐ Default shape is a physical walk by `ctid` page ranges, one committed transaction per range,
+  paced against WAL archiving/replica lag. Compare against
+  `V6_20261112060000000__Add_tenant_id_to_execution_traces.java`, the reference implementation
+- ☐ Index built `CONCURRENTLY`, constraint added `NOT VALID` then `VALIDATE CONSTRAINT`, after the
+  backfill
+- ☐ Every lock request (`ALTER TABLE`, `LOCK TABLE`) under a short `lock_timeout` with retry
+- ☐ Every step resumable after a crash
+- ☐ If a background-job fill with a later `NOT NULL` migration is used in place of the walk, the
+  migration's Javadoc says why (startup delay unacceptable, or pacing against live traffic needed)
+- ☐ The later `NOT NULL` migration of a background-job fill fills the rows left with no value itself
+  (an upgrade can skip releases and run both migrations before the job starts)
+- ☐ If an existing released migration is modified in place rather than replaced with a new one, it is
+  only because it is dangerous and the new version reaches the same final state from any partial
+  state the old one can leave (the ADR-023 exception to "never modify an existing migration")
 
-## Step 7 — Verify Elasticsearch reindex
+## Step 7 — Verify the search index rebuild
 
 ```bash
-# Check if the migrated entity is indexed
-grep -rn "indexing_status" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
+# How the migration requests a rebuild, if it does
+grep -n "indexing_status\|requestRefeedAtStartup\|requestReindexAtStartup" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
-If the migration modifies a table that has a corresponding Elasticsearch index:
-- ☐ `DELETE FROM indexing_status WHERE indexing_status_type = '...'` is present to trigger reindex
-
-To determine if an entity is indexed:
+To determine if an entity is indexed, and under which model name (the `indexing_status_type`):
 ```bash
-grep -rn "@Document\|@Indexed" openaev-model/src/main/java/ --include="*.java" | grep -i "{EntityName}"
+grep -rn "@Indexable(index" openaev-model/src/main/java/ | grep -i "{EntityName}"
 ```
+
+If the migration changes data an indexed model reads, or how its documents are built:
+- ☐ A rebuild is requested through one of the two patterns of `EsIndexingUtils`:
+  - **re-feed in place** (documents only need rewriting): cursor moved back to epoch, keyset id
+    cleared, guarded by `indexing_status_indexing_date < REINDEX_REQUESTED_THRESHOLD`, plus
+    `EsIndexingUtils.requestRefeedAtStartup`;
+  - **reset** (stale documents must disappear): `REINDEX_REQUESTED_CURSOR` sentinel upserted, plus
+    `EsIndexingUtils.requestReindexAtStartup`.
+- ☐ The pattern matches the need: a reset leaves dashboards incomplete until the rebuild ends, so it
+  is only justified when documents must be dropped.
+- ☐ No `DELETE FROM indexing_status`: during a rolling deploy, a pod still running re-creates the
+  row before the new pod's boot check, so the wipe silently never happens.
+
+A new field on an indexed model needs no rebuild: the engine drivers add it to the existing index at
+boot. A re-feed is only needed if the existing documents must carry its value.
 
 ## Step 8 — Compile findings
 

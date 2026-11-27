@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Notifier;
 import io.openaev.database.model.NotifierType;
@@ -21,6 +23,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.NotifierRepository;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -51,10 +54,13 @@ public class NotifierApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private NotifierRepository notifierRepository;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @AfterEach
   void afterEach() {
-    notifierRepository.deleteAll();
+    tenantTx.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> notifierRepository.deleteAll());
   }
 
   @Test
@@ -77,7 +83,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   @DisplayName("A plain user can list notifiers but does not receive their configuration")
   void plainUserDoesNotSeeNotifierConfiguration() throws Exception {
     seedWebhookNotifierWithSecret();
@@ -95,7 +101,9 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_TENANT_SETTINGS},
+      autoJoinDefaultTenant = true)
   @DisplayName("A user with the tenant settings capability receives notifier configurations")
   void tenantSettingsUserSeesNotifierConfiguration() throws Exception {
     seedWebhookNotifierWithSecret();
@@ -116,7 +124,7 @@ public class NotifierApiTest extends IntegrationTest {
     webhook.setType(NotifierType.WEBHOOK);
     webhook.setConfiguration(Map.of("url", "https://hooks.example.org/secret-token"));
     webhook.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-    notifierRepository.save(webhook);
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, () -> notifierRepository.save(webhook));
   }
 
   @Test
@@ -171,7 +179,12 @@ public class NotifierApiTest extends IntegrationTest {
 
     mvc.perform(delete(NOTIFIER_URI + "/" + notifierId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
-    assertFalse(notifierRepository.findById(notifierId).isPresent());
+    assertFalse(
+        tenantTx
+            .execute(
+                TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                () -> notifierRepository.findById(notifierId))
+            .isPresent());
   }
 
   @Test
@@ -216,7 +229,10 @@ public class NotifierApiTest extends IntegrationTest {
     // Seed built-ins through the list endpoint
     mvc.perform(get(NOTIFIER_URI).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().is2xxSuccessful());
-    String builtInId = notifierRepository.findAll().iterator().next().getId();
+    String builtInId =
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> notifierRepository.findAll().iterator().next().getId());
 
     NotifierInput update = NotifierInput.builder().name("Hacked").type(NotifierType.UI).build();
     int updateStatus =

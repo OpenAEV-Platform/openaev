@@ -66,9 +66,13 @@ export type ContractType
     | 'expectation'
     | 'asset'
     | 'asset-group'
+    | 'asset-group-reference'
     | 'ai-target'
     | 'payload'
-    | 'targeted-asset' | 'password';
+    | 'targeted-asset'
+    | 'document'
+    | 'password'
+    | 'credential-reference';
 
 export interface ChoiceItem {
   label: string;
@@ -95,6 +99,7 @@ export interface ContractElement {
     type: string;
   }[];
   cardinality: '1' | 'n';
+  credential_reference_type?: ApiTypes.CredentialOutput['credential_type'];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue: any;
   richText?: boolean;
@@ -116,6 +121,7 @@ export type EnhancedContractElement = ContractElement & {
   isInMandatoryGroup: boolean;
   mandatoryGroupContractElementLabels: string;
   writeOnly?: boolean;
+  helperText?: string;
   settings?: {
     rows?: number;
     required?: boolean;

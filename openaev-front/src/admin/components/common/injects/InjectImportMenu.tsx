@@ -3,7 +3,6 @@ import { CloudUploadOutlined } from '@mui/icons-material';
 import { Menu, MenuItem } from '@mui/material';
 import { type MouseEvent as ReactMouseEvent, useContext, useState } from 'react';
 
-import { storeXlsFile } from '../../../../actions/mapper/mapper-actions';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import { useFormatter } from '../../../../components/i18n';
 import { type ImportMessage, type ImportPostSummary, type ImportTestSummary, type InjectsImportInput } from '../../../../utils/api-types';
@@ -63,8 +62,7 @@ const InjectImportMenu = ({ onImportedInjects = () => {} }: Props) => {
   };
 
   const onSubmitImportFile = (values: { file: File }) => {
-    storeXlsFile(values.file).then((result: { data: ImportPostSummary }) => {
-      const { data } = result;
+    injectContext.onStoreXlsFile?.(values.file).then((data: ImportPostSummary) => {
       setImportId(data.import_id);
       setSheets(data.available_sheets);
     });

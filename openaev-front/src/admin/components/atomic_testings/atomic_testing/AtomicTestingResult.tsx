@@ -6,18 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type InjectResultOutput } from '../../../../utils/api-types';
 import { expectationResultColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
-import { expectationResultTypes } from '../../common/injects/expectations/Expectation';
-
-// Human tooltip label per expectation type (icons come from the shared set).
-const EXPECTATION_TYPE_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  HUMAN_RESPONSE: 'Human Response',
-  MANUAL: 'Manual',
-  ARTICLE: 'Article',
-  CHALLENGE: 'Challenge',
-};
+import { expectationResultTypes, expectationTypeLabelKey } from '../../common/injects/expectations/Expectation';
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -49,7 +38,7 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
       {expectations.sort((a, b) => expectationResultTypes.indexOf(a.type) - expectationResultTypes.indexOf(b.type)).map((expectation, index) => {
         const color = expectationResultColor(expectation.avgResult);
         const IconComponent = expectationTypeIcon(expectation.type);
-        const tooltipLabel = t(EXPECTATION_TYPE_LABELS[expectation.type] ?? expectation.type);
+        const tooltipLabel = t(expectationTypeLabelKey(expectation.type) ?? expectation.type);
 
         return (
           <Tooltip key={index}>

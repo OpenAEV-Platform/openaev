@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -22,10 +23,14 @@ import lombok.Setter;
  * </ul>
  *
  * See ADR-006.
+ *
+ * <p>Value equality on this type and its nested blocks is what lets Hibernate's dirty check see a
+ * loaded photo as unchanged; without it every load of a rule flushes an {@code UPDATE} of the row.
  */
 @Getter
 @Setter
 @Builder
+@EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -54,6 +59,7 @@ public class ScopeRuleSnapshot {
   @Getter
   @Setter
   @Builder
+  @EqualsAndHashCode
   @NoArgsConstructor
   @AllArgsConstructor
   @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -77,6 +83,7 @@ public class ScopeRuleSnapshot {
   @Getter
   @Setter
   @Builder
+  @EqualsAndHashCode
   @NoArgsConstructor
   @AllArgsConstructor
   @JsonInclude(JsonInclude.Include.NON_NULL)

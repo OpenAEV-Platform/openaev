@@ -493,7 +493,6 @@ class WorkflowApiTest extends IntegrationTest {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     workflow.setStatus(WorkflowStatus.TEMPLATE);
     Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setFrom("exercise@mail.fr");
 
     return workflowComposer
         .forWorkflow(workflow)

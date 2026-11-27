@@ -1,17 +1,84 @@
-/* eslint import/no-extraneous-dependencies: 0 */
-
 import js from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
 import vitest from '@vitest/eslint-plugin';
-import customRules from 'eslint-plugin-custom-rules';
 import i18next from 'eslint-plugin-i18next';
-import importPlugin from 'eslint-plugin-import';
 import playwright from 'eslint-plugin-playwright';
 import react from 'eslint-plugin-react';
 import { reactRefresh } from 'eslint-plugin-react-refresh';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import ts from 'typescript-eslint';
+
+import { checkNodeVersion } from './scripts/check-node-version.js';
+
+checkNodeVersion();
+// imported once the version is checked: an older Node fails to load its TypeScript sources
+const { default: customRules } = await import('eslint-plugin-custom-rules');
+
+// Ramda is being removed, one pull request per family of functions. Files that still import it are
+// listed here: a pull request that cleans a file removes it from the list, so no new import comes in.
+const legacyRamdaFiles = [
+  'src/admin/components/common/injects/InjectDistributionByTeam.tsx',
+  'src/admin/components/common/injects/InjectDistributionByType.tsx',
+  'src/admin/components/integrations/injectors/injector_contracts/CreateInjectorContract.jsx',
+  'src/admin/components/settings/attack_patterns/CreateAttackPattern.jsx',
+  'src/admin/components/settings/groups/tenant_groups/GroupPopover.jsx',
+  'src/admin/components/settings/tags/CreateTag.jsx',
+  'src/admin/components/settings/tags/TagPopover.jsx',
+  'src/admin/components/simulations/simulation/injects/QuickInject.jsx',
+  'src/admin/components/simulations/simulation/logs/LogPopover.jsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByInject.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByPlayer.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionByTeam.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeChart.tsx',
+  'src/admin/components/simulations/simulation/mails/MailDistributionOverTimeLine.tsx',
+  'src/admin/components/simulations/simulation/overview/DistributionUtils.ts',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreByTeamInPercentage.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByInjectorContract.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeam.tsx',
+  'src/admin/components/simulations/simulation/overview/ExerciseDistributionScoreOverTimeByTeamInPercentage.tsx',
+  'src/admin/components/simulations/simulation/validation/Validations.jsx',
+  'src/admin/components/teams/organizations/OrganizationPopover.jsx',
+  'src/admin/components/teams/utils.ts',
+  'src/components/CountryField.jsx',
+  'src/components/ItemBoolean.jsx',
+  'src/components/ItemNumberDifference.jsx',
+  'src/components/KillChainPhaseField.jsx',
+  'src/components/OldAttackPatternField.jsx',
+  'src/components/OrganizationField.jsx',
+  'src/components/TagField.jsx',
+  'src/store.ts',
+  'src/utils/Action.ts',
+  'src/utils/BrowserLanguage.ts',
+];
+
+const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
+  'error', {
+    patterns: [
+      {
+        group: [
+          '@mui/material/*', '!@mui/material/locale', '!@mui/material/styles', '!@mui/material/colors', '!@mui/material/transitions',
+          '@mui/icons-material/*',
+        ],
+        message: 'Please use named import from @mui/* instead.',
+      },
+    ],
+    paths: [
+      {
+        name: 'react',
+        importNames: ['*'],
+        message: 'Do not use `import * as React from \'react\'`. Use `import {...} from \'react\'` instead.',
+      },
+      ...(allowRamda
+        ? []
+        : [{
+            name: 'ramda',
+            message: 'Ramda is being removed: use native JavaScript instead.',
+          }]),
+      ...extraPaths,
+    ],
+  },
+];
 
 export default [
   // rules recommended by @eslint/js
@@ -34,23 +101,14 @@ export default [
     },
   },
 
-  // rules recommended by eslint-plugin-import
-  importPlugin.flatConfigs.recommended,
-  importPlugin.flatConfigs.typescript,
-  {
-    settings: {
-      'import/resolver': 'next',
-      'import/ignore': [
-        'react-apexcharts', // ignore react-apexcharts as the default export is broken
-      ],
-    },
-  },
-
   // rules recommended by @stylistic/eslint-plugin
   stylistic.configs.customize({ semi: true }),
 
   // rules recommended by eslint-plugin-i18next
   i18next.configs['flat/recommended'],
+
+  // rules of the local package eslint-plugin-custom-rules
+  customRules.configs.recommended,
 
   // other config
   {
@@ -59,8 +117,6 @@ export default [
       'react-refresh': reactRefresh.plugin,
       // eslint-plugin-simple-import-sort
       'simple-import-sort': simpleImportSort,
-      // local package eslint-plugin-custom-rules
-      'custom-rules': customRules,
     },
     rules: {
     // react-refresh rules
@@ -72,9 +128,6 @@ export default [
       // eslint-plugin-simple-import-sort rules
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
-
-      // local package eslint-plugin-custom-rules rules
-      'custom-rules/classes-rule': 1,
 
       // @typescript-eslint rules
       '@typescript-eslint/naming-convention': ['error', {
@@ -107,26 +160,10 @@ export default [
       '@stylistic/object-curly-newline': ['error', { multiline: true }],
       '@stylistic/object-property-newline': ['error', { allowAllPropertiesOnSameLine: false }],
 
-      // eslint-plugin-import rules
-      'import/no-named-as-default-member': 'off',
-      'import/prefer-default-export': 'error',
-      'import/no-mutable-exports': 'error',
-      'import/namespace': 'off', // off to reduce computing time for one file, on when doing yarn lint
-      'import/no-extraneous-dependencies': [
-        'error',
-        {
-          devDependencies: [
-            '**/*.test.tsx',
-            '**/*.test.ts',
-            'vite.config.ts',
-            'vitest.config.ts',
-            'playwright.config.ts',
-          ],
-        },
-      ],
-
       // custom rules
       'sort-imports': 'off',
+      // `import type` declarations may stay apart from the value import of the same module
+      'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
       'no-underscore-dangle': 'error',
       'no-await-in-loop': 'error',
       'no-param-reassign': 'error',
@@ -146,27 +183,7 @@ export default [
           ignoreTemplateLiterals: true,
         },
       ],
-      'no-restricted-imports': [
-        'error', {
-          patterns: [
-            {
-              group: [
-                '@mui/material/*', '!@mui/material/locale', '!@mui/material/styles', '!@mui/material/colors', '!@mui/material/transitions',
-                '@mui/icons-material/*',
-                '@mui/lab/*',
-              ],
-              message: 'Please use named import from @mui/* instead.',
-            },
-          ],
-          paths: [
-            {
-              name: 'react',
-              importNames: ['*'],
-              message: 'Do not use `import * as React from \'react\'`. Use `import {...} from \'react\'` instead.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': restrictedImports({ allowRamda: false }),
     },
     files: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx'],
     languageOptions: {
@@ -177,8 +194,12 @@ export default [
         process: true,
       },
     },
-    // to fix when eslint handle disable directive on missing rules on purpose
-    linterOptions: { reportUnusedDisableDirectives: 'off' },
+  },
+
+  // files that still import Ramda (a later config replaces the rule's options, it does not merge them)
+  {
+    files: legacyRamdaFiles,
+    rules: { 'no-restricted-imports': restrictedImports({ allowRamda: true }) },
   },
 
   // unit tests config
@@ -193,15 +214,6 @@ export default [
         'error',
         { assertFunctionNames: ['expect', 'expectLibrary*', 'expectNoMuiControls'] },
       ],
-      'import/no-extraneous-dependencies': [
-        'error',
-        {
-          devDependencies: [
-            '**/*.ts',
-            '**/*.tsx',
-          ],
-        },
-      ],
     },
   },
 
@@ -210,17 +222,21 @@ export default [
     files: ['tests_e2e/**/*'],
     // rules recommended by eslint-plugin-playwright
     ...playwright.configs['flat/recommended'],
+  },
+
+  // e2e specs log in through the persona fixture; no project sets storageState, so a spec on the
+  // base `test` would run logged out (a later config replaces the rule's options, it does not merge them)
+  {
+    files: ['tests_e2e/tests/**/*'],
     rules: {
-      ...playwright.configs['flat/recommended'].rules,
-      'import/no-extraneous-dependencies': [
-        'error',
-        {
-          devDependencies: [
-            '**/*.ts',
-            '**/*.tsx',
-          ],
-        },
-      ],
+      'no-restricted-imports': restrictedImports({
+        allowRamda: false,
+        extraPaths: [{
+          name: '@playwright/test',
+          importNames: ['test'],
+          message: 'Import `test` from tests_e2e/fixtures: its persona fixture logs the test in (admin by default).',
+        }],
+      }),
     },
   },
 
@@ -229,11 +245,9 @@ export default [
     ignores: [
       'node_modules',
       'coverage',
-      'packages',
       'public',
       'src/static/ext',
       'builder/prod/build',
-      'builder/dev/build',
       '__generated__',
       // fds-migration bridge (filigran-design-system pnpm generate:mui-bridge) —
       // pure generated data, regenerate upstream instead of hand-fixing lint

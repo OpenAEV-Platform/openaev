@@ -60,11 +60,6 @@ public class RawInjectExpectationFixture {
     }
 
     @Override
-    public String getInject_expectation_results() {
-      return expectationResults;
-    }
-
-    @Override
     public Double getInject_expectation_score() {
       return expectationScore;
     }

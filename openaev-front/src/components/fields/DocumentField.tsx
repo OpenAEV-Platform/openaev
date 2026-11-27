@@ -30,7 +30,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {
@@ -40,6 +39,10 @@ interface Props {
   error: FieldError | undefined;
   style: CSSProperties;
   extensions?: string[];
+  // Id of a default document, shown by name as a faded placeholder while no document is picked.
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
 }
 
 const DocumentField: FunctionComponent<Props> = ({
@@ -49,6 +52,9 @@ const DocumentField: FunctionComponent<Props> = ({
   error,
   style,
   extensions = [],
+  placeholder,
+  disabled = false,
+  required = false,
 }) => {
   const { classes } = useStyles();
 
@@ -72,6 +78,9 @@ const DocumentField: FunctionComponent<Props> = ({
   const valueResolver = () => {
     return documentsOptions.filter(document => fieldValue === document.id).at(0);
   };
+  const placeholderLabel = placeholder
+    ? (documentsOptions.find(document => document.id === placeholder)?.label ?? placeholder)
+    : undefined;
 
   return (
     <div style={{
@@ -83,6 +92,8 @@ const DocumentField: FunctionComponent<Props> = ({
         id: string;
         label: string;
       }>
+        required={required}
+        disabled={disabled}
         options={documentsOptions}
         value={valueResolver() ?? null}
         onValueChange={(value) => {
@@ -102,9 +113,9 @@ const DocumentField: FunctionComponent<Props> = ({
           </>
         )}
       >
-        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxLabel required={required}>{label}</ComboboxLabel>
         <ComboboxField>
-          <ComboboxInput />
+          <ComboboxInput placeholder={placeholderLabel} />
           <ComboboxControls>
             <ComboboxTrigger />
           </ComboboxControls>

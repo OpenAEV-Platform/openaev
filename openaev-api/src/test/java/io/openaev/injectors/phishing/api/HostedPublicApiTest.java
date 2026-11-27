@@ -1,6 +1,8 @@
 package io.openaev.injectors.phishing.api;
 
 import static io.openaev.injectors.phishing.api.HostedPublicApi.HOSTED_URI;
+import static io.openaev.injectors.phishing.api.HostedPublicApi.MIN_HUMAN_DWELL_MS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -143,14 +145,12 @@ class HostedPublicApiTest extends IntegrationTest {
    * through {@code PhishingLandingPagePublicLookupService}, scoped to the one tenant the token
    * already resolved.
    *
-   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}, not a freshly created tenant: {@code
-   * phishing_results} keeps the legacy v1 {@code @Filter}, whose {@code
-   * HibernateFilterTransactionAspect} fixes the filter parameter from {@code TenantContext} on
-   * transaction entry, i.e. BEFORE {@link HostedPublicApi#bindTenant} runs inside the method body -
-   * a separate, pre-existing gap that fails every {@code resolveAndBackfillByToken} lookup for a
-   * non-default tenant regardless of the fix under test here (see the report). The default tenant
-   * sidesteps it: {@code TenantContext#getCurrentTenant()} already falls back to it, so the
-   * aspect's early read matches.
+   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}, not a freshly created tenant: the ambient
+   * {@code TenantContext} is read on transaction entry, i.e. BEFORE {@link
+   * HostedPublicApi#bindTenant} runs inside the method body - a separate, pre-existing gap that
+   * fails every {@code resolveAndBackfillByToken} lookup for a non-default tenant regardless of the
+   * fix under test here (see the report). The default tenant sidesteps it: {@code
+   * TenantContext#getCurrentTenant()} already falls back to it, so the early read matches.
    */
   @Nested
   @DisplayName("GET /api/hosted/page/{token}")
@@ -167,6 +167,21 @@ class HostedPublicApiTest extends IntegrationTest {
       mvc.perform(get(HOSTED_URI + "/page/{token}", token))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.phishing_landing_page_name").value("Login page"));
+    }
+
+    @Test
+    @DisplayName(
+        "given a real token, should send the minimum dwell the confirmation endpoint applies")
+    void given_realToken_should_sendTheMinimumDwellOfTheConfirmation() throws Exception {
+      // Arrange
+      String landingPageId = seedLandingPage(Tenant.DEFAULT_TENANT_UUID, "Login page", null);
+      String token = seedPhishingResult(Tenant.DEFAULT_TENANT_UUID, landingPageId);
+
+      // Act & Assert
+      mvc.perform(get(HOSTED_URI + "/page/{token}", token))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.phishing_landing_page_min_dwell_ms").value((int) MIN_HUMAN_DWELL_MS));
     }
 
     @Test
@@ -201,6 +216,95 @@ class HostedPublicApiTest extends IntegrationTest {
                   .content(objectMapper.writeValueAsString(new HashMap<>())))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.redirect_url").value(redirectUrl));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/hosted/confirm/{token}")
+  class Confirm {
+
+    private boolean isSet(String token, String column) {
+      return Boolean.TRUE.equals(
+          jdbc.queryForObject(
+              "SELECT "
+                  + column
+                  + " IS NOT NULL FROM phishing_results"
+                  + " WHERE phishing_result_token = ?",
+              Boolean.class,
+              token));
+    }
+
+    private void confirm(String token, long dwellMs, boolean webdriver) throws Exception {
+      mvc.perform(
+              post(HOSTED_URI + "/confirm/{token}", token)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"dwell_ms\":" + dwellMs + ",\"webdriver\":" + webdriver + "}"))
+          .andExpect(status().isNoContent());
+    }
+
+    private String seedToken() {
+      String landingPageId = seedLandingPage(Tenant.DEFAULT_TENANT_UUID, "Confirm page", null);
+      return seedPhishingResult(Tenant.DEFAULT_TENANT_UUID, landingPageId);
+    }
+
+    @Test
+    @DisplayName("given human-looking signals, should record the click for the recipient")
+    void given_humanSignals_should_recordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 2300, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isTrue();
+    }
+
+    @Test
+    @DisplayName("given navigator.webdriver, should not record a user click")
+    void given_webdriver_should_notRecordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 2300, true);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a confirmation faster than a human, should not record a user click")
+    void given_tooFastConfirmation_should_notRecordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 50, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a bot click then a human one, should still record the human click")
+    void given_botThenHuman_should_recordHumanClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 50, false);
+      confirm(token, 2300, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isTrue();
+    }
+
+    @Test
+    @DisplayName("given an unknown token, should answer no content and record nothing")
+    void given_unknownToken_should_answerNoContent() throws Exception {
+      // Act & Assert
+      confirm("unknown-" + UUID.randomUUID(), 2300, false);
     }
   }
 

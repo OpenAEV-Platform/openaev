@@ -4,11 +4,13 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInitializer;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
@@ -49,7 +51,9 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.payloadService.searchPayloads(searchPaginationInput);
+    Page<Payload> payloads = this.payloadService.searchPayloads(ctx, searchPaginationInput);
+    ContractOutputElementInitializer.initializeFromPayloads(payloads);
+    return payloads;
   }
 
   @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
@@ -61,6 +65,7 @@ public class PayloadApi extends RestBehavior {
   public PayloadOutput payload(TxCtx ctx, @PathVariable String payloadId) {
     PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
         payloadService.findPayloadWithRelatedEntities(payloadId);
+    ContractOutputElementInitializer.initializeFromPayload(payloadWithRelatedEntities.payload());
     return payloadMapper.toPayloadOutput(
         payloadWithRelatedEntities.payload(),
         payloadWithRelatedEntities.attackPatternIds(),
@@ -75,10 +80,12 @@ public class PayloadApi extends RestBehavior {
       // resolves the tenant the new payload is attributed to, and signals the transaction
       // aspect so the read of the v2-scoped `injectors` table inside
       // PayloadService#synchroniseInjectorContractBasedOnPayload (via
-      // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
-      TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
+      // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope. With no selector,
+      // the caller's single tenant, or the default tenant for a caller of several tenants.
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, input);
+    ContractOutputElementInitializer.initializeFromPayload(result.payload());
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
@@ -95,6 +102,7 @@ public class PayloadApi extends RestBehavior {
       @Valid @RequestBody PayloadUpdateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadUpdateService.updatePayload(payloadId, input);
+    ContractOutputElementInitializer.initializeFromPayload(result.payload());
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
@@ -112,14 +120,20 @@ public class PayloadApi extends RestBehavior {
       TxCtx ctx, @NotBlank @PathVariable final String payloadId) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payloadId);
+    ContractOutputElementInitializer.initializeFromPayload(result.payload());
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
-    return this.payloadUpsertService.upsertPayload(ctx, input);
+  public Payload upsertPayload(
+      // with no selector (collectors), the caller's single tenant, or the default tenant for a
+      // caller of several tenants
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
+    Payload payload = this.payloadUpsertService.upsertPayload(ctx, input);
+    ContractOutputElementInitializer.initializeFromPayload(payload);
+    return payload;
   }
 
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
@@ -132,13 +146,15 @@ public class PayloadApi extends RestBehavior {
     payloadService.delete(payloadId);
   }
 
+  // Without a selector, the caller's single tenant, or the default tenant for a caller of several
+  // tenants that include it.
   @PostMapping({PAYLOAD_URI + "/deprecate", TENANT_PAYLOAD_URI + "/deprecate"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
-      TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
     this.payloadService.deprecateNonProcessedPayloadsByCollector(
-        input.collectorId(), input.processedPayloadExternalIds());
+        ctx, input.collectorId(), input.processedPayloadExternalIds());
   }
 
   @GetMapping({

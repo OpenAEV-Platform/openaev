@@ -12,13 +12,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.command.CommandArgumentBinder;
+import io.openaev.utils.command.CommandBindingException;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +48,7 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+  private final PayloadRevocationService payloadRevocationService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -110,7 +114,8 @@ public class ExecutableInjectService {
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent,
-      boolean enforceMandatory) {
+      boolean enforceMandatory,
+      String tenantId) {
 
     Set<String> argumentKeys = getArgumentsFromCommandLines(command);
     List<PayloadArgument> payloadArguments =
@@ -136,16 +141,23 @@ public class ExecutableInjectService {
               defaultValue,
               mandatory,
               contractFields,
-              safeInjectContent);
+              safeInjectContent,
+              tenantId);
 
       if (resolvedArgument.missing() && enforceMandatory && resolvedArgument.mandatory()) {
         log.error(
             "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
             argumentKey);
-        throw new IllegalArgumentException(
+        // CommandBindingException is what getExecutablePayloadAndUpdateInjectStatus records as an
+        // implant error trace without rolling back, so the inject does not stay pending.
+        throw new CommandBindingException(
             "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
-      binder.bind(argumentKey, resolvedArgument.value());
+      if (isUnchangedTextDefault(defaultPayloadArgument, resolvedArgument.value())) {
+        binder.bindAuthored(argumentKey, resolvedArgument.value());
+      } else {
+        binder.bind(argumentKey, resolvedArgument.value());
+      }
     }
     return binder.render(command);
   }
@@ -164,14 +176,16 @@ public class ExecutableInjectService {
       String command,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
-      ObjectNode injectContent) {
+      ObjectNode injectContent,
+      String tenantId) {
     return replaceArgumentsByValue(
         command,
         CommandArgumentBinder.literal(),
         defaultPayloadArguments,
         injectorContractContentFields,
         injectContent,
-        false);
+        false,
+        tenantId);
   }
 
   /** Resolves the effective value of a single argument, before any shell escaping. */
@@ -181,7 +195,8 @@ public class ExecutableInjectService {
       String defaultValue,
       boolean mandatory,
       List<ObjectNode> injectorContractContentFields,
-      ObjectNode injectContent) {
+      ObjectNode injectContent,
+      String tenantId) {
     PrimitiveType type = defaultPayloadArgument != null ? defaultPayloadArgument.getType() : null;
     String value = "";
     boolean missing = true;
@@ -206,11 +221,13 @@ public class ExecutableInjectService {
     // by the implant
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
-        Document doc = documentService.document(value);
+        Document doc = documentService.documentInTenant(value, tenantId);
         value = "#{location}/" + DocumentService.safeFileName(doc.getName());
         missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);
+        value = "";
+        missing = true;
       }
     }
     return new ResolvedArgument(value, missing, mandatory);
@@ -261,7 +278,8 @@ public class ExecutableInjectService {
       List<PayloadArgument> defaultPayloadArguments,
       ObjectNode injectContent,
       List<ObjectNode> injectorContractContentFields,
-      String obfuscator) {
+      String obfuscator,
+      String tenantId) {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
 
     String computedCommand = command;
@@ -279,14 +297,18 @@ public class ExecutableInjectService {
             defaultPayloadArguments,
             injectorContractContentFields,
             injectContent,
-            true);
+            true,
+            tenantId);
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  // A refused payload keeps its error trace, so the agent does not end in timeout.
+  @Transactional(
+      rollbackFor = Exception.class,
+      noRollbackFor = {CommandBindingException.class, UnexecutableInjectException.class})
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -296,7 +318,17 @@ public class ExecutableInjectService {
     // but it would require more changes in the implant code and change this endpoint from a get to
     // a post.
     Instant startTime = Instant.now();
-    Payload payloadToExecute = getExecutablePayloadInject(injectId, agentId);
+    Payload payloadToExecute;
+    try {
+      payloadToExecute = getExecutablePayloadInject(injectId, agentId);
+    } catch (CommandBindingException e) {
+      this.injectStatusService.setImplantErrorTrace(
+          injectId, agentId, "Unable to prepare the command. %s".formatted(e.getMessage()));
+      throw e;
+    } catch (UnexecutableInjectException e) {
+      this.injectStatusService.setImplantErrorTrace(injectId, agentId, e.getMessage());
+      throw e;
+    }
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
     this.injectExpectationService.addStartDateSignatureToInjectExpectationsByAgent(
@@ -307,6 +339,13 @@ public class ExecutableInjectService {
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
     injectService.checkAgentTargetsInject(injectId, agentId);
     Inject inject = injectService.inject(injectId);
+    // Revoked after the inject left: the agent must not run it.
+    payloadRevocationService
+        .refusal(inject)
+        .ifPresent(
+            refusal -> {
+              throw new UnexecutableInjectException(refusal);
+            });
     InjectorContract contract =
         inject
             .getInjectorContract()
@@ -343,7 +382,8 @@ public class ExecutableInjectService {
                           contract.getPayload().getArguments(),
                           inject.getContent(),
                           injectorContractFields,
-                          obfuscator));
+                          obfuscator,
+                          inject.getTenant().getId()));
                 }
                 if (hasText(prerequisite.getGetCommand())) {
                   payload.setGetCommand(
@@ -353,7 +393,8 @@ public class ExecutableInjectService {
                           contract.getPayload().getArguments(),
                           inject.getContent(),
                           injectorContractFields,
-                          obfuscator));
+                          obfuscator,
+                          inject.getTenant().getId()));
                 }
                 prerequisiteList.add(payload);
               });
@@ -370,7 +411,8 @@ public class ExecutableInjectService {
               contract.getPayload().getArguments(),
               inject.getContent(),
               injectorContractFields,
-              obfuscator));
+              obfuscator,
+              inject.getTenant().getId()));
     }
 
     return processPayloadToExecute(
@@ -397,7 +439,8 @@ public class ExecutableInjectService {
     // for all payload types. The implant uses payload_arguments[].default_value to download
     // documents before execution; without this override it would download the payload's default
     // document instead of the one configured on the inject.
-    resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    resolveDocumentArgumentsFromInjectContent(
+        processed, inject.getContent(), injectorContractFields, inject.getTenant().getId());
     return processed;
   }
 
@@ -416,12 +459,26 @@ public class ExecutableInjectService {
             contract.getPayload().getArguments(),
             inject.getContent(),
             injectorContractFields,
-            obfuscator));
+            obfuscator,
+            inject.getTenant().getId()));
     return payloadCommand;
   }
 
-  private void resolveDocumentArgumentsFromInjectContent(
-      Payload payload, ObjectNode injectContent) {
+  private String documentIdInTenant(String documentId, String tenantId) {
+    try {
+      documentService.documentInTenant(documentId, tenantId);
+      return documentId;
+    } catch (ElementNotFoundException e) {
+      log.error("Payload argument target unexisting document", e);
+      return "";
+    }
+  }
+
+  void resolveDocumentArgumentsFromInjectContent(
+      Payload payload,
+      ObjectNode injectContent,
+      List<ObjectNode> injectorContractFields,
+      String tenantId) {
     if (isEmpty(payload.getArguments()) || injectContent == null) {
       return;
     }
@@ -434,14 +491,31 @@ public class ExecutableInjectService {
                   }
                   String actualValue =
                       getArgumentValueOrDefault(arg.getKey(), injectContent, arg.getDefaultValue());
-                  if (!hasText(actualValue) || actualValue.equals(arg.getDefaultValue())) {
+                  if (!hasText(actualValue) && !hasText(arg.getDefaultValue())) {
+                    return arg;
+                  }
+                  // The implant downloads the document this value names: a value that does not
+                  // resolve in the inject's tenant, whether the payload's default or the inject's
+                  // own, is cleared so it never leaves the platform. A blank override replaces the
+                  // default too, so the default must not be sent in its place.
+                  String sentValue =
+                      hasText(actualValue) ? documentIdInTenant(actualValue, tenantId) : "";
+                  if (!hasText(sentValue)
+                      && isMandatoryField(arg.getKey(), injectorContractFields)) {
+                    // Nothing else refuses an argument no command references, and the implant
+                    // would run without the file it was promised.
+                    throw new CommandBindingException(
+                        "Missing mandatory input '%s' for inject execution"
+                            .formatted(arg.getKey()));
+                  }
+                  if (sentValue.equals(arg.getDefaultValue())) {
                     return arg;
                   }
                   // Create a copy to avoid mutating the shared original PayloadArgument.
                   PayloadArgument copy = new PayloadArgument();
                   copy.setType(arg.getType());
                   copy.setKey(arg.getKey());
-                  copy.setDefaultValue(actualValue);
+                  copy.setDefaultValue(sentValue);
                   copy.setDescription(arg.getDescription());
                   copy.setSeparator(arg.getSeparator());
                   return copy;
@@ -461,7 +535,8 @@ public class ExecutableInjectService {
             dnsResolution.getArguments(),
             null,
             inject.getContent(),
-            false));
+            false,
+            inject.getTenant().getId()));
     return dnsResolution;
   }
 
@@ -502,6 +577,13 @@ public class ExecutableInjectService {
       return field.get(DEFAULT_VALUE_FIELD).asText("");
     }
     return defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "";
+  }
+
+  private static boolean isUnchangedTextDefault(PayloadArgument argument, String value) {
+    return argument != null
+        && PrimitiveType.Text == argument.getType()
+        && hasText(value)
+        && value.equals(argument.getDefaultValue());
   }
 
   private record ResolvedArgument(String value, boolean missing, boolean mandatory) {}

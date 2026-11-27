@@ -6,6 +6,8 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.credentials.CredentialMapper;
 import io.openaev.api.credentials.form.*;
+import io.openaev.api.credentials.form.CredentialContractOutput.CredentialContractField;
+import io.openaev.api.credentials.form.CredentialContractOutput.CredentialContractFieldType;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -17,6 +19,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.*;
 import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -37,6 +40,19 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class CredentialService {
+
+  /** i18n key of the hint under the account id input, shared by both AWS contracts. */
+  public static final String AWS_ACCOUNT_ID_DESCRIPTION =
+      "This value is mandatory for some injectors";
+
+  /** i18n key of the hint under the scope input, shared by both Azure contracts. */
+  public static final String AZURE_SCOPE_DESCRIPTION =
+      "Resource manager the token is requested for. When empty, the authority host URI is used if"
+          + " set, otherwise the one of the selected Azure environment.";
+
+  private static final List<String> GCP_PRIVATE_KEY_FORMATS = List.of("application/json");
+  private static final List<String> AZURE_CERTIFICATE_FORMATS =
+      List.of(".pem", ".crt", ".cer", "application/x-x509-ca-cert", "application/x-pem-file");
 
   private final CredentialMapper credentialMapper;
   private final TagRepository tagRepository;
@@ -59,11 +75,7 @@ public class CredentialService {
   private final SecretValidationService secretValidationService;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
-
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public long globalCount() {
-    return tenantTx.execute(TxCtx.allTenants(), credentialSecretReferenceRepository::globalCount);
-  }
+  private final CredentialMetricCollector credentialMetricCollector;
 
   /**
    * Returns supported credential form contracts.
@@ -76,310 +88,317 @@ public class CredentialService {
             CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "credential_username",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "credential_password",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("credential_username")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("credential_password")
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "credential_hash",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "credential_hash_algorithm",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    List.of(
-                        HashSecret.HASH_ALGORITHM.SHA.name(),
-                        HashSecret.HASH_ALGORITHM.NTLM.name()),
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("credential_hash")
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("credential_hash_algorithm")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(
+                        List.of(
+                            HashSecret.HASH_ALGORITHM.SHA.name(),
+                            HashSecret.HASH_ALGORITHM.NTLM.name()))
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_default_region",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    AwsRegion.codes(),
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_access_key_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_secret_access_key",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_session_token",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("aws_default_region")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(AwsRegion.codes())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_access_key_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_secret_access_key")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_session_token")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_account_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .fieldDescription(AWS_ACCOUNT_ID_DESCRIPTION)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_endpoint_url")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_default_region",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    AwsRegion.codes(),
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_role_arn",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_external_id",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_source_identity_type",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    List.of(
-                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
-                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT.name()),
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_source_profile_access_key_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    "aws_source_identity_type",
-                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
-                    "aws_source_identity_type",
-                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()),
-                new CredentialContractOutput.CredentialContractField(
-                    "aws_source_profile_secret_access_key",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    false,
-                    null,
-                    "aws_source_identity_type",
-                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
-                    "aws_source_identity_type",
-                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()))),
+                CredentialContractField.builder()
+                    .fieldName("aws_default_region")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(AwsRegion.codes())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_role_arn")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_external_id")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_source_identity_type")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(
+                        List.of(
+                            AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                            AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT.name()))
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_source_profile_access_key_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .mandatoryConditionField("aws_source_identity_type")
+                    .mandatoryConditionValue(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name())
+                    .visibleConditionField("aws_source_identity_type")
+                    .visibleConditionValue(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_source_profile_secret_access_key")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(false)
+                    .mandatoryConditionField("aws_source_identity_type")
+                    .mandatoryConditionValue(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name())
+                    .visibleConditionField("aws_source_identity_type")
+                    .visibleConditionValue(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_account_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .fieldDescription(AWS_ACCOUNT_ID_DESCRIPTION)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("aws_endpoint_url")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_environment",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    AzureEnvironments.names(),
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_client_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_client_secret",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_tenant_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_subscription_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("azure_environment")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(AzureEnvironments.names())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_client_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_client_secret")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_tenant_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_subscription_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_authority_host_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_scope")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .fieldDescription(AZURE_SCOPE_DESCRIPTION)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_requests_certificate")
+                    .fieldType(CredentialContractFieldType.file)
+                    .required(false)
+                    .acceptedFormats(AZURE_CERTIFICATE_FORMATS)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_environment",
-                    CredentialContractOutput.CredentialContractFieldType.select,
-                    true,
-                    AzureEnvironments.names(),
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_client_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "azure_subscription_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("azure_environment")
+                    .fieldType(CredentialContractFieldType.select)
+                    .required(true)
+                    .choices(AzureEnvironments.names())
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_client_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_subscription_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_authority_host_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_scope")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .fieldDescription(AZURE_SCOPE_DESCRIPTION)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("azure_requests_certificate")
+                    .fieldType(CredentialContractFieldType.file)
+                    .required(false)
+                    .acceptedFormats(AZURE_CERTIFICATE_FORMATS)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_scope",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    GcpScopes.DEFAULT_CLOUD_PLATFORM),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_private_key_json",
-                    CredentialContractOutput.CredentialContractFieldType.file,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_project_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))),
+                CredentialContractField.builder()
+                    .fieldName("gcp_scope")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .defaultValue(GcpScopes.DEFAULT_CLOUD_PLATFORM)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_private_key_json")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.file)
+                    .required(true)
+                    .acceptedFormats(GCP_PRIVATE_KEY_FORMATS)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_project_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_resource_manager_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_projects_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build())),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP,
             CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2,
             List.of(
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_scope",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    GcpScopes.DEFAULT_CLOUD_PLATFORM),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_oauth_client_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_oauth_client_secret",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_oauth_refresh_token",
-                    CredentialContractOutput.CredentialContractFieldType.password,
-                    true,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null),
-                new CredentialContractOutput.CredentialContractField(
-                    "gcp_project_id",
-                    CredentialContractOutput.CredentialContractFieldType.text,
-                    false,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null))));
+                CredentialContractField.builder()
+                    .fieldName("gcp_scope")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .defaultValue(GcpScopes.DEFAULT_CLOUD_PLATFORM)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_oauth_client_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_oauth_client_secret")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_oauth_refresh_token")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(true)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_project_id")
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_token_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_projects_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_iam_uri")
+                    .endpoint(true)
+                    .fieldType(CredentialContractFieldType.text)
+                    .required(false)
+                    .build(),
+                CredentialContractField.builder()
+                    .fieldName("gcp_custom_oauth_access_token")
+                    .resetOnEndpointChange(true)
+                    .fieldType(CredentialContractFieldType.password)
+                    .required(false)
+                    .build())));
   }
 
   /**
@@ -422,7 +441,9 @@ public class CredentialService {
     SecretsProvider secretProvider =
         secretsProviderResolver.resolveByConnectorInstanceId(
             credential.getTenant().getId(), credential.getConnectorInstanceId());
-    return secretProvider.getResolvedSecret(credential);
+    SecretResolvedValue resolved = secretProvider.getResolvedSecret(credential);
+    credentialMetricCollector.addResolutionSuccess();
+    return resolved;
   }
 
   /**
@@ -442,6 +463,24 @@ public class CredentialService {
         (specification, pageable) -> findAllByTenantIds(tenantIds, specification, pageable),
         normalizedInput,
         CredentialSecretReference.class);
+  }
+
+  /**
+   * Resolves a set of credentials from their identifiers. {@code secret_references} is v2-active:
+   * the read is scoped to the caller's tenants by the transaction's {@link TxCtx}, so crafted ids
+   * can never reach another tenant's credentials.
+   *
+   * @param ctx transaction context carrying tenant scope
+   * @param credentialIds credential identifiers to resolve
+   * @return the matching credentials, in no particular order
+   */
+  @Transactional(readOnly = true)
+  public List<CredentialSecretReference> findCredentialsByIds(
+      @NotNull final TxCtx ctx, final List<String> credentialIds) {
+    if (CollectionUtils.isEmpty(credentialIds)) {
+      return List.of();
+    }
+    return credentialSecretReferenceRepository.findAll(SpecificationUtils.hasIdIn(credentialIds));
   }
 
   private Page<CredentialSecretReference> findAllByTenantIds(
@@ -464,26 +503,32 @@ public class CredentialService {
    * @param tenantId tenant identifier
    * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file, null when the
    *     request carries no such part
+   * @param azureRequestsCertificate raw bytes of the uploaded Azure requests certificate, null when
+   *     the request carries no such part
    * @return created credential reference
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public CredentialOutput createCredential(
-      CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
+      CredentialInput input,
+      String tenantId,
+      byte[] gcpPrivateKeyJson,
+      byte[] azureRequestsCertificate) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
-    // Build Credential Reference
-    CredentialSecretReference credential = new CredentialSecretReference();
-    applyCreateInputToCredential(credential, input, provider.getId(), tenantId);
-
-    // Phase 1 — store credential reference with its secret
+    // Phase 1: build the credential reference, whose tags resolve in the scope of the tenant, and
+    // store it with its secret
     CredentialSecretReference persistedCredential =
         tenantTx.execute(
             TxCtx.forTenant(tenantId),
-            () ->
-                (CredentialSecretReference)
-                    provider.store(
-                        credential,
-                        convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson)));
+            () -> {
+              CredentialSecretReference credential = new CredentialSecretReference();
+              applyCreateInputToCredential(credential, input, provider.getId(), tenantId);
+              return (CredentialSecretReference)
+                  provider.store(
+                      credential,
+                      convertCredentialInputToSecretStoreRequest(
+                          input, gcpPrivateKeyJson, azureRequestsCertificate));
+            });
 
     // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
     // of the credential creation
@@ -503,11 +548,17 @@ public class CredentialService {
    * @param input credential update payload
    * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file; null means
    *     "key left untouched", so the stored one is kept
+   * @param azureRequestsCertificate raw bytes of the uploaded Azure requests certificate; null
+   *     means "certificate left untouched", so the stored one is kept
    * @return updated credential full output
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public CredentialFullOutput updateCredential(
-      String credentialId, CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
+      String credentialId,
+      CredentialInput input,
+      String tenantId,
+      byte[] gcpPrivateKeyJson,
+      byte[] azureRequestsCertificate) {
     // Phase 1 — transactional update of credential reference and its secret through the provider.
     UpdatedCredentialContext updateContext =
         tenantTx.execute(
@@ -518,7 +569,7 @@ public class CredentialService {
                   secretsProviderResolver.resolveByConnectorInstanceId(
                       tenantId, credential.getConnectorInstanceId());
 
-              applyMetadataInputToCredential(credential, input);
+              applyMetadataInputToCredential(credential, input, tenantId);
               credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
               credential.setLastVerifiedAt(null);
 
@@ -526,7 +577,8 @@ public class CredentialService {
                   (CredentialSecretReference)
                       secretProvider.update(
                           credential,
-                          convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson));
+                          convertCredentialInputToSecretStoreRequest(
+                              input, gcpPrivateKeyJson, azureRequestsCertificate));
               return new UpdatedCredentialContext(updatedCredential, secretProvider);
             });
 
@@ -550,7 +602,7 @@ public class CredentialService {
       CredentialInput input,
       String providerId,
       String tenantId) {
-    applyMetadataInputToCredential(credential, input);
+    applyMetadataInputToCredential(credential, input, tenantId);
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
     credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
@@ -559,18 +611,20 @@ public class CredentialService {
   }
 
   private void applyMetadataInputToCredential(
-      CredentialSecretReference credential, CredentialInput input) {
+      CredentialSecretReference credential, CredentialInput input, String tenantId) {
     credential.setName(Objects.requireNonNull(input.credentialName(), "name must not be null"));
     credential.setDescription(input.credentialDescription());
     List<String> tagIds = Objects.requireNonNullElse(input.credentialTagIds(), List.of());
     credential.setTags(
-        tagIds.isEmpty() ? new HashSet<>() : iterableToSet(tagRepository.findAllById(tagIds)));
+        tagIds.isEmpty()
+            ? new HashSet<>()
+            : iterableToSet(tagRepository.findAllByIdInTenant(tagIds, tenantId)));
     credential.setCredentialAuthMethod(input.credentialAuthMethod());
     credential.setCredentialType(input.credentialType());
   }
 
   private SecretStoreRequest convertCredentialInputToSecretStoreRequest(
-      CredentialInput input, byte[] gcpPrivateKeyJson) {
+      CredentialInput input, byte[] gcpPrivateKeyJson, byte[] azureRequestsCertificate) {
     return new SecretStoreRequest(
         input.credentialUsername(),
         input.credentialPassword(),
@@ -595,7 +649,17 @@ public class CredentialService {
         gcpPrivateKeyJson,
         input.gcpOauthClientId(),
         input.gcpOauthClientSecret(),
-        input.gcpOauthRefreshToken());
+        input.gcpOauthRefreshToken(),
+        input.awsAccountId(),
+        input.awsEndpointUrl(),
+        input.gcpCustomTokenUri(),
+        input.gcpCustomProjectsUri(),
+        input.gcpCustomResourceManagerUri(),
+        input.gcpCustomIamUri(),
+        input.gcpCustomOauthAccessToken(),
+        input.azureAuthorityHostUri(),
+        input.azureScope(),
+        azureRequestsCertificate);
   }
 
   /**

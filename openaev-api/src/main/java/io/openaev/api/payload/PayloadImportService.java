@@ -64,25 +64,27 @@ public class PayloadImportService {
    * synchronization method.
    *
    * @param file the ZIP file containing the JSON:API payload document
+   * @param types the resource types the import may rebuild
    * @return the import result containing the persisted payload and the synchronised injector
    *     contract
    */
-  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
+  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file, ImportTypes types)
+      throws Exception {
     // A payload bundle can carry documents (file drop, executable). Attribute any imported
     // document to the request's write tenant, so an active documents table gets a valid tenant_id
     // whatever the ambient TenantContext of the import.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The attack patterns, domains and injector contract derived from the bundle are attributed
-    // through the ambient tenant, like the payload itself: keep the whole import in the write
-    // tenant, not only the reflective persist.
+    // Domains take the write tenant as an argument. The attack patterns and the injector contract
+    // derived from the bundle are attributed through the ambient tenant, like the payload itself:
+    // the whole import runs in the write tenant, not only the reflective persist.
     return ambientTenantBridge.callInTenantChecked(
-        tenantId, () -> importPayloadInTenant(ctx, file, tenantId));
+        tenantId, () -> importPayloadInTenant(ctx, file, tenantId, types));
   }
 
-  private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
-      throws Exception {
+  private PayloadImportResult importPayloadInTenant(
+      TxCtx ctx, MultipartFile file, String tenantId, ImportTypes types) throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
+        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId, types);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
@@ -90,7 +92,8 @@ public class PayloadImportService {
             object -> handleAttackPatternImport(ctx, object),
             response.sourceDocument());
     List<Domain> domains =
-        extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
+        extractRelationshipObjects(
+            "domains", object -> handleDomainImport(object, tenantId), response.sourceDocument());
     List<Tag> tags =
         extractRelationshipObjects(
             "tags", object -> handleTagImport(ctx, object), response.sourceDocument());
@@ -126,11 +129,11 @@ public class PayloadImportService {
     return attackPatternService.findOrCreate(ctx, input);
   }
 
-  private Domain handleDomainImport(ResourceObject object) {
+  private Domain handleDomainImport(ResourceObject object, String tenantId) {
     DomainBaseInput input = new DomainBaseInput();
     input.setName(object.attributes().get("domain_name").toString());
     input.setColor(object.attributes().get("domain_color").toString());
-    return domainService.upsert(input);
+    return domainService.upsert(input, tenantId);
   }
 
   private Tag handleTagImport(TxCtx ctx, ResourceObject object) {

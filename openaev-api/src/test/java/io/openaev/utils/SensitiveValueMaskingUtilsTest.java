@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.PrimitiveType;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -301,6 +304,73 @@ class SensitiveValueMaskingUtilsTest {
   }
 
   @Nested
+  @DisplayName("When masking a value to store it (fail closed)")
+  class WhenMaskingAValueToStoreIt {
+
+    @Test
+    @DisplayName("Should mask the same way from the enum name, the label or the type itself")
+    void given_theEnumNameTheLabelOrTheType_should_maskTheSameWay() {
+      // -------- Act --------
+      String fromName =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("Credentials", "admin:motdepasse");
+      String fromLabel =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("credentials", "admin:motdepasse");
+      String fromType =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed(
+              ContractOutputType.Credentials, "admin:motdepasse");
+
+      // -------- Assert --------
+      assertThat(fromName).isEqualTo("admin:mo" + MASK);
+      assertThat(fromLabel).isEqualTo(fromName);
+      assertThat(fromType).isEqualTo(fromName);
+    }
+
+    @Test
+    @DisplayName("Should leave the value of a known, non-sensitive type untouched")
+    void given_aKnownNonSensitiveType_should_returnTheValueUntouched() {
+      // -------- Act & Assert --------
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed("Text", "admin:motdepasse"))
+          .isEqualTo("admin:motdepasse");
+    }
+
+    @Test
+    @DisplayName("Should mask the whole value of a type this version does not know")
+    void given_anUnknownType_should_maskTheWholeValue() {
+      // -------- Act & Assert --------
+      assertThat(
+              SensitiveValueMaskingUtils.maskIfNeededFailClosed("not_a_type", "admin:motdepasse"))
+          .isEqualTo("ad" + MASK + ":mo" + MASK);
+    }
+
+    @Test
+    @DisplayName("Should mask the whole value when the type is missing")
+    void given_aMissingType_should_maskTheWholeValue() {
+      // -------- Act & Assert --------
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed((String) null, "motdepasse"))
+          .isEqualTo("mo" + MASK);
+      assertThat(SensitiveValueMaskingUtils.maskIfNeededFailClosed(" ", "motdepasse"))
+          .isEqualTo("mo" + MASK);
+      assertThat(
+              SensitiveValueMaskingUtils.maskIfNeededFailClosed(
+                  (ContractOutputType) null, "motdepasse"))
+          .isEqualTo("mo" + MASK);
+    }
+
+    @Test
+    @DisplayName("Should hide what the label-based masking keeps readable for the attack path")
+    void given_anUnknownLabel_should_failClosedWhereTheLabelBasedMaskingFailsOpen() {
+      // -------- Act --------
+      String forTheGraph = SensitiveValueMaskingUtils.maskIfNeeded("not_a_type", "motdepasse");
+      String toStore =
+          SensitiveValueMaskingUtils.maskIfNeededFailClosed("not_a_type", "motdepasse");
+
+      // -------- Assert --------
+      assertThat(forTheGraph).isEqualTo("motdepasse");
+      assertThat(toStore).isEqualTo("mo" + MASK);
+    }
+  }
+
+  @Nested
   @DisplayName("When echoing a masked value back")
   class WhenEchoingAMaskedValue {
 
@@ -340,6 +410,72 @@ class SensitiveValueMaskingUtilsTest {
               SensitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
                   PrimitiveType.Password, "TopSecret", null))
           .isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("When the masking rule changes")
+  class WhenTheMaskingRuleChanges {
+
+    /** A composed value and a value too short to keep a visible fragment. */
+    private static final List<String> SAMPLES = List.of("admin:Sup3rS3cret", "abc");
+
+    private static final String UNKNOWN_TYPE = "<unknown type>";
+
+    /**
+     * Every sample the rule changes, for every finding type, under {@code MASKING_VERSION} 1; every
+     * other one is handed out unchanged. The findings table and the search index store this form,
+     * so it may only change together with a version bump.
+     */
+    private static final Map<String, String> MASKED_SAMPLES_V1 =
+        // Literals, not MASK: a change to the mask itself is a rule change too
+        Map.of(
+            "Credentials | abc",
+            "******",
+            "Credentials | admin:Sup3rS3cret",
+            "admin:Su******",
+            UNKNOWN_TYPE + " | abc",
+            "******",
+            UNKNOWN_TYPE + " | admin:Sup3rS3cret",
+            "ad******:Su******");
+
+    @Test
+    @DisplayName("Should keep the masked output pinned to its masking version")
+    void given_theCurrentRule_should_produceTheOutputPinnedForItsVersion() {
+      // -------- Arrange --------
+      Map<String, String> masked = new TreeMap<>();
+      for (String sample : SAMPLES) {
+        for (ContractOutputType type : ContractOutputType.values()) {
+          putIfChanged(
+              masked,
+              type.name() + " | " + sample,
+              sample,
+              SensitiveValueMaskingUtils.maskIfNeeded(type, sample));
+        }
+        putIfChanged(
+            masked, UNKNOWN_TYPE + " | " + sample, sample, SensitiveValueMaskingUtils.mask(sample));
+      }
+
+      // -------- Act & Assert --------
+      assertThat(SensitiveValueMaskingUtils.MASKING_VERSION)
+          .as("pin the outputs of the new version below, under its own name")
+          .isEqualTo(1L);
+      assertThat(masked)
+          .as(
+              "The masked output changed, but findings.finding_value_display and the finding"
+                  + " documents of the search index still hold the previous one, so search and"
+                  + " filters would match it. Bump SensitiveValueMaskingUtils.MASKING_VERSION,"
+                  + " add a migration that rewrites finding_value_display for every row, then a"
+                  + " migration requesting a re-feed of the finding model, in that order (see"
+                  + " the class Javadoc), then pin the new outputs here")
+          .isEqualTo(MASKED_SAMPLES_V1);
+    }
+
+    private static void putIfChanged(
+        Map<String, String> masked, String key, String sample, String output) {
+      if (!sample.equals(output)) {
+        masked.put(key, output);
+      }
     }
   }
 }

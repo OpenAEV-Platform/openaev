@@ -75,6 +75,9 @@ interface LogicGraphProps {
   onAddActionToEvent?: (eventId: string) => void;
   /** Reports the latest event metas so the parent can drive the warning banner. */
   onEventMetasChange?: (metas: Record<string, EventMeta>) => void;
+  /** Called after the graph mutated the workflow (delete, link, unlink) so the parent can re-sync
+   *  everything that depends on its shape. Without it the graph only re-fetches itself. */
+  onGraphMutated?: () => void;
   /** Read-only inspection mode (autonomous runs): keeps pan/zoom + spotlight, disables mutation. */
   readOnly?: boolean;
 }
@@ -92,6 +95,7 @@ const LogicGraph = ({
   onEditEvent,
   onAddActionToEvent,
   onEventMetasChange,
+  onGraphMutated,
   readOnly = false,
 }: LogicGraphProps) => {
   const { t } = useFormatter();
@@ -182,6 +186,14 @@ const LogicGraph = ({
   useEffect(() => {
     refreshGraph();
   }, [refreshGraph, reloadTrigger]);
+
+  const refreshAfterMutation = useCallback(() => {
+    if (onGraphMutated) {
+      onGraphMutated();
+    } else {
+      void refreshGraph();
+    }
+  }, [onGraphMutated, refreshGraph]);
 
   const outputProviders = useMemo(
     () => buildOutputProvidersMap(actionMetas),
@@ -411,8 +423,8 @@ const LogicGraph = ({
     updateStep(
       edge.target,
       buildStepUpdate(action, action.step_condition_ids.filter(cid => cid !== edge.source)),
-    ).then(refreshGraph);
-  }, [actionMetas, buildStepUpdate, refreshGraph]);
+    ).then(refreshAfterMutation);
+  }, [actionMetas, buildStepUpdate, refreshAfterMutation]);
 
   // Gate an action by a trigger (real `trigger -> action` edge) by adding the trigger to the
   // action's condition list. Only the trigger -> action direction is accepted: a user can gate an
@@ -430,8 +442,8 @@ const LogicGraph = ({
     const action = actionMetas[actionId];
     if (!action || action.step_condition_ids.includes(triggerId)) return;
     updateStep(actionId, buildStepUpdate(action, [...action.step_condition_ids, triggerId]))
-      .then(refreshGraph);
-  }, [actionMetas, buildStepUpdate, refreshGraph]);
+      .then(refreshAfterMutation);
+  }, [actionMetas, buildStepUpdate, refreshAfterMutation]);
 
   // Screen-space connection drag: preview line follows the cursor in client coordinates (so it is
   // immune to the pan/zoom transform), and the drop target is resolved with elementFromPoint against
@@ -492,12 +504,12 @@ const LogicGraph = ({
           .filter(([, meta]) => meta.step_condition_ids.includes(nodeId));
         Promise.all(affectedSteps.map(([stepId, meta]) =>
           updateStep(stepId, buildStepUpdate(meta, meta.step_condition_ids.filter(cid => cid !== nodeId))),
-        )).then(refreshGraph);
+        )).then(refreshAfterMutation);
       } else {
-        refreshGraph();
+        refreshAfterMutation();
       }
     });
-  }, [pendingDeleteNodeId, actionMetas, buildStepUpdate, refreshGraph]);
+  }, [pendingDeleteNodeId, actionMetas, buildStepUpdate, refreshAfterMutation]);
 
   if (loading) {
     return <Loader variant="inElement" />;

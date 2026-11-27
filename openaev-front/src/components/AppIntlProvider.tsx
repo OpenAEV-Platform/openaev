@@ -8,7 +8,7 @@ import { useHelper } from '../store';
 import { type LanguageCode, loadLocaleMessages, momentMap, oaevLocaleMap } from '../utils/locales';
 
 // Export LANG to be used in non-React code
-// eslint-disable-next-line import/no-mutable-exports
+// eslint-disable-next-line custom-rules/no-mutable-exports
 export let LANG = DEFAULT_LANG;
 
 const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ children }) => {

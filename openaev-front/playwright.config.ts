@@ -71,6 +71,8 @@ export default defineConfig({
   timeout: 300_000,
   // Configure projects for major browsers.
   // Select via CLI: yarn playwright test --project=setup --project=<browser>
+  // No project sets storageState: the persona fixture (tests_e2e/fixtures) logs every
+  // test in, as admin by default, so a spec must import `test` from there.
   projects: [
     {
       name: 'setup',
@@ -85,7 +87,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -98,7 +99,6 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -111,7 +111,6 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Firefox'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -124,7 +123,6 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -138,7 +136,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -153,7 +150,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -167,7 +163,6 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -181,7 +176,6 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Firefox'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -195,7 +189,6 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,
@@ -210,7 +203,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
-        storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
           height: 1080,

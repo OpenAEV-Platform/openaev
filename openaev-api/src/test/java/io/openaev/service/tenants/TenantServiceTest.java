@@ -1,7 +1,6 @@
 package io.openaev.service.tenants;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +16,8 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -28,6 +29,7 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.TenantRoleService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -36,8 +38,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -50,7 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser
 class TenantServiceTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private TenantService tenantService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Autowired private TenantComposer tenantComposer;
   @Autowired protected EntityManager entityManager;
@@ -114,7 +116,7 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
-    List<Role> roles = tenantRoleService.findAll(created.getId());
+    List<Role> roles = tenantRoleService.findAll(List.of(created.getId()));
     assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
     assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());
@@ -145,7 +147,8 @@ class TenantServiceTest extends IntegrationTest {
     // Precondition: the default tenant must already carry a built-in contract WITH a join row, so
     // the copy step has a contract-with-link to copy. Without this the copy step is a no-op and the
     // foreign-key path is never exercised.
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     entityManager.flush();
     entityManager.clear();
 
@@ -159,10 +162,11 @@ class TenantServiceTest extends IntegrationTest {
     entityManager.clear();
     TenantContext.setCurrentTenant(created.getId());
 
-    // injectors is on v2 isolation (no v1 @Filter anymore) but this test's context does not
-    // activate it (application-test.properties keeps active-tables empty), so a bare findByType
-    // would return every tenant's row unfiltered: assert by explicit tenant attribution instead,
-    // using the tenant-scoped repository method kept for exactly this purpose.
+    // injectors is on v2 isolation: a read sees the rows of the transaction's scope when the table
+    // is active and every tenant's rows when it is not. Each read below sets the scope of the
+    // tenant it asserts on and filters on the tenant attribution, so both shapes give the same
+    // answer.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(created.getId()));
     Injector emailInjector =
         injectorRepository.findAll().stream()
             .filter(i -> EmailContract.TYPE.equals(i.getType()))
@@ -179,6 +183,7 @@ class TenantServiceTest extends IntegrationTest {
     // to EMAIL_DEFAULT (the broken re-tenant/clear variants stole or deleted the source link).
     entityManager.clear();
     TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
     Injector defaultEmailInjector =
         injectorRepository.findAll().stream()
             .filter(i -> EmailContract.TYPE.equals(i.getType()))
@@ -362,44 +367,6 @@ class TenantServiceTest extends IntegrationTest {
     // expires, even though the tenant is active again.
     assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
         .isTrue();
-  }
-
-  @Test
-  void should_purge_expired_tenants() {
-    // -- ARRANGE --
-    Tenant tenantExpired = getTenant("Tenant Expired");
-    tenantComposer.forTenant(tenantExpired).persist();
-    tenantExpired.setDeletedAt(
-        Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
-    tenantRepository.save(tenantExpired);
-    TenantContext.setCurrentTenant(tenantExpired.getId());
-
-    Tenant tenantRecent = getTenant("Tenant Recent");
-    tenantComposer.forTenant(tenantRecent).persist();
-    tenantService.softDelete(tenantRecent.getId());
-
-    // -- ACT --
-    int purged = tenantService.purgeExpiredTenants();
-
-    // -- ASSERT --
-    assertThat(purged).isEqualTo(1);
-    assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
-    assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
-
-    // domains, vulnerabilities and cwes are on v2 isolation (no v1 @Filter anymore): assert by
-    // explicit tenant attribution.
-    assertThat(domainRepository.findAll())
-        .filteredOn(domain -> tenantExpired.getId().equals(domain.getTenant().getId()))
-        .isEmpty();
-    assertThat(vulnerabilityRepository.findAll())
-        .filteredOn(
-            vulnerability -> tenantExpired.getId().equals(vulnerability.getTenant().getId()))
-        .isEmpty();
-    assertThat(cweRepository.findAll())
-        .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
-        .isEmpty();
-    assertThat(tenantRoleService.findAll(tenantExpired.getId())).isEmpty();
-    assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }
 
   @Test

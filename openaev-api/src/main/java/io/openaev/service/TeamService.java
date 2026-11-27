@@ -31,7 +31,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -83,22 +85,48 @@ public class TeamService {
   }
 
   /**
-   * Loads a team in scope with its tags, for the endpoint that returns the raw entity. It is
-   * serialized open-in-view after the commit, when a lazy {@code tags} load fails closed to an
-   * empty array once {@code tags} is v2-active: the team edit form, filled from that response, then
-   * saved the empty list and erased the team's tags.
+   * Loads a team in scope with the collections its raw response serializes, see {@link
+   * #withResponseCollections}.
    */
-  public Team teamInScopeWithTags(@NotNull final TxCtx ctx, @NotNull final String teamId) {
-    Team team = teamInScope(ctx, teamId);
+  public Team teamInScopeWithCollections(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    return withResponseCollections(teamInScope(ctx, teamId));
+  }
+
+  /**
+   * Initializes the tags, players, simulations, scenarios, injects and communications of a team
+   * that an endpoint answers as a raw entity. The entity is serialized open-in-view after the
+   * commit, when a lazy load on a v2-active table reads nothing; initializing the collections in
+   * the transaction gives the response the team's tags, which the team edit form saves back, and
+   * the simulations and scenarios the team page counts.
+   *
+   * <p>Loading the players also loads the eager {@code groups} of each one, a table the scope
+   * reaches: read after the commit, those reads run with no scope and find nothing. The response
+   * carries only the players' ids and count; the groups load as one subselect, whose rows grow with
+   * the membership of those groups, not with the team.
+   *
+   * <p>The team's injects are the ones of its simulations and scenarios that target it: each
+   * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit
+   * the team is no longer among its targets and its injects, their counts and communications come
+   * back empty. Reading them here loads those collections while the scope is set (one query per
+   * simulation or scenario for its injects, one subselect per eager collection of an inject, and
+   * the batch-fetched dependencies of the injects, which grow with their number in batches of the
+   * configured batch size); the response then finds them initialized.
+   */
+  public Team withResponseCollections(@NotNull final Team team) {
     Hibernate.initialize(team.getTags());
+    Hibernate.initialize(team.getUsers());
+    Hibernate.initialize(team.getExercises());
+    Hibernate.initialize(team.getScenarios());
+    team.getExercisesInjects();
+    team.getScenariosInjects();
     return team;
   }
 
   /**
-   * Loads the players of a team in scope with their tags and teams, for the endpoint that returns
-   * the raw users: {@code tags} and {@code teams} are both v2-active, so a lazy load at
-   * serialization time fails closed to an empty array. The player edit form is filled from that
-   * response, and an empty tag list erased the player's tags on save.
+   * Loads the players of a team in scope with their tags, teams and organizations, for the endpoint
+   * that returns the raw users: {@code tags}, {@code teams} and {@code organizations} are all
+   * v2-active, so a lazy load at serialization time fails closed to an empty array. The player edit
+   * form is filled from that response, and an empty tag list erased the player's tags on save.
    */
   public List<User> teamPlayersInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
     List<User> players = teamInScope(ctx, teamId).getUsers();
@@ -106,6 +134,7 @@ public class TeamService {
         player -> {
           Hibernate.initialize(player.getTags());
           Hibernate.initialize(player.getTeams());
+          player.loadOrganizations();
         });
     return players;
   }
@@ -174,6 +203,11 @@ public class TeamService {
     teamRepository.deleteAll(teams);
   }
 
+  /** The teams among the given ids that belong to the given tenant. */
+  public List<Team> teams(@NotBlank final String tenantId, @NotNull final List<String> teamIds) {
+    return teamRepository.findAllByIdInTenant(teamIds, tenantId);
+  }
+
   /**
    * Fetch teams corresponding to given IDs
    *
@@ -203,7 +237,8 @@ public class TeamService {
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));
     newTeam.setOrganization(teamToCopy.getOrganization());
-    newTeam.setUsers(CopyObjectListUtils.copy(teamToCopy.getUsers(), User.class));
+    // The copy references the saved users: their collections are never copied
+    newTeam.setUsers(new ArrayList<>(teamToCopy.getUsers()));
     newTeam.setContextual(teamToCopy.getContextual());
     return newTeam;
   }

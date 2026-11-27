@@ -18,16 +18,24 @@ import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,11 +72,14 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingLocationComposer findingLocationComposer;
+  @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
 
@@ -84,11 +95,13 @@ class IndexingRegressionTest extends IntegrationTest {
     exerciseComposer.reset();
     injectComposer.reset();
     endpointComposer.reset();
+    assetGroupComposer.reset();
     injectExpectationComposer.reset();
     agentComposer.reset();
     collectorComposer.reset();
     securityPlatformComposer.reset();
     findingComposer.reset();
+    findingOccurrenceComposer.reset();
     teamComposer.reset();
     userComposer.reset();
   }
@@ -619,6 +632,74 @@ class IndexingRegressionTest extends IntegrationTest {
 
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"asset", "inject", "exercise", "scenario", "finding"})
+    @DisplayName("Endpoint cursor is the date of the only row that changed after :from")
+    void given_oneChangedSource_should_returnItsDateAsCursor(String source) {
+      // Arrange
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer scenarioInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withFinding(findingWrapper);
+      InjectComposer.Composer simulationInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(endpointWrapper);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withInject(scenarioInject)
+              .persist()
+              .get();
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(simulationInject)
+              .persist()
+              .get();
+      entityManager.flush();
+
+      String endpointId = endpointWrapper.get().getId();
+      Map<String, String> ids =
+          Map.of(
+              "asset", endpointId,
+              "inject", simulationInject.get().getId(),
+              "exercise", exercise.getId(),
+              "scenario", scenario.getId(),
+              "finding", findingWrapper.get().getId());
+      ids.forEach((table, id) -> setUpdatedAt(table, id, PAST));
+      setUpdatedAt("inject", scenarioInject.get().getId(), PAST);
+      Instant changedAt = FROM.plusSeconds(10).truncatedTo(ChronoUnit.MILLIS);
+      setUpdatedAt(source, ids.get(source), changedAt);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsAsset> results = assetHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(endpointId))
+          .singleElement()
+          .extracting(EsAsset::getBase_updated_at)
+          .isEqualTo(changedAt);
+    }
+
+    private void setUpdatedAt(String entity, String id, Instant ts) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE %ss SET %s_updated_at = :ts WHERE %s_id = :id"
+                  .formatted(entity, entity, entity))
+          .setParameter("ts", ts)
+          .setParameter("id", id)
+          .executeUpdate();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -711,6 +792,7 @@ class IndexingRegressionTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("detected")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer agentExpectationWrapper =
           injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
@@ -831,6 +913,7 @@ class IndexingRegressionTest extends IntegrationTest {
                   .sourceName(collector.getName())
                   .result("prevented")
                   .score(100.0)
+                  .date(Instant.now())
                   .build()));
       InjectExpectationComposer.Composer agentPreventionWrapper =
           injectExpectationComposer.forExpectation(agentPrevention).withEndpoint(endpointWrapper);
@@ -962,41 +1045,45 @@ class IndexingRegressionTest extends IntegrationTest {
   class FindingIndexing {
 
     @Test
-    @DisplayName("Multi-asset finding is indexed as ONE doc aggregating ALL asset ids")
-    void given_findingOnSeveralAssets_should_indexSingleDocWithAllAssets() {
-      // The previous per-(finding, asset) rows shared the same base_id: each bulk upsert
-      // overwrote the previous row, so only one arbitrary asset survived (last-asset-wins).
-      EndpointComposer.Composer endpointOne =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      EndpointComposer.Composer endpointTwo =
-          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      FindingComposer.Composer findingWrapper =
-          findingComposer
-              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
-              .withEndpoint(endpointOne)
-              .withEndpoint(endpointTwo);
-      InjectComposer.Composer injectWrapper =
-          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
-      exerciseComposer
-          .forExercise(ExerciseFixture.createDefaultExercise())
-          .withInject(injectWrapper)
-          .persist();
+    @DisplayName("Findings sharing one timestamp beyond a full batch are all served, none skipped")
+    void given_timestampGroupLargerThanBatch_should_serveEveryFindingOfTheGroup() {
+      // Arrange: three findings stamped with one timestamp, as one upsert transaction does
+      List<String> findingIds = new ArrayList<>();
+      for (int i = 0; i < 3; i++) {
+        FindingComposer.Composer findingWrapper =
+            findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withFinding(findingWrapper)
+            .persist();
+        findingIds.add(findingWrapper.get().getId());
+      }
       entityManager.flush();
+      Instant sharedTimestamp = PAST.truncatedTo(ChronoUnit.MILLIS);
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_updated_at = :ts WHERE finding_id IN (:ids)")
+          .setParameter("ts", sharedTimestamp)
+          .setParameter("ids", findingIds)
+          .executeUpdate();
       entityManager.clear();
 
-      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+      // Act: a batch of 2 ends inside the group, the next one resumes after its last id
+      List<EsFinding> firstBatch = findingHandler.fetch(sharedTimestamp, null, 2);
+      List<EsFinding> secondBatch =
+          findingHandler.fetch(sharedTimestamp, firstBatch.getLast().getBase_id(), 2);
 
-      String findingId = findingWrapper.get().getId();
-      assertThat(results)
-          .filteredOn(es -> es.getBase_id().equals(findingId))
-          .as("exactly ONE doc per finding (no per-asset row fan-out)")
-          .singleElement()
-          .satisfies(
-              es ->
-                  assertThat(es.getBase_endpoint_side())
-                      .as("base_endpoint_side must aggregate ALL linked assets")
-                      .containsExactlyInAnyOrder(
-                          endpointOne.get().getId(), endpointTwo.get().getId()));
+      // Assert
+      assertThat(findingHandler.isKeysetPaged()).isTrue();
+      assertThat(firstBatch)
+          .extracting(EsFinding::getBase_updated_at)
+          .as("the group sits at the cursor: the first batch is entirely inside it")
+          .containsOnly(sharedTimestamp);
+      assertThat(Stream.concat(firstBatch.stream(), secondBatch.stream()))
+          .extracting(EsFinding::getBase_id)
+          .as("every finding of the group, each once")
+          .containsAll(findingIds)
+          .doesNotHaveDuplicates();
     }
 
     @Test
@@ -1020,6 +1107,420 @@ class IndexingRegressionTest extends IntegrationTest {
           .filteredOn(es -> es.getBase_id().equals(findingId))
           .singleElement()
           .satisfies(es -> assertThat(es.getBase_endpoint_side()).isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "No inject nor simulation is a deletion dependency: deleting one keeps the finding, every"
+            + " occurrence is a side")
+    void given_occurrencesOnTwoInjects_should_keepThemOutOfTheDependencies() {
+      // Arrange
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      InjectComposer.Composer ownInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      Exercise ownSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(ownInject)
+              .persist()
+              .get();
+      InjectComposer.Composer otherInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      Exercise otherSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherInject)
+              .persist()
+              .get();
+      findingOccurrenceComposer
+          .forOccurrence(
+              FindingOccurrenceFixture.createOccurrence(
+                  findingWrapper.get(),
+                  otherInject.get(),
+                  Instant.now(),
+                  FindingOccurrenceFixture.OTHER_FIELD))
+          .persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert: deleting an inject or a simulation leaves the finding in place (#7848, chunk 4)
+      assertThat(indexed.getBase_dependencies())
+          .doesNotContain(
+              ownInject.get().getId(),
+              ownSimulation.getId(),
+              otherInject.get().getId(),
+              otherSimulation.getId());
+      assertThat(indexed.getBase_inject_side())
+          .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
+      assertThat(indexed.getBase_simulation_side())
+          .containsExactlyInAnyOrder(ownSimulation.getId(), otherSimulation.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "The asset of the location is the only asset dependency and endpoint side, another linked"
+            + " asset is ignored")
+    void given_findingLocatedOnAnAsset_should_dependOnThatAssetOnly() {
+      // Arrange
+      Asset locationAsset =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+      Asset otherLinkedAsset =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setLocation(persistLocation(locationAsset, null));
+      finding.getAssets().addAll(List.of(locationAsset, otherLinkedAsset));
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getBase_dependencies()).containsExactly(locationAsset.getId());
+      assertThat(indexed.getBase_endpoint_side()).containsExactly(locationAsset.getId());
+    }
+
+    @Test
+    @DisplayName("The user of the location is a dependency: deleting it deletes the finding")
+    void given_findingLocatedOnAUser_should_dependOnThatUser() {
+      // Arrange
+      User locationUser =
+          userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setLocation(persistLocation(null, locationUser));
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getBase_dependencies()).containsExactly(locationUser.getId());
+    }
+
+    private FindingLocation persistLocation(Asset asset, User user) {
+      FindingLocation location = new FindingLocation();
+      location.setAsset(asset);
+      location.setUser(user);
+      location.setLocationKey(
+          FindingLocationKeys.keyOf(
+              asset != null ? asset.getId() : null, user != null ? user.getId() : null));
+      entityManager.persist(location);
+      return location;
+    }
+
+    @Test
+    @DisplayName(
+        "Every side of a finding is aggregated once, however its occurrences, assets and asset"
+            + " groups combine")
+    void given_occurrencesAssetsAndOverlappingAssetGroups_should_indexEachSideOnce() {
+      // Arrange: two occurrences, two assets, and asset groups shared between the two injects -
+      // the combination the indexing query used to multiply into one row per (occurrence,
+      // scenario, asset, asset group)
+      EndpointComposer.Composer endpointOne =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer endpointTwo =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingLocationComposer.Composer locationEndpointOne =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointOne);
+      FindingLocationComposer.Composer locationEndpointTwo =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(endpointTwo);
+      // Both assets in the shared group, one asset in each of the others: the groups of the
+      // finding are those of its assets, each listed once however many assets it holds
+      AssetGroupComposer.Composer groupOwnOnly =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("own only"))
+              .withAsset(endpointOne);
+      AssetGroupComposer.Composer groupShared =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("shared"))
+              .withAsset(endpointOne)
+              .withAsset(endpointTwo);
+      AssetGroupComposer.Composer groupOtherOnly =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("other only"))
+              .withAsset(endpointTwo);
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withLocation(locationEndpointOne);
+      InjectComposer.Composer ownInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withFinding(findingWrapper)
+              .withAssetGroup(groupOwnOnly)
+              .withAssetGroup(groupShared);
+      ExerciseComposer.Composer ownSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(ownInject);
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withSimulation(ownSimulation)
+              .persist()
+              .get();
+      InjectComposer.Composer otherInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withAssetGroup(groupShared)
+              .withAssetGroup(groupOtherOnly);
+      Exercise otherSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherInject)
+              .persist()
+              .get();
+      findingOccurrenceComposer
+          .forOccurrence(
+              FindingOccurrenceFixture.createOccurrence(
+                  findingWrapper.get(),
+                  otherInject.get(),
+                  Instant.now(),
+                  FindingOccurrenceFixture.OTHER_FIELD))
+          .persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      // contains, not containsExactly: a dynamic group seeded in the shared test database may also
+      // match these endpoints; the side is a set, so each group is listed once
+      assertThat(indexed.getBase_asset_groups_side())
+          .contains(groupOwnOnly.get().getId(), groupShared.get().getId());
+      assertThat(indexed.getBase_endpoint_side())
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
+      assertThat(indexed.getBase_inject_side())
+          .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
+      assertThat(indexed.getBase_simulation_side())
+          .containsExactlyInAnyOrder(ownSimulation.get().getId(), otherSimulation.getId());
+      assertThat(indexed.getBase_scenario_side()).containsExactly(scenario.getId());
+      assertThat(indexed.getFinding_field())
+          .containsExactlyInAnyOrder(
+              findingWrapper.get().getField(), FindingOccurrenceFixture.OTHER_FIELD);
+      assertThat(indexed.getBase_dependencies())
+          .as("the location assets delete the finding")
+          .containsExactlyInAnyOrder(endpointOne.get().getId());
+    }
+
+    @Test
+    @DisplayName(
+        "The asset groups of a finding are those of its assets, static and dynamic, never the"
+            + " groups its inject targeted")
+    void given_injectTargetingOtherGroups_should_indexOnlyTheGroupsOfTheFindingAssets() {
+      // Arrange: the finding hits asset A. A is listed in G1 and matched by the dynamic filter of
+      // G3. The inject targets G1 and G2; G2 holds another asset only.
+      // A is the only Linux asset of the test; B is a Windows asset
+      EndpointComposer.Composer assetA =
+          endpointComposer.forEndpoint(
+              EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+      EndpointComposer.Composer assetB =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint("asset B"));
+      FindingLocationComposer.Composer locationAssetA =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetA);
+      FindingLocationComposer.Composer locationAssetB =
+          findingLocationComposer
+              .forFindingLocation(FindingLocationFixture.createDefaultLocation())
+              .withEndpoint(assetB);
+      AssetGroupComposer.Composer g1 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G1 static"))
+              .withAsset(assetA);
+      AssetGroupComposer.Composer g2 =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("G2 targeted only"))
+              .withAsset(assetB);
+      Filters.Filter linux = new Filters.Filter();
+      linux.setKey("endpoint_platform");
+      linux.setMode(Filters.FilterMode.or);
+      linux.setOperator(Filters.FilterOperator.eq);
+      linux.setValues(List.of(Endpoint.PLATFORM_TYPE.Linux.name()));
+      Filters.FilterGroup dynamicFilter = new Filters.FilterGroup();
+      dynamicFilter.setMode(Filters.FilterMode.and);
+      dynamicFilter.setFilters(List.of(linux));
+      AssetGroupComposer.Composer g3 =
+          assetGroupComposer.forAssetGroup(
+              AssetGroupFixture.createAssetGroupWithDynamicFilter("G3 dynamic", dynamicFilter));
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withLocation(locationAssetA);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper)
+                  .withAssetGroup(g1)
+                  .withAssetGroup(g2))
+          .persist();
+      g3.persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert
+      // Other dynamic groups of the shared test database may match the Linux asset too: the
+      // assertion is on the three groups this test owns
+      assertThat(indexed.getBase_asset_groups_side())
+          .as("G1 holds the asset, G3 matches it; G2 is only targeted by the inject")
+          .contains(g1.get().getId(), g3.get().getId())
+          .doesNotContain(g2.get().getId());
+    }
+
+    private String persistFindingInSimulation(Finding finding) {
+      FindingComposer.Composer findingWrapper = findingComposer.forFinding(finding);
+      exerciseComposer
+          .forExercise(ExerciseFixture.createDefaultExercise())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withFinding(findingWrapper))
+          .persist();
+      entityManager.flush();
+      return findingWrapper.get().getId();
+    }
+
+    private EsFinding fetchIndexedFinding(String findingId) {
+      entityManager.clear();
+      return findingHandler.fetch(FROM, 5000).stream()
+          .filter(es -> es.getBase_id().equals(findingId))
+          .findFirst()
+          .orElseThrow();
+    }
+
+    @Test
+    @DisplayName("Credentials are indexed masked, in the value and in the representative")
+    void given_credentialsFinding_should_indexMaskedValueAndCurrentMaskingVersion() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    static Stream<Arguments> nonSensitiveFindings() {
+      return Stream.of(
+          Arguments.of("Text", FindingFixture.createDefaultTextFinding()),
+          Arguments.of("CVE", FindingFixture.createDefaultCveFindingWithRandomTitle()),
+          // Its recipe names a "key", but that key is a policy setting name, not a secret
+          Arguments.of("PasswordPolicy", FindingFixture.createDefaultPasswordPolicyFinding()),
+          // The value is the account name alone: nothing secret to mask
+          Arguments.of(
+              "KerberoastableAccount", FindingFixture.createDefaultKerberoastableAccountFinding()),
+          Arguments.of(
+              "AsreproastableAccount", FindingFixture.createDefaultAsreproastableAccountFinding()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("nonSensitiveFindings")
+    @DisplayName("Non-sensitive findings are indexed unchanged")
+    void given_nonSensitiveFinding_should_indexValueUnchanged(String type, Finding finding) {
+      // Arrange
+      String cleartext = finding.getValue();
+      String findingId = persistFindingInSimulation(finding);
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(cleartext);
+      assertThat(indexed.getBase_representative()).isEqualTo(cleartext);
+      assertThat(indexed.getFinding_masking_version())
+          .isEqualTo(SensitiveValueMaskingUtils.MASKING_VERSION);
+    }
+
+    @Test
+    @DisplayName("The indexed value is the stored displayed value, not a mask computed again")
+    void given_storedDisplayedValue_should_indexItAsIs() {
+      // Arrange
+      String findingId = persistFindingInSimulation(FindingFixture.createDefaultTextFinding());
+      String storedDisplay = "value as stored in finding_value_display";
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = :display WHERE finding_id = :id")
+          .setParameter("display", storedDisplay)
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo(storedDisplay);
+      assertThat(indexed.getBase_representative()).isEqualTo(storedDisplay);
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value is masked from the cleartext, never indexed as is")
+    void given_credentialsWithoutDisplayedValue_should_indexMaskedValue() {
+      // Arrange
+      String findingId =
+          persistFindingInSimulation(FindingFixture.createFindingCredentialsWithDistinctPassword());
+      // What a pod of the previous version writes during a rolling deploy
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_value_display = NULL WHERE finding_id = :id")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingId);
+
+      // Assert
+      assertThat(indexed.getFinding_value()).isEqualTo("admin:mo******");
+      assertThat(indexed.getBase_representative()).isEqualTo("admin:mo******");
+    }
+
+    @Test
+    @DisplayName(
+        "A row without a displayed value and with a type this version does not know is masked"
+            + " whole, without failing the batch")
+    void given_unknownFindingTypeWithoutDisplayedValue_should_indexFullyMaskedValue() {
+      // Arrange
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      String findingId = persistFindingInSimulation(finding);
+      String knownFindingId =
+          persistFindingInSimulation(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      // The enum cannot carry an unknown type through JPA, and the column is left empty
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_type = :type, finding_value_display = NULL"
+                  + " WHERE finding_id = :id")
+          .setParameter("type", "SomeFutureSecretType")
+          .setParameter("id", findingId)
+          .executeUpdate();
+
+      // Act
+      List<EsFinding> results = findingHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(findingId))
+          .singleElement()
+          .satisfies(
+              es -> {
+                assertThat(es.getFinding_value()).isEqualTo("te******");
+                assertThat(es.getBase_representative()).isEqualTo("te******");
+              });
+      assertThat(results).extracting(EsFinding::getBase_id).contains(knownFindingId);
     }
   }
 

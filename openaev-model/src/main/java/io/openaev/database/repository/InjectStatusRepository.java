@@ -22,33 +22,21 @@ public interface InjectStatusRepository
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
-  @Query(
-      value =
-          "SELECT ins.*, t.*"
-              + " FROM injects_statuses ins"
-              + " INNER JOIN injects i ON ins.status_inject = i.inject_id"
-              + " LEFT JOIN execution_traces t"
-              + "  ON t.execution_inject_status_id = ins.status_id"
-              + "  AND t.execution_agent_id IS NULL"
-              + "  AND cardinality(t.execution_context_identifiers) = 0"
-              + " WHERE i.inject_id = :injectId"
-              + " ORDER BY t.execution_time ASC, t.execution_trace_id ASC",
-      nativeQuery = true)
-  Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId);
-
   /**
-   * The execution status name of many injects at once, as {@code (injectId, statusName)} pairs. The
-   * attack-path graph read ships every execution's "did it actually run" status, so resolving it
-   * per row would be one query per visible execution. Injects with no status row yet simply do not
-   * appear.
+   * The execution status name of many injects at once, with the number of agents each was
+   * dispatched to (to show the reader's status). The attack-path graph read ships every execution's
+   * "did it actually run" status, so resolving it per row would be one query per visible execution.
+   * Injects with no status row yet simply do not appear.
    *
    * @param injectIds the injects whose status name is wanted
-   * @return one row per inject that has a status: {@code [injectId, statusName]}
+   * @return one row per inject that has a status: {@code [injectId, statusName, expectedAgentCount
+   *     or null]}
    */
   @Query(
-      "SELECT istatus.inject.id, istatus.name FROM InjectStatus istatus"
+      "SELECT istatus.inject.id, istatus.name, istatus.expectedAgentCount FROM InjectStatus istatus"
           + " WHERE istatus.inject.id IN :injectIds AND istatus.name IS NOT NULL")
-  List<Object[]> findStatusNamesByInjectIds(@Param("injectIds") Collection<String> injectIds);
+  List<Object[]> findStatusNamesAndExpectedAgentCountsByInjectIds(
+      @Param("injectIds") Collection<String> injectIds);
 
   @Modifying(clearAutomatically = true)
   @Query("delete from InjectStatus i where i.id in :ids")

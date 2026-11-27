@@ -30,6 +30,8 @@ public class HealthCheck {
     INEFFECTIVE_TECHNICAL_TARGETS,
     /** The scope allowlist has team/player entries but no step consumes them. */
     INEFFECTIVE_AUDIENCE_TARGETS,
+    /** An enabled inject runs a payload version revoked in its tenant. */
+    REVOKED,
   }
 
   public enum Type {
@@ -49,6 +51,8 @@ public class HealthCheck {
     OPTIONAL_ARGS("optional_args"),
     MESSAGE("message"),
     SCOPE_DEFINITION("scope_definition"),
+    CREDENTIAL_REFERENCE("credential_reference"),
+    PAYLOAD("payload"),
     UNKNOWN("unknown");
 
     private final String value;
@@ -91,4 +95,21 @@ public class HealthCheck {
   @JsonProperty("creation_date")
   @NotNull
   private Instant creationDate;
+
+  @Schema(
+      description =
+          "Key of the injector contract field the check is about, set on a missing mandatory"
+              + " field (its type can be unknown when the key is not a known check type)")
+  @JsonProperty("field")
+  private String field;
+
+  public HealthCheck(Type type, Detail detail, Status status, Instant creationDate) {
+    this(type, detail, status, creationDate, null);
+  }
+
+  /** A mandatory field of the injector contract that the inject leaves empty. */
+  public static HealthCheck missingMandatoryField(String fieldKey, Instant creationDate) {
+    return new HealthCheck(
+        Type.fromValue(fieldKey), Detail.MANDATORY_CONTENT, Status.ERROR, creationDate, fieldKey);
+  }
 }

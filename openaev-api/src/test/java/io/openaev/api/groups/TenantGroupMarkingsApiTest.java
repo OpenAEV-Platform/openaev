@@ -2,17 +2,21 @@ package io.openaev.api.groups;
 
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createInput;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
+import io.openaev.config.TenantTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
@@ -20,14 +24,19 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,8 +62,9 @@ import org.springframework.transaction.annotation.Transactional;
  * the seeded low orders into any clearance. Asserting an exact set would be asserting the seed.
  *
  * <p>Also pins the {@code TenantGroupService} entry in {@code TenantActiveTableAccessArchTest}: the
- * cross-tenant case below is what makes "the inspector scopes this read" checkable rather than a
- * claim in a comment.
+ * cross-tenant case below checks that a foreign marking is refused, by the statement inspector when
+ * marking_definitions is tenant-active and by the escalation guard alone when it is not; see that
+ * case's own comment.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -64,14 +74,19 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private MarkingDefinitionRepository markingDefinitionRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private UserComposer userComposer;
+  @Autowired private TenantTables tenantTables;
   @PersistenceContext private EntityManager entityManager;
 
   private String tenantId;
   private String userId;
+  private String memberId;
+  private Group holderGroup;
   private Group group;
   private MarkingDefinition green;
   private MarkingDefinition red;
@@ -80,6 +95,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   void setUp() {
     tenantGroupComposer.reset();
     markingDefinitionComposer.reset();
+    userComposer.reset();
     tenantId = TenantContext.getCurrentTenant();
     User user = testUserHolder.get();
     userId = user.getId();
@@ -91,15 +107,22 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     green = persistedMarking(60);
     red = persistedMarking(70);
 
-    group =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup("markings-" + uniqueDefinition()))
-            .persist()
-            .get();
-    // The caller must be a member: a clearance is what a group grants ITS MEMBERS.
-    group.setUsers(new ArrayList<>(List.of(user)));
+    // The caller may only give markings they hold: their own group holds RED.
+    holderGroup = persistedGroup("holder-");
+    holderGroup.setMarkings(new HashSet<>(Set.of(red)));
+    holderGroup.setUsers(new ArrayList<>(List.of(user)));
+    groupRepository.save(holderGroup);
+
+    User member = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+    memberId = member.getId();
+    tenantRepository.addUserToTenant(memberId, tenantId);
+    tenantMembershipCacheManager.evict(memberId, tenantId);
+
+    group = persistedGroup("markings-");
+    group.setUsers(new ArrayList<>(List.of(member)));
     groupRepository.save(group);
-    clearanceCache.evictForUser(userId);
+    entityManager.flush();
+    clearanceCache.evictForUsers(List.of(userId, memberId));
   }
 
   @Nested
@@ -189,10 +212,13 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a marking from another tenant (the user has no access to), should refuse to assign it")
+        "given a marking from another tenant, which the caller holds no clearance for, should refuse"
+            + " to assign it")
     void given_markingFromAnotherTenant_should_refuse() throws Exception {
       // -- ARRANGE --
       String otherTenantId = tenantHelper.createTenant("marking-assign-other").getId();
+      // The foreign marking is written in its own tenant's scope, as that tenant's caller would.
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, otherTenantId);
       MarkingDefinition foreign =
           markingDefinitionComposer
               .forMarkingDefinition(
@@ -201,33 +227,145 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
               .withTenantId(otherTenantId)
               .persist()
               .get();
+      entityManager.flush();
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenantId);
 
       // -- ACT --
-      assignMarkings(List.of(foreign.getId())).andExpect(status().isForbidden());
+      // Two independent guards refuse a foreign marking, and the running configuration decides
+      // which one answers:
+      //
+      //   1. the statement inspector, when marking_definitions is tenant-active (the properties the
+      //      application ships): TenantGroupService's findAllById query is rewritten with
+      //      can_access_tenant, the foreign row never comes back, and the size check answers 404;
+      //   2. the escalation guard, when the table is not active (the shipped test properties
+      //      declare no active tables): the row is found unfiltered, and since a clearance is per
+      //      tenant, nobody, admin included, holds another tenant's marking, so it answers 403.
+      assignMarkings(List.of(foreign.getId()))
+          .andExpect(isMarkingDefinitionsActive() ? status().isNotFound() : status().isForbidden());
 
       // -- ASSERT --
-      // 🔴 403, not 404, and the difference is the point. Two independent guards cover this:
-      //
-      //   1. the statement inspector, because marking_definitions is tenant-active — it would hide
-      //      the row and the size check would 404;
-      //   2. the escalation guard, because a clearance is per tenant, so nobody — admin included —
-      //      holds another tenant's marking.
-      //
-      // Guard 1 does NOT fire here: the composer persisted this entity into the same persistence
-      // context, so findAllById is served from Hibernate's first-level cache and never reaches SQL.
-      // An inspector cannot rewrite a query that is not issued. That is a real property of the
-      // mechanism worth stating in a test rather than discovering in production, and it is exactly
-      // why the escalation guard is not redundant with tenant isolation.
+      // 🔴 Whichever guard answers, nothing is attached.
       assertTrue(reloadedGroup().getMarkings().isEmpty());
+    }
+  }
+
+  @Nested
+  @DisplayName("new markings")
+  class NewMarkings {
+
+    @Test
+    @DisplayName("given a group that receives new markings, should let its members hold a new one")
+    void given_autoNewMarkingGroup_should_letMembersHoldNewMarking() throws Exception {
+      // -- ARRANGE --
+      group.setAutoNewMarking(true);
+      groupRepository.save(group);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertTrue(clearanceOfMember().contains(created), "new marking not held");
+    }
+
+    @Test
+    @DisplayName("given a group that does not receive new markings, should leave it untouched")
+    void given_ordinaryGroup_should_beLeftUntouched() throws Exception {
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+      assertTrue(reloadedGroup().getMarkings().isEmpty());
+    }
+  }
+
+  @Nested
+  @DisplayName("receiving every marking, set from the API")
+  class AutoNewMarking {
+
+    @Test
+    @DisplayName(
+        "given every marking held, should give them all when turned on, keep them when turned off, and stop new ones")
+    void given_everyMarkingHeld_should_giveAllThenKeepThemWhenTurnedOff() throws Exception {
+      // -- ARRANGE --
+      holderGroup.setMarkings(
+          new HashSet<>(markingDefinitionRepository.findAllByTenantId(tenantId)));
+      groupRepository.save(holderGroup);
+      entityManager.flush();
+      clearanceCache.evictForUser(userId);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT: turn it on --
+      updateMarkings(List.of(), true).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertTrue(reloadedGroup().isAutoNewMarking());
+      Set<String> clearance = clearanceOfMember();
+      assertTrue(clearance.contains(green.getId()), "GREEN should be held: " + clearance);
+      assertTrue(clearance.contains(red.getId()), "RED should be held: " + clearance);
+
+      // -- ACT: turn it off, keeping its markings --
+      List<String> held =
+          reloadedGroup().getMarkings().stream().map(MarkingDefinition::getId).toList();
+      updateMarkings(held, false).andExpect(status().is2xxSuccessful());
+      String created = createMarking();
+
+      // -- ASSERT --
+      Group reloaded = reloadedGroup();
+      assertFalse(reloaded.isAutoNewMarking());
+      Set<String> kept = Set.copyOf(held);
+      assertTrue(
+          reloaded.getMarkings().stream().map(MarkingDefinition::getId).toList().containsAll(kept));
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+    }
+
+    private ResultActions updateMarkings(List<String> markingIds, Boolean autoNewMarking)
+        throws Exception {
+      return mvc.perform(
+          put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
+              .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, autoNewMarking)))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
     }
   }
 
   // -- HELPERS --
 
+  /**
+   * Whether this test context runs with marking_definitions tenant-active, as the statement
+   * inspector resolves it: the active set of the application's {@link TenantTables}, which expands
+   * the {@value TenantTables#ALL_STRICT} wildcard.
+   */
+  private boolean isMarkingDefinitionsActive() {
+    return tenantTables.family("marking_definitions") == TenantTables.Family.STRICT;
+  }
+
+  private String createMarking() throws Exception {
+    // The first definition of a type the tenant does not have yet: no other grant implies it, and
+    // the create guard lets it through whatever the caller's clearance (on an existing type, the
+    // caller may not define a marking above the highest one they hold).
+    String type = uniqueDefinition();
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/marking_definitions", tenantId)
+                    .content(asJsonString(createInput(type, type + ":NEW", 80, "#c62828")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.marking_definition_id");
+  }
+
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
         put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
-            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds)))
+            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, null)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));
@@ -244,10 +382,17 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     // written the groups_markings rows yet: nothing commits inside a rolled-back test. Without this
     // flush the query would correctly return zero rows and the test would be measuring the flush.
     entityManager.flush();
-    MarkingCtx ctx = clearanceCache.findClearance(userId, tenantId, false);
+    MarkingCtx ctx = clearanceCache.findClearance(memberId, tenantId);
     return ctx instanceof MarkingCtx.Restricted restricted
         ? Set.copyOf(restricted.markingIds())
         : Set.of();
+  }
+
+  private Group persistedGroup(String prefix) {
+    return tenantGroupComposer
+        .forGroup(TenantGroupFixture.getGroup(prefix + uniqueDefinition()))
+        .persist()
+        .get();
   }
 
   private Group reloadedGroup() {

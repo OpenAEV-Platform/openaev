@@ -6,17 +6,8 @@ import { type FunctionComponent, type KeyboardEvent, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { tint } from '../../../utils/tint';
+import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { type PostureBreakdownEntry } from './useExpectationPosture';
-
-// Human label per expectation-type pillar.
-const PILLAR_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  CHALLENGE: 'Challenge',
-  ARTICLE: 'Article',
-};
 
 interface Props {
   /** Expectations met (SUCCESS) in this scope. */
@@ -55,7 +46,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) this security platform met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this platform stops more of what it is tested against.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) this security platform met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this platform stops more of what it is tested against.'),
     };
   } else if (scope === 'asset-group') {
     strings = {
@@ -67,7 +58,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) the defenses of the assets in this group met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this group is better defended.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) the defenses of the assets in this group met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this group is better defended.'),
     };
   } else {
     strings = {
@@ -79,7 +70,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
         met: success,
         total,
       }),
-      measures: t('The posture score is the share of security validations (prevention, detection, vulnerability and manual expectations) the defenses of this asset met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this asset is better defended.'),
+      measures: t('The posture score is the share of security validations (prevention, detection, logging, vulnerability and manual expectations) the defenses of this asset met. It runs from 0 to 100 and, unlike the home exposure score, a HIGHER number is BETTER - it means this asset is better defended.'),
     };
   }
 
@@ -380,7 +371,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     }}
                     >
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {t(PILLAR_LABELS[pillar.key.toUpperCase()] ?? pillar.key)}
+                        {t(expectationTypeLabelKey(pillar.key) ?? pillar.key)}
                       </Typography>
                       <Typography
                         variant="body2"

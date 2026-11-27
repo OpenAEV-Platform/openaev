@@ -29,6 +29,7 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.GrantHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -54,6 +55,7 @@ public class InjectExportTest extends IntegrationTest {
   public final String INJECT_EXPORT_URI = INJECT_URI + "/export";
   public final String INJECT_EXPORT_SEARCH_URI = INJECT_URI + "/search/export";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private InjectComposer injectComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -75,6 +77,7 @@ public class InjectExportTest extends IntegrationTest {
   @Autowired private FileService fileService;
   @Autowired private GrantHelper grantHelper;
   @Autowired private EntityManager entityManager;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
@@ -99,9 +102,10 @@ public class InjectExportTest extends IntegrationTest {
     scenarioComposer.reset();
     payloadComposer.reset();
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {
@@ -112,6 +116,17 @@ public class InjectExportTest extends IntegrationTest {
   }
 
   private final List<Article> knownArticlesToExport = new ArrayList<>();
+
+  /**
+   * Persists an inject in the default tenant's scope, where its fixtures live. The simulation or
+   * scenario it is attached to was saved before the inject was added to it, so persisting the
+   * inject also updates that row, and that update must be flushed in the row's scope rather than in
+   * the next request's.
+   */
+  private Inject persistInject(InjectComposer.Composer inject) {
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, inject::persist);
+    return inject.get();
+  }
 
   private InjectComposer.Composer createIndividualInjectWrapper(String tagValue) {
     ArticleComposer.Composer articleToExportFromExercise =
@@ -265,7 +280,7 @@ public class InjectExportTest extends IntegrationTest {
 
   private List<InjectExportTarget> createDefaultInjectTargets(
       List<InjectComposer.Composer> injectComposers) {
-    injectComposers.forEach(InjectComposer.Composer::persist);
+    injectComposers.forEach(this::persistInject);
     List<String> persistedInjectIds = injectComposers.stream().map(w -> w.get().getId()).toList();
 
     return new ArrayList<>(
@@ -315,7 +330,7 @@ public class InjectExportTest extends IntegrationTest {
       boolean withPlayers,
       boolean withTeams,
       boolean withVariableValues) {
-    injectWrappers.forEach(InjectComposer.Composer::persist);
+    injectWrappers.forEach(this::persistInject);
 
     SearchPaginationInput searchInput = new SearchPaginationInput();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
@@ -361,6 +376,7 @@ public class InjectExportTest extends IntegrationTest {
   @DisplayName("When standard user with staggered privileges")
   public class WhenStandardUserWithStaggeredPrivileges {
     @Test
+    @WithMockUser(autoJoinDefaultTenant = true)
     @DisplayName("When lacking OBSERVER grant on some scenarios, return NOT FOUND")
     public void whenLackingOBSERVERGrantOnSomeScenariosReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -407,6 +423,7 @@ public class InjectExportTest extends IntegrationTest {
 
     @Test
     @DisplayName("When lacking OBSERVER grant on some exercises, return NOT FOUND")
+    @WithMockUser(autoJoinDefaultTenant = true)
     public void whenLackingOBSERVERGrantOnSomeExercisesReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
 
@@ -456,10 +473,10 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       void given_user_with_grants_search_input_should_match_grants() throws Exception {
         // PREPARE
-        Inject injectObserver = createIndividualInjectWrapper("tag1").persist().get();
-        Inject injectPlanner = createIndividualInjectWrapper("tag2").persist().get();
-        Inject injectLauncher = createIndividualInjectWrapper("tag3").persist().get();
-        Inject injectNoGrant = createIndividualInjectWrapper("tag4").persist().get();
+        Inject injectObserver = persistInject(createIndividualInjectWrapper("tag1"));
+        Inject injectPlanner = persistInject(createIndividualInjectWrapper("tag2"));
+        Inject injectLauncher = persistInject(createIndividualInjectWrapper("tag3"));
+        Inject injectNoGrant = persistInject(createIndividualInjectWrapper("tag4"));
 
         InjectExportFromSearchRequestInput exportInput =
             createDefaultInjectExportFromSearchInput(List.of(), "", false, false, false);
@@ -490,6 +507,8 @@ public class InjectExportTest extends IntegrationTest {
                 .withGroup(groupComposed)
                 .persist()
                 .get();
+        // The request runs as this user: a member of the tenant its granted simulations live in
+        tenantRepository.addUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
         Authentication auth = buildAuthenticationToken(testUser);
 
@@ -592,6 +611,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(autoJoinDefaultTenant = true)
       @DisplayName("With OBSERVER grant on exercise, return injects")
       public void withOBSERVERGrantOnExerciseReturnInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -637,6 +657,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(autoJoinDefaultTenant = true)
       @DisplayName("With OBSERVER grant on exercise with exclusion, return correct injects")
       public void withOBSERVERGrantOnExerciseWithExclusionReturnCorrectInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -718,7 +739,7 @@ public class InjectExportTest extends IntegrationTest {
     @DisplayName("Returned zip file contains json with correct injects")
     public void returnedZipFileContainsJsonWithCorrectInjects() throws Exception {
 
-      Inject inject = createIndividualInjectWrapper("Other inject tag").persist().get();
+      Inject inject = persistInject(createIndividualInjectWrapper("Other inject tag"));
 
       byte[] response =
           mvc.perform(
@@ -752,6 +773,7 @@ public class InjectExportTest extends IntegrationTest {
 
     @Test
     @DisplayName("When a single target inject is not found in the database, return NOT FOUND")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     public void whenSingleTargetInjectIsNotFound_returnNotFound() throws Exception {
       List<InjectExportTarget> targets = createDefaultInjectTargets();
 
@@ -796,6 +818,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct injects")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectInjects() throws Exception {
         byte[] response = doExport();
 
@@ -814,6 +837,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct challenges")
       public void returnedZipFileContainsJsonWithCorrectChallenges() throws Exception {
         byte[] response = doExport();
@@ -834,6 +858,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct articles")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectArticles() throws Exception {
         byte[] response = doExport();
 
@@ -853,6 +878,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct channels")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectChannels() throws Exception {
         byte[] response = doExport();
 
@@ -873,6 +899,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct documents")
       public void returnedZipFileContainsJsonWithCorrectDocuments() throws Exception {
         byte[] response = doExport();
@@ -893,6 +920,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with empty teams key")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithEmptyTeamsKey() throws Exception {
         byte[] response = doExport();
 
@@ -904,6 +932,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with absent users key")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithAbsentUsersKey() throws Exception {
         byte[] response = doExport();
 
@@ -914,6 +943,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains document files")
       public void returnedZipFileContainsDocumentFiles() throws Exception {
         byte[] response = doExport();
@@ -951,6 +981,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned teams are correct")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedTeamsAreCorrect() throws Exception {
         byte[] response = doExport();
 
@@ -970,6 +1001,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Users are absent")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void usersAreAbsent() throws Exception {
         byte[] response = doExport();
 
@@ -999,6 +1031,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned teams are empty")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedTeamsAreCorrect() throws Exception {
         byte[] response = doExport();
 
@@ -1010,6 +1043,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned users are empty")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedUsersAreEmpty() throws Exception {
         byte[] response = doExport();
 

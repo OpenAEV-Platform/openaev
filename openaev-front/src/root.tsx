@@ -20,6 +20,8 @@ import TenantAccessDeniedAlert from './components/TenantAccessDeniedAlert';
 import TimeoutLock from './components/TimeoutLock';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
+import NewsFeedRegisterBanner from './public/components/trialbanners/NewsFeedRegisterBanner';
+import NewsFeedRegisterBannerProvider from './public/components/trialbanners/NewsFeedRegisterBannerProvider';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
 import { APP_BASE_PATH } from './utils/Environment';
@@ -166,38 +168,41 @@ const Root = () => {
                 <ErrorHandler />
                 <EnterpriseEditionAgreementDialog />
                 {(settings.platform_session_idle_timeout ?? 0) > 0 && <TimeoutLock />}
-                <SystemBanners settings={settings} />
-                <LicenseBanner settings={settings} />
-                <StartTrialBanner settings={settings} />
-                <Suspense fallback={<Loader />}>
-                  <Routes>
-                    <Route
-                      path=""
-                      element={logged.isOnlyPlayer ? <Navigate to="private" replace={true} />
-                        : <Navigate to="admin" replace={true} />}
-                    />
-                    <Route path="private/*" element={errorWrapper(IndexPrivate)()} />
-                    {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
-                    <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
-                    <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
-                    {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
-                    <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
-                    <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
-                    <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
-                    {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
-                    <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />
-                    <Route path="channels/:exerciseId/:channelId" element={errorWrapper(Channel)()} />
-                    <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
-                    <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
-                    <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
-                    <Route path="url/access" element={errorWrapper(UrlAccess)()} />
-                    {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
-                    <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
-                    <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
-                    {/* Not found */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
+                <NewsFeedRegisterBannerProvider>
+                  <SystemBanners settings={settings} />
+                  <NewsFeedRegisterBanner />
+                  <LicenseBanner settings={settings} />
+                  <StartTrialBanner settings={settings} />
+                  <Suspense fallback={<Loader />}>
+                    <Routes>
+                      <Route
+                        path=""
+                        element={logged.isOnlyPlayer ? <Navigate to="private" replace={true} />
+                          : <Navigate to="admin" replace={true} />}
+                      />
+                      <Route path="private/*" element={errorWrapper(IndexPrivate)()} />
+                      {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
+                      <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
+                      <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
+                      {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
+                      <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
+                      <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
+                      <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
+                      {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
+                      <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />
+                      <Route path="channels/:exerciseId/:channelId" element={errorWrapper(Channel)()} />
+                      <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
+                      <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
+                      <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
+                      <Route path="url/access" element={errorWrapper(UrlAccess)()} />
+                      {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
+                      <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
+                      <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
+                      {/* Not found */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </NewsFeedRegisterBannerProvider>
               </EnterpriseEditionProvider>
             </ConnectedThemeProvider>
           </ConnectedIntlProvider>

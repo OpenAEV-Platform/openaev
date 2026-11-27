@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.stix.objects.DomainObject;
@@ -32,7 +31,6 @@ import org.hibernate.annotations.BatchSize;
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.SECURITY_PLATFORM_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class SecurityPlatform extends Asset implements StixDomainObjectConvertible {
 
   @Override
@@ -171,6 +169,12 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
         // No matching subcategory for this platform type; leave it unset.
       }
     }
+  }
+
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return "securityplatforms";
   }
 
   public SecurityPlatform() {}

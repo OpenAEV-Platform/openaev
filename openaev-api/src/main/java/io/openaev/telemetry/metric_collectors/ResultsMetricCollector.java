@@ -1,11 +1,11 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.openaev.telemetry.metric_collectors.MetricRegistry.normalizeLabel;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -135,17 +135,5 @@ public class ResultsMetricCollector {
     if (count > 0) {
       emailsSentCount.addAndGet(count);
     }
-  }
-
-  private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    stats.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
   }
 }

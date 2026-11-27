@@ -41,8 +41,8 @@ class InjectStatusRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("findInjectStatusWithGlobalExecutionTraces should return traces ordered by time")
-  void given_globalExecutionTracesWithUnorderedInsert_should_returnTracesOrderedByTime() {
+  @DisplayName("findByInjectId should return traces ordered by time")
+  void given_executionTracesWithUnorderedInsert_should_returnTracesOrderedByTime() {
     // Arrange
     Inject inject =
         injectComposer
@@ -87,10 +87,7 @@ class InjectStatusRepositoryTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    InjectStatus foundStatus =
-        injectStatusRepository
-            .findInjectStatusWithGlobalExecutionTraces(inject.getId())
-            .orElseThrow();
+    InjectStatus foundStatus = injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
     // Assert
     assertThat(foundStatus.getTraces())
@@ -99,7 +96,8 @@ class InjectStatusRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("findStatusNamesByInjectIds returns one pair per inject that has a status")
+  @DisplayName(
+      "findStatusNamesAndExpectedAgentCountsByInjectIds returns one row per inject that has a status")
   void given_injectsWithAndWithoutStatus_should_returnOnlyTheOnesWithAStatus() {
     // Arrange: one executed inject, one pending, one with no status row at all.
     Inject executed =
@@ -123,7 +121,7 @@ class InjectStatusRepositoryTest extends IntegrationTest {
 
     // Act
     List<Object[]> pairs =
-        injectStatusRepository.findStatusNamesByInjectIds(
+        injectStatusRepository.findStatusNamesAndExpectedAgentCountsByInjectIds(
             List.of(executed.getId(), pending.getId(), statusless.getId()));
 
     // Assert: the statusless inject is absent rather than present with a null status.

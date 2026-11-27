@@ -18,13 +18,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -77,7 +78,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private EntityManager entityManager;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -676,7 +677,8 @@ public class ExecutorApiTest extends IntegrationTest {
      * token.
      */
     private void ensureServiceAccount(String tenantId) {
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(tenantId), tenantId);
       entityManager.flush();
       entityManager.clear();
     }
@@ -706,6 +708,49 @@ public class ExecutorApiTest extends IntegrationTest {
                   .accept(MediaType.TEXT_PLAIN_VALUE))
           .andExpect(status().is2xxSuccessful());
     }
+
+    @Test
+    @DisplayName("Given an installation directory able to alter the script, should return 400")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUnsafeInstallationDir_shouldReturnBadRequest() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("installationDir", "/opt/openaev\"; echo unsafe; #")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Given a service name outside the agent family, should return 400")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUnsafeServiceName_shouldReturnBadRequest() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("serviceName", "sshd")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Given a plain installation directory and service name, should use them")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenPlainInstallationDirAndServiceName_shouldReturnInstallerCommand() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .param("installationDir", "/opt/openaev-custom")
+                  .param("serviceName", "openaev-custom")
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
   }
 
   @Nested
@@ -713,7 +758,8 @@ public class ExecutorApiTest extends IntegrationTest {
   class RotateOpenAevAgentInstallerToken {
 
     private void ensureServiceAccount(String tenantId) {
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(tenantId), tenantId);
       entityManager.flush();
       entityManager.clear();
     }
@@ -736,7 +782,7 @@ public class ExecutorApiTest extends IntegrationTest {
     void givenUserWithManageUsersCapability_shouldRotateToken() throws Exception {
       ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
       String previousToken =
-          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
               Tenant.DEFAULT_TENANT_UUID);
 
       mvc.perform(post("/api/agent/installer/openaev/token/rotate").with(csrf()))
@@ -745,7 +791,7 @@ public class ExecutorApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       String rotatedToken =
-          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
               Tenant.DEFAULT_TENANT_UUID);
       assertThat(rotatedToken).isNotEqualTo(previousToken);
     }

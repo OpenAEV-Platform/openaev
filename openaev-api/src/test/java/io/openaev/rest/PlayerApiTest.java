@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
+import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
@@ -19,6 +20,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
@@ -59,6 +61,14 @@ class PlayerApiTest extends IntegrationTest {
   @Autowired private LessonsAnswersComposer lessonsAnswersComposer;
 
   @Autowired private EntityManager entityManager;
+
+  /**
+   * The player lessons routes under the simulation's tenant, the shape every player link carries.
+   * The fixtures stamp the ambient tenant on the simulation, the default one here. The non-prefixed
+   * route names no tenant, so an anonymous caller reads no simulation there.
+   */
+  private static final String PLAYER_LESSONS_URI =
+      TENANT_BASE_PATH + Tenant.DEFAULT_TENANT_UUID + "/player/lessons/exercise/{0}";
 
   @Nested
   @DisplayName("Player Lessons API")
@@ -113,7 +123,7 @@ class PlayerApiTest extends IntegrationTest {
     @Nested
     @DisplayName("Lessons Questions API")
     class LessonsQuestionsApi {
-      private final String urlMask = "/api/player/lessons/exercise/{0}/lessons_questions";
+      private final String urlMask = PLAYER_LESSONS_URI + "/lessons_questions";
 
       private String getUrl(String simulationId) {
         return MessageFormat.format(urlMask, simulationId);
@@ -255,7 +265,7 @@ class PlayerApiTest extends IntegrationTest {
     @Nested
     @DisplayName("Lessons Answers API")
     class LessonsAnswersApi {
-      private final String getAnswersUrlMask = "/api/player/lessons/exercise/{0}/lessons_answers";
+      private final String getAnswersUrlMask = PLAYER_LESSONS_URI + "/lessons_answers";
 
       private String getAnswersUrl(String simulationId) {
         return MessageFormat.format(getAnswersUrlMask, simulationId);
@@ -267,7 +277,7 @@ class PlayerApiTest extends IntegrationTest {
       }
 
       private final String postAnswersUrlMask =
-          "/api/player/lessons/exercise/{0}/lessons_categories/{1}/lessons_questions/{2}/lessons_answers";
+          PLAYER_LESSONS_URI + "/lessons_categories/{1}/lessons_questions/{2}/lessons_answers";
 
       private String postAnswersUrl(String simulationId, String categoryId, String questionId) {
         return MessageFormat.format(postAnswersUrlMask, simulationId, categoryId, questionId);
@@ -809,7 +819,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_createPlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -877,7 +887,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_upsertPlayerSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -906,7 +916,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given non-existing player input, should upsert successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingPlayerInput_should_upsertSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -930,13 +940,15 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID and input, should update player but never its address")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
     user.setUpdateAttributes(playerInput);
     userRepository.save(user);
+    // A player is updated in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     String originalEmail = user.getEmail();
     String newFirstname = "updatedFirstname";
     playerInput.setFirstname(newFirstname);
@@ -978,15 +990,17 @@ class PlayerApiTest extends IntegrationTest {
         .andExpect(status().isForbidden());
   }
 
-  @DisplayName("Given valid player ID, should delete player successfully")
+  @DisplayName("Given a player of that tenant only, should delete it")
   @Test
-  @WithMockUser(isAdmin = true)
-  void given_validPlayerId_should_deletePlayerSuccessfully() throws Exception {
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_playerOfTheTenantOnly_should_deleteIt() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
     user.setUpdateAttributes(playerInput);
     user = userRepository.save(user);
+    // A player is deleted in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     // -- EXECUTE --
     mvc.perform(
@@ -994,18 +1008,16 @@ class PlayerApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+        .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
     assertTrue(this.userRepository.findById(user.getId()).isEmpty());
+    assertTrue(this.userRepository.findTenantIdsByUserId(user.getId()).isEmpty());
   }
 
   @DisplayName("Given non-existing player ID, when deleting, then return 400")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void givenNonExistingPlayerId_whenDelete_thenReturnNoContent() throws Exception {
     // -- PREPARE --
     String nonExistingPlayerId = "nonexistent-id";

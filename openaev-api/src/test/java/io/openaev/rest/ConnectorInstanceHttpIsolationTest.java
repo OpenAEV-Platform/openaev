@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -41,15 +42,14 @@ import org.springframework.transaction.annotation.Transactional;
  * URL path isolates the table through the real {@link
  * io.openaev.rest.connector_instance.ConnectorInstanceApi} endpoints.
  *
- * <p>Seeding goes through the composers (not a raw {@code INSERT}) because the entity is still on
- * v1 at this stage of the activation: {@code TenantBaseListener} needs {@link TenantContext} set to
- * attribute {@code tenant_id} at persist time, exactly like {@code
- * ConnectorInstanceApiTest.TenantIsolation} already does. {@link CatalogConnector} itself is
- * platform-level (not tenant-scoped) and is shared by both tenants' instances.
+ * <p>Seeding goes through the composers (not a raw {@code INSERT}): each fixture names the tenant
+ * of its row, as {@code ConnectorInstanceApiTest.TenantIsolation} does. {@link CatalogConnector}
+ * itself is platform-level (not tenant-scoped) and is shared by both tenants' instances.
  *
  * <p>Each test stays on a single tenant path so the per-request scope is set once: re-applying the
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
+@CoversTenantIsolation("connector_instances")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @WithMockUser(isAdmin = true)
@@ -117,7 +117,7 @@ class ConnectorInstanceHttpIsolationTest extends IntegrationTest {
     try {
       ConnectorInstancePersisted instance =
           connectorInstanceComposer
-              .forConnectorInstance(createDefaultConnectorInstance())
+              .forConnectorInstance(createDefaultConnectorInstance(tenantId))
               .withCatalogConnector(catalogConnectorComposer.forCatalogConnector(catalogConnector))
               .withConnectorInstanceConfiguration(
                   connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(

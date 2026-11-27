@@ -1,6 +1,9 @@
 package io.openaev.utils;
 
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.rest.exception.TenantSelectorRequiredException;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import java.util.Objects;
 import java.util.Set;
@@ -26,5 +29,52 @@ public final class TxCtxScopeUtils {
             "AllTenants is not valid - provide a single-tenant scope or an explicit tenant selector.");
       }
     };
+  }
+
+  /**
+   * The one tenant a request reads from. A read of a single tenant's configuration is refused, as a
+   * missing tenant selector, when the scope holds none or several tenants: it never picks one for
+   * the caller.
+   */
+  public static String requireSingleTenant(TxCtx ctx) {
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.size() != 1) {
+      throw new TenantSelectorRequiredException();
+    }
+    return tenantIds.iterator().next();
+  }
+
+  /**
+   * The tenants a request reads a row by id from: its resolved scope, or the v1 ambient tenant when
+   * the request resolves none (an anonymous or membership-less caller on the non-prefixed route).
+   *
+   * <p>Used for simulations and scenarios by id, for injects by id (the lookup of an inject and the
+   * tenant gate of the implant endpoints), for the custom dashboard of a resource, for the parent
+   * an {@code @AccessControl} check loads and for the tenant a user is read in.
+   *
+   * <p>The fallback goes once exercises, scenarios and injects are tenant-isolated: an empty scope
+   * then reads nothing on its own and no caller needs the ambient tenant to stand in for it.
+   */
+  public static Set<String> requestReadScope(TxCtx ctx) {
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    return tenantIds.isEmpty() ? Set.of(TenantContext.getCurrentTenant()) : tenantIds;
+  }
+
+  /**
+   * The single tenant a request's scope pins, for an endpoint whose lookup resolves ambiguously
+   * once the scope spans more than one tenant (a shared built-in id, #8485). An empty or
+   * multi-tenant scope is refused with {@link TenantSingleScopeRequiredException}, mapped to 400
+   * with its own error code, so a read is not answered with a write-scope error. Use this one when
+   * the caller only needs the check (a read, or a write that resolves its own tenant elsewhere),
+   * and {@code TenantWriteScopeResolver#tenantForWrite} for a write that attributes a new row's
+   * tenant from its return value. {@link #requireSingleTenant} is the other check, for the default
+   * agents settings: it answers {@code TENANT_SELECTOR_REQUIRED}.
+   */
+  public static String requireOneTenantOfScope(TxCtx ctx) {
+    Set<String> scoped = tenantIdsFromHTTPCtx(ctx);
+    if (scoped.size() != 1) {
+      throw new TenantSingleScopeRequiredException();
+    }
+    return scoped.iterator().next();
   }
 }

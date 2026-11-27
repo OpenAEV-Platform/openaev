@@ -3,6 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.StepDelayQueueRepository;
@@ -16,6 +18,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.time.Instant;
+import java.util.concurrent.Callable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,7 +30,8 @@ import org.springframework.boot.test.context.SpringBootTest;
  * Deliberately NOT {@code @Transactional}: resume commits RUN in its own transaction ({@code
  * REQUIRES_NEW}, see {@link WorkflowResumeService#resumeWorkflowRunIsolated}), which cannot see
  * rows a test transaction never commits. Every call commits on its own, so each test sweeps its own
- * rows in {@link #cleanup()}.
+ * rows in {@link #cleanup()}. Each call runs in the simulation's tenant scope, as the simulation
+ * status request that pauses and resumes the run does.
  */
 @SpringBootTest
 @DisplayName("Workflow pause/resume integration tests")
@@ -42,15 +46,21 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
   @Autowired private StepComposer stepComposer;
   @Autowired private StepRepository stepRepository;
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @AfterEach
   void cleanup() {
-    stepDelayQueueRepository.deleteAll(stepDelayQueueRepository.findAll());
-    workflowRepository.deleteAll(
-        workflowRepository.findAllById(
-            workflowComposer.generatedItems.stream().map(Workflow::getId).toList()));
-    stepRepository.deleteAll(
-        stepRepository.findAllById(stepComposer.generatedItems.stream().map(Step::getId).toList()));
+    tenantTx.execute(
+        TxCtx.allTenants(),
+        () -> {
+          stepDelayQueueRepository.deleteAll(stepDelayQueueRepository.findAll());
+          workflowRepository.deleteAll(
+              workflowRepository.findAllById(
+                  workflowComposer.generatedItems.stream().map(Workflow::getId).toList()));
+          stepRepository.deleteAll(
+              stepRepository.findAllById(
+                  stepComposer.generatedItems.stream().map(Step::getId).toList()));
+        });
     exerciseRepository.deleteAll(
         exerciseRepository.findAllById(
             exerciseComposer.generatedItems.stream().map(Exercise::getId).toList()));
@@ -70,31 +80,40 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       Workflow run = createRunWorkflow(false, false);
       Step stepTemplate = run.getSteps().getFirst();
       Instant initialGoal = Instant.now().plusSeconds(600);
-      stepDelayQueueRepository.save(buildDelay(run, stepTemplate, "existing", initialGoal));
+      inTenantOf(
+          run,
+          () ->
+              stepDelayQueueRepository.save(
+                  buildDelay(run, stepTemplate, "existing", initialGoal)));
 
       // Act - pause
-      workflowPauseService.pauseSimulationWorkflowRuns(run.getSimulation().getId());
-      Workflow pausedRun = workflowRepository.findById(run.getId()).orElseThrow();
+      inTenantOf(
+          run, () -> workflowPauseService.pauseSimulationWorkflowRuns(run.getSimulation().getId()));
+      Workflow pausedRun =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
 
       // Assert pause
       assertEquals(WorkflowStatus.STOP, pausedRun.getStatus());
       assertNotNull(pausedRun.getPauseAt());
       assertTrue(
-          stepDelayQueueRepository.findAllByWorkflowRun(pausedRun).stream()
+          inTenantOf(run, () -> stepDelayQueueRepository.findAllByWorkflowRun(pausedRun)).stream()
               .allMatch(d -> d.getGoal() == null));
 
       // Act - create a delay during pause
-      stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
-          stepTemplate,
-          Instant.now(),
-          "created-during-pause",
-          30_000L,
-          pausedRun,
-          Instant.now().plusSeconds(30));
+      inTenantOf(
+          run,
+          () ->
+              stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+                  stepTemplate,
+                  Instant.now(),
+                  "created-during-pause",
+                  30_000L,
+                  pausedRun,
+                  Instant.now().plusSeconds(30)));
 
       // Assert created during pause
       StepDelayQueue createdDuringPause =
-          stepDelayQueueRepository.findAllByWorkflowRun(pausedRun).stream()
+          inTenantOf(run, () -> stepDelayQueueRepository.findAllByWorkflowRun(pausedRun)).stream()
               .filter(d -> "created-during-pause".equals(d.getInput()))
               .findFirst()
               .orElseThrow();
@@ -102,16 +121,19 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
 
       // Act - resume
       pausedRun.setPauseAt(Instant.now().minusSeconds(90));
-      workflowRepository.save(pausedRun);
-      workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId());
+      inTenantOf(run, () -> workflowRepository.save(pausedRun));
+      inTenantOf(
+          run,
+          () -> workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId()));
 
       // Assert resume
-      Workflow resumedRun = workflowRepository.findById(run.getId()).orElseThrow();
+      Workflow resumedRun =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       assertEquals(WorkflowStatus.RUN, resumedRun.getStatus());
       assertNull(resumedRun.getPauseAt());
       assertTrue(resumedRun.getPauseSecond() >= 90);
       assertTrue(
-          stepDelayQueueRepository.findAllByWorkflowRun(resumedRun).stream()
+          inTenantOf(run, () -> stepDelayQueueRepository.findAllByWorkflowRun(resumedRun)).stream()
               .allMatch(d -> d.getGoal() != null));
     }
   }
@@ -126,18 +148,27 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       // Arrange
       Workflow run = createRunWorkflow(true, true);
       Step stepTemplate = run.getSteps().getFirst();
-      stepDelayQueueRepository.save(
-          buildDelay(run, stepTemplate, "with-timeout-rate", Instant.now().plusSeconds(120)));
+      inTenantOf(
+          run,
+          () ->
+              stepDelayQueueRepository.save(
+                  buildDelay(
+                      run, stepTemplate, "with-timeout-rate", Instant.now().plusSeconds(120))));
 
       // Act
-      workflowPauseService.pauseSimulationWorkflowRuns(run.getSimulation().getId());
-      Workflow pausedRun = workflowRepository.findById(run.getId()).orElseThrow();
+      inTenantOf(
+          run, () -> workflowPauseService.pauseSimulationWorkflowRuns(run.getSimulation().getId()));
+      Workflow pausedRun =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       pausedRun.setPauseAt(Instant.now().minusSeconds(60));
-      workflowRepository.save(pausedRun);
-      workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId());
+      inTenantOf(run, () -> workflowRepository.save(pausedRun));
+      inTenantOf(
+          run,
+          () -> workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId()));
 
       // Assert
-      Workflow resumedRun = workflowRepository.findById(run.getId()).orElseThrow();
+      Workflow resumedRun =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       assertTrue(resumedRun.isTimeoutEnabled());
       assertEquals(600L, resumedRun.getTimeoutSeconds());
       assertTrue(resumedRun.isRateLimitEnabled());
@@ -145,7 +176,7 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       assertEquals(120L, resumedRun.getMaxTemporalRateSeconds());
       assertTrue(resumedRun.getPauseSecond() >= 60);
       assertTrue(
-          stepDelayQueueRepository.findAllByWorkflowRun(resumedRun).stream()
+          inTenantOf(run, () -> stepDelayQueueRepository.findAllByWorkflowRun(resumedRun)).stream()
               .allMatch(d -> d.getGoal() != null));
     }
   }
@@ -162,28 +193,54 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       String simulationId = run.getSimulation().getId();
 
       // Act - cycle 1
-      workflowPauseService.pauseSimulationWorkflowRuns(simulationId);
-      Workflow firstPaused = workflowRepository.findById(run.getId()).orElseThrow();
+      inTenantOf(run, () -> workflowPauseService.pauseSimulationWorkflowRuns(simulationId));
+      Workflow firstPaused =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       firstPaused.setPauseAt(Instant.now().minusSeconds(40));
-      workflowRepository.save(firstPaused);
-      workflowPauseService.resumeSimulationWorkflowRuns(simulationId);
+      inTenantOf(run, () -> workflowRepository.save(firstPaused));
+      inTenantOf(run, () -> workflowPauseService.resumeSimulationWorkflowRuns(simulationId));
       long afterFirstResume =
-          workflowRepository.findById(run.getId()).orElseThrow().getPauseSecond();
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow())
+              .getPauseSecond();
 
       // Act - cycle 2
-      workflowPauseService.pauseSimulationWorkflowRuns(simulationId);
-      Workflow secondPaused = workflowRepository.findById(run.getId()).orElseThrow();
+      inTenantOf(run, () -> workflowPauseService.pauseSimulationWorkflowRuns(simulationId));
+      Workflow secondPaused =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       secondPaused.setPauseAt(Instant.now().minusSeconds(55));
-      workflowRepository.save(secondPaused);
-      workflowPauseService.resumeSimulationWorkflowRuns(simulationId);
+      inTenantOf(run, () -> workflowRepository.save(secondPaused));
+      inTenantOf(run, () -> workflowPauseService.resumeSimulationWorkflowRuns(simulationId));
 
       // Assert
-      Workflow resumed = workflowRepository.findById(run.getId()).orElseThrow();
+      Workflow resumed =
+          inTenantOf(run, () -> workflowRepository.findById(run.getId()).orElseThrow());
       assertEquals(WorkflowStatus.RUN, resumed.getStatus());
       assertNull(resumed.getPauseAt());
       assertTrue(afterFirstResume >= 40);
       assertTrue(resumed.getPauseSecond() >= afterFirstResume + 55);
     }
+  }
+
+  /**
+   * Runs {@code work} in its own transaction, in the tenant scope of the run's simulation, as the
+   * simulation status request that pauses and resumes the run does.
+   */
+  private <T> T inTenantOf(Workflow run, Callable<T> work) {
+    return tenantTx.execute(
+        TxCtx.forTenant(run.getSimulation().getTenant().getId()),
+        () -> {
+          try {
+            return work.call();
+          } catch (RuntimeException e) {
+            throw e;
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        });
+  }
+
+  private void inTenantOf(Workflow run, Runnable work) {
+    tenantTx.execute(TxCtx.forTenant(run.getSimulation().getTenant().getId()), work);
   }
 
   private Workflow createRunWorkflow(boolean timeoutEnabled, boolean rateLimitEnabled) {

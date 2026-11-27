@@ -9,6 +9,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.sql.PreparedStatement;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
  * issued straight from this test, so the gate (which keys on a production entry frame) waives them;
  * the assertions read the raw recorder, which records regardless.
  *
+ * <p>The vehicle is {@code injects}, a strict table the trigger covers. It is an active table, and
+ * the statement inspector rewrites what Hibernate prepares and refuses some of these shapes (INSERT
+ * ... SELECT, ALTER), so the statements go through plain JDBC on the session's connection: they
+ * reach the database as written, and the detector's datasource proxy still reads the trigger's
+ * warnings.
+ *
  * <p>Everything runs in a rolled-back transaction: the trigger install, the constraint drop in the
  * null case and the table creation in the drift case are all undone at test end, so nothing here
  * changes the shared schema.
@@ -42,6 +49,10 @@ import org.springframework.transaction.annotation.Transactional;
 class WriteAttrDetectorNearMissTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
+  private static final String VEHICLE_TABLE = "injects";
+  private static final String VEHICLE_COLUMNS =
+      "inject_id, inject_title, inject_all_teams, inject_enabled, inject_depends_duration,"
+          + " tenant_id";
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -64,57 +75,47 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
   void insertSelectIsFlagged() {
     startScoped(tenantB);
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " SELECT :id, :name, :mail, :tenant")
-        .setParameter("id", id)
-        .setParameter("name", "nm-select-" + id)
-        .setParameter("mail", "a@b.io")
-        .setParameter("tenant", DEFAULT_TENANT)
-        .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    executeOnVehicle(
+        "INSERT INTO injects (" + VEHICLE_COLUMNS + ") SELECT ?, ?, false, true, 0, ?",
+        id,
+        "nm-select-" + id,
+        DEFAULT_TENANT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName(
       "INSERT ... ON CONFLICT DO UPDATE SET tenant_id: the upsert's update path is flagged")
   void upsertUpdatePathIsFlagged() {
-    String id = seedScenario(tenantB); // in scope, not flagged
+    String id = seedInject(tenantB); // in scope, not flagged
     startScoped(tenantB);
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, :inscope)"
-                + " ON CONFLICT (scenario_id) DO UPDATE SET tenant_id = :outscope")
-        .setParameter("id", id)
-        .setParameter("name", "nm-upsert-" + id)
-        .setParameter("mail", "a@b.io")
-        .setParameter("inscope", tenantB)
-        .setParameter("outscope", DEFAULT_TENANT)
-        .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    executeOnVehicle(
+        "INSERT INTO injects ("
+            + VEHICLE_COLUMNS
+            + ") VALUES (?, ?, false, true, 0, ?)"
+            + " ON CONFLICT (inject_id) DO UPDATE SET tenant_id = ?",
+        id,
+        "nm-upsert-" + id,
+        tenantB,
+        DEFAULT_TENANT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName("UPDATE ... SET tenant_id: moving a row out of scope is flagged")
   void updateSetTenantIsFlagged() {
-    String id = seedScenario(tenantB);
+    String id = seedInject(tenantB);
     startScoped(tenantB);
-    entityManager
-        .createNativeQuery("UPDATE scenarios SET tenant_id = :outscope WHERE scenario_id = :id")
-        .setParameter("outscope", DEFAULT_TENANT)
-        .setParameter("id", id)
-        .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    executeOnVehicle("UPDATE injects SET tenant_id = ? WHERE inject_id = ?", DEFAULT_TENANT, id);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName("a native INSERT with the tenant supplied by the caller is flagged")
   void nativeInsertIsFlagged() {
     startScoped(tenantB);
-    seedScenario(DEFAULT_TENANT);
-    assertFlagged("scenarios", Relation.DEFAULT);
+    seedInject(DEFAULT_TENANT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
@@ -123,20 +124,14 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     // Every strict table is NOT NULL today, so TenantBaseListener's absence cannot yet produce a
     // null write. Drop the constraint in this rolled-back transaction to reach the state the
     // migration ends in (listener removed, column nullable), and prove the detector then flags it.
-    entityManager
-        .createNativeQuery("ALTER TABLE scenarios ALTER COLUMN tenant_id DROP NOT NULL")
-        .executeUpdate();
+    executeOnVehicle("ALTER TABLE injects ALTER COLUMN tenant_id DROP NOT NULL");
     startScoped(tenantB);
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, NULL)")
-        .setParameter("id", id)
-        .setParameter("name", "nm-null-" + id)
-        .setParameter("mail", "a@b.io")
-        .executeUpdate();
-    assertFlagged("scenarios", Relation.NULL);
+    executeOnVehicle(
+        "INSERT INTO injects (" + VEHICLE_COLUMNS + ") VALUES (?, ?, false, true, 0, NULL)",
+        id,
+        "nm-null-" + id);
+    assertFlagged(VEHICLE_TABLE, Relation.NULL);
   }
 
   @Test
@@ -180,21 +175,19 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     startScoped("");
 
     // Act
-    seedScenario(tenantB);
+    seedInject(tenantB);
 
     // Assert: the raw recorder sees it now, where it used to stay silent. If the trigger's guard is
     // restored to exclude the empty scope again, this assertion goes red.
     WriteAttrDetectorRecorder.stop();
     assertTrue(
-        flagged("scenarios", Relation.OTHER),
+        flagged(VEHICLE_TABLE, Relation.OTHER),
         "an empty-scope write must now be recorded by the trigger, got "
             + WriteAttrDetectorRecorder.violations());
   }
 
   private void installTrigger() {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   private void startScoped(String scope) {
@@ -209,18 +202,32 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
         .getSingleResult();
   }
 
-  private String seedScenario(String tenantId) {
+  private String seedInject(String tenantId) {
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
-                + " VALUES (:id, :name, :mail, :tenant)")
-        .setParameter("id", id)
-        .setParameter("name", "nm-seed-" + id)
-        .setParameter("mail", "a@b.io")
-        .setParameter("tenant", tenantId)
-        .executeUpdate();
+    executeOnVehicle(
+        "INSERT INTO injects (" + VEHICLE_COLUMNS + ") VALUES (?, ?, false, true, 0, ?)",
+        id,
+        "nm-seed-" + id,
+        tenantId);
     return id;
+  }
+
+  /**
+   * Runs a statement on the vehicle through plain JDBC, in the test's transaction: the statement
+   * inspector only sees what Hibernate prepares, the detector's datasource proxy sees this too.
+   */
+  private void executeOnVehicle(String sql, Object... parameters) {
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                for (int i = 0; i < parameters.length; i++) {
+                  statement.setObject(i + 1, parameters[i]);
+                }
+                statement.executeUpdate();
+              }
+            });
   }
 
   private void insertProbe(String tenantId) {

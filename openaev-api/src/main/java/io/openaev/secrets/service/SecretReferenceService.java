@@ -2,6 +2,7 @@ package io.openaev.secrets.service;
 
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.repository.SecretReferenceRepository;
+import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,20 @@ public class SecretReferenceService {
   public java.util.Optional<SecretReference> findById(String secretReferenceId) {
     return secretReferenceRepository.findById(
         Objects.requireNonNull(secretReferenceId, "secretReferenceId must not be null"));
+  }
+
+  /**
+   * Finds the secret references matching the given identifiers that belong to the given tenant.
+   *
+   * @param secretReferenceIds the identifiers of the references to retrieve
+   * @param tenantId the tenant the references must belong to
+   * @return the matching references; an id of another tenant is ignored, like an unknown id
+   */
+  @Transactional(readOnly = true)
+  public List<SecretReference> secretReferences(List<String> secretReferenceIds, String tenantId) {
+    return secretReferenceRepository.findAllByIdInTenant(
+        Objects.requireNonNull(secretReferenceIds, "secretReferenceIds must not be null"),
+        Objects.requireNonNull(tenantId, "tenantId must not be null"));
   }
 
   /**

@@ -46,18 +46,18 @@ public class MarkingScopeResolver {
   /**
    * @param grantedIds the marking ids the caller's groups grant, possibly empty (never null)
    * @param tenantDefinitions every marking defined in the tenant in scope (never null)
-   * @param bypass whether the caller is admin or holds BYPASS
+   * @param firstAdmin whether the caller is the first admin
    * @return the clearance to run the transaction under
    */
   public MarkingCtx resolve(
-      Collection<String> grantedIds, Collection<MarkingRef> tenantDefinitions, boolean bypass) {
+      Collection<String> grantedIds, Collection<MarkingRef> tenantDefinitions, boolean firstAdmin) {
     Objects.requireNonNull(grantedIds, "grantedIds must not be null");
     Objects.requireNonNull(tenantDefinitions, "tenantDefinitions must not be null");
 
-    // A bypassing caller holds the whole tenant scale, whatever their groups say. Resolved into an
+    // The first admin holds the whole tenant scale, whatever their groups say. Resolved into an
     // explicit list here rather than passed on as MarkingCtx.all(): that intention belongs to the
     // background primitive, and letting it reach the HTTP path would put a wildcard in the channel.
-    if (bypass) {
+    if (firstAdmin) {
       return MarkingCtx.forMarkings(sortedIds(tenantDefinitions, d -> true));
     }
 

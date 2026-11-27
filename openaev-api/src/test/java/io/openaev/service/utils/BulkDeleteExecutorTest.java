@@ -29,6 +29,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class BulkDeleteExecutorTest {
 
+  private static final TxCtx SCOPE = TxCtx.forTenant("tenant-1");
+
   private BulkDeleteChunkRunner chunkRunner;
   private BulkOperationMonitor bulkOperationMonitor;
   private EntityManager entityManager;
@@ -40,11 +42,9 @@ class BulkDeleteExecutorTest {
     bulkOperationMonitor = mock(BulkOperationMonitor.class);
     entityManager = mock(EntityManager.class);
     // The real runner only opens a transaction around the work: execute it directly here.
-    when(chunkRunner.call(any()))
-        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
     when(chunkRunner.call(any(), any()))
         .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
-    when(bulkOperationMonitor.start(any(), any(), anyInt())).thenReturn("op-id");
+    when(bulkOperationMonitor.start(any(), any(), any(), anyInt())).thenReturn("op-id");
     executor = new BulkDeleteExecutor(chunkRunner, bulkOperationMonitor, entityManager);
   }
 
@@ -66,7 +66,7 @@ class BulkDeleteExecutorTest {
     Collections.shuffle(shuffled);
     List<List<String>> chunks = new ArrayList<>();
 
-    List<String> deleted = executor.deleteInChunks("things", shuffled, chunks::add);
+    List<String> deleted = executor.deleteInChunks(SCOPE, "things", shuffled, chunks::add);
 
     assertThat(deleted).isEqualTo(ids.stream().sorted().toList());
     assertThat(chunks)
@@ -76,7 +76,7 @@ class BulkDeleteExecutorTest {
         .isEqualTo(ids.stream().sorted().toList());
     verify(entityManager, times(3)).clear();
     // The deletion is tracked as a massive operation: start, one progress per chunk, complete.
-    verify(bulkOperationMonitor).start("delete", "things", ids.size());
+    verify(bulkOperationMonitor).start(SCOPE, "delete", "things", ids.size());
     verify(bulkOperationMonitor, times(3)).progress(eq("op-id"), anyInt());
     verify(bulkOperationMonitor).complete("op-id");
     verify(bulkOperationMonitor, never()).fail(any());
@@ -88,6 +88,7 @@ class BulkDeleteExecutorTest {
     List<Boolean> suppressedDuringChunk = new ArrayList<>();
 
     executor.deleteInChunks(
+        SCOPE,
         "things",
         List.of("a", "b"),
         chunk -> suppressedDuringChunk.add(BulkOperationContext.isActive()));
@@ -102,6 +103,7 @@ class BulkDeleteExecutorTest {
     assertThatThrownBy(
             () ->
                 executor.deleteInChunks(
+                    SCOPE,
                     "things",
                     List.of("a"),
                     chunk -> {
@@ -119,6 +121,7 @@ class BulkDeleteExecutorTest {
 
     List<String> deleted =
         executor.deleteInChunks(
+            SCOPE,
             "things",
             List.of("a", "b"),
             chunk -> {
@@ -139,6 +142,7 @@ class BulkDeleteExecutorTest {
     assertThatThrownBy(
             () ->
                 executor.deleteInChunks(
+                    SCOPE,
                     "things",
                     List.of("a"),
                     chunk -> {
@@ -158,15 +162,13 @@ class BulkDeleteExecutorTest {
         IntStream.range(0, BulkDeleteExecutor.CHUNK_SIZE + 5).mapToObj(i -> "id-" + i).toList();
     List<List<String>> calls = new ArrayList<>();
 
-    List<String> deleted = executor.deleteInChunks("things", ids, calls::add);
+    List<String> deleted = executor.deleteInChunks(SCOPE, "things", ids, calls::add);
 
     assertThat(deleted).hasSameSizeAs(ids);
-    // One single inline call with every id: chunked commits are impossible inside the caller's
-    // transaction.
     assertThat(calls).hasSize(1);
     assertThat(calls.get(0)).hasSameSizeAs(ids);
     // Inline deletions (transactional tests) are not tracked as massive operations.
-    verify(bulkOperationMonitor, never()).start(any(), any(), anyInt());
+    verify(bulkOperationMonitor, never()).start(any(), any(), any(), anyInt());
   }
 
   @Test
@@ -185,9 +187,22 @@ class BulkDeleteExecutorTest {
   void given_noIds_should_notInvokeDeleter() {
     List<List<String>> calls = new ArrayList<>();
 
-    List<String> deleted = executor.deleteInChunks("things", List.of(), calls::add);
+    List<String> deleted = executor.deleteInChunks(SCOPE, "things", List.of(), calls::add);
 
     assertThat(deleted).isEmpty();
     assertThat(calls).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "Given a non-delete action through processInChunks, should surface that label instead of"
+          + " \"delete\"")
+  void given_nonDeleteAction_should_surfaceItToTheMonitor() {
+    List<String> processed =
+        executor.processInChunks(
+            SCOPE, "replace-markings", "assets", List.of("a", "b"), chunk -> {});
+
+    assertThat(processed).containsExactly("a", "b");
+    verify(bulkOperationMonitor).start(SCOPE, "replace-markings", "assets", 2);
   }
 }

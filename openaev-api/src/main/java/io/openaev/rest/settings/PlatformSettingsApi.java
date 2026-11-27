@@ -1,6 +1,7 @@
 package io.openaev.rest.settings;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.PlatformWrite;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -94,6 +95,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/enterprise-edition")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
@@ -108,6 +110,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/platform_whitemark")
   @Transactional
+  @PlatformWrite
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,
@@ -121,6 +124,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/sessions")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
@@ -131,8 +135,32 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
+  @PutMapping("/runtime")
+  @Transactional
+  @PlatformWrite
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "The updated settings"),
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "A setting unknown, a value invalid, or a setting set by its environment variable")
+      })
+  @Operation(
+      summary = "Update runtime settings",
+      description =
+          "Update the runtime settings (inject execution threshold, agent jobs and queue,"
+              + " agent auto-update). A setting whose environment variable is set is read-only"
+              + " and refused. Applied at the next use, no restart")
+  public PlatformSettings updateSettingsRuntime(
+      TxCtx ctx, @Valid @RequestBody SettingsRuntimeUpdateInput input) {
+    return platformSettingsService.updateSettingsRuntime(input);
+  }
+
   @PutMapping("/theme/light")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
@@ -144,6 +172,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/theme/dark")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
@@ -153,6 +182,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/policies")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
@@ -162,6 +192,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   @PutMapping("/chatbot-ai-cgu")
   @Transactional
+  @PlatformWrite
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,

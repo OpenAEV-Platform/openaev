@@ -1,6 +1,6 @@
 package io.openaev.importer;
 
-import static io.openaev.database.specification.InjectorContractSpecification.byPayloadExternalId;
+import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
@@ -9,6 +9,7 @@ import static io.openaev.rest.payload.PayloadUtils.buildPayload;
 import static io.openaev.rest.scenario.export.ScenarioFileExport.SCENARIO_VARIABLES;
 import static io.openaev.service.chaining.WorkflowService.DEFAULT_TIMEOUT_SECONDS;
 import static java.util.Optional.ofNullable;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,6 +25,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.database.raw.RawUserIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
@@ -34,6 +36,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectDependencyInput;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
@@ -43,11 +46,13 @@ import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.*;
+import io.openaev.service.payload.PayloadContentHashService;
+import io.openaev.service.payload.PayloadVersionMatcher;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.WorkflowScopeRuleUtils;
+import io.openaev.utils.catalog.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
@@ -56,6 +61,7 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.validation.constraints.NotNull;
+import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
@@ -79,12 +85,11 @@ public class V1_DataImporter implements Importer {
   // region variables
   @Resource protected ObjectMapper mapper;
   private final FileService documentService;
-  private final ActionMetricCollector actionMetricCollector;
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
   private final KillChainPhaseService killChainPhaseService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
   private final TenantRepository tenantRepository;
@@ -114,6 +119,8 @@ public class V1_DataImporter implements Importer {
   private final InjectorContractContentUtils injectorContractContentUtils;
 
   private final UserService userService;
+  private final PayloadContentHashService payloadContentHashService;
+  private final PayloadVersionMatcher payloadVersionMatcher;
 
   private final PermissionService permissionService;
 
@@ -181,18 +188,24 @@ public class V1_DataImporter implements Importer {
           Optional<InjectorContract> contractOpt =
               injectorContractRepository.findByContractIdAndTenant(
                   contract, TenantContext.getCurrentTenant());
-          if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
-            break;
-          }
-          List<String> docArgKeys =
-              contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> PrimitiveType.Document == arg.getType())
-                  .map(PayloadArgument::getKey)
-                  .toList();
-          if (docArgKeys.isEmpty()) {
+          if (contractOpt.isEmpty()) {
             break;
           }
           ObjectNode contentNode = (ObjectNode) mapper.readTree(content);
+          injectorContractContentUtils.remapImportedReferenceFields(
+              contractOpt.get(),
+              contentNode,
+              oldId ->
+                  baseIds.get(oldId) instanceof Tag tag
+                      ? Optional.of(tag.getId())
+                      : Optional.empty());
+          List<String> docArgKeys =
+              contractOpt.get().getPayload() == null
+                  ? List.of()
+                  : contractOpt.get().getPayload().getArguments().stream()
+                      .filter(arg -> PrimitiveType.Document == arg.getType())
+                      .map(PayloadArgument::getKey)
+                      .toList();
           for (String key : docArgKeys) {
             JsonNode valueNode = contentNode.get(key);
             if (valueNode != null && valueNode.isTextual()) {
@@ -233,11 +246,12 @@ public class V1_DataImporter implements Importer {
       String suffix) {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
-    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
-    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
-    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
-    // existing rows through it. Running the whole import with the ambient tenant aligned on the
-    // write tenant keeps the bundle in one tenant on every route.
+    // no parent takes the single tenant of the scope. Documents, tags, teams, challenges, channels
+    // and the imported exercise or scenario are attributed to it explicitly, and so are the
+    // injector contracts it creates and the lookups that find one. A few rows (domains among them)
+    // are still attributed from the ambient tenant by the importer itself. Running the whole import
+    // with the ambient tenant aligned on the write tenant keeps the bundle in one tenant on every
+    // route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
@@ -273,6 +287,30 @@ public class V1_DataImporter implements Importer {
       return scenario.getTenant().getId();
     }
     return null;
+  }
+
+  /**
+   * The tenant an imported inject is written in: its simulation's or scenario's, or the bundle's
+   * write tenant for an atomic testing, which has no parent. Never the ambient one. Same rule as
+   * the chaining rows' parent attribution, applied here because the native insert skips the entity
+   * listeners.
+   *
+   * @throws IllegalStateException when there is neither, or when they differ
+   */
+  static String injectTenant(Exercise exercise, Scenario scenario, String writeTenant) {
+    String parentTenant = parentTenantId(exercise, scenario);
+    if (parentTenant == null) {
+      if (writeTenant == null) {
+        throw new IllegalStateException(
+            "unattributed tenant write: Inject has no parent to take a tenant from");
+      }
+      return writeTenant;
+    }
+    if (writeTenant != null && !writeTenant.equals(parentTenant)) {
+      throw new IllegalStateException(
+          "cross-tenant write: Inject carries a tenant other than its parent's");
+    }
+    return parentTenant;
   }
 
   /**
@@ -330,9 +368,11 @@ public class V1_DataImporter implements Importer {
     // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
     // write tenant rather than the ambient filter.
     Exercise savedExercise =
-        Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
+        Optional.ofNullable(importExercise(importNode, baseIds, suffix, writeTenant))
+            .orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
+        Optional.ofNullable(importScenario(importNode, baseIds, suffix, writeTenant))
+            .orElse(scenario);
     importDocuments(
         importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
     importDocument(
@@ -373,7 +413,26 @@ public class V1_DataImporter implements Importer {
             ctx, importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
-    return new ImportResult(new ArrayList<>(missingActions));
+    return new ImportResult(
+        new ArrayList<>(missingActions),
+        savedScenario == null ? null : savedScenario.getId(),
+        packageInjectIds(importNode, prefix, baseIds));
+  }
+
+  private static Map<String, String> packageInjectIds(
+      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    Map<String, String> ids = new HashMap<>();
+    importNode
+        .path(prefix + "injects")
+        .forEach(
+            inject -> {
+              String packageId = inject.path("inject_id").asText();
+              Base created = baseIds.get(packageId);
+              if (created != null) {
+                ids.put(created.getId(), packageId);
+              }
+            });
+    return ids;
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {
@@ -786,13 +845,15 @@ public class V1_DataImporter implements Importer {
 
   // -- EXERCISE --
 
-  private Exercise importExercise(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Exercise importExercise(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode exerciseNode = importNode.get("exercise_information");
     if (exerciseNode == null) {
       return null;
     }
 
     Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(writeTenant));
     exercise.setName(exerciseNode.get("exercise_name").textValue() + suffix);
     exercise.setDescription(exerciseNode.get("exercise_description").textValue());
     exercise.setSubtitle(exerciseNode.get("exercise_subtitle").textValue());
@@ -810,7 +871,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(exercise::setDefaultKillChain);
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
-    exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
     exercise.setLessonsAnonymized(
         ofNullable(exerciseNode.get("exercise_lessons_anonymized"))
             .map(node -> node.asBoolean(false))
@@ -824,19 +884,20 @@ public class V1_DataImporter implements Importer {
             .map(baseIds::get)
             .map(Tag.class::cast)
             .collect(Collectors.toSet()));
-    actionMetricCollector.addSimulationCreatedCount();
-    return exerciseRepository.save(exercise);
+    return exerciseService.createExercise(exercise);
   }
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Scenario importScenario(
+      JsonNode importNode, Map<String, Base> baseIds, String suffix, String writeTenant) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
     }
 
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(writeTenant));
     scenario.setName(scenarioNode.get("scenario_name").textValue() + suffix);
     scenario.setDescription(scenarioNode.get("scenario_description").textValue());
     scenario.setSubtitle(scenarioNode.get("scenario_subtitle").textValue());
@@ -859,7 +920,6 @@ public class V1_DataImporter implements Importer {
         .ifPresent(recurrenceEnd -> scenario.setRecurrenceEnd(Instant.parse(recurrenceEnd)));
     scenario.setHeader(scenarioNode.get("scenario_message_header").textValue());
     scenario.setFooter(scenarioNode.get("scenario_message_footer").textValue());
-    scenario.setFrom(scenarioNode.get("scenario_mail_from").textValue());
     scenario.setLessonsAnonymized(
         ofNullable(scenarioNode.get("scenario_lessons_anonymized"))
             .map(node -> node.asBoolean(false))
@@ -999,11 +1059,17 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       String contentType,
       Map<String, Base> baseIds) {
+    byte[] content;
     try {
+      content = entry.getData().readAllBytes();
       // Store the object under the write tenant, the same tenant the row below is attributed to, so
       // it is retrievable whatever the ambient TenantContext (the header route sets none).
       this.documentService.uploadFile(
-          writeTenant, target, entry.getData(), entry.getContentLength(), contentType);
+          writeTenant,
+          target,
+          new ByteArrayInputStream(content),
+          entry.getContentLength(),
+          contentType);
     } catch (Exception e) {
       throw new ImportException(e);
     }
@@ -1011,6 +1077,8 @@ public class V1_DataImporter implements Importer {
     Document document = new Document();
     document.setTenant(new Tenant(writeTenant));
     document.setTarget(target);
+    // The zip names the stored file: it keeps its name, only its content hash is computed.
+    document.setContentHash(FileFingerprint.contentHashOf(content));
     document.setName(DocumentService.safeFileName(nodeDoc.get("document_name").textValue()));
     document.setDescription(nodeDoc.get("document_description").textValue());
     if (savedExercise != null) {
@@ -1024,7 +1092,7 @@ public class V1_DataImporter implements Importer {
             .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
-    document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
+    document.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tagIds, writeTenant)));
     document.setType(contentType);
     Document savedDocument = this.documentRepository.save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);
@@ -1091,7 +1159,18 @@ public class V1_DataImporter implements Importer {
               baseIds.put(
                   id,
                   Objects.requireNonNullElseGet(
-                      existingUser, () -> this.userRepository.save(createUser(nodeUser, baseIds))));
+                      existingUser,
+                      () -> {
+                        User savedUser = this.userRepository.save(createUser(nodeUser, baseIds));
+                        Base userOrganization =
+                            baseIds.get(nodeUser.get("user_organization").textValue());
+                        if (userOrganization != null) {
+                          Organization organization = (Organization) userOrganization;
+                          this.userRepository.assignOrganization(
+                              savedUser, organization.getTenant().getId(), organization);
+                        }
+                        return savedUser;
+                      }));
             });
   }
 
@@ -1105,10 +1184,6 @@ public class V1_DataImporter implements Importer {
     user.setPgpKey(getNodeValue(jsonNode.get("user_pgp_key")));
     user.setCountry(getNodeValue(jsonNode.get("user_country")));
     user.setCity(getNodeValue(jsonNode.get("user_city")));
-    Base userOrganization = baseIds.get(jsonNode.get("user_organization").textValue());
-    if (userOrganization != null) {
-      user.setOrganization((Organization) userOrganization);
-    }
     user.setTags(
         resolveJsonIds(jsonNode, "user_tags").stream()
             .map(baseIds::get)
@@ -1541,6 +1616,8 @@ public class V1_DataImporter implements Importer {
       List<JsonNode> injectsToAdd,
       List<JsonNode> allInjects,
       Map<String, String> resolvedContracts) {
+    String injectTenant =
+        injectTenant(exercise, scenario, tenantWriteScopeResolver.tenantForWrite(ctx, null));
     List<String> originalIds = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
@@ -1628,7 +1705,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 exercise.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else if (scenario != null) {
             injectRepository.importSaveForScenario(
                 injectId,
@@ -1641,7 +1719,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 scenario.getId(),
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           } else {
             injectRepository.importSaveStandAlone(
                 injectId,
@@ -1653,7 +1732,8 @@ public class V1_DataImporter implements Importer {
                 allTeams,
                 enabled,
                 dependsDuration,
-                content);
+                content,
+                injectTenant);
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
@@ -1784,11 +1864,12 @@ public class V1_DataImporter implements Importer {
   private InjectorContract importInjectorContractFromStarterPack(
       TxCtx ctx, JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
     InjectorContract injectorContract = new InjectorContract();
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
 
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    injectorContract.setTenant(new Tenant(writeTenant));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
 
@@ -1809,7 +1890,7 @@ public class V1_DataImporter implements Importer {
             "injector_contract_",
             importNode.get("injector_contract_payload"),
             "payload_",
-            tenantWriteScopeResolver.tenantForWrite(ctx, null)));
+            writeTenant));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
@@ -1957,19 +2038,7 @@ public class V1_DataImporter implements Importer {
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
-    if (payloadNode.has("payload_arguments")) {
-      for (JsonNode argNode : payloadNode.get("payload_arguments")) {
-        if (argNode.has("type") && "document".equals(argNode.get("type").asText())) {
-          JsonNode defaultValueNode = argNode.get("default_value");
-          if (defaultValueNode != null
-              && !defaultValueNode.asText().isBlank()
-              && baseIds.containsKey(defaultValueNode.asText())) {
-            ((ObjectNode) argNode)
-                .put("default_value", baseIds.get(defaultValueNode.asText()).getId());
-          }
-        }
-      }
-    }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
@@ -2017,19 +2086,18 @@ public class V1_DataImporter implements Importer {
             : null;
 
     if (hasText(externalId)) {
-      Optional<InjectorContract> contractFromPayload =
-          injectorContractRepository.findOne(byPayloadExternalId(externalId));
-      if (contractFromPayload.isPresent()) {
-        return contractFromPayload.get();
+      List<Payload> versions =
+          payloadRepository.findAllByTenantIdAndIdentityExternalId(
+              tenantWriteScopeResolver.tenantForWrite(ctx, null), externalId);
+      if (versions.size() > 1) {
+        return importVersionOrCopy(ctx, versions, payloadNode, injectContractNode, baseIds);
       }
-
-      Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
-      if (existingPayload.isPresent()) {
-        Optional<InjectorContract> contractFromExternalId =
-            injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-        if (contractFromExternalId.isPresent()) {
-          return contractFromExternalId.get();
-        }
+      Optional<InjectorContract> existing =
+          versions.stream()
+              .findFirst()
+              .flatMap(injectorContractRepository::findInjectorContractByPayload);
+      if (existing.isPresent()) {
+        return existing.get();
       }
     }
 
@@ -2048,7 +2116,8 @@ public class V1_DataImporter implements Importer {
    * @return the already-existing injector contract resolvable from the payload external id, or
    *     empty when nothing matches (caller must treat the step as unresolvable)
    */
-  private Optional<InjectorContract> resolveInjectorContractReadOnly(JsonNode injectContractNode) {
+  private Optional<InjectorContract> resolveInjectorContractReadOnly(
+      JsonNode injectContractNode, String writeTenant) {
     if (injectContractNode == null || injectContractNode.isNull()) {
       return Optional.empty();
     }
@@ -2063,16 +2132,11 @@ public class V1_DataImporter implements Importer {
     if (!hasText(externalId)) {
       return Optional.empty();
     }
-    Optional<InjectorContract> contractFromPayload =
-        injectorContractRepository.findOne(byPayloadExternalId(externalId));
-    if (contractFromPayload.isPresent()) {
-      return contractFromPayload;
-    }
-    Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
-    if (existingPayload.isPresent()) {
-      return injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-    }
-    return Optional.empty();
+    // A step never creates a payload: the highest version stands for the exported one.
+    return SemanticVersion.highest(
+            payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId),
+            Payload::getVersion)
+        .flatMap(injectorContractRepository::findInjectorContractByPayload);
   }
 
   private InjectorContract importPayload(
@@ -2080,6 +2144,11 @@ public class V1_DataImporter implements Importer {
       @NotNull final JsonNode payloadNode,
       @NotNull final JsonNode injectContractNode,
       Map<String, Base> baseIds) {
+    return importPayload(ctx, payloadInput(ctx, payloadNode, injectContractNode, baseIds));
+  }
+
+  private PayloadCreateInput payloadInput(
+      TxCtx ctx, JsonNode payloadNode, JsonNode injectContractNode, Map<String, Base> baseIds) {
     // swap executable file id or file drop file id
     if (payloadNode.has("executable_file")) {
       ((ObjectNode) payloadNode)
@@ -2092,24 +2161,71 @@ public class V1_DataImporter implements Importer {
           .put(
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
+    remapDocumentArgumentDefaults(ctx, payloadNode, baseIds);
 
-    // De-duplication (chaining pipeline): before creating a brand-new payload + injector contract,
-    // try to reuse an existing equivalent payload the current user is allowed to read. RBAC is a
-    // priority filter, never a blocker: a denied/absent candidate is skipped and the cascade
-    // continues, ultimately falling back to creation (Step 3) below.
-    Optional<InjectorContract> reusableContract =
-        findReusableContractForImportedPayload(payloadNode);
-    if (reusableContract.isPresent()) {
-      return reusableContract.get();
+    return buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
+  }
+
+  // The export ships no argument document: an id the zip does not map is kept only when it is a
+  // document of the write tenant, else dropped, as the payload creation refuses any other.
+  private void remapDocumentArgumentDefaults(
+      TxCtx ctx, JsonNode payloadNode, Map<String, Base> baseIds) {
+    if (!payloadNode.has("payload_arguments")) {
+      return;
+    }
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    for (JsonNode argNode : payloadNode.get("payload_arguments")) {
+      JsonNode defaultValueNode = argNode.get("default_value");
+      if (!"document".equals(argNode.path("type").asText())
+          || defaultValueNode == null
+          || defaultValueNode.asText().isBlank()) {
+        continue;
+      }
+      String exportedId = defaultValueNode.asText();
+      Base mapped = baseIds.get(exportedId);
+      String resolvedId =
+          mapped != null
+              ? mapped.getId()
+              : documentRepository.findByIdAndTenantId(exportedId, writeTenant).isPresent()
+                  ? exportedId
+                  : "";
+      ((ObjectNode) argNode).put("default_value", resolvedId);
+    }
+  }
+
+  // Several versions of one payload: the one the zip holds, else a local copy of its content.
+  private InjectorContract importVersionOrCopy(
+      TxCtx ctx,
+      List<Payload> versions,
+      JsonNode payloadNode,
+      JsonNode injectContractNode,
+      Map<String, Base> baseIds) {
+    PayloadCreateInput input = payloadInput(ctx, payloadNode, injectContractNode, baseIds);
+    Payload imported =
+        payloadCreationService.toPayload(
+            ctx, tenantWriteScopeResolver.tenantForWrite(ctx, null), input);
+    return payloadVersionMatcher
+        .match(versions, imported, attackPatternsOf(input), payloadNode)
+        .flatMap(injectorContractRepository::findInjectorContractByPayload)
+        .orElseGet(() -> importPayload(ctx, input));
+  }
+
+  private List<AttackPattern> attackPatternsOf(PayloadCreateInput input) {
+    return fromIterable(
+        attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+  }
+
+  private InjectorContract importPayload(TxCtx ctx, PayloadCreateInput payloadCreateInput) {
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    Optional<InjectorContract> sameContent =
+        findContractWithSameContent(ctx, writeTenant, payloadCreateInput);
+    if (sameContent.isPresent()) {
+      return sameContent.get();
     }
 
-    PayloadCreateInput payloadCreateInput =
-        buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(
-            currentAmbientTxCtx(ctx),
-            tenantWriteScopeResolver.tenantForWrite(ctx, null),
-            payloadCreateInput);
+            currentAmbientTxCtx(ctx), writeTenant, payloadCreateInput);
 
     if (result.injectorContract() != null) {
       return result.injectorContract();
@@ -2127,69 +2243,29 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
-   * Attempts to find an existing payload equivalent to the imported one so re-importing the same
-   * simulation does not pile up duplicate payloads/contracts. Cascade (STRICT order):
-   *
-   * <ol>
-   *   <li>Step 1 — match by SOURCE payload UUID ({@code payload_id}).
-   *   <li>Step 2 — match by name + type-specific content (Executable/FileDrop by the resolved
-   *       TARGET document id), then by execution-relevant semantics (platforms, arch, elevation,
-   *       cleanup, arguments, prerequisites, expectations) via {@link #hasSameExecutionSemantics}.
-   *   <li>Step 3 — no reusable candidate: caller creates a new payload.
-   * </ol>
-   *
-   * <p>For every candidate, RBAC is enforced through {@link PermissionService} on the candidate's
-   * injector contract (INJECTOR_CONTRACT/READ, routed to THREAT_ARSENAL). RBAC is a priority
-   * filter, never a blocker: a denied/absent candidate is skipped and the cascade continues. When
-   * no current user is available (unauthenticated system/scenario imports) dedup is skipped
-   * entirely.
+   * An existing payload of the write tenant with the same content, which the current user can read.
+   * The content is hashed here, never read from the zip; without a user nothing is linked.
    */
-  private Optional<InjectorContract> findReusableContractForImportedPayload(JsonNode payloadNode) {
+  private Optional<InjectorContract> findContractWithSameContent(
+      TxCtx ctx, String writeTenant, PayloadCreateInput input) {
     User currentUser = userService.currentUserOrNull();
     if (currentUser == null) {
       return Optional.empty();
     }
-
-    // Step 1 — match by SOURCE UUID. Tenant-scoped on purpose: findById is a PK load that bypasses
-    // the Hibernate tenant filter, so a source UUID colliding with another tenant's payload must
-    // never be reused (cross-tenant leak). The UUID alone is NOT trusted as an equivalence proof:
-    // the id comes from the import file and a same-tenant collision could otherwise swap in an
-    // unrelated payload, so the candidate must also pass the same name + type-specific content +
-    // execution-semantics equivalence used by the content-based Step 2.
-    String sourcePayloadId = getTextValue(payloadNode, "payload_id");
-    if (hasText(sourcePayloadId)) {
-      Optional<InjectorContract> reusable =
-          payloadRepository
-              .findByIdAndTenantId(sourcePayloadId, TenantContext.getCurrentTenant())
-              .filter(candidate -> matchesImportedPayloadIdentity(payloadNode, candidate))
-              .flatMap(candidate -> readableContractForPayload(candidate, currentUser));
-      if (reusable.isPresent()) {
-        return reusable;
+    Payload imported = payloadCreationService.toPayload(ctx, writeTenant, input);
+    Optional<String> hash = payloadContentHashService.hash(imported, attackPatternsOf(input));
+    if (hash.isEmpty()) {
+      return Optional.empty();
+    }
+    payloadContentHashService.hashMissing(writeTenant, imported.getName());
+    for (Payload candidate :
+        payloadRepository.findAllByTenantIdAndContentHash(writeTenant, hash.get())) {
+      Optional<InjectorContract> readable = readableContractForPayload(candidate, currentUser);
+      if (readable.isPresent()) {
+        return readable;
       }
     }
-
-    // Step 2 — match by NAME + type-specific CONTENT. First RBAC-readable candidate wins.
-    for (Payload candidate : findEquivalentPayloadsByNameAndContent(payloadNode)) {
-      Optional<InjectorContract> reusable = readableContractForPayload(candidate, currentUser);
-      if (reusable.isPresent()) {
-        return reusable;
-      }
-    }
-
-    // Step 3 — no reusable candidate: caller creates a new payload.
     return Optional.empty();
-  }
-
-  /**
-   * Whether a UUID-matched candidate is genuinely the same payload as the imported node: it must be
-   * found by the same coarse name + type-specific content queries AND pass {@link
-   * #hasSameExecutionSemantics} (both applied by {@link #findEquivalentPayloadsByNameAndContent}).
-   * Used to harden the Step 1 fast path against same-tenant UUID collisions from a crafted or stale
-   * import file.
-   */
-  private boolean matchesImportedPayloadIdentity(JsonNode payloadNode, Payload candidate) {
-    return findEquivalentPayloadsByNameAndContent(payloadNode).stream()
-        .anyMatch(equivalent -> Objects.equals(equivalent.getId(), candidate.getId()));
   }
 
   /**
@@ -2211,335 +2287,6 @@ public class V1_DataImporter implements Importer {
                     contract.getId(),
                     ResourceType.INJECTOR_CONTRACT,
                     Action.READ));
-  }
-
-  /**
-   * Looks up existing payloads of the same {@code payload_type} discriminator sharing the imported
-   * payload's identifying fields. Executable/FileDrop are matched by the attached document ID (the
-   * imported file has already been resolved to a TARGET document at this point): document names are
-   * non-unique, so a name match could reuse a payload wrapping a different binary. The
-   * type-specific queries are a coarse pre-filter; candidates are then narrowed by {@link
-   * #hasSameExecutionSemantics} so a payload differing on any execution-relevant field is never
-   * reused.
-   */
-  private List<Payload> findEquivalentPayloadsByNameAndContent(JsonNode payloadNode) {
-    String type = getTextValue(payloadNode, "payload_type");
-    String name = textOrNull(payloadNode, "payload_name");
-    if (!hasText(type) || !hasText(name)) {
-      return List.of();
-    }
-    String tenantId = TenantContext.getCurrentTenant();
-    List<Payload> candidates =
-        switch (type) {
-          case Command.COMMAND_TYPE ->
-              payloadRepository.findCommandDuplicates(
-                  name,
-                  textOrNull(payloadNode, "command_executor"),
-                  textOrNull(payloadNode, "command_content"),
-                  tenantId);
-          case Executable.EXECUTABLE_TYPE -> {
-            // executable_file has already been swapped to the TARGET document id above.
-            String documentId = textOrNull(payloadNode, "executable_file");
-            yield hasText(documentId)
-                ? payloadRepository.findExecutableDuplicates(name, documentId, tenantId)
-                : List.of();
-          }
-          case FileDrop.FILE_DROP_TYPE -> {
-            // file_drop_file has already been swapped to the TARGET document id above.
-            String documentId = textOrNull(payloadNode, "file_drop_file");
-            yield hasText(documentId)
-                ? payloadRepository.findFileDropDuplicates(name, documentId, tenantId)
-                : List.of();
-          }
-          case DnsResolution.DNS_RESOLUTION_TYPE ->
-              payloadRepository.findDnsResolutionDuplicates(
-                  name, textOrNull(payloadNode, "dns_resolution_hostname"), tenantId);
-          case NetworkTraffic.NETWORK_TRAFFIC_TYPE ->
-              payloadRepository.findNetworkTrafficDuplicates(
-                  name,
-                  textOrNull(payloadNode, "network_traffic_ip_src"),
-                  textOrNull(payloadNode, "network_traffic_ip_dst"),
-                  intOrNull(payloadNode, "network_traffic_port_src"),
-                  intOrNull(payloadNode, "network_traffic_port_dst"),
-                  textOrNull(payloadNode, "network_traffic_protocol"),
-                  tenantId);
-          default -> List.of();
-        };
-    return candidates.stream()
-        .filter(candidate -> hasSameExecutionSemantics(payloadNode, candidate))
-        .toList();
-  }
-
-  /**
-   * Whether an existing candidate payload matches the imported node on the execution-relevant
-   * fields that the coarse name + type-specific content queries cannot express: platforms,
-   * execution architecture, elevation requirement, cleanup executor/command, arguments,
-   * prerequisites and expectations. Reusing a payload that differs on any of these would silently
-   * change the runtime behaviour of the imported chain, so any mismatch falls through to creation
-   * (safe direction: worst case a duplicate payload is created, never a wrong execution).
-   */
-  private boolean hasSameExecutionSemantics(JsonNode payloadNode, Payload candidate) {
-    if (!jsonStringSet(payloadNode, "payload_platforms")
-        .equals(enumNames(candidate.getPlatforms()))) {
-      return false;
-    }
-    String importedArch =
-        ofNullable(textOrNull(payloadNode, "payload_execution_arch"))
-            .orElse(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES.name());
-    if (!importedArch.equals(candidate.getExecutionArch().name())) {
-      return false;
-    }
-    boolean importedElevation = payloadNode.path("payload_elevation_required").asBoolean(false);
-    if (importedElevation != candidate.isElevationRequired()) {
-      return false;
-    }
-    if (!Objects.equals(
-            textOrNull(payloadNode, "payload_cleanup_executor"), candidate.getCleanupExecutor())
-        || !Objects.equals(
-            textOrNull(payloadNode, "payload_cleanup_command"), candidate.getCleanupCommand())) {
-      return false;
-    }
-    if (!jsonStringSet(payloadNode, "payload_expectations")
-        .equals(enumNames(candidate.getExpectations()))) {
-      return false;
-    }
-    // The expected security platform map drives which collectors are pre-seeded for
-    // prevention/detection expectations (PayloadService / InjectExpectationService): two payloads
-    // differing only on this map have different runtime expectation behaviour.
-    if (!expectedSecurityPlatformsFromNode(payloadNode)
-        .equals(expectedSecurityPlatformsFromEntity(candidate.getExpectedSecurityPlatforms()))) {
-      return false;
-    }
-    if (!jsonArrayEquals(payloadNode, "payload_arguments", candidate.getArguments())
-        || !jsonArrayEquals(payloadNode, "payload_prerequisites", candidate.getPrerequisites())) {
-      return false;
-    }
-    // Output parsers drive runtime result processing (StructuredOutputUtils): two payloads with
-    // identical content but different parsers have different execution semantics. Compared through
-    // normalized signatures (type, mode, per-element key/type/rule/name/finding flag and regex
-    // groups) so instance-specific ids/timestamps/tags never break the equivalence.
-    return outputParserSignaturesFromNode(payloadNode.get("payload_output_parsers"))
-        .equals(outputParserSignaturesFromEntities(candidate.getOutputParsers()));
-  }
-
-  /** Normalized, order-independent signatures of the imported payload_output_parsers array. */
-  private List<String> outputParserSignaturesFromNode(JsonNode parsersNode) {
-    List<String> signatures = new ArrayList<>();
-    if (parsersNode != null && parsersNode.isArray()) {
-      for (JsonNode parser : parsersNode) {
-        List<String> elements = new ArrayList<>();
-        JsonNode elementsNode = parser.get("output_parser_contract_output_elements");
-        if (elementsNode != null && elementsNode.isArray()) {
-          for (JsonNode element : elementsNode) {
-            List<String> regexGroups = new ArrayList<>();
-            JsonNode groupsNode = element.get("contract_output_element_regex_groups");
-            if (groupsNode != null && groupsNode.isArray()) {
-              for (JsonNode group : groupsNode) {
-                regexGroups.add(
-                    regexGroupSignature(
-                        textOrNull(group, "regex_group_field"),
-                        textOrNull(group, "regex_group_index_values")));
-              }
-            }
-            elements.add(
-                outputElementSignature(
-                    textOrNull(element, "contract_output_element_key"),
-                    normalizeOutputElementType(textOrNull(element, "contract_output_element_type")),
-                    textOrNull(element, "contract_output_element_rule"),
-                    textOrNull(element, "contract_output_element_name"),
-                    element.path("contract_output_element_is_finding").asBoolean(false),
-                    regexGroups));
-          }
-        }
-        signatures.add(
-            outputParserSignature(
-                textOrNull(parser, "output_parser_type"),
-                textOrNull(parser, "output_parser_mode"),
-                elements));
-      }
-    }
-    Collections.sort(signatures);
-    return signatures;
-  }
-
-  /** Normalized, order-independent signatures of a candidate payload's output parser entities. */
-  private List<String> outputParserSignaturesFromEntities(Set<OutputParser> parsers) {
-    List<String> signatures = new ArrayList<>();
-    if (parsers != null) {
-      for (OutputParser parser : parsers) {
-        List<String> elements = new ArrayList<>();
-        if (parser.getContractOutputElements() != null) {
-          for (ContractOutputElement element : parser.getContractOutputElements()) {
-            List<String> regexGroups = new ArrayList<>();
-            if (element.getRegexGroups() != null) {
-              for (RegexGroup group : element.getRegexGroups()) {
-                regexGroups.add(regexGroupSignature(group.getField(), group.getIndexValues()));
-              }
-            }
-            elements.add(
-                outputElementSignature(
-                    element.getKey(),
-                    element.getType() != null
-                        ? element.getType().getLabel().toLowerCase(Locale.ROOT)
-                        : null,
-                    element.getRule(),
-                    element.getName(),
-                    element.isFinding(),
-                    regexGroups));
-          }
-        }
-        signatures.add(
-            outputParserSignature(
-                parser.getType() != null ? parser.getType().name() : null,
-                parser.getMode() != null ? parser.getMode().name() : null,
-                elements));
-      }
-    }
-    Collections.sort(signatures);
-    return signatures;
-  }
-
-  /**
-   * The export writes {@code contract_output_element_type} as the type LABEL (matched
-   * case-insensitively by {@code formatStringToContractOutputType}); normalize to lowercase so the
-   * node side aligns with the entity's {@code getType().getLabel()}.
-   */
-  private static String normalizeOutputElementType(String rawType) {
-    return rawType != null ? rawType.toLowerCase(Locale.ROOT) : null;
-  }
-
-  private static String outputParserSignature(String type, String mode, List<String> elements) {
-    List<String> sorted = new ArrayList<>(elements);
-    Collections.sort(sorted);
-    return type + "|" + mode + "|" + sorted;
-  }
-
-  private static String outputElementSignature(
-      String key,
-      String type,
-      String rule,
-      String name,
-      boolean isFinding,
-      List<String> regexGroups) {
-    List<String> sorted = new ArrayList<>(regexGroups);
-    Collections.sort(sorted);
-    return key + "|" + type + "|" + rule + "|" + name + "|" + isFinding + "|" + sorted;
-  }
-
-  private static String regexGroupSignature(String field, String indexValues) {
-    return field + ":" + indexValues;
-  }
-
-  /**
-   * Normalizes the imported {@code payload_expected_security_platforms} object into a map of
-   * expectation-type name to platform-type name set; absent/null yields an empty map and empty
-   * platform lists are dropped so "absent" and "explicitly empty" compare equal.
-   */
-  private Map<String, Set<String>> expectedSecurityPlatformsFromNode(JsonNode payloadNode) {
-    Map<String, Set<String>> normalized = new LinkedHashMap<>();
-    JsonNode mapNode = payloadNode.get("payload_expected_security_platforms");
-    if (mapNode != null && mapNode.isObject()) {
-      mapNode
-          .fields()
-          .forEachRemaining(
-              entry -> {
-                if (entry.getValue() == null || !entry.getValue().isArray()) {
-                  return;
-                }
-                Set<String> platforms = new LinkedHashSet<>();
-                entry
-                    .getValue()
-                    .forEach(
-                        value -> {
-                          if (value != null && value.isTextual()) {
-                            platforms.add(value.asText());
-                          }
-                        });
-                if (!platforms.isEmpty()) {
-                  normalized.put(entry.getKey(), platforms);
-                }
-              });
-    }
-    return normalized;
-  }
-
-  /** Entity-side counterpart of {@link #expectedSecurityPlatformsFromNode}. */
-  private Map<String, Set<String>> expectedSecurityPlatformsFromEntity(
-      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
-          expected) {
-    Map<String, Set<String>> normalized = new LinkedHashMap<>();
-    if (expected != null) {
-      expected.forEach(
-          (type, platforms) -> {
-            if (type == null || platforms == null || platforms.isEmpty()) {
-              return;
-            }
-            Set<String> names = new LinkedHashSet<>();
-            platforms.forEach(
-                platform -> {
-                  if (platform != null) {
-                    names.add(platform.name());
-                  }
-                });
-            if (!names.isEmpty()) {
-              normalized.put(type.name(), names);
-            }
-          });
-    }
-    return normalized;
-  }
-
-  /** Reads a JSON array of strings into a set; absent/null fields yield an empty set. */
-  private Set<String> jsonStringSet(JsonNode node, String field) {
-    JsonNode arrayNode = node.get(field);
-    Set<String> values = new LinkedHashSet<>();
-    if (arrayNode != null && arrayNode.isArray()) {
-      arrayNode.forEach(
-          entry -> {
-            if (entry != null && entry.isTextual()) {
-              values.add(entry.asText());
-            }
-          });
-    }
-    return values;
-  }
-
-  /** Enum array to name set; null arrays yield an empty set. */
-  private Set<String> enumNames(Enum<?>[] values) {
-    Set<String> names = new LinkedHashSet<>();
-    if (values != null) {
-      for (Enum<?> value : values) {
-        if (value != null) {
-          names.add(value.name());
-        }
-      }
-    }
-    return names;
-  }
-
-  /**
-   * Compares an imported JSON array field with an entity list serialized through the shared mapper,
-   * treating absent/null as empty. A structural mismatch (including a serialization-shape
-   * difference) yields false, which makes the dedup fall through to creation - the safe direction.
-   */
-  private boolean jsonArrayEquals(JsonNode node, String field, Object entityValue) {
-    JsonNode imported = node.get(field);
-    JsonNode importedArray =
-        imported != null && imported.isArray() ? imported : mapper.createArrayNode();
-    JsonNode entityArray = mapper.valueToTree(entityValue == null ? List.of() : entityValue);
-    return importedArray.equals(entityArray);
-  }
-
-  /** Reads a text field returning null (not "") for absent/null nodes, without trimming. */
-  private String textOrNull(JsonNode node, String fieldName) {
-    JsonNode fieldNode = node.get(fieldName);
-    return (fieldNode != null && !fieldNode.isNull()) ? fieldNode.textValue() : null;
-  }
-
-  /** Reads an int field returning null for absent/null nodes. */
-  private Integer intOrNull(JsonNode node, String fieldName) {
-    JsonNode fieldNode = node.get(fieldName);
-    return (fieldNode != null && !fieldNode.isNull()) ? fieldNode.intValue() : null;
   }
 
   private List<DetectionRemediationInput> buildDetectionRemediationsJsonNode(
@@ -2795,10 +2542,18 @@ public class V1_DataImporter implements Importer {
 
       // Import steps and conditions
       List<SkippedWorkflowStep> skippedSteps = new ArrayList<>();
+      // Original step id -> created step, also read by the standalone conditions below: a
+      // DEPEND_ON value or a step_from among them names an imported step too.
+      Map<String, Step> stepIdMap = new LinkedHashMap<>();
       if (workflowNode.has("workflow_steps")) {
         skippedSteps =
             importWorkflowSteps(
-                ctx, workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
+                ctx,
+                workflowNode.get("workflow_steps"),
+                workflow,
+                resolvedContracts,
+                baseIds,
+                stepIdMap);
       }
       if (!skippedSteps.isEmpty()) {
         // Unresolvable steps are surfaced to the caller (importData -> ImportResult) so the API can
@@ -2814,7 +2569,7 @@ public class V1_DataImporter implements Importer {
             workflowNode.get("workflow_standalone_conditions"),
             workflow,
             null,
-            Map.of(),
+            stepIdMap,
             new LinkedHashMap<>());
       }
       return skippedSteps;
@@ -3190,9 +2945,9 @@ public class V1_DataImporter implements Importer {
       JsonNode stepsNode,
       Workflow workflow,
       Map<String, String> resolvedContracts,
-      Map<String, Base> baseIds) {
-    // Map from original step ID to new Step
-    Map<String, Step> stepIdMap = new LinkedHashMap<>();
+      Map<String, Base> baseIds,
+      Map<String, Step> stepIdMap) {
+    // stepIdMap: original step ID -> new Step, filled here and read by the caller afterwards
     // resolvedContracts is shared with importInjects to avoid creating duplicate payloads
     // when exercise_injects and workflow_steps reference the same missing injector contract
 
@@ -3211,7 +2966,7 @@ public class V1_DataImporter implements Importer {
       // instance must NOT be recreated: skip it (no saveStep, no stepIdMap entry) so no orphan
       // contract/payload is created. Dependent steps may stay blocked — accepted by product.
       Optional<SkippedWorkflowStep> skipReason =
-          evaluateChainingStepResolvability(stepNode, resolvedContracts);
+          evaluateChainingStepResolvability(ctx, stepNode, resolvedContracts);
       if (skipReason.isPresent()) {
         SkippedWorkflowStep skipped = skipReason.get();
         skippedSteps.add(skipped);
@@ -3315,7 +3070,7 @@ public class V1_DataImporter implements Importer {
    * <ul>
    *   <li>(b) its injector type ({@code injector_contract_injector_type}) is present but no
    *       injector of that type exists on the target ({@link
-   *       InjectorService#injectorTypeExists(String)}); or
+   *       InjectorService#injectorTypeExists(String, String)}); or
    *   <li>(a) its injector contract is neither already present on the target for the current tenant
    *       ({@code existsByContractIdAndTenant} / previously resolved) nor resolvable read-only from
    *       the payload external id ({@link #resolveInjectorContractReadOnly}).
@@ -3327,7 +3082,7 @@ public class V1_DataImporter implements Importer {
    * @return the skip descriptor when the step is unresolvable, empty when it can be imported
    */
   private Optional<SkippedWorkflowStep> evaluateChainingStepResolvability(
-      JsonNode stepNode, Map<String, String> resolvedContracts) {
+      TxCtx ctx, JsonNode stepNode, Map<String, String> resolvedContracts) {
     JsonNode stepDataNode = stepNode.get("step_data");
     if (stepDataNode == null || stepDataNode.isNull()) {
       return Optional.empty();
@@ -3346,9 +3101,14 @@ public class V1_DataImporter implements Importer {
 
     String injectTitle = getTextValue(dataJson, "inject_title");
 
+    // The import's write tenant answers every question below: the injector type and the contract
+    // id are looked up in the tenant the step is imported into, whatever the ambient tenant of the
+    // request is.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+
     // (b) Injector of the referenced type must exist on the target instance.
     String injectorType = extractInjectorType(injectContractNode);
-    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType)) {
+    if (hasText(injectorType) && !injectorService.injectorTypeExists(injectorType, writeTenant)) {
       return Optional.of(
           new SkippedWorkflowStep(SkippedWorkflowStepType.INJECTOR, injectTitle, injectorType));
     }
@@ -3358,9 +3118,9 @@ public class V1_DataImporter implements Importer {
     boolean alreadyResolvable =
         (hasText(injectorContractId)
                 && (injectorContractRepository.existsByContractIdAndTenant(
-                        injectorContractId, TenantContext.getCurrentTenant())
+                        injectorContractId, writeTenant)
                     || resolvedContracts.containsKey(injectorContractId)))
-            || resolveInjectorContractReadOnly(injectContractNode).isPresent();
+            || resolveInjectorContractReadOnly(injectContractNode, writeTenant).isPresent();
     // A contract carrying embedded, self-sufficient payload data (typically a MANUAL payload with
     // no payload_external_id, e.g. a Command payload) can be recreated locally: do NOT skip it here
     // even when it is neither already present nor resolvable read-only — leave resolveStepData to
@@ -3438,6 +3198,38 @@ public class V1_DataImporter implements Importer {
     }
     JsonNode nameNode = payloadNode.get("payload_name");
     return nameNode != null && !nameNode.isNull() ? nameNode.asText() : null;
+  }
+
+  /**
+   * The value an imported condition must carry.
+   *
+   * <p>A {@code DEPEND_ON} condition stores its prerequisite as a <b>step template id in {@code
+   * condition_value}</b>, not as a foreign key, and {@code
+   * ConditionService.evaluateDependOnConditions} resolves it against the steps of the run. The
+   * export holds the id the step had on the source instance, so copying it verbatim leaves an id
+   * that never matches: the dependent step is never promoted to READY. The value is translated to
+   * the id of the step created by this import, as {@code condition_step_from_id} is, and as {@code
+   * StepService.remapConditionValue} does for a copy.
+   *
+   * <p>When the awaited step is not part of the import (skipped as unresolvable, or absent from the
+   * file), the value is left unset and a warning logged: the dependent step stays blocked, which is
+   * the accepted outcome of a skipped step, and no id of the source instance is kept, since it may
+   * name a step of another workflow here. Every other condition type stores a plain comparison
+   * value and is copied unchanged.
+   */
+  private static String importedConditionValue(
+      ConditionType conditionType, String value, Map<String, Step> stepIdMap) {
+    if (conditionType != ConditionType.DEPEND_ON || value == null || value.isBlank()) {
+      return value;
+    }
+    Step awaited = stepIdMap.get(value);
+    if (awaited == null) {
+      log.warn(
+          "DEPEND_ON condition references step {} which is not part of the import: left unset",
+          value);
+      return null;
+    }
+    return awaited.getId();
   }
 
   /**
@@ -3556,9 +3348,12 @@ public class V1_DataImporter implements Importer {
                 .type(conditionType)
                 .mappingType(conditionMappingType)
                 .value(
-                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
-                        ? condNode.get("condition_value").asText()
-                        : null)
+                    importedConditionValue(
+                        conditionType,
+                        condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                            ? condNode.get("condition_value").asText()
+                            : null,
+                        stepIdMap))
                 .name(
                     condNode.has("condition_name") && !condNode.get("condition_name").isNull()
                         ? condNode.get("condition_name").asText()

@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Injector Contract API tests")
-public class InjectorContractApiTest extends IntegrationTest {
+public class InjectorContractApiTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager em;
@@ -134,6 +134,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -160,6 +161,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -179,6 +181,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by internal ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -201,6 +204,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Nested
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
 
@@ -244,6 +248,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -291,6 +296,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds with external vuln IDs")
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -855,6 +861,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -878,6 +885,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -894,6 +902,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by External ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -914,6 +923,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Nested
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
 
@@ -954,6 +964,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -1207,6 +1218,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("With classic SearchPaginationInput, search returns expected items")
     void WithClassicSearchPaginationInput() throws Exception {
       SearchPaginationInput input =
@@ -1238,6 +1250,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "With SearchPaginationWithSerialisationOptionsInput and ignore content option is set,"
             + " search returns expected items with no content")
@@ -1272,6 +1285,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Free-text search must not match the raw contract content JSON")
     void withTextSearch_should_notMatchRawContractContentJson() throws Exception {
       // Every real contract content embeds the built-in variable definitions ("user.email",
@@ -1316,6 +1330,164 @@ public class InjectorContractApiTest extends IntegrationTest {
       assertThat(returnedIds).contains(emailContract.getId());
       assertThat(returnedIds).doesNotContain(noiseContract.getId());
     }
+
+    @Nested
+    @DisplayName("Providing filter (injector_contract_providing)")
+    class ProvidingFilter {
+
+      private static final String TOKEN = "providingfilterprobe";
+
+      private InjectorContract nativePortContract;
+      private InjectorContract payloadPortContract;
+      private InjectorContract nativeReportContract;
+
+      @BeforeEach
+      void seed() throws Exception {
+        // A contract without payload declaring its outputs in its content, as a native injector
+        // (a network scanner) registers it.
+        nativePortContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " native scan"),
+                "{\"fields\": [], \"outputs\": [{\"type\": \"portscan\", \"field\": \"scan_results\","
+                    + " \"isMultiple\": true}, {\"type\": \"port\", \"field\": \"ports\","
+                    + " \"isMultiple\": true}]}");
+        injectorContractComposer
+            .forInjectorContract(nativePortContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .persist();
+
+        // A payload-based contract whose output parser produces ports.
+        Payload command = PayloadFixture.createDefaultCommand();
+        command.setOutputParsers(
+            Set.of(
+                OutputParserFixture.getOutputParser(
+                    Set.of(
+                        OutputParserFixture.getContractOutputElement(
+                            ContractOutputType.Port,
+                            "(\\d+)",
+                            Set.of(OutputParserFixture.getDefaultRegexGroup()),
+                            false)))));
+        payloadPortContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " payload scan"), "{\"fields\": []}");
+        injectorContractComposer
+            .forInjectorContract(payloadPortContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withPayload(payloadComposer.forPayload(command))
+            .persist();
+
+        // A contract without payload whose content mentions ports, but declares no output.
+        nativeReportContract =
+            InjectorContractFixture.createInjectorContract(
+                Map.of("en", TOKEN + " native report"),
+                "{\"fields\": [], \"description\": \"export an open port report, import"
+                    + " port lists\"}");
+        injectorContractComposer
+            .forInjectorContract(nativeReportContract)
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .persist();
+        em.flush();
+        em.clear();
+      }
+
+      private SearchPaginationInput providingSearch(
+          Filters.FilterOperator operator, List<String> values) {
+        Filters.Filter filter = new Filters.Filter();
+        filter.setKey("injector_contract_providing");
+        filter.setMode(Filters.FilterMode.or);
+        filter.setOperator(operator);
+        filter.setValues(new ArrayList<>(values));
+        Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+        filterGroup.setMode(Filters.FilterMode.and);
+        filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+        return PaginationFixture.getDefault()
+            .size(100)
+            .textSearch(TOKEN)
+            .filterGroup(filterGroup)
+            .build();
+      }
+
+      private List<String> searchIds(SearchPaginationInput input) throws Exception {
+        String response =
+            mvc.perform(
+                    post(INJECTOR_CONTRACT_URL + "/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(input))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        List<String> ids = new ArrayList<>();
+        mapper
+            .readTree(response)
+            .get("content")
+            .forEach(node -> ids.add(node.get("injector_contract_id").asText()));
+        return ids;
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("eq matches native contracts by their declared outputs and payload contracts")
+      void eq_should_matchNativeAndPayloadContracts() throws Exception {
+        List<String> ids =
+            searchIds(providingSearch(Filters.FilterOperator.eq, List.of("port", "portscan")));
+
+        assertThat(ids).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(ids).doesNotContain(nativeReportContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("eq port does not match a native contract that only mentions the word port")
+      void eqPort_should_notMatchContentMentioningPort() throws Exception {
+        List<String> ids = searchIds(providingSearch(Filters.FilterOperator.eq, List.of("port")));
+
+        assertThat(ids).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(ids).doesNotContain(nativeReportContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("not_eq port excludes every contract providing ports")
+      void notEq_should_excludeProvidingContracts() throws Exception {
+        List<String> ids =
+            searchIds(providingSearch(Filters.FilterOperator.not_eq, List.of("port")));
+
+        assertThat(ids).contains(nativeReportContract.getId());
+        assertThat(ids).doesNotContain(nativePortContract.getId(), payloadPortContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("not_empty and empty split contracts on whether they provide any output")
+      void emptyAndNotEmpty_should_splitOnAnyOutput() throws Exception {
+        List<String> provides =
+            searchIds(providingSearch(Filters.FilterOperator.not_empty, List.of()));
+        List<String> providesNothing =
+            searchIds(providingSearch(Filters.FilterOperator.empty, List.of()));
+
+        assertThat(provides).contains(nativePortContract.getId(), payloadPortContract.getId());
+        assertThat(provides).doesNotContain(nativeReportContract.getId());
+        assertThat(providesNothing).contains(nativeReportContract.getId());
+        assertThat(providesNothing)
+            .doesNotContain(nativePortContract.getId(), payloadPortContract.getId());
+      }
+
+      @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+      @DisplayName("facet counts accept the providing filter")
+      void facetCounts_should_acceptProvidingFilter() throws Exception {
+        mvc.perform(
+                post(INJECTOR_CONTRACT_URL + "/facet-counts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        mapper.writeValueAsString(
+                            providingSearch(Filters.FilterOperator.eq, List.of("port"))))
+                    .with(csrf()))
+            .andExpect(status().isOk());
+      }
+    }
   }
 
   @Nested
@@ -1333,6 +1505,17 @@ public class InjectorContractApiTest extends IntegrationTest {
     public UserComposer.Composer createTestUser(UserType userType, List<String> resourceIds) {
       return userTestHelper.createTestUser(
           UserTestHelper.UserType.valueOf(userType.name()), resourceIds);
+    }
+
+    /**
+     * Persists the test user and makes it a member of the default tenant, the tenant the static
+     * injector contracts below are created in: injectors_contracts is tenant-active, so a user with
+     * no tenant membership resolves no scope and sees nothing regardless of RBAC.
+     */
+    private User createAndPersistTestUser(UserType userType, List<String> resourceIds) {
+      User testUser = createTestUser(userType, resourceIds).persist().get();
+      tenantHelper.attachUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
+      return testUser;
     }
 
     private int preExistingContractsCount;
@@ -1409,7 +1592,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         grantedResourceIds.add(injectorContractsCreated.get(i).getId());
       }
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
       Authentication auth = buildAuthenticationToken(testUser);
 
       // Perform the request with the test user context
@@ -1447,7 +1630,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1494,7 +1677,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1531,6 +1714,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "A contract with one attack pattern and several tags returns that attack pattern only once")
     void searchDoesNotDuplicateAttackPatternsWhenContractHasSeveralTags() throws Exception {
@@ -1580,6 +1764,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @DisplayName("When contracts are linked to security domains")
   class WhenContractsAreLinkedToDomains {
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("It should aggregate counts correctly by domain category")
     void getDomainCountsReturnAggregation() throws Exception {
       domainRepository.deleteAll();

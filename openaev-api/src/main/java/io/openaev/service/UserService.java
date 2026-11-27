@@ -17,7 +17,9 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.BadRequestException;
@@ -29,6 +31,7 @@ import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.annotation.Resource;
@@ -39,8 +42,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.hibernate.Hibernate;
+import org.hibernate.Session;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,8 +70,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Service for managing user accounts and authentication.
@@ -76,6 +85,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
@@ -98,6 +108,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
+  private final UserGroupMembershipService userGroupMembershipService;
   private final TokenRepository tokenRepository;
   private final TenantRepository tenantRepository;
   private final ReferenceResolver referenceResolver;
@@ -107,6 +118,7 @@ public class UserService {
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantScopedTransaction tenantTx;
+  private final TenantScopeResolver tenantScopeResolver;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectProvider<AuditLogger> auditLoggerProvider;
   private final OpenAEVConfig openAEVConfig;
@@ -130,6 +142,26 @@ public class UserService {
     return userRepository.globalCount();
   }
 
+  /**
+   * Returns the platform users of the given tenants (players and reserved accounts excluded), with
+   * the XTM Hub news feed types they unsubscribed from.
+   */
+  public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
+    return userRepository.rawNewsFeedRecipients(tenantIds);
+  }
+
+  /**
+   * Returns the XTM Hub news feed types the user unsubscribed from. Read from the database rather
+   * than from {@link #currentUser()}, whose admin cache is not refreshed by an update.
+   */
+  @Transactional(readOnly = true)
+  public String[] findNewsFeedUnsubscribedTypes(@NotBlank final String userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found"))
+        .getUnsubscribedNewsFeedTypes();
+  }
+
   // -- CREATE --
 
   /**
@@ -138,6 +170,22 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input, UserCreationScope scope) {
+    return applyCreate(input, scope);
+  }
+
+  /**
+   * Creates a platform user from a request whose scope is {@code ctx}. The roles of the groups
+   * auto-assigned from the input's tenants are read in that scope, so the event of the creation is
+   * attributed to a tenant of it, the ambient one when it is of the scope: a consumer of a tenant
+   * outside the scope is not sent fields derived from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User createUser(TxCtx ctx, UserInput input, UserCreationScope scope) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyCreate(input, scope);
+  }
+
+  private User applyCreate(UserInput input, UserCreationScope scope) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
@@ -150,12 +198,23 @@ public class UserService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
-    User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    User createdUser;
+    // Scope widened to the attached tenants for their auto-assign groups, then restored.
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!CollectionUtils.isEmpty(tenantIds)) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(tenantIds));
+      }
+      createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    }
+    // A tenant creator sets the organization itself, once it knows its tenant.
+    if (scope == UserCreationScope.PLATFORM) {
+      applyPlatformOrganization(createdUser, input.organizationId());
+    }
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
@@ -191,8 +250,10 @@ public class UserService {
       user.setPassword(this.encodeUserPassword(password));
     }
     // Creation enters every scope at once: the platform when created from the platform screen,
-    // plus each tenant attached in the input.
-    assignAutoAssignGroups(
+    // plus each tenant attached in the input. The user is new, so its groups are complete in memory
+    // and the event of its creation carries them: they are set before the first save, as one
+    // insert per row, where a user that already exists is granted row by row.
+    grantAutoAssignGroupsToNewUser(
         user,
         user.getTenants().stream().map(Tenant::getId).toList(),
         scope == UserCreationScope.PLATFORM);
@@ -208,6 +269,10 @@ public class UserService {
    *
    * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
    * own Spring Data JPA transaction.
+   *
+   * <p>The roles of the user's groups are not read under the user's tenant memberships: a caller
+   * that evaluates the user's capabilities loads it through {@link #userWithRoles(String)}, as
+   * {@link #currentUser()} does.
    */
   public User user(@NotBlank final String userId) {
     return userRepository
@@ -238,7 +303,7 @@ public class UserService {
                 spec,
                 specCount,
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.selectForPlatform(cb, cq, root),
                 UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
@@ -248,9 +313,39 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
+    return applyUpdate(userId, input);
+  }
+
+  /**
+   * Updates a user from a request whose scope is {@code ctx}. The roles of the user's groups are
+   * read in that scope, so the event of the update is attributed to a tenant of it, the ambient one
+   * when it is of the scope: a consumer of a tenant outside the scope is not sent fields derived
+   * from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User updateUser(TxCtx ctx, String userId, UserInput input) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyUpdate(userId, input);
+  }
+
+  private User applyUpdate(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
-    User existing = user(userId);
+    // Group reads and writes cover the user's current and attached tenants, whatever the
+    // operator's own memberships (as the SSO login); set around each use, then restored.
+    Set<String> groupScopeTenantIds =
+        new LinkedHashSet<>(userRepository.findTenantIdsByUserId(userId));
+    if (input.tenantIds() != null) {
+      groupScopeTenantIds.addAll(input.tenantIds());
+    }
+    User existing;
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!groupScopeTenantIds.isEmpty()) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(groupScopeTenantIds));
+      }
+      existing = user(userId);
+    }
     // Check if previous email is reserved
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     // Capture old tenant IDs before update for cache eviction
@@ -260,6 +355,7 @@ public class UserService {
             : List.of();
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     applyProfile(existing, input);
+    applyPlatformOrganization(existing, input.organizationId());
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
@@ -269,11 +365,27 @@ public class UserService {
     List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
     List<String> attachedTenantIds =
         currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
-    assignAutoAssignGroups(existing, attachedTenantIds, false);
     // Symmetrically, a membership must not outlive the tenant attachment that granted it.
     List<String> detachedTenantIds =
         oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
-    revokeTenantGroups(existing, detachedTenantIds);
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      if (!groupScopeTenantIds.isEmpty()) {
+        tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenants(groupScopeTenantIds));
+      }
+      // Reloaded under the wider scope: the tag replacement reloaded its groups under the narrow
+      // one.
+      entityManager.refresh(existing);
+      assignAutoAssignGroups(existing, attachedTenantIds, false);
+      revokeTenantGroups(existing, detachedTenantIds);
+      // Both write the membership rows in SQL and leave the loaded groups as they were before:
+      // reloaded, so the update event carries the groups the user holds now.
+      if (!attachedTenantIds.isEmpty() || !detachedTenantIds.isEmpty()) {
+        entityManager.refresh(existing);
+      }
+    }
+    // The refresh left the streamed associations lazy again; load them in the caller's scope.
+    loadStreamedAssociations(existing);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -295,8 +407,87 @@ public class UserService {
     user.setPhone(input.phone());
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
-    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    replaceTags(
+        user, referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+  }
+
+  /**
+   * Makes the tags of a saved user the given ones among the ones the transaction's scope sees. A
+   * user is platform-level and its tags may belong to several tenants, so the links to the tags out
+   * of scope are left alone: the ones to drop are deleted and the missing ones inserted, each in
+   * one statement, where replacing the collection would delete every row of the user as soon as it
+   * is empty. A caller whose scope does not cover every tenant therefore keeps the links to the
+   * tags of the tenants it does not see, on the platform route too. The row of the user is locked
+   * first and the links it holds are read once the lock is held, never from the collection loaded
+   * earlier in the request: two concurrent replacements would otherwise both compute their
+   * differences from the same set and leave the union of what they asked for. The changes the
+   * caller made to the user are written, and the user is reloaded in every case, the one where the
+   * links already are the wanted ones included, so that it answers with the links the database
+   * holds after the lock.
+   *
+   * @param user the saved user
+   * @param wanted the tags the user must hold among the ones in scope
+   */
+  public void replaceTags(User user, Set<Tag> wanted) {
+    Set<String> wantedIds = wanted.stream().map(Tag::getId).collect(Collectors.toSet());
+    userRepository.lockRow(user.getId());
+    Set<String> heldIds = new HashSet<>(userRepository.tagIdsInScope(user.getId()));
+    Set<String> toRemove = new HashSet<>(heldIds);
+    toRemove.removeAll(wantedIds);
+    Set<String> toAdd = new HashSet<>(wantedIds);
+    toAdd.removeAll(heldIds);
+    if (!toRemove.isEmpty() || !toAdd.isEmpty()) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+      if (!toRemove.isEmpty()) {
+        userRepository.removeTags(user.getId(), toRemove);
+      }
+      if (!toAdd.isEmpty()) {
+        userRepository.addTags(user.getId(), toAdd);
+      }
+    }
+    // Written before the reload: a refresh drops what the user holds in memory and unflushed.
+    entityManager.flush();
+    entityManager.refresh(user);
+    loadStreamedAssociations(user);
+  }
+
+  /**
+   * Loads the associations the activity stream serializes from the user. The update event holds
+   * this very instance and the stream reads it after the session is closed, so a collection the
+   * refresh leaves unloaded fails there and drops the update for every consumer.
+   */
+  private void loadStreamedAssociations(User user) {
+    Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    Hibernate.initialize(user.getCommunications());
+    Hibernate.initialize(user.getExerciseTeamUsers());
+    user.loadOrganizations();
+  }
+
+  /**
+   * Links the user to an organization from the platform level, in the tenant that organization
+   * belongs to: organizations are tenant-level, so a user keeps the ones it holds in other tenants.
+   * An empty value changes nothing, since the platform level has no tenant whose organization it
+   * could clear.
+   */
+  private void applyPlatformOrganization(User user, String organizationId) {
+    Organization organization = referenceResolver.resolve(organizationId, Organization.class);
+    if (organization != null) {
+      userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
+    }
+  }
+
+  /**
+   * Writes the pending changes of a managed user, then reloads it from the database. For a caller
+   * that wrote the user's membership rows in SQL: the groups loaded before those writes are left as
+   * they were, and the event of the user's next change would carry them.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void reloadUser(User user) {
+    entityManager.flush();
+    entityManager.refresh(user);
   }
 
   /**
@@ -308,6 +499,18 @@ public class UserService {
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
+  }
+
+  /** Replaces the XTM Hub news feed types the user unsubscribed from. */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateNewsFeedUnsubscribedTypes(
+      @NotBlank final String userId, @NotNull final String[] unsubscribedTypes) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new ElementNotFoundException("User not found"));
+    user.setUnsubscribedNewsFeedTypes(unsubscribedTypes);
+    userRepository.save(user);
   }
 
   /** Resolves an organization reference from its ID (or null if blank). */
@@ -412,27 +615,72 @@ public class UserService {
           user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
     }
 
-    String subject = "OpenAEV email change to " + newEmail + " requested";
-    String body =
+    String confirmLink =
+        openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode;
+    String validityMinutes = String.valueOf(Math.ceilDivExact(tenMinutes, 60000));
+
+    // Send the confirmation link to the NEW address, so the change only takes effect once its
+    // holder
+    // confirms it. The recipient carries only the new address and no platform account, which the
+    // email injector already supports for non-platform recipients.
+    User newAddressRecipient = new User();
+    // Give the transient recipient an id so the email injector's execution traces can reference it,
+    // as EmailExecutor.buildSyntheticRecipient does; it is never persisted.
+    newAddressRecipient.setId(UUID.randomUUID().toString());
+    newAddressRecipient.setEmail(newEmail);
+    String confirmSubject = "OpenAEV email change to " + newEmail + " requested";
+    String confirmBody =
         """
-            Hi %s,<br/>
+            Hi,<br/>
             <br/>
-            A request to change your account's email address on OpenAEV was submitted. The change will only
-            take effect after you confirm the request.<br/>
+            This address was submitted as the new email address for an OpenAEV account. The change
+            will only take effect after you confirm it from this address.<br/>
             <br/>
-            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            If you did not expect this, you can ignore this message.<br/>
             <br/>
             Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
             <br/>
             The link is valid for %s minutes.
             """
-            .formatted(
-                user.getName(),
-                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
-                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+            .formatted(confirmLink, validityMinutes);
+
+    // Notify the current address that a change was requested, without the confirmation link, so the
+    // account owner can react if they did not start it.
+    String noticeSubject = "OpenAEV email change requested";
+    String noticeBody =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change
+            will only take effect after it is confirmed from the new address.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            """
+            .formatted(user.getName());
+
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        () -> mailingService.sendEmail(subject, body, List.of(user)));
+        () -> {
+          // The two deliveries are independent: sendEmail throws on a failed delivery, so a failure
+          // of one must not suppress the other. The current-address notice is attempted even when
+          // the confirmation delivery fails (the owner is still warned), and a notice-only failure
+          // does not abort a request whose confirmation link is already out. A failed confirmation
+          // delivery is surfaced, so the caller learns the change was not actually set in motion.
+          RuntimeException confirmFailure = null;
+          try {
+            mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
+          } catch (RuntimeException e) {
+            confirmFailure = e;
+          }
+          try {
+            mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+          } catch (RuntimeException e) {
+            log.warn("Email-change notice to the current address could not be delivered", e);
+          }
+          if (confirmFailure != null) {
+            throw confirmFailure;
+          }
+        });
   }
 
   public User confirmEmailChange(String confirmationCode) {
@@ -456,8 +704,58 @@ public class UserService {
       throw new ElementNotFoundException("Could not find user");
     }
 
+    String previousEmail = user.get().getEmail();
     user.get().setEmail(ecr.getValue().newEmail());
-    return userRepository.save(user.get());
+    User saved = userRepository.save(user.get());
+    notifyPreviousAddressOfChange(previousEmail, saved.getEmail());
+    return saved;
+  }
+
+  // Escape a value embedded in an email body that is processed by FreeMarker and then rendered as
+  // HTML: htmlEscape neutralises tags and <#...>/<@...> directives (all start with '<'); breaking
+  // "${" and "#{" stops FreeMarker interpolation. The value is caller-controlled (a quoted
+  // @Email local part can carry these metacharacters).
+  static String escapeForEmailBody(String raw) {
+    if (raw == null) {
+      return "";
+    }
+    return HtmlUtils.htmlEscape(raw).replace("${", "&#36;{").replace("#{", "&#35;{");
+  }
+
+  // Tell the previous address that the change was applied, so the account owner can react if they
+  // did not start it. Independent delivery: a failure here must not undo a change that has already
+  // taken effect, so the whole body — recipient construction and the transactional send — is
+  // guarded
+  // (the executeNew begin/commit itself can throw, e.g. UnexpectedRollbackException).
+  private void notifyPreviousAddressOfChange(String previousEmail, String newEmail) {
+    // Nothing to warn about when there is no previous address or the address did not actually
+    // change
+    // (a replay of the confirmation code within its validity window yields previous == new).
+    if (previousEmail == null
+        || previousEmail.isBlank()
+        || previousEmail.equalsIgnoreCase(newEmail)) {
+      return;
+    }
+    try {
+      User previousAddressRecipient = new User();
+      previousAddressRecipient.setId(UUID.randomUUID().toString());
+      previousAddressRecipient.setEmail(previousEmail);
+      String subject = "OpenAEV account email changed";
+      String body =
+          """
+              Hi,<br/>
+              <br/>
+              Your OpenAEV account's email address was changed to %s.<br/>
+              <br/>
+              If you did not make this change, please take steps to secure your account.<br/>
+              """
+              .formatted(escapeForEmailBody(newEmail));
+      tenantTx.executeNew(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> mailingService.sendEmail(subject, body, List.of(previousAddressRecipient)));
+    } catch (RuntimeException e) {
+      log.warn("Email-change completion notice to the previous address could not be delivered", e);
+    }
   }
 
   public void sendEmailChangeConfirmationEmail(User user) {
@@ -472,6 +770,50 @@ public class UserService {
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
         () -> mailingService.sendEmail(subject, body, List.of(user)));
+  }
+
+  /**
+   * Loads the lazy teams, tags and organizations a response serializes, in the scope an
+   * authenticated request without tenant selector reads under: the tenants {@code user} is a member
+   * of. For an endpoint that answers before a request scope exists (the login, the password reset):
+   * the lazy collections are otherwise read after the transaction, with no scope, and come back
+   * empty.
+   *
+   * <p>Needs the active transaction that loaded {@code user}: {@link
+   * TenantScopedTransaction#setScopeOnCurrentTransaction} throws an {@link IllegalStateException}
+   * without one. A member of no tenant does not reach it: that user reads nothing in a request
+   * either, and the associations are initialized with no scope change.
+   *
+   * <p>The scope moves with {@code setScopeOnCurrentTransaction}, the only primitive that takes
+   * several tenants, so the transaction also runs at the system clearance of those tenants while
+   * the associations load. Teams, tags and organizations carry no marking. Both scopes are put back
+   * before returning.
+   *
+   * @param user the user, as the transaction loaded it
+   * @return {@code user}, with the three associations initialized
+   */
+  public User hydrateInMembershipScope(User user) {
+    TxCtx membershipScope =
+        tenantScopeResolver.resolve(
+            Set.of(),
+            new LinkedHashSet<>(tenantMembershipCacheManager.findTenantIdsByUserId(user.getId())));
+    if (membershipScope instanceof TxCtx.Missing) {
+      // A member of no tenant reads nothing, in a request as here
+      initializeResponseAssociations(user);
+      return user;
+    }
+    try (TenantScopedTransaction.CapturedScope callerScope =
+        tenantTx.captureScopeOfCurrentTransaction()) {
+      tenantTx.setScopeOnCurrentTransaction(membershipScope);
+      initializeResponseAssociations(user);
+    }
+    return user;
+  }
+
+  private static void initializeResponseAssociations(User user) {
+    Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    user.loadOrganizations();
   }
 
   /**
@@ -503,7 +845,11 @@ public class UserService {
     if (!passwordValidation.equals(password)) {
       throw new InputValidationException("password_validation", "Bad password validation");
     }
-    User changeUser = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Hydrated before the save: the save reads the user's collections with no scope, and an
+    // association read there stays empty for the response
+    User changeUser =
+        hydrateInMembershipScope(
+            userRepository.findById(userId).orElseThrow(ElementNotFoundException::new));
     changeUser.setPassword(encodeUserPassword(password));
     User savedUser = userRepository.save(changeUser);
     synchronized (resetTokenMap) {
@@ -708,7 +1054,7 @@ public class UserService {
     if (principal instanceof OpenAEVAnonymous) {
       return null;
     }
-    return this.userRepository.findById(principal.getId()).orElse(null);
+    return findWithRoles(principal.getId()).orElse(null);
   }
 
   public User currentUser() {
@@ -724,8 +1070,7 @@ public class UserService {
       // If not, we get it
       if (user == null) {
         user =
-            this.userRepository
-                .findById(SessionHelper.currentUser().getId())
+            findWithRoles(SessionHelper.currentUser().getId())
                 .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
 
         // If the user is admin, we put him in cache
@@ -736,11 +1081,77 @@ public class UserService {
     } else {
       // If for some reason, the cache is unavailable, we just get the user and return it
       user =
-          this.userRepository
-              .findById(SessionHelper.currentUser().getId())
+          findWithRoles(SessionHelper.currentUser().getId())
               .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     }
     return user;
+  }
+
+  /**
+   * Returns a user whose capabilities the caller evaluates, with the roles of its groups.
+   *
+   * <p>For a caller off the request thread, such as the stream, that has no user of its own to load
+   * through {@link #currentUser()}.
+   */
+  public User userWithRoles(@NotBlank final String userId) {
+    return findWithRoles(userId)
+        .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+  }
+
+  /**
+   * Loads the user so that the roles of its groups, an eager association read with the user, are
+   * read in scope: a tenant role is a row of an active table and a load with no scope reads none.
+   *
+   * <p>With no transaction open, the load runs in a read-only one scoped to the tenants the user
+   * belongs to: read-only, as the repository's own {@code findById} is, so that a managed entity
+   * the request's session holds pending is not written by it. A user with no membership is loaded
+   * as is: the rows of a platform role are readable whatever the scope. In a transaction already
+   * open the load takes the scope and the read-only state of that transaction, the request's or the
+   * job's.
+   */
+  private Optional<User> findWithRoles(String userId) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      return userRepository.findById(userId);
+    }
+    List<String> tenantIds = tenantMembershipCacheManager.findTenantIdsByUserId(userId);
+    if (tenantIds.isEmpty()) {
+      return userRepository.findById(userId);
+    }
+    TxCtx scope = TxCtx.forTenants(tenantIds);
+    return tenantTx.executeReadOnly(
+        scope,
+        () -> {
+          Optional<User> user = userRepository.findById(userId);
+          if (user.isEmpty()) {
+            return user;
+          }
+          return GroupRolesInScope.needsReload(entityManager, user.get())
+              ? loadRolesFromTheDatabase(user.get(), scope)
+              : user;
+        });
+  }
+
+  /**
+   * Reads again the groups of {@code held} the load has to hand out, and their roles. A load by id
+   * of a user or a group the session already holds, read with no scope or in another tenant's
+   * scope, hands out that instance with the groups and roles of its first read: the eager
+   * associations are not read again.
+   *
+   * <p>When the session holds no pending change, {@code held} is refreshed first, so a group the
+   * earlier load missed is added; the groups already resident before that, whose roles are not the
+   * roles of the scope, are then refreshed in turn ({@link GroupRolesInScope#withDifferingRoles}).
+   * When the session holds one, a refresh would replace the pending state of a group, so the user
+   * is loaded in a persistence context of its own, which the caller's entities never join: the
+   * result is detached, and the caller's session holds its own state unchanged.
+   */
+  private Optional<User> loadRolesFromTheDatabase(User held, TxCtx scope) {
+    if (entityManager.unwrap(Session.class).isDirty()) {
+      return tenantTx.executeNew(scope, () -> userRepository.findById(held.getId()));
+    }
+    entityManager.refresh(held);
+    GroupRolesInScope.withDifferingRoles(entityManager, held.getUnscopedGroups())
+        .forEach(entityManager::refresh);
+    return Optional.of(held);
   }
 
   /**
@@ -795,19 +1206,24 @@ public class UserService {
    * creation, plus every tenant freshly attached. Scopes the user already belonged to are skipped,
    * so a group deliberately removed from a user is never re-granted by a later update. Never
    * removes an existing group membership.
+   *
+   * <p>Each applicable group is granted through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time: it is already a no-op for a group the user holds, so there is no
+   * need to read the user's current groups here first.
    */
   private void assignAutoAssignGroups(
       User user, Collection<String> tenantIds, boolean includePlatformScope) {
-    if (!includePlatformScope && tenantIds.isEmpty()) {
-      return;
-    }
-    Specification<Group> spec =
-        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
-    for (String tenantId : tenantIds) {
-      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
-      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
-    }
-    List<Group> applicableGroups = groupRepository.findAll(spec);
+    autoAssignGroups(tenantIds, includePlatformScope)
+        .forEach(group -> userGroupMembershipService.addMembership(user.getId(), group.getId()));
+  }
+
+  /**
+   * Sets the auto-assign groups on a user that has not been saved yet. Only for a new user: its
+   * groups are complete in memory, so setting them cannot drop a row it never loaded.
+   */
+  private void grantAutoAssignGroupsToNewUser(
+      User user, Collection<String> tenantIds, boolean includePlatformScope) {
+    List<Group> applicableGroups = autoAssignGroups(tenantIds, includePlatformScope);
     if (applicableGroups.isEmpty()) {
       return;
     }
@@ -820,12 +1236,28 @@ public class UserService {
     user.setGroups(current);
   }
 
+  private List<Group> autoAssignGroups(Collection<String> tenantIds, boolean includePlatformScope) {
+    if (!includePlatformScope && tenantIds.isEmpty()) {
+      return List.of();
+    }
+    Specification<Group> spec =
+        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
+    for (String tenantId : tenantIds) {
+      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
+      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
+    }
+    return groupRepository.findAll(spec);
+  }
+
   /**
    * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
    * a tenant outside of the update flow, i.e. when detached from a tenant screen.
    *
    * <p>Evicts the user's marking clearance cache: a removed group can only shrink clearance, and a
    * stale, larger cached entry would fail open.
+   *
+   * @throws IllegalStateException when the transaction's tenant scope does not hold every tenant of
+   *     {@code tenantIds}
    */
   @Transactional(rollbackFor = Exception.class)
   public void revokeTenantGroups(
@@ -833,6 +1265,9 @@ public class UserService {
     if (tenantIds.isEmpty()) {
       return;
     }
+    // Groups are read in the transaction's scope: a tenant outside it has its groups left in place
+    // without a word.
+    tenantTx.requireScopeCovers(tenantIds);
     User user = user(userId);
     revokeTenantGroups(user, tenantIds);
     User savedUser = userRepository.save(user);
@@ -844,13 +1279,19 @@ public class UserService {
    * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
    * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
    * Platform groups and the groups of the remaining tenants are untouched.
+   *
+   * <p>Each revoked group is removed through {@link UserGroupMembershipService}, one {@code
+   * users_groups} row at a time, from the group side: the groups to revoke are only read off the
+   * user here, never mutated on it.
    */
   private void revokeTenantGroups(User user, Collection<String> tenantIds) {
     if (tenantIds.isEmpty()) {
       return;
     }
-    user.getUnscopedGroups()
-        .removeIf(
-            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
+    user.getUnscopedGroups().stream()
+        .filter(group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()))
+        .map(Group::getId)
+        .toList()
+        .forEach(groupId -> userGroupMembershipService.removeMembership(user.getId(), groupId));
   }
 }

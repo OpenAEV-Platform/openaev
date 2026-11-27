@@ -24,6 +24,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternUpsertService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInitializer;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -121,7 +122,7 @@ public class AttackPatternApi extends RestBehavior {
     attackPattern.setUpdateAttributes(input);
     attackPattern.setTenant(new Tenant(tenantId));
     attackPattern.setKillChainPhases(
-        fromIterable(killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
+        killChainPhaseRepository.findAllByIdInTenant(input.getKillChainPhasesIds(), tenantId));
     attackPattern.setParent(
         updateRelation(input.getParentId(), attackPattern.getParent(), attackPatternRepository));
     return attackPatternRepository.save(attackPattern);
@@ -139,9 +140,11 @@ public class AttackPatternApi extends RestBehavior {
     Iterable<InjectorContract> contracts =
         injectorContractRepository.findAll(
             InjectorContractSpecification.fromAttackPattern(attackPatternId));
-    // See AttackPatternInitializer: the contracts' attack patterns are serialized after this
-    // transaction closed, so they are hydrated while the scope is still set.
+    // See AttackPatternInitializer and ContractOutputElementInitializer: the contracts' attack
+    // patterns and output element tags are serialized after this transaction closed, so they are
+    // hydrated while the scope is set.
     AttackPatternInitializer.initializeFromContracts(contracts);
+    ContractOutputElementInitializer.initializeFromContracts(contracts);
     return contracts;
   }
 
@@ -161,7 +164,8 @@ public class AttackPatternApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
-        fromIterable(this.killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
+        killChainPhaseRepository.findAllByIdInTenant(
+            input.getKillChainPhasesIds(), attackPattern.getTenant().getId()));
     attackPattern.setUpdatedAt(Instant.now());
     return attackPatternRepository.save(attackPattern);
   }

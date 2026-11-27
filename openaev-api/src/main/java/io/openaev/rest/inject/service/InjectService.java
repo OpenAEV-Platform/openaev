@@ -11,10 +11,14 @@ import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_ACCESS_DENIED;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_INACTIVE;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_NOT_FOUND;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.InjectUtils.extractInjectExpectationsFromInjects;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.mapper.InjectStatusMapper.toExecutionTracesOutput;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
@@ -26,6 +30,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -48,9 +54,11 @@ import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
+import io.openaev.rest.inject.InjectLinksInitializer;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -60,15 +68,20 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
+import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -90,6 +103,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
+import org.hibernate.LazyInitializationException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -104,15 +119,17 @@ import org.springframework.util.CollectionUtils;
 @Service
 @Slf4j
 public class InjectService {
-  private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
-  private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
   static final String AGENT_ACCESS_DENIED = "Agent is not allowed to act on this inject";
+  private static final int LOGGED_ID_MAX_LENGTH = 64;
 
   private final TeamRepository teamRepository;
+  private final SecretReferenceService secretReferenceService;
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final InjectAgentResolverService injectAgentResolverService;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final PreviewFeatureService previewFeatureService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -120,11 +137,14 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
   private final UserService userService;
+  // Lazy: PermissionService is built from this service.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final InjectorContractService injectorContractService;
   private final TagRuleService tagRuleService;
   private final TagService tagService;
@@ -143,6 +163,8 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final FindingOccurrenceService findingOccurrenceService;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -156,23 +178,34 @@ public class InjectService {
   // -- CRUD --
 
   public Inject createAndSaveInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    return injectRepository.save(buildInject(exercise, scenario, input));
+    Inject inject = buildInject(ctx, exercise, scenario, input);
+    Inject savedInject = injectRepository.save(inject);
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
+    return savedInject;
   }
 
   public List<Inject> createAndSaveInjectList(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       List<InjectInput> injectInputs) {
 
     List<Inject> injects = new ArrayList<>();
-    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
-    return injectRepository.saveAll(injects);
+    injectInputs.forEach(
+        injectInput -> injects.add(buildInject(ctx, exercise, scenario, injectInput)));
+    List<Inject> savedInjects = injectRepository.saveAll(injects);
+    injects.forEach(
+        inject ->
+            credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of()));
+    return savedInjects;
   }
 
   private Inject buildInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
@@ -180,8 +213,13 @@ public class InjectService {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller creating this inject can belong to several.
+    String parentTenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            input.getInjectorContract(), parentTenantId);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -191,12 +229,19 @@ public class InjectService {
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
-    inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
-    inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
-    inject.setTags(tagService.tagSet(input.getTagIds()));
+    inject.setTeams(
+        fromIterable(teamRepository.findAllByIdInTenant(input.getTeams(), parentTenantId)));
+    inject.setAssets(fromIterable(assetService.assets(input.getAssets(), parentTenantId)));
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(input.getSecretReferences(), parentTenantId));
+    inject.setTags(tagService.tagSet(input.getTagIds(), parentTenantId));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(
+                i ->
+                    i.toDocument(
+                        documentService.documentInTenant(i.getDocumentId(), parentTenantId),
+                        inject))
             .toList();
     inject.setDocuments(injectDocuments);
     // Set dependencies
@@ -209,7 +254,8 @@ public class InjectService {
                       injectDependencyInput ->
                           injectDependencyInput.toInjectDependency(
                               inject,
-                              this.inject(
+                              injectInScope(
+                                  ctx,
                                   injectDependencyInput.getRelationship().getInjectParentId())))
                   .toList());
     }
@@ -218,7 +264,7 @@ public class InjectService {
     // EXERCISE
     if (exercise != null) {
       tags = exercise.getTags();
-      inject.setExercise(exercise);
+      InjectUtils.attachToExercise(inject, exercise);
       // Linked documents directly to the exercise
       inject
           .getDocuments()
@@ -232,7 +278,7 @@ public class InjectService {
     // SCENARIO
     if (scenario != null) {
       tags = scenario.getTags();
-      inject.setScenario(scenario);
+      InjectUtils.attachToScenario(inject, scenario);
       // Linked documents directly to the scenario
       inject
           .getDocuments()
@@ -250,7 +296,7 @@ public class InjectService {
       inject.setAssetGroups(
           this.tagRuleService.applyTagRuleToInjectCreation(
               tags.stream().map(Tag::getId).toList(),
-              assetGroupService.assetGroups(input.getAssetGroups())));
+              assetGroupService.assetGroups(input.getAssetGroups(), parentTenantId)));
     }
 
     // if inject content is null we add the defaults from the injector contract
@@ -259,14 +305,111 @@ public class InjectService {
       inject.setContent(
           injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
     }
+    checkAssetGroupReferences(injectorContract, inject.getContent(), parentTenantId);
 
     return inject;
   }
 
+  /**
+   * Refuses an inject content whose asset group reference fields name a group that is not an asset
+   * group of the inject's tenant: an unknown id and a group of another tenant are answered alike.
+   * The form only offers the tenant's groups; this holds the same rule for an API write.
+   *
+   * @throws BadRequestException naming the field and the ids not found
+   */
+  void checkAssetGroupReferences(
+      @Nullable final InjectorContract injectorContract,
+      @Nullable final JsonNode content,
+      @NotBlank final String tenantId) {
+    for (String key :
+        injectorContractContentUtils.fieldKeysOfType(
+            injectorContract, ContractFieldType.AssetGroupReference)) {
+      List<String> ids = InjectorContractContentUtils.idsOf(content, key);
+      if (ids.isEmpty()) {
+        continue;
+      }
+      Set<String> found =
+          assetGroupService.assetGroups(ids, tenantId).stream()
+              .map(AssetGroup::getId)
+              .collect(Collectors.toSet());
+      List<String> missing = ids.stream().filter(id -> !found.contains(id)).distinct().toList();
+      if (!missing.isEmpty()) {
+        throw new BadRequestException(
+            "Field " + key + ": asset group not found: " + String.join(", ", missing));
+      }
+    }
+  }
+
+  /**
+   * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
+   * own column, in the caller's tenant scope. For the callers that resolve an inject's owner before
+   * acting in its tenant; an unknown inject and an inject outside the scope are absent from the
+   * result.
+   */
+  public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
+    return injectRepository.findTenantIdsByInjectIds(injectIds);
+  }
+
+  /**
+   * Loads an inject by primary key, in no request scope. For background work and for a row the
+   * caller has just created or already guarded; a request that receives the id uses {@link
+   * #inject(TxCtx, String)}.
+   */
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * The by-id load runs under the transaction's tenant scope, and the row is kept only when its
+   * tenant lies in the request's scope.
+   *
+   * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
+   * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
+   * guard then opens a short one of its own instead of running unscoped.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return doFindInScope(ctx, injectId);
+  }
+
+  /** Loads an inject inside the request's tenant scope. Throws if not found there. */
+  @Transactional(readOnly = true)
+  public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return injectInScope(ctx, injectId);
+  }
+
+  /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
+  @Transactional(readOnly = true)
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    if (doFindInScope(ctx, injectId).isEmpty()) {
+      throw new ElementNotFoundException("Inject not found with id: " + injectId);
+    }
+  }
+
+  /**
+   * Body of {@link #inject(TxCtx, String)}, for the callers of this class that already run inside
+   * the request's transaction.
+   */
+  private Inject injectInScope(final TxCtx ctx, final String injectId) {
+    return doFindInScope(ctx, injectId)
+        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Body of {@link #findInScope}. Kept un-annotated so {@link #inject(TxCtx, String)} and {@link
+   * #existsInScope} can reuse it without the intra-class {@code @Transactional} self-invocation
+   * trap (a same-class call bypasses the Spring proxy). Must be called inside a transaction; each
+   * of the three public entry points above carries its own.
+   */
+  private Optional<Inject> doFindInScope(final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.injectRepository
+        .findById(injectId)
+        .filter(inject -> scope.contains(inject.getTenant().getId()));
   }
 
   /**
@@ -280,6 +423,47 @@ public class InjectService {
       return null;
     }
     return this.injectRepository.findById(injectId).orElse(null);
+  }
+
+  /**
+   * Tenant gate of the implant endpoints, run before {@link #checkAgentTargetsInject} and {@link
+   * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
+   * the inject's tenant column only, by primary key, then compares it with the scope in Java, the
+   * test {@link #findInScope} applies, without loading the inject: it runs on every implant
+   * callback, under the per-inject lock. The read itself is narrowed to the request's scope, so an
+   * inject of another tenant is not found and is refused like an unknown one.
+   *
+   * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
+   * agent checks), so the implant endpoints do not reveal whether an inject id exists.
+   *
+   * @param ctx the request's tenant scope
+   * @param injectId the inject the implant is acting on
+   * @throws ForbiddenException if the inject does not exist or is not in the request's scope
+   */
+  @Transactional(readOnly = true)
+  public void requireInScopeForAgent(@NotNull final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    boolean inScope =
+        injectId != null
+            && injectRepository.findTenantIdsByInjectIds(List.of(injectId)).stream()
+                .anyMatch(row -> scope.contains((String) row[1]));
+    if (!inScope) {
+      log.warn(
+          "Agent access to inject denied: inject {} is not in the request's scope",
+          forLog(injectId));
+      throw new ForbiddenException(AGENT_ACCESS_DENIED);
+    }
+  }
+
+  /** A path variable the caller chose: no line break, bounded, so it stays on one log line. */
+  private static String forLog(final String injectId) {
+    if (injectId == null) {
+      return null;
+    }
+    String oneLine = injectId.replace("\r", "").replace("\n", "");
+    return oneLine.length() > LOGGED_ID_MAX_LENGTH
+        ? oneLine.substring(0, LOGGED_ID_MAX_LENGTH)
+        : oneLine;
   }
 
   /**
@@ -397,8 +581,14 @@ public class InjectService {
         true);
   }
 
+  /** Deletes the given injects. */
   @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
+    deleteInjects(injectIds);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInjects(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
@@ -446,6 +636,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
@@ -455,6 +649,26 @@ public class InjectService {
 
   // -- ASSETS --
   public List<AssetToExecute> resolveAllAssetsToExecute(@NotNull final Inject inject) {
+    return resolveAssetsToExecuteByClearance(inject).cleared();
+  }
+
+  /**
+   * Resolves the targets once and splits them by {@link #resolveLaunchedByClearance}'s
+   * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
+   * every marked target is dropped, nothing throws, nothing runs. The dropped targets are returned
+   * too, so the dispatch can trace them as not targeted without resolving the targets again.
+   */
+  public ResolvedAssetsToExecute resolveAssetsToExecuteByClearance(@NotNull final Inject inject) {
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
+    Map<Boolean, List<AssetToExecute>> byClearance =
+        resolveAllTargetedAssets(inject).stream()
+            .collect(Collectors.partitioningBy(target -> launchable.test(target.asset())));
+    return new ResolvedAssetsToExecute(
+        byClearance.get(true),
+        byClearance.get(false).stream().map(AssetToExecute::asset).collect(Collectors.toSet()));
+  }
+
+  private List<AssetToExecute> resolveAllTargetedAssets(Inject inject) {
     List<AssetToExecute> assetToExecutes = new ArrayList<>();
 
     inject.getAssets().forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
@@ -503,6 +717,74 @@ public class InjectService {
             });
 
     return assetToExecutes;
+  }
+
+  /** Resolve feature flag MARKING */
+  private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      return asset -> true;
+    }
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return asset -> isVisibleUnderClearance(asset, clearance);
+  }
+
+  /**
+   * Resolves the live, current marking clearance of the actor whose launch/relaunch gates this
+   * inject's dispatch - the parent Exercise's {@code launchedBy} for a scenario-linked inject, or
+   * the inject's own {@code launchedBy} for a root/atomic-testing inject. Never cached on the
+   * entity: a group-membership change between launch and dispatch is picked up automatically. A
+   * null actor (deleted user, or an old row created before this field existed) resolves to zero
+   * clearance.
+   *
+   * <p>Shared by every independent asset-resolution point that must honor partial/scoped execution
+   * (expectation computation, agent-routing dispatch, external-push dispatch) so the rule is
+   * implemented once, not reinvented per call site.
+   */
+  private MarkingCtx resolveLaunchedByClearance(Inject inject) {
+    // The dispatch may hold an inject loaded in another session, always load user by its id, do
+    // not rely on User associated to Inject by lazy loading association.
+    Optional<User> launchedBy =
+        launcherIdOf(inject)
+            .flatMap(launcherId -> userService.find(List.of(launcherId)).stream().findFirst());
+    if (launchedBy.isEmpty()) {
+      return MarkingCtx.none();
+    }
+    return markingClearanceCacheManager.findClearance(
+        launchedBy.get().getId(), inject.getTenant().getId());
+  }
+
+  /**
+   * The id of the launcher of the inject: read from the database, and from the inject itself only
+   * when the database does not know it.
+   *
+   * <p>A chained step creates its inject in the transaction of the run, then records its attack
+   * path from an isolated one ({@code REQUIRES_NEW}) that resolves the targets again. The row of
+   * the inject is not committed yet, so that transaction does not see it, finds no launcher, and
+   * resolves a zero clearance: every marked asset reads as a target the launcher is not cleared
+   * for, and no attack-path row is written for it (an empty Attack Path tab, whoever reads it).
+   */
+  private Optional<String> launcherIdOf(Inject inject) {
+    Optional<String> persisted = injectRepository.findLauncherId(inject.getId());
+    return persisted.isPresent() ? persisted : launcherIdOfLoadedInject(inject);
+  }
+
+  private static Optional<String> launcherIdOfLoadedInject(Inject inject) {
+    try {
+      Exercise simulation = inject.getExercise();
+      User launcher = simulation != null ? simulation.getLaunchedBy() : inject.getLaunchedBy();
+      return Optional.ofNullable(launcher).map(User::getId);
+    } catch (LazyInitializationException e) {
+      // Loaded by a session that is closed: nothing more can be read from it.
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * An asset with no marking is visible to everyone (Task 3). A marked asset is visible only when
+   * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
+   */
+  private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
+    return clearance.allows(markingIds(asset));
   }
 
   /**
@@ -563,6 +845,7 @@ public class InjectService {
     Inject duplicatedInject = findAndDuplicateInject(id);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));
     Inject savedInject = injectRepository.save(duplicatedInject);
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(duplicatedInject, Set.of());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
@@ -583,8 +866,10 @@ public class InjectService {
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     this.throwIfInjectNotLaunchable(inject);
+    findingOccurrenceService.detachFromInject(id);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
+    inject.setLaunchedBy(userService.currentUser());
     Inject savedInject = saveInjectAndStatusAsQueuing(inject);
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
@@ -612,13 +897,41 @@ public class InjectService {
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
-    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
-    deleteForRelaunch(id, savedInject.getId());
+    Inject savedInject =
+        relaunchCopy(
+            id,
+            duplicatedInject,
+            checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
+  /**
+   * Relaunches an inject for the current user, whose launch was already checked ({@link
+   * #throwIfInjectNotLaunchable}) on what they can see: run in a faithful copy, the duplicate also
+   * carries the targets they are not cleared for, which the dispatch will not execute.
+   *
+   * @return the id of the relaunched inject
+   */
+  @Transactional
+  public String relaunchAsCurrentUser(String id) {
+    return relaunchCopy(id, findAndDuplicateInject(id), userService.currentUser()).getId();
+  }
+
+  private Inject relaunchCopy(String originId, Inject duplicatedInject, User launchedBy) {
+    duplicatedInject.setLaunchedBy(launchedBy);
+    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
+    deleteForRelaunch(originId, savedInject.getId());
+    return savedInject;
+  }
+
+  /** Deletes an inject. */
   @Transactional
   public void delete(String id) {
+    deleteInject(id);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points (no self-invocation).
+  private void deleteInject(String id) {
     injectRepository.deleteById(id);
   }
 
@@ -626,6 +939,12 @@ public class InjectService {
   // public @Transactional variant would only be reachable through self-invocation).
   private void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
+    // The grants of an atomic testing move to the relaunched copy BEFORE the old inject is deleted:
+    // deleting an inject deletes the grants that name it (trigger trg_delete_inject_grants), so
+    // moving them afterwards would find nothing left to move. An inject of a scenario or a
+    // simulation holds no ATOMIC_TESTING grant, so this is a no-op for it.
+    grantRepository.updateGrantResourceIdAndType(
+        oldId, newId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     injectRepository.deleteByIdNative(oldId);
     // Native delete: notify the search engine so the old inject and its expectation/finding docs
     // don't survive the relaunch (they would double-count against the duplicated inject).
@@ -687,6 +1006,16 @@ public class InjectService {
     }
   }
 
+  /**
+   * Queues a copy of an inject: same contract, content and targets, the original kept. Used by the
+   * finding re-test, which runs again what produced a finding without replacing its history.
+   *
+   * @return the queued copy
+   */
+  public Inject duplicateAndQueue(@NotNull final String injectId) {
+    return saveInjectAndStatusAsQueuing(findAndDuplicateInject(injectId));
+  }
+
   private Inject findAndDuplicateInject(String id) {
     Inject injectOrigin = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     return InjectUtils.duplicateInject(injectOrigin);
@@ -709,7 +1038,9 @@ public class InjectService {
    *     provided
    */
   public Specification<Inject> getInjectSpecification(
-      final InjectBulkProcessingInput input, Grant.GRANT_TYPE requestedGrantLevel) {
+      final TxCtx ctx,
+      final InjectBulkProcessingInput input,
+      Grant.GRANT_TYPE requestedGrantLevel) {
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
         || (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())
@@ -738,7 +1069,8 @@ public class InjectService {
     }
     // Filter out any injects not related to resources where the user is granted with the
     // appropriate level
-    filterSpecifications = filterSpecifications.and(hasGrantAccessForInject(requestedGrantLevel));
+    filterSpecifications =
+        filterSpecifications.and(hasGrantAccessForInject(ctx, requestedGrantLevel));
     return filterSpecifications;
   }
 
@@ -773,22 +1105,31 @@ public class InjectService {
       }
     }
 
-    // We retrieve the data from DB for teams, assets and asset groups in the input values
-    Map<String, Team> teamsFromDB =
-        this.teamRepository.findAllById(teamsIDs).stream()
-            .collect(Collectors.toMap(Team::getId, team -> team));
-    Map<String, Asset> assetsFromDB =
-        this.assetService.assets(assetsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(Asset::getId, asset -> asset));
-    Map<String, AssetGroup> assetGroupsFromDB =
-        this.assetGroupService.assetGroups(assetGroupsIDs.stream().toList()).stream()
-            .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
-
-    // we update the injects values
-    injectsToUpdate.forEach(
-        inject -> {
-          applyUpdateOperation(inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
-          inject.setUpdatedAt(now());
+    // The team, asset and asset group ids named in the request body resolve in the tenant of each
+    // inject being updated: an id of another tenant is treated like an unknown id, so the injects
+    // are grouped by tenant first.
+    Map<String, List<Inject>> injectsByTenant =
+        injectsToUpdate.stream()
+            .collect(Collectors.groupingBy(inject -> inject.getTenant().getId()));
+    injectsByTenant.forEach(
+        (tenantId, tenantInjects) -> {
+          Map<String, Team> teamsFromDB =
+              this.teamRepository.findAllByIdInTenant(teamsIDs, tenantId).stream()
+                  .collect(Collectors.toMap(Team::getId, team -> team));
+          Map<String, Asset> assetsFromDB =
+              this.assetService.assets(assetsIDs.stream().toList(), tenantId).stream()
+                  .collect(Collectors.toMap(Asset::getId, asset -> asset));
+          Map<String, AssetGroup> assetGroupsFromDB =
+              this.assetGroupService
+                  .assetGroups(assetGroupsIDs.stream().toList(), tenantId)
+                  .stream()
+                  .collect(Collectors.toMap(AssetGroup::getId, assetGroup -> assetGroup));
+          tenantInjects.forEach(
+              inject -> {
+                applyUpdateOperation(
+                    inject, operations, teamsFromDB, assetsFromDB, assetGroupsFromDB);
+                inject.setUpdatedAt(now());
+              });
         });
 
     // Save updated injects and return them
@@ -807,15 +1148,33 @@ public class InjectService {
   @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
       TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+    return findInjectsAndCheckPermission(ctx, input, requested_grant_level);
+  }
+
+  private List<Inject> findInjectsAndCheckPermission(
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
-        getInjectSpecification(input, requested_grant_level);
+        getInjectSpecification(ctx, input, requested_grant_level);
 
     // Services calls
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
     // atomic tests)
     return this.injectRepository.findAll(filterSpecifications);
+  }
+
+  /**
+   * Resolves the injects of a bulk delete like {@link #getInjectsAndCheckPermission} and loads
+   * their tags and secret references in the same scoped transaction. The native delete that follows
+   * removes the {@code injects_tags} rows, and the response serializes after the commit with no
+   * tenant scope, so both reads happen here.
+   */
+  @Transactional(readOnly = true)
+  public List<Inject> getInjectsToDeleteWithLinks(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injects = findInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
+    InjectLinksInitializer.initialize(injects);
+    return injects;
   }
 
   /**
@@ -848,10 +1207,13 @@ public class InjectService {
       input.setDependsDuration(inject.getDependsDuration());
     }
     inject.setUpdateAttributes(input);
+    checkAssetGroupReferences(
+        inject.getInjectorContract().orElse(null), inject.getContent(), inject.getTenant().getId());
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies
@@ -885,9 +1247,7 @@ public class InjectService {
                   injectDependency
                       .getCompositeId()
                       .setInjectParent(
-                          injectRepository
-                              .findById(entry.getRelationship().getInjectParentId())
-                              .orElse(null));
+                          parentInTenantOf(inject, entry.getRelationship().getInjectParentId()));
                   injectDependency.setInjectDependencyCondition(
                       new InjectDependencyConditions.InjectDependencyCondition());
                   injectDependency
@@ -923,7 +1283,9 @@ public class InjectService {
       inject.getDependsOn().removeAll(injectDepencyToRemove);
     }
 
-    inject.setTeams(fromIterable(this.teamRepository.findAllById(input.getTeams())));
+    inject.setTeams(
+        fromIterable(
+            this.teamRepository.findAllByIdInTenant(input.getTeams(), inject.getTenant().getId())));
     // Only replace the assets when they change: replacing the collection makes Hibernate delete and
     // re-insert every injects_assets row, and a trigger then updates each of these assets. Injects
     // targeting the same assets would otherwise contend on those rows (concurrent updates of
@@ -931,10 +1293,25 @@ public class InjectService {
     Set<String> currentAssetIds =
         inject.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
     if (input.getAssets() == null || !currentAssetIds.equals(new HashSet<>(input.getAssets()))) {
-      inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
+      inject.setAssets(
+          fromIterable(this.assetService.assets(input.getAssets(), inject.getTenant().getId())));
     }
-    inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
-    inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    inject.setAssetGroups(
+        fromIterable(
+            this.assetGroupService.assetGroups(
+                input.getAssetGroups(), inject.getTenant().getId())));
+    Set<String> previousSecretReferenceIds =
+        inject.getSecretReferences().stream()
+            .map(SecretReference::getId)
+            .collect(Collectors.toSet());
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(
+            input.getSecretReferences(), inject.getTenant().getId()));
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
+        inject, previousSecretReferenceIds);
+    inject.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(input.getTagIds(), inject.getTenant().getId())));
 
     // Set documents
     List<InjectDocumentInput> inputDocuments = input.getDocuments();
@@ -955,7 +1332,9 @@ public class InjectService {
         .filter(doc -> !currentDocumentIds.contains(doc.getDocumentId()))
         .forEach(
             in -> {
-              Optional<Document> doc = this.documentRepository.findById(in.getDocumentId());
+              Optional<Document> doc =
+                  this.documentRepository.findByIdInTenant(
+                      in.getDocumentId(), inject.getTenant().getId());
               if (doc.isPresent()) {
                 InjectDocument injectDocument = new InjectDocument();
                 injectDocument.setInject(inject);
@@ -979,6 +1358,19 @@ public class InjectService {
     inject.setDocuments(injectDocuments);
 
     return inject;
+  }
+
+  /**
+   * Resolves a dependency parent named in a request body in the tenant of the inject written. A
+   * parent of another tenant is answered like an unknown id.
+   *
+   * @throws ElementNotFoundException when no inject of that tenant carries the id
+   */
+  private Inject parentInTenantOf(final Inject inject, final String parentInjectId) {
+    return this.injectRepository
+        .findByIdAndTenantId(parentInjectId, inject.getTenant().getId())
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject not found with id: " + parentInjectId));
   }
 
   public Inject updateInjectActivation(
@@ -1071,6 +1463,7 @@ public class InjectService {
   public void resetInjectByExercise(String simulationId) {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
+    findingOccurrenceService.detachFromSimulation(simulationId);
     injects.forEach(Inject::clean);
     injectRepository.saveAll(injects);
   }
@@ -1114,21 +1507,48 @@ public class InjectService {
         });
   }
 
+  /**
+   * Builds the real agent/agentless-asset sets a launch acts on, from a fresh target resolution.
+   * For callers that hold no {@link io.openaev.execution.ExecutableInject} (e.g. the attack path
+   * ingestion); the dispatch reuses its cached resolution through {@link
+   * #toAgentsAndAgentlessAssets}.
+   */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
+    return toAgentsAndAgentlessAssets(resolveAssetsToExecuteByClearance(inject));
+  }
+
+  /**
+   * Splits an already-resolved dispatch into the agent/agentless-asset sets a launch acts on - this
+   * is what {@link io.openaev.execution.ExecutionExecutorService#launchExecutorContext} commands to
+   * execute, so partial/scoped execution follows the same split as the rest of the dispatch,
+   * without resolving the targets again. The returned sets are new and mutable.
+   */
+  public AgentsAndAssetsAgentless toAgentsAndAgentlessAssets(ResolvedAssetsToExecute resolved) {
     Set<Agent> agents = new HashSet<>();
+    Set<Agent> agentsWithoutClearance = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
+    Set<Asset> assetsWithoutClearance = new HashSet<>();
 
-    for (Asset asset : inject.getAssets()) {
-      extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
-    }
+    resolved
+        .cleared()
+        .forEach(
+            target -> extractAgentsAndAssetsAgentless(agents, assetsAgentless, target.asset()));
+    resolved
+        .withoutClearance()
+        .forEach(
+            asset -> {
+              // A restricted target is traced as not targeted whatever its type: only endpoints
+              // carry agents, any other asset is traced as an asset
+              if (Hibernate.unproxy(asset) instanceof Endpoint) {
+                extractAgentsAndAssetsAgentless(
+                    agentsWithoutClearance, assetsWithoutClearance, asset);
+              } else {
+                assetsWithoutClearance.add(asset);
+              }
+            });
 
-    for (AssetGroup assetGroup : inject.getAssetGroups()) {
-      for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
-      }
-    }
-
-    return new AgentsAndAssetsAgentless(agents, assetsAgentless);
+    return new AgentsAndAssetsAgentless(
+        agents, assetsAgentless, agentsWithoutClearance, assetsWithoutClearance);
   }
 
   private void extractAgentsAndAssetsAgentless(
@@ -1177,8 +1597,20 @@ public class InjectService {
         getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
   }
 
+  /**
+   * Validates that an execution-trace target type is one this family resolves traces for. Called
+   * ahead of the by-id scope guard, so an unsupported type answers 400 regardless of whether the
+   * inject itself exists in the request's scope.
+   */
+  public void requireSupportedExecutionTraceTargetType(final TargetType targetType) {
+    if (!targetType.hasExecutionTraces()) {
+      throw new BadRequestException("Target type " + targetType + " is not supported");
+    }
+  }
+
   public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
+    requireSupportedExecutionTraceTargetType(targetType);
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
       // AI targets are plain assets (asset_category driven), so their traces are asset-scoped.
@@ -1186,13 +1618,17 @@ public class InjectService {
           this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
-      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+      // Network injectors report one inject-level trace for all their manual targets (raw IPs or
+      // hostnames from the content), so no trace belongs to a single manual target.
+      case MANUAL -> List.of();
+      default ->
+          throw new IllegalStateException(
+              "No execution trace lookup for target type " + targetType);
     };
   }
 
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
-    return injectStatusMapper.toInjectStatusOutput(
-        injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
+    return injectStatusMapper.toInjectStatusOutput(injectStatusRepository.findByInjectId(injectId));
   }
 
   public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
@@ -1330,22 +1766,34 @@ public class InjectService {
   /**
    * Check if a user is granted on an inject. A user can be granteed on an inject if: - The inject
    * is linked to a scenario or simulation that the user has access to - The inject is an atomic
-   * testing and the user has access to it
+   * testing and the user has access to it. The access capability bypasses the grants in the tenants
+   * where the user holds it.
    *
+   * @param ctx the request scope
    * @param grantType the grant type to check
    * @return a Specification that checks if the user has access to the inject
    */
-  public Specification<Inject> hasGrantAccessForInject(Grant.GRANT_TYPE grantType) {
-
+  public Specification<Inject> hasGrantAccessForInject(
+      final TxCtx ctx, Grant.GRANT_TYPE grantType) {
     User currentUser = userService.currentUser();
-    boolean hasCapabilityAccessAssessment =
-        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            || currentUser.getCapabilities().contains(Capability.BYPASS);
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            currentUser,
+            caller ->
+                caller.isAdmin()
+                    || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+                    || caller.getCapabilities().contains(Capability.BYPASS),
+            accessRight ->
+                accessRight
+                    ? (root, query, cb) -> cb.conjunction()
+                    : grantedInjects(currentUser, grantType));
+  }
 
+  private static Specification<Inject> grantedInjects(
+      User currentUser, Grant.GRANT_TYPE grantType) {
     return (root, query, cb) -> {
-      if (currentUser.isAdmin() || hasCapabilityAccessAssessment) {
-        return cb.conjunction();
-      }
 
       // Ensure distinct results (joins/subqueries can otherwise produce duplicates).
       query.distinct(true);
@@ -1365,6 +1813,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SCENARIO,
               allowedGrantTypes);
       // Create subquery for accessible simulations
@@ -1373,6 +1822,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SIMULATION,
               allowedGrantTypes);
       // Create subquery for accessible atomic testings
@@ -1381,6 +1831,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
               allowedGrantTypes);
 
@@ -1537,12 +1988,17 @@ public class InjectService {
             imapService.isServiceAvailable(),
             HealthCheck.Type.IMAP,
             HealthCheck.Status.WARNING));
+    // Every target, not only those a launch would execute: a health check describes the inject's
+    // configuration, before any launch, so there is no launcher whose clearance would apply.
     healthChecks.addAll(
         healthCheckUtils.runExecutorChecks(
-            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+            inject,
+            toAgentsAndAgentlessAssets(
+                new ResolvedAssetsToExecute(resolveAllTargetedAssets(inject), Set.of()))));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }
@@ -1586,12 +2042,14 @@ public class InjectService {
    * Tracked as a massive operation (header progress indicator): the operation is registered lazily
    * once the first contract page reveals the total, and progresses page by page.
    *
+   * @param ctx the request's tenant scope
    * @param exercise to link injects on
    * @param scenarios to link injects on
    * @param input to retrieve all Injector Contracts
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
+      TxCtx ctx,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1612,11 +2070,12 @@ public class InjectService {
         if (operationId == null && page.getTotalElements() > 0) {
           operationId =
               bulkOperationMonitor.start(
-                  "create", "injects", (int) page.getTotalElements() * scenarios.size());
+                  ctx, "create", "injects", (int) page.getTotalElements() * scenarios.size());
         }
         List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
         if (!injectInputs.isEmpty()) {
-          scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+          scenarios.forEach(
+              scenario -> createAndSaveInjectList(ctx, exercise, scenario, injectInputs));
           bulkOperationMonitor.progress(operationId, injectInputs.size() * scenarios.size());
         }
         pageNumber++;
@@ -1737,14 +2196,14 @@ public class InjectService {
         inject.getSecretReferences().stream()
             .filter(ref -> ref.getId().equals(attachmentId))
             .findFirst()
-            .orElseThrow(() -> new ElementNotFoundException("CREDENTIAL_NOT_FOUND"));
+            .orElseThrow(() -> new CredentialResolutionException(CREDENTIAL_NOT_FOUND));
 
     SecretReference.SECRET_STATUS status = secretReference.getStatus();
     if (isCredentialAccessDeniedStatus(status)) {
-      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+      throw new CredentialResolutionException(CREDENTIAL_ACCESS_DENIED);
     }
     if (isCredentialInactiveStatus(status)) {
-      throw new BadRequestException(CREDENTIAL_INACTIVE);
+      throw new CredentialResolutionException(CREDENTIAL_INACTIVE);
     }
     return secretReference;
   }
@@ -1765,22 +2224,30 @@ public class InjectService {
    * @param injectId the identifier of the owning inject
    * @param input the attachment identifier and authorisation code supplied by the injector
    * @return the validated credential reference to resolve
-   * @throws ElementNotFoundException when the inject or credential cannot be found in this scope
-   * @throws ForbiddenException when the authorisation is invalid or the credential is access denied
-   * @throws BadRequestException when the credential exists but is currently inactive
+   * @throws ElementNotFoundException when the inject cannot be found in this scope
+   * @throws CredentialResolutionException with {@code CREDENTIAL_NOT_FOUND} when the credential is
+   *     not on the inject, {@code CREDENTIAL_ACCESS_DENIED} when the authorisation is invalid or
+   *     the credential is access denied, {@code CREDENTIAL_INACTIVE} when the credential is
+   *     inactive
    */
   public CredentialSecretReference getSecretReferenceOrThrow(
       String injectId, InjectAttachmentInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
 
-    if (!verifyInjectStatusIsInProgress(inject)
-        || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
-      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    try {
+      if (!verifyInjectStatusIsInProgress(inject)
+          || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
+        throw new CredentialResolutionException(CREDENTIAL_ACCESS_DENIED);
+      }
+
+      SecretReference secretReference =
+          getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
+
+      return (CredentialSecretReference) secretReference;
+    } catch (CredentialResolutionException e) {
+      // Every refusal carrying a credential error code feeds the telemetry failure breakdown.
+      credentialMetricCollector.addResolutionFailure(e.getErrorCode());
+      throw e;
     }
-
-    SecretReference secretReference =
-        getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
-
-    return (CredentialSecretReference) secretReference;
   }
 }

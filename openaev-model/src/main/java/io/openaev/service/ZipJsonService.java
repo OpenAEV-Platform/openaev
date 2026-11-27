@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.TenantBase;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.jsonapi.*;
@@ -99,6 +100,13 @@ public class ZipJsonService<T extends Base> {
         addDocumentToExtras(doc, extras, owningTenantId(entity));
       }
     }
+    // The file of a threat arsenal action belongs to its payload, one level down.
+    if (entity instanceof InjectorContract contract && contract.getPayload() != null) {
+      Optional<Document> payloadFile = contract.getPayload().getAttachedDocument();
+      if (payloadFile.isPresent()) {
+        addDocumentToExtras(payloadFile.get(), extras, owningTenantId(entity));
+      }
+    }
 
     return this.writeZip(resource, extras);
   }
@@ -152,8 +160,36 @@ public class ZipJsonService<T extends Base> {
       String suffix,
       String writeTenantId)
       throws IOException {
+    return handleImport(
+        fileBytes,
+        nameAttributeKey,
+        includeOptions,
+        sanityCheck,
+        suffix,
+        writeTenantId,
+        ImportTypes.ANY);
+  }
+
+  /** Same import, restricted to the given resource types. */
+  public ImportOutput<T> handleImport(
+      byte[] fileBytes,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String suffix,
+      String writeTenantId,
+      ImportTypes types)
+      throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
+
+    // Refuse an unsupported root before anything is written: handleImportDocument below uploads the
+    // bundle's document files to object storage, which a later refusal in handleImportEntity would
+    // not undo (object storage is not transactional).
+    String rootType = doc.data() != null ? doc.data().type() : null;
+    if (!types.allowsRoot(rootType)) {
+      throw new IllegalArgumentException("Unsupported resource type for this import: " + rootType);
+    }
 
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
@@ -162,10 +198,55 @@ public class ZipJsonService<T extends Base> {
       }
     }
 
-    importer.handleImportDocument(doc, parsed.extras, writeTenantId);
-    T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId);
+    importer.handleImportDocument(doc, parsed.extras, writeTenantId, types);
+    T persisted =
+        importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId, types);
 
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
+  }
+
+  /**
+   * Returns the {@code data.type} of the JSON:API document of the archive, read by the same routine
+   * as {@link #handleImport}, or {@code null} when the document has no data or no type.
+   */
+  public String readRootType(byte[] fileBytes) throws IOException {
+    JsonApiDocument<ResourceObject> doc = readRootDocument(fileBytes);
+    return doc != null && doc.data() != null ? doc.data().type() : null;
+  }
+
+  /**
+   * Returns the root attribute {@code key} of the JSON:API document of the archive, read without
+   * importing anything (for instance the name of a bundled dashboard), or {@code null} when the
+   * document, its data or the attribute is absent.
+   */
+  public Object readRootAttribute(byte[] fileBytes, String key) throws IOException {
+    JsonApiDocument<ResourceObject> doc = readRootDocument(fileBytes);
+    if (doc == null || doc.data() == null || doc.data().attributes() == null) {
+      return null;
+    }
+    return doc.data().attributes().get(key);
+  }
+
+  private JsonApiDocument<ResourceObject> readRootDocument(byte[] fileBytes) throws IOException {
+    // Read only the JSON:API document entries to resolve the root type, without materializing the
+    // attachments: import dispatch reads the root type before handleImport parses the whole archive
+    // again, and a full readZip here would decompress and buffer every attachment a second time.
+    // The first JSON entry wins, exactly as readZip resolves the document handleImport imports, so
+    // dispatch and import always agree on the root.
+    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(fileBytes))) {
+      ZipEntry entry;
+      while ((entry = zis.getNextEntry()) != null) {
+        if (isDocumentEntry(entry)) {
+          return mapper.readValue(
+              readAll(zis),
+              mapper
+                  .getTypeFactory()
+                  .constructParametricType(JsonApiDocument.class, ResourceObject.class));
+        }
+        zis.closeEntry();
+      }
+    }
+    return null;
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {
@@ -232,7 +313,9 @@ public class ZipJsonService<T extends Base> {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
         byte[] content = readAll(zis);
-        if (entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName())) {
+        // The JSON:API document is the first JSON entry (writeZip writes it first): a later JSON
+        // entry is a document file, such as a JSON payload attachment.
+        if (doc == null && isDocumentEntry(entry)) {
           try {
             doc =
                 mapper.readValue(
@@ -255,6 +338,10 @@ public class ZipJsonService<T extends Base> {
       throw new IllegalArgumentException("ZIP must contain a json file");
     }
     return new ParsedZip(doc, extras);
+  }
+
+  private static boolean isDocumentEntry(ZipEntry entry) {
+    return entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName());
   }
 
   private static byte[] readAll(InputStream in) throws IOException {

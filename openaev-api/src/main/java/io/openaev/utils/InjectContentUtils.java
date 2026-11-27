@@ -2,6 +2,9 @@ package io.openaev.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 
@@ -56,5 +59,22 @@ public final class InjectContentUtils {
       return Optional.empty();
     }
     return Optional.ofNullable(StringUtils.trimToNull(targets.asText()));
+  }
+
+  /**
+   * Split the raw manual target value into its individual targets, the way the network injectors
+   * (Nmap, Nuclei) do before scanning: comma-separated, trimmed, blanks dropped, duplicates removed
+   * with the content order preserved.
+   */
+  public static List<String> contentManualTargets(ObjectNode content) {
+    return contentManualTarget(content)
+        .map(
+            raw ->
+                Arrays.stream(raw.split(","))
+                    .map(StringUtils::trimToNull)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList())
+        .orElse(List.of());
   }
 }

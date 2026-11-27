@@ -36,6 +36,35 @@ public class NotificationTriggerMapper {
    */
   public NotificationTrigger toNotificationTrigger(
       final String tenantId, final NotificationTriggerInput input) {
+    return toNotificationTrigger(tenantId, input, Set.of());
+  }
+
+  /**
+   * Same as {@link #toNotificationTrigger(String, NotificationTriggerInput)}, for an update of
+   * {@code triggerId}: a recipient group id the trigger already carries is kept even when it names
+   * a platform group, grandfathered from before groups activated under this guard; only a NEWLY
+   * added recipient group id is refused for naming a platform group or one of another tenant.
+   * Without this, re-submitting the input a client already holds (the ordinary PUT shape) would
+   * refuse the whole update for a trigger that predates the guard.
+   */
+  public NotificationTrigger toNotificationTriggerForUpdate(
+      final String tenantId, final String triggerId, final NotificationTriggerInput input) {
+    Set<String> alreadyLinkedGroupIds =
+        notificationTriggerRepository
+            .findById(triggerId)
+            .map(
+                existing ->
+                    existing.getRecipientGroups().stream()
+                        .map(Group::getId)
+                        .collect(Collectors.toSet()))
+            .orElse(Set.of());
+    return toNotificationTrigger(tenantId, input, alreadyLinkedGroupIds);
+  }
+
+  private NotificationTrigger toNotificationTrigger(
+      final String tenantId,
+      final NotificationTriggerInput input,
+      final Set<String> alreadyLinkedGroupIds) {
     NotificationTrigger trigger = new NotificationTrigger();
     trigger.setName(input.getName());
     trigger.setType(input.getType());
@@ -46,11 +75,12 @@ public class NotificationTriggerMapper {
     trigger.setInstanceId(input.getInstanceId());
     trigger.setPeriod(input.getPeriod());
     trigger.setTriggerTime(input.getTriggerTime());
-    // notifiers is v2-active since #7864, so the inspector scopes this lookup. The endpoint
-    // resolves tenantForWrite first and refuses a multi-tenant scope with a 400, so the scope
-    // reaching here always names exactly the tenant the trigger is written into.
+    // Notifiers resolve in the tenant the trigger is written into, as the child triggers do.
     trigger.setNotifiers(
-        resolveAll(input.getNotifierIds(), notifierRepository::findAllById, "Notifier"));
+        resolveAll(
+            input.getNotifierIds(),
+            ids -> notifierRepository.findAllByIdInTenant(ids, tenantId),
+            "Notifier"));
     trigger.setChildTriggers(
         resolveAll(
             input.getChildTriggerIds(),
@@ -59,8 +89,35 @@ public class NotificationTriggerMapper {
     trigger.setRecipientUsers(
         resolveAll(input.getRecipientUserIds(), userRepository::findAllById, "User"));
     trigger.setRecipientGroups(
-        resolveAll(input.getRecipientGroupIds(), groupRepository::findAllById, "Group"));
+        resolveRecipientGroups(input.getRecipientGroupIds(), tenantId, alreadyLinkedGroupIds));
     return trigger;
+  }
+
+  /**
+   * A newly requested recipient group resolves in the tenant the trigger is written into, never a
+   * group of another tenant of the scope nor a platform group; one already linked before this call
+   * (see {@link #toNotificationTriggerForUpdate}) is kept as is, whatever its tenant.
+   */
+  private List<Group> resolveRecipientGroups(
+      List<String> ids, String tenantId, Set<String> alreadyLinkedGroupIds) {
+    if (ids == null || ids.isEmpty()) {
+      return new ArrayList<>();
+    }
+    Set<String> uniqueIds = new LinkedHashSet<>(ids);
+    Set<String> keptIds =
+        uniqueIds.stream().filter(alreadyLinkedGroupIds::contains).collect(Collectors.toSet());
+    Set<String> newIds =
+        uniqueIds.stream().filter(id -> !keptIds.contains(id)).collect(Collectors.toSet());
+    List<Group> resolved = new ArrayList<>();
+    if (!keptIds.isEmpty()) {
+      groupRepository.findAllById(keptIds).forEach(resolved::add);
+    }
+    if (!newIds.isEmpty()) {
+      resolved.addAll(
+          resolveAll(
+              List.copyOf(newIds), i -> groupRepository.findAllByIdInTenant(i, tenantId), "Group"));
+    }
+    return resolved;
   }
 
   public NotificationTriggerOutput toNotificationTriggerOutput(final NotificationTrigger trigger) {

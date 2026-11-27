@@ -14,56 +14,33 @@ instructions: |
 
   ## Your knowledge
 
-  - The chaining system orchestrates automated step execution within a Simulation or Scenario.
-  - Steps are blueprints (TEMPLATE) cloned into runtime instances (READY → RUN → END).
-  - Workflows transition: TEMPLATE → RUN → END (or STOP).
-  - Conditions form trees: root AND/OR + leaf comparisons (EQ, NEQ, GT, IN, DEPEND_ON, MAPPER, etc.).
-  - Global state (`WorkflowState`) holds all outputs; local state is propagated to dependent steps. State content is stored as normalized `workflow_state_entries` rows, accessed only through `WorkflowStateStore` (ADR-011).
-  - Two RabbitMQ queues: `workflows-ready` (step execution) and `workflows-update` (external updates from inject lifecycle).
-  - `@WorkflowUpdateEvent` AOP annotation bridges inject status changes into the chaining engine via `WorkflowUpdateEventAspect`.
-  - Time-based delays use `StepDelayQueueService` (DB-persisted) polled by `QueueChainingJob` (Quartz).
-  - `WorkflowTimeoutJob` force-completes expired workflow runs.
-  - `ActionStep` interface (strategy pattern) — currently only `InjectExecutionStep`.
-  - Scope rules (allowlist/denylist via `WorkflowScopeRule`) determine valid target assets.
+  - [Key Concepts](../instructions/chaining-engine.instructions.md#key-concepts), [Architecture & Flow](../instructions/chaining-engine.instructions.md#architecture--flow), [Enums Reference](../instructions/chaining-engine.instructions.md#enums-reference).
 
   ## Package locations
 
-  - API layer: `io.openaev.api.chaining` (StepApi, ConditionApi, WorkflowApi)
-  - Service layer: `io.openaev.service.chaining` (StepService, ConditionService, WorkflowService, WorkflowStateService, QueueChainingService, ScopeService, StepEventService, StepDelayQueueService, WorkflowEndService)
-  - AOP: `io.openaev.aop` (WorkflowUpdateEvent, WorkflowUpdateEventAspect)
-  - Scheduler: `io.openaev.scheduler.jobs` (QueueChainingJob, WorkflowTimeoutJob)
-  - Utilities: `io.openaev.utils.ConditionUtils`
-  - Model: `io.openaev.database.model` (Step, Workflow, Condition, ConditionStep, WorkflowState, WorkflowStateEntry, StepDelayQueue, WorkflowScopeRule, ScopeVariable)
-  - Repositories: `io.openaev.database.repository` (StepRepository, WorkflowRepository, ConditionRepository, WorkflowStateRepository, StepDelayQueueRepository, WorkflowScopeRuleRepository, ScopeVariableRepository)
-  - Frontend: `openaev-front/src/actions/chaining/`, `openaev-front/src/admin/components/chaining/`
+  - [Package Structure](../instructions/chaining-engine.instructions.md#package-structure).
 
   ## Review checklist
 
   When reviewing chaining code, verify:
 
-  1. **EE validation**: EE-only chaining endpoints/operations are marked with `@AccessControl(..., isEnterpriseEdition = true)` so `AccessControlAspect` enforces Enterprise Edition license validation.
-  2. **Frontend EE validation**: EE-only chaining UI/actions are gated in frontend with Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`).
-  3. **Step lifecycle**: Status transitions follow TEMPLATE → READY → RUN → END (never skip).
-  4. **Workflow guards**: Before executing/creating steps, check `workflowService.isWorkflowEnded()`.
-  5. **Queue isolation**: All queue publishing goes through `QueueChainingService`, never direct RabbitMQ calls.
-  6. **State sync order**: Global state is updated BEFORE propagating to local states of dependent steps.
-  7. **Time delays**: Uses `StepDelayQueueService`, never `Thread.sleep()`.
-  8. **Condition evaluation**: Conditions are always evaluated before step execution proceeds.
-  9. **DTO boundary**: Controllers return DTOs (StepOutput, EventOutput, etc.), never JPA entities.
-  10. **Mapper correctness**: Static mapper methods (ConditionMapper.toOutput, StepMapper.toOutput) — NOT MapStruct annotations.
-  11. **@AccessControl**: Every endpoint has proper `Action` and `ResourceType`.
-  12. **@Transactional**: Write operations use `@Transactional(rollbackFor = Exception.class)`.
-  13. **Timeout safety**: New execution paths check for expired workflows and terminated steps.
-  14. **External update bridge**: If adding new inject-mutating methods, annotate with `@WorkflowUpdateEvent`.
-  15. **Scope correctness**: Allowlist/denylist logic in `ScopeService` applies exclusions after inclusions.
-  16. **DEPEND_ON conditions**: Step dependencies use `ConditionFactory.dependOn()`.
+  1. **EE validation (backend and frontend)**: [code-review › Chaining Engine](../instructions/code-review.instructions.md#chaining-engine), [code-review › Frontend](../instructions/code-review.instructions.md#frontend).
+  2. **Step and workflow lifecycle, timeout safety**: [Step Lifecycle](../instructions/chaining-engine.instructions.md#step-lifecycle), [Workflow Lifecycle](../instructions/chaining-engine.instructions.md#workflow-lifecycle).
+  3. **Queue isolation, state sync order**: [Services & State](../instructions/chaining-engine.instructions.md#services--state).
+  4. **Time delays**: [Queue & Scheduling](../instructions/chaining-engine.instructions.md#queue--scheduling).
+  5. **Condition evaluation, DEPEND_ON**: [Conditions](../instructions/chaining-engine.instructions.md#conditions), [Anti-Patterns](../instructions/chaining-engine.instructions.md#anti-patterns-never-do).
+  6. **DTO boundary, mappers**: [Mappers & DTOs](../instructions/chaining-engine.instructions.md#mappers--dtos).
+  7. **@AccessControl**: [REST API Paths](../instructions/chaining-engine.instructions.md#rest-api-paths), [security › @AccessControl](../instructions/security.instructions.md#accesscontrol-aop-aspect).
+  8. **@Transactional**: [backend › Services](../instructions/backend.instructions.md#services).
+  9. **External update bridge**: [External Updates (AOP)](../instructions/chaining-engine.instructions.md#external-updates-aop).
+  10. **Scope correctness**: [Scope](../instructions/chaining-engine.instructions.md#scope).
 
   ## How to help
 
-  - When asked to add a new step action type, implement `ActionStep` interface and register in `StepService.factoryAction()`.
+  - When asked to add a new step action type, see [Architecture](../instructions/chaining-engine.instructions.md#architecture).
   - When asked to add a new condition type, add the enum value to `ConditionType`, update `ConditionUtils`, update `ConditionFactory` if needed.
   - When asked about workflow state updates, refer to `WorkflowStateService.syncState()` and `propagateToLocalStates()`.
   - When asked about scope/asset targeting, refer to `ScopeService.getValidAssets()`.
-  - When asked about the external update flow, trace: `@WorkflowUpdateEvent` → `WorkflowUpdateEventAspect` → `QueueChainingService` → `StepEventService.handleExternalUpdateEvent()`.
+  - When asked about the external update flow, trace: `@WorkflowUpdateEvent` → `WorkflowUpdateEventAspect` → `WorkflowUpdateEventPublisher` → `QueueChainingService` → `StepEventService.handleExternalUpdateEvent()`. Transaction rule: [External Updates (AOP)](../instructions/chaining-engine.instructions.md#external-updates-aop).
   - When asked about timeout handling, refer to `WorkflowEndService.forceCompleteWorkflowByTimeout()`.
 ---

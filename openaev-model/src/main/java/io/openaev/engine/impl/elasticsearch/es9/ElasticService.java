@@ -1,5 +1,6 @@
 package io.openaev.engine.impl.elasticsearch.es9;
 
+import static io.openaev.engine.EsUtils.toEngineDate;
 import static io.openaev.engine.impl.elasticsearch.es9.ElasticUtils.*;
 import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static java.util.Optional.ofNullable;
@@ -23,6 +24,7 @@ import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
+import io.openaev.engine.EngineType;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
@@ -32,6 +34,7 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
+import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
 import io.openaev.service.EsIndexingUtils;
@@ -88,7 +91,7 @@ public class ElasticService implements EngineService {
       // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
       // error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       builder.stringValue(target);
       return builder.build();
@@ -207,6 +210,37 @@ public class ElasticService implements EngineService {
                 .toList();
         boolQuery.mustNot(notContainsQueries);
         break;
+      case starts_with:
+      case not_starts_with:
+      case ends_with:
+      case not_ends_with:
+        // Prefix / suffix on a keyword or text field: a wildcard anchored on one side
+        boolean prefix =
+            operator == Filters.FilterOperator.starts_with
+                || operator == Filters.FilterOperator.not_starts_with;
+        List<Query> affixQueries =
+            filter.getValues().stream()
+                .filter(v -> v != null && !v.isEmpty())
+                .map(
+                    v -> {
+                      String escaped = escapeWildcard(toVal(field, v, parameters).stringValue());
+                      String pattern = prefix ? escaped + "*" : "*" + escaped;
+                      return WildcardQuery.of(
+                              w -> w.field(elasticField).value(pattern).caseInsensitive(true))
+                          ._toQuery();
+                    })
+                .toList();
+        if (!affixQueries.isEmpty()) {
+          if (operator == Filters.FilterOperator.not_starts_with
+              || operator == Filters.FilterOperator.not_ends_with) {
+            boolQuery.mustNot(affixQueries);
+          } else if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(affixQueries);
+          } else {
+            boolQuery.should(affixQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
       case gt:
       case gte:
       case lt:
@@ -230,12 +264,22 @@ public class ElasticService implements EngineService {
         }
         break;
       case empty:
-        boolQuery
-            .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
-            .minimumShouldMatch("1");
+        if (isStringField(propertyField)) {
+          boolQuery
+              .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
+              .minimumShouldMatch("1");
+        } else {
+          // A boolean or number field has no empty-string value: the term "" would be coerced
+          // (to false on a boolean field), so emptiness is the absence of the field alone.
+          boolQuery.must(notExistsQuery(elasticField));
+        }
         break;
       case not_empty:
-        boolQuery.must(List.of(existsQuery(elasticField), notEmptyFieldQuery(elasticField)));
+        if (isStringField(propertyField)) {
+          boolQuery.must(List.of(existsQuery(elasticField), notEmptyFieldQuery(elasticField)));
+        } else {
+          boolQuery.must(existsQuery(elasticField));
+        }
         break;
       default:
         throw new UnsupportedOperationException("Filter operator " + operator + " not supported");
@@ -1141,14 +1185,8 @@ public class ElasticService implements EngineService {
   }
 
   public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+    String entityName = commonSearchService.getListEntityName(runtime.getWidget());
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
-    String entityName =
-        searchFilters.getFilters().stream()
-            .filter(filter -> "base_entity".equals(filter.getKey()))
-            .findAny()
-            .orElseThrow()
-            .getValues()
-            .getFirst();
     List<EngineSortField> sorts = runtime.getWidget().getSorts();
 
     List<SortOptions> engineSorts;
@@ -1209,7 +1247,7 @@ public class ElasticService implements EngineService {
                       // By default the engine stops counting at 10,000 and reports it as a lower
                       // bound, which froze the pagination total of large result sets at "10000".
                       .trackTotalHits(tth -> tth.enabled(true)),
-              getClassForEntity(entityName));
+              commonSearchService.getModelClass(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(
           response.hits().hits().stream()
@@ -1225,14 +1263,6 @@ public class ElasticService implements EngineService {
       log.error("query exception: {}", e.getMessage(), e);
     }
     return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
-  }
-
-  private Class<?> getClassForEntity(String entity_name) {
-    Optional<EsModel<EsBase>> model =
-        searchEngine.getModels().stream()
-            .filter(esBaseEsModel -> entity_name.equals(esBaseEsModel.getName()))
-            .findAny();
-    return model.get().getModel();
   }
 
   @Override
@@ -1255,6 +1285,8 @@ public class ElasticService implements EngineService {
 
     // Every Instant bound is truncated here, once, so the query cannot disagree with the
     // millisecond resolution of the engine's `date` field (base_updated_at is not date_nanos).
+    // Each bound is sent through toEngineDate, fraction always written: Instant.toString drops a
+    // zero fraction, and the engine rounds a whole-second lte bound up to .999 (issue/9095).
     Instant windowEnd = query.windowEnd().truncatedTo(ChronoUnit.MILLIS);
     Instant since = query.since() != null ? query.since().truncatedTo(ChronoUnit.MILLIS) : null;
     CursorPageQuery.Keyset after = query.after();
@@ -1265,12 +1297,12 @@ public class ElasticService implements EngineService {
     filters.add(
         TermQuery.of(t -> t.field("base_tenant_side.keyword").value(query.tenantId()))._toQuery());
     filters.add(
-        DateRangeQuery.of(d -> d.field("base_updated_at").lte(String.valueOf(windowEnd)))
+        DateRangeQuery.of(d -> d.field("base_updated_at").lte(toEngineDate(windowEnd)))
             ._toRangeQuery()
             ._toQuery());
     if (since != null) {
       filters.add(
-          DateRangeQuery.of(d -> d.field("base_updated_at").gte(String.valueOf(since)))
+          DateRangeQuery.of(d -> d.field("base_updated_at").gte(toEngineDate(since)))
               ._toRangeQuery()
               ._toQuery());
     }
@@ -1390,6 +1422,11 @@ public class ElasticService implements EngineService {
   }
 
   @Override
+  public EngineType getEngineType() {
+    return EngineType.ELASTICSEARCH_9;
+  }
+
+  @Override
   public String getEngineVersion() {
     try {
       Set<String> versions = new HashSet<>();
@@ -1447,6 +1484,14 @@ public class ElasticService implements EngineService {
 
   // endregion
 
+  /**
+   * Whether a filter field holds strings, so that the empty string is a value it can carry. The
+   * base fields absent from the indexing schema (base_representative & co.) are strings.
+   */
+  private static boolean isStringField(PropertySchema propertyField) {
+    return propertyField == null || propertyField.isStringValued();
+  }
+
   private String toElasticField(@NotBlank final String field) {
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
     if (propertyField == null) {
@@ -1455,7 +1500,7 @@ public class ElasticService implements EngineService {
       // throwing a NullPointerException that 500s the whole search request. Other unknown fields
       // stay a hard error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       return field;
     }

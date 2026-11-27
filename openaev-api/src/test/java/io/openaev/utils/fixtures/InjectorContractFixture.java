@@ -50,31 +50,45 @@ import org.springframework.util.CollectionUtils;
 public class InjectorContractFixture {
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
+    return getWellKnownSingleEmailContract(TenantContext.getCurrentTenant());
+  }
+
+  public InjectorContract getWellKnownSingleEmailContract(String tenantId) {
+    // injectors_contracts is tenant-active and the built-in id repeats across tenants (#8485): a
+    // bare findById sees every tenant's copy at once and throws once more than one tenant has
+    // registered it in the given tenant. Resolve and create in that tenant specifically.
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(EMAIL_DEFAULT);
+        injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+      builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(EMAIL_DEFAULT, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public InjectorContract getWellKnownGlobalEmailContract() {
-    Optional<InjectorContract> injectorContract = injectorContractRepository.findById(EMAIL_GLOBAL);
+    String tenantId = TenantContext.getCurrentTenant();
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findByContractIdAndTenant(EMAIL_GLOBAL, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+      builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(EMAIL_GLOBAL, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -341,6 +355,22 @@ public class InjectorContractFixture {
     return builder.build();
   }
 
+  /**
+   * Credential reference fields are only declared by external injectors: the framework has no
+   * dedicated contract element for them, so the fixture defines one inline.
+   */
+  public static List<ContractElement> buildCredentialReferenceField(final boolean mandatory) {
+    ContractElement credentialReferenceField =
+        new ContractElement("credential_reference", "Credential") {
+          @Override
+          public ContractFieldType getType() {
+            return ContractFieldType.CredentialReference;
+          }
+        };
+    credentialReferenceField.setMandatory(mandatory);
+    return List.of(credentialReferenceField);
+  }
+
   public static List<ContractElement> buildMandatoryGroup() {
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
@@ -409,14 +439,17 @@ public class InjectorContractFixture {
   }
 
   public InjectorContract getWellKnownSingleManualContract() {
+    String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(MANUAL_DEFAULT);
+        injectorContractRepository.findByContractIdAndTenant(MANUAL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(MANUAL_DEFAULT, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

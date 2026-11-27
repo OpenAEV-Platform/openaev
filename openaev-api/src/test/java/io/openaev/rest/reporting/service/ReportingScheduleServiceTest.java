@@ -27,6 +27,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.reporting.ReportingService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
@@ -56,6 +57,7 @@ class ReportingScheduleServiceTest {
   private ReportingGenerationRepository generationRepository;
   private UserService userService;
   private EmailService emailService;
+  private PlatformMailSender platformMailSender;
   private FileService fileService;
   private OpenAEVConfig openAEVConfig;
   private TenantScopedJobRunner tenantScopedJobRunner;
@@ -68,6 +70,7 @@ class ReportingScheduleServiceTest {
     generationRepository = mock(ReportingGenerationRepository.class);
     userService = mock(UserService.class);
     emailService = mock(EmailService.class);
+    platformMailSender = mock(PlatformMailSender.class);
     fileService = mock(FileService.class);
     openAEVConfig = mock(OpenAEVConfig.class);
     tenantScopedJobRunner = mock(TenantScopedJobRunner.class);
@@ -78,10 +81,11 @@ class ReportingScheduleServiceTest {
             generationRepository,
             userService,
             emailService,
+            platformMailSender,
             fileService,
             openAEVConfig,
             tenantScopedJobRunner);
-    when(openAEVConfig.getDefaultMailer()).thenReturn("noreply@filigran.io");
+    when(platformMailSender.getEmail()).thenReturn("noreply@filigran.io");
     // The poll re-read runs inside supplyInTenant; here it just runs the supplied work so these
     // unit tests keep exercising the schedule logic (the scope itself is pinned on the real stack
     // in ReportingScheduleDocumentScopeTest).

@@ -1,9 +1,11 @@
 package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
+import static io.openaev.service.InjectExpectationUtils.isOnExpectedPlatform;
+import static io.openaev.utils.injector_contract.InjectorContractContentUtils.mandatoryFieldGroups;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
-import static java.util.stream.StreamSupport.stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,8 +18,12 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
@@ -29,6 +35,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class HealthCheckUtils {
+  // Caps how long health checks and expectations drift may hold a pooled DB connection.
+  public static final int READINESS_CHECK_TIMEOUT_SECONDS = 30;
+
   private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */
@@ -47,6 +56,9 @@ public class HealthCheckUtils {
   private final ExecutorUtils executorUtils;
   private final StepTargetingService stepTargetingService;
   private final ConditionService conditionService;
+  private final PreviewFeatureService previewFeatureService;
+  private final PayloadRevocationService payloadRevocationService;
+  private final InjectorContractContentUtils injectorContractContentUtils;
 
   /**
    * Run all mail service checks for one inject
@@ -118,10 +130,8 @@ public class HealthCheckUtils {
    */
   public List<HealthCheck> runCollectorChecks(Inject inject, List<Collector> collectors) {
     List<HealthCheck> result = new ArrayList<>();
-    boolean isDetectionOrPrenvention =
-        InjectModelHelper.isDetectionOrPrevention(inject.getContent());
 
-    if (isDetectionOrPrenvention && collectors.isEmpty()) {
+    if (hasExpectationWithoutCollector(inject.getContent(), collectors)) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
@@ -131,6 +141,65 @@ public class HealthCheckUtils {
     }
 
     return result;
+  }
+
+  /**
+   * Mirrors the collector resolution at execution (see AbstractTechnicalBehavior): an expectation
+   * waiting for a collector is only answered by the collectors declaring its type, on one of its
+   * expected security platform types when it sets some. Without any of them, it fails as soon as
+   * the inject runs.
+   */
+  private boolean hasExpectationWithoutCollector(ObjectNode content, List<Collector> collectors) {
+    if (content == null) {
+      return false;
+    }
+    for (JsonNode expectation : content.path("expectations")) {
+      Optional<BaseInjectExpectation.EXPECTATION_TYPE> type =
+          collectorAnsweredType(expectation.path("expectation_type").asText());
+      if (type.isEmpty()) {
+        continue;
+      }
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes =
+          expectedSecurityPlatformTypes(expectation);
+      if (filterCollectorsSupportingType(collectors, type.get()).stream()
+          .noneMatch(collector -> isOnExpectedPlatform(collector, expectedTypes))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The types whose expectation waits for a collector. Vulnerability is answered by its injector
+   * (see VulnerabilityBehavior), and Logging expectations are only created while the preview
+   * feature is on.
+   */
+  private Optional<BaseInjectExpectation.EXPECTATION_TYPE> collectorAnsweredType(String type) {
+    return Arrays.stream(BaseInjectExpectation.EXPECTATION_TYPE.values())
+        .filter(expectationType -> expectationType.name().equals(type))
+        .filter(
+            expectationType ->
+                expectationType == BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+                    || expectationType == BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION
+                    || (expectationType == BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+                        && previewFeatureService.isFeatureEnabled(
+                            PreviewFeature.LOGGING_EXPECTATION)))
+        .findFirst();
+  }
+
+  /** Unknown platform types are skipped, so a stale or imported content never breaks the check. */
+  private static List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes(
+      JsonNode expectation) {
+    List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes = new ArrayList<>();
+    expectation
+        .path("expectation_expected_security_platform_types")
+        .forEach(
+            type ->
+                Arrays.stream(SecurityPlatform.SECURITY_PLATFORM_TYPE.values())
+                    .filter(platformType -> platformType.name().equals(type.asText()))
+                    .findFirst()
+                    .ifPresent(expectedTypes::add));
+    return expectedTypes;
   }
 
   /**
@@ -285,14 +354,34 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Credential reference fields are only rendered while the {@code CREDENTIAL_ASSET} preview
+   * feature is enabled: checking them when it is disabled would report a mandatory field the user
+   * has no way to fill, and block the inject at execution time.
+   *
+   * @param jsonField the contract field to check
+   * @return {@code false} only for a credential reference field while the preview feature is
+   *     disabled; any other field is always checked
+   */
+  private boolean isContractCredentialFieldEnabled(JsonNode jsonField) {
+    return !CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE.equals(
+            jsonField.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
+        || previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
+  }
+
+  /**
    * Run content checks by inject
    *
    * @param inject to verify
    * @return found healthchecks
    */
   public List<HealthCheck> runContentChecks(Inject inject) {
+    return runContentChecks(inject.getInjectorContract().orElse(null), inject);
+  }
+
+  /** Run the content checks of this inject as if it ran this injector contract. */
+  public List<HealthCheck> runContentChecks(InjectorContract injectorContract, Inject inject) {
     return runContentChecks(
-        inject.getInjectorContract().orElse(null),
+        injectorContract,
         inject.getContent(),
         inject.isAllTeams(),
         ofNullable(inject.getTeams())
@@ -303,6 +392,9 @@ public class HealthCheckUtils {
             .orElse(new ArrayList<>()),
         ofNullable(inject.getAssetGroups())
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getSecretReferences())
+            .map(secretReferences -> secretReferences.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
@@ -323,7 +415,8 @@ public class HealthCheckUtils {
       boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
+      @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences) {
     List<HealthCheck> result = new ArrayList<>();
 
     if (injectorContract == null) {
@@ -348,8 +441,7 @@ public class HealthCheckUtils {
       throw new RuntimeException("Error parsing injector contract content", e);
     }
 
-    ObjectNode contractContent = injectorContract.getConvertedContent();
-    if (contractContent == null) {
+    if (injectorContract.getConvertedContent() == null) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.INJECTOR_CONTRACT,
@@ -358,140 +450,30 @@ public class HealthCheckUtils {
               now()));
       return result;
     }
-    List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
+    Map<String, JsonNode> contractFields = injectorContractContentUtils.fields(injectorContract);
+    contractFields.values().removeIf(field -> !isContractCredentialFieldEnabled(field));
 
-    for (JsonNode jsonField : contractFields) {
-
-      // If field is mandatory
-      if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
-          && !InjectModelHelper.isFieldSet(
-              allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
-        result.add(
-            new HealthCheck(
-                HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
-                HealthCheck.Detail.MANDATORY_CONTENT,
-                HealthCheck.Status.ERROR,
-                now()));
-      }
-
-      // If field is mandatory group
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS)) {
-        ArrayNode mandatoryGroups =
-            (ArrayNode) jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_GROUPS);
-        if (!mandatoryGroups.isEmpty()) {
-          boolean atLeastOneSet = false;
-          for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-            Optional<JsonNode> groupField =
-                contractFields.stream()
-                    .filter(
-                        jsonNode ->
-                            mandatoryFieldKey
-                                .asText()
-                                .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                    .findFirst();
-            if (groupField.isPresent()
-                && InjectModelHelper.isFieldSet(
-                    allTeams,
-                    teams,
-                    assets,
-                    assetGroups,
-                    groupField.get(),
-                    content,
-                    injectContractFields)) {
-              atLeastOneSet = true;
-              break;
-            }
-          }
-          if (!atLeastOneSet) {
-            for (JsonNode mandatoryFieldKey : mandatoryGroups) {
-              result.add(
-                  new HealthCheck(
-                      HealthCheck.Type.fromValue(mandatoryFieldKey.asText()),
-                      HealthCheck.Detail.MANDATORY_CONTENT,
-                      HealthCheck.Status.ERROR,
-                      now()));
-            }
-          }
-        }
-      }
-
-      // If field is mandatory conditional, if the conditional field is set, check if the current
-      // field is set
-      if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS)) {
-        JsonNode fields = jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_FIELDS);
-
-        if (fields.isArray()) {
-          for (JsonNode node : fields) {
-            if (!node.isNull()) {
-              String fieldKey = node.asText();
-
-              Optional<JsonNode> conditionalFieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              fieldKey.equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-
-              // If field not exists -> skip
-              if (conditionalFieldOpt.isEmpty()) {
-                continue;
-              }
-              if (jsonField.hasNonNull(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES)) {
-                JsonNode conditionalValuesNode =
-                    jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY_CONDITIONAL_VALUES);
-
-                if (conditionalValuesNode.has(fieldKey)) {
-                  List<String> specificValuesNode =
-                      conditionalValuesNode.get(fieldKey).isArray()
-                          ? stream(conditionalValuesNode.get(fieldKey).spliterator(), false)
-                              .map(JsonNode::asText)
-                              .toList()
-                          : List.of(conditionalValuesNode.get(fieldKey).asText());
-
-                  List<String> actualValues =
-                      InjectModelHelper.getFieldValue(
-                          teams, assets, assetGroups, conditionalFieldOpt.get(), content);
-                  boolean conditionMet =
-                      actualValues.stream().anyMatch(specificValuesNode::contains);
-
-                  if (!conditionMet) {
-                    continue; // condition not met -> skip
-                  }
-                }
-              }
-              Optional<JsonNode> fieldOpt =
-                  contractFields.stream()
-                      .filter(
-                          jsonNode ->
-                              jsonField
-                                  .get(CONTRACT_ELEMENT_CONTENT_KEY)
-                                  .asText()
-                                  .equals(jsonNode.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
-                      .findFirst();
-              // If field not exists -> skip
-              if (fieldOpt.isEmpty()) {
-                continue;
-              }
-              if (!InjectModelHelper.isFieldSet(
-                  allTeams,
-                  teams,
-                  assets,
-                  assetGroups,
-                  fieldOpt.get(),
-                  content,
-                  injectContractFields)) {
-                result.add(
-                    new HealthCheck(
-                        HealthCheck.Type.fromValue(
-                            fieldOpt.get().get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
-                        HealthCheck.Detail.MANDATORY_CONTENT,
-                        HealthCheck.Status.ERROR,
-                        now()));
-              }
-            }
-          }
-        }
+    for (Set<String> group :
+        mandatoryFieldGroups(
+            contractFields,
+            field -> InjectModelHelper.getFieldValue(teams, assets, assetGroups, field, content))) {
+      boolean filled =
+          group.stream()
+              .map(contractFields::get)
+              .filter(Objects::nonNull)
+              .anyMatch(
+                  field ->
+                      InjectModelHelper.isFieldSet(
+                          allTeams,
+                          teams,
+                          assets,
+                          assetGroups,
+                          secretReferences,
+                          field,
+                          content,
+                          injectContractFields));
+      if (!filled) {
+        group.forEach(key -> result.add(HealthCheck.missingMandatoryField(key, now())));
       }
     }
 
@@ -514,16 +496,17 @@ public class HealthCheckUtils {
    *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
    *       allowlist holds no technical entry;
    *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
-   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       scope (no explicit audience in its drawer and no target-feeding mapper, or all-teams
+   *       mode, which targets the whole scope audience in a chained workflow) but the allowlist
    *       holds no team/player entry;
    *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
    *       entries but the workflow has no technical step: the scope fan-out never consumes them;
    *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
-   *       entries but no tabletop step actually falls back to them (every audience step either
-   *       carries an explicit drawer audience or is mapper-fed) - the entries would be silently
-   *       ignored at run time. Technical entries differ: the per-asset fan-out consumes them for
-   *       every technical step, explicit drawer targets or not, so only a fully technical-step-less
-   *       workflow makes them ineffective.
+   *       entries that no tabletop step uses. Team and player entries are used by a step relying on
+   *       the scope (see above); team entries also by a step whose drawer audience picks one of
+   *       them: the drawer of a chained scenario only offers its scope teams. Technical entries
+   *       differ: the per-asset fan-out consumes them for every technical step, explicit drawer
+   *       targets or not, so only a fully technical-step-less workflow makes them ineffective.
    * </ul>
    *
    * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
@@ -561,6 +544,14 @@ public class HealthCheckUtils {
                 rule ->
                     rule.getValueType() != null
                         && AUDIENCE_SCOPE_TYPES.contains(rule.getValueType()));
+    Set<String> scopeTeamIds =
+        allowlistRules.stream()
+            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .collect(Collectors.toSet());
+    boolean hasPlayerEntries =
+        allowlistRules.stream()
+            .anyMatch(rule -> ScopeRuleValueType.PLAYER_ID.equals(rule.getValueType()));
 
     List<Step> steps = ofNullable(workflow.getSteps()).orElse(List.of());
     // A step "relies on the scope" when nothing else can provide its targets: no explicit
@@ -573,6 +564,9 @@ public class HealthCheckUtils {
     boolean hasTechnicalStep = false;
     boolean technicalStepNeedsScope = false;
     boolean audienceStepNeedsScope = false;
+    // The teams a chained scenario offers in the Configure-action drawer are its scope teams, so an
+    // explicit drawer audience picking one of them consumes the scope too.
+    boolean audienceStepUsesScopeTeams = false;
     for (Step step : steps) {
       List<Condition> stepConditions =
           step.getId() == null ? List.of() : conditionsByStep.getOrDefault(step.getId(), List.of());
@@ -584,11 +578,18 @@ public class HealthCheckUtils {
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, true));
       } else {
+        // All-teams mode targets the whole scope audience (teams and players) at execution.
         audienceStepNeedsScope =
             audienceStepNeedsScope
+                || stepTargetingService.targetsAllTeams(step)
                 || (!stepTargetingService.hasExplicitAudience(step)
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, false));
+        audienceStepUsesScopeTeams =
+            audienceStepUsesScopeTeams
+                || (!scopeTeamIds.isEmpty()
+                    && stepTargetingService.getExplicitAudienceTeamIds(step).stream()
+                        .anyMatch(scopeTeamIds::contains));
       }
     }
 
@@ -628,9 +629,12 @@ public class HealthCheckUtils {
                 HealthCheck.Status.WARNING,
                 now()));
       }
-      // Audience entries are only consumed by the scope fallback, which explicit-drawer and
-      // mapper-fed audience steps skip: warn whenever no step actually needs them.
-      if (hasAudienceEntries && !audienceStepNeedsScope) {
+      // Scope teams are consumed by a step relying on the scope (fallback or all-teams mode) or by
+      // an explicit drawer audience picking them; scope players only by a step relying on it.
+      boolean scopeTeamsIgnored =
+          !scopeTeamIds.isEmpty() && !audienceStepNeedsScope && !audienceStepUsesScopeTeams;
+      boolean scopePlayersIgnored = hasPlayerEntries && !audienceStepNeedsScope;
+      if (scopeTeamsIgnored || scopePlayersIgnored) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.SCOPE_DEFINITION,
@@ -641,6 +645,18 @@ public class HealthCheckUtils {
     }
 
     return result;
+  }
+
+  /** A revoked payload version fails the injects that run it. */
+  public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
+    return payloadRevocationService.anyRevoked(injects)
+        ? List.of(
+            new HealthCheck(
+                HealthCheck.Type.PAYLOAD,
+                HealthCheck.Detail.REVOKED,
+                HealthCheck.Status.ERROR,
+                now()))
+        : List.of();
   }
 
   /**
@@ -663,8 +679,27 @@ public class HealthCheckUtils {
         .toList();
   }
 
+  // The field key keeps apart two missing mandatory fields whose keys are not known check types
+  // (both typed UNKNOWN), so each is still named.
   private String createHealthCheckKey(HealthCheck healthCheck) {
-    return healthCheck.getType() + "_" + healthCheck.getDetail();
+    return healthCheck.getType()
+        + "_"
+        + healthCheck.getDetail()
+        + (healthCheck.getField() == null ? "" : "_" + healthCheck.getField());
+  }
+
+  /**
+   * The keys of the injector contract fields these checks report as mandatory and missing, in a
+   * stable order (an injector contract absent or unreadable is reported as {@code
+   * injector_contract}).
+   */
+  public static List<String> missingMandatoryFields(Collection<HealthCheck> healthChecks) {
+    return healthChecks.stream()
+        .filter(check -> HealthCheck.Detail.MANDATORY_CONTENT.equals(check.getDetail()))
+        .map(check -> check.getField() != null ? check.getField() : check.getType().getValue())
+        .distinct()
+        .sorted()
+        .toList();
   }
 
   private HealthCheck keepErrorStatusPriority(HealthCheck first, HealthCheck second) {

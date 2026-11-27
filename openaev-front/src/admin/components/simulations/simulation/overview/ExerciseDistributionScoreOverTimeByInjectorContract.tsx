@@ -10,7 +10,9 @@ import { useHelper } from '../../../../../store';
 import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
+import { ascendBy } from '../../../../../utils/Sorting';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
+import { injectorContractKey, isTopLevelScoredExpectation } from './scoreByInjectorContractExpectations';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -30,28 +32,33 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
 
   let cumulation = 0;
   const injectsTypesScores = R.pipe(
-    R.filter((n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null),
-    R.map((n: InjectExpectationOutput & { inject_expectation_inject: string }) => R.assoc(
-      'inject_expectation_inject',
-      injectsMap[n.inject_expectation_inject] || {},
-      n,
-    )),
-    R.groupBy(R.path(['inject_expectation_inject', 'inject_contract'])),
-    R.toPairs,
-    R.map((n: [string, InjectExpectationOutput[]]) => {
+    // One series per injector contract, technical injects included (#8396).
+    (expectationsList: InjectExpectationOutput[]) => expectationsList.filter(n => isTopLevelScoredExpectation(n)),
+    (expectationsList: Array<InjectExpectationOutput & { inject_expectation_inject: string }>) => expectationsList.map(n => ({
+      ...n,
+      inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
+    })),
+    (list: Array<Omit<InjectExpectationOutput, 'inject_expectation_inject'> & { inject_expectation_inject: InjectStore }>) => Object.groupBy(list, injectorContractKey),
+    Object.entries,
+    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
       return [
         n[0],
         R.pipe(
-          R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
-          R.map((i: InjectExpectationOutput) => {
+          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
-            return R.assoc('inject_expectation_cumulated_score', cumulation, i);
+            return {
+              ...i,
+              inject_expectation_cumulated_score: cumulation,
+            };
           }),
         )(n[1]),
       ];
     }),
-    R.map((n: [string, Array<InjectExpectationOutput & {
+    (pairs: [string, Array<InjectExpectationOutput & {
+      inject_expectation_cumulated_score: number;
+      inject_expectation_inject: InjectStore;
+    }>][]) => pairs.map((n: [string, Array<InjectExpectationOutput & {
       inject_expectation_cumulated_score: number;
       inject_expectation_inject: InjectStore;
     }>]) => ({

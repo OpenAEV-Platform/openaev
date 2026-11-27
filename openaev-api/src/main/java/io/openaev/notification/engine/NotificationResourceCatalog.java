@@ -1,6 +1,7 @@
 package io.openaev.notification.engine;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.catalog.CatalogRelease;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,7 +31,8 @@ public enum NotificationResourceCatalog {
   VULNERABILITY(ResourceType.VULNERABILITY, Vulnerability.class),
   SECURITY_PLATFORM(ResourceType.SECURITY_PLATFORM, SecurityPlatform.class),
   DOCUMENT(ResourceType.DOCUMENT, Document.class),
-  CHALLENGE(ResourceType.CHALLENGE, Challenge.class);
+  CHALLENGE(ResourceType.CHALLENGE, Challenge.class),
+  CATALOG_SYNC(ResourceType.CATALOG_SYNC, CatalogRelease.class);
 
   private final ResourceType resourceType;
   private final Class<? extends Base> entityClass;
@@ -39,6 +41,15 @@ public enum NotificationResourceCatalog {
       Arrays.stream(values())
           .collect(
               LinkedHashMap::new, (map, entry) -> map.put(entry.resourceType, entry), Map::putAll);
+
+  /**
+   * The resource type a recipient's read right is checked on. Every entry but the catalogue sync is
+   * checked on its own type; a catalogue sync event is about the catalogue, whose releases carry no
+   * permission of their own.
+   */
+  public ResourceType getAccessResourceType() {
+    return this == CATALOG_SYNC ? ResourceType.CATALOG : resourceType;
+  }
 
   public static Optional<NotificationResourceCatalog> fromResourceType(ResourceType resourceType) {
     return Optional.ofNullable(BY_RESOURCE_TYPE.get(resourceType));

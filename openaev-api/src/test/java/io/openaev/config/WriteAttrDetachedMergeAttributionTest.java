@@ -7,9 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.groups.TenantGroupApi;
 import io.openaev.config.WriteAttrDetectorRecorder.Violation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
@@ -25,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,18 +35,19 @@ import org.springframework.transaction.annotation.Transactional;
  * the write falls back to the flush stack. Flushed from a test frame, it is then waived as
  * test-driven: a real production wrong-tenant write dropped in silence.
  *
- * <p>The production shape is the tenant group create on the non-prefixed route: the service assigns
- * the id, takes the tenant from the ambient context (the default tenant, since the header route
- * does not set it) and saves, while the request scope is tenant B.
+ * <p>The shape is the {@link AmbientTenantGraphVersionWriter} create on the non-prefixed route: it
+ * assigns the id, takes the tenant from the ambient context (the default tenant, since the header
+ * route does not set it) and saves, while the request scope is tenant B.
  */
 @Transactional
-@Import(WriteAttrDetectorTestConfig.class)
+@Import({WriteAttrDetectorTestConfig.class, AmbientTenantGraphVersionWriter.Config.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution: a merged transient entity is attributed to the asking request")
 class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
-  private static final String CONTROLLER = "io.openaev.api.groups.TenantGroupApi.createGroup";
+  private static final String CONTROLLER = AmbientTenantGraphVersionWriter.CONTROLLER;
+  private static final String SPECIMEN_TABLE = AmbientTenantGraphVersionWriter.TABLE;
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -60,15 +58,17 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-merge-b").getId();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   @AfterEach
   void clear() {
     TenantContext.clearCurrentTenant();
     WriteAttrDetectorRecorder.stop();
+    // The deliberate wrong-tenant specimen write is asserted on in the test body; the gate would
+    // judge the same write again as a production one. Any other violation stays for the gate.
+    WriteAttrDetectorRecorder.discardViolations(
+        violation -> SPECIMEN_TABLE.equals(violation.table()));
   }
 
   @Nested
@@ -88,7 +88,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
       WriteAttrDetectorRecorder.start();
 
       // Act
-      String id = postGroup();
+      String id = postSpecimen();
       // No explicit flush: the pending insert of the managed copy is forced out by a native read
       // from this test method, so the flush stack holds no production frame.
       String writtenTenant = readTenantFromTestFrame(id);
@@ -99,49 +99,45 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
           DEFAULT_TENANT,
           writtenTenant,
           "precondition: the header-route create stamps the row with the default tenant");
-      List<Violation> groupViolations =
+      List<Violation> specimenViolations =
           WriteAttrDetectorRecorder.violations().stream()
-              .filter(v -> "groups".equals(v.table()))
+              .filter(v -> SPECIMEN_TABLE.equals(v.table()))
               .toList();
-      assertFalse(groupViolations.isEmpty(), "the trigger must see the group write");
+      assertFalse(specimenViolations.isEmpty(), "the trigger must see the specimen write");
       List<String> attributed =
           WriteAttrGateExtension.offendingSignatures(
               WriteAttrDetectorRecorder.violations(), Set.of());
       assertTrue(
-          attributed.contains("groups DEFAULT " + CONTROLLER),
+          attributed.contains(SPECIMEN_TABLE + " DEFAULT " + CONTROLLER),
           "the merged copy must be attributed to the controller, not waived as test-driven;"
               + " attributed="
               + attributed
               + " violations="
-              + groupViolations);
+              + specimenViolations);
     }
   }
 
-  private String postGroup() throws Exception {
-    String response =
-        mvc.perform(
-                post(TenantGroupApi.GROUP_URI)
-                    .header("X-Tenant-Ids", tenantB)
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"group_name\":\"wattr-merge\"}"))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.group_id");
+  private String postSpecimen() throws Exception {
+    return mvc.perform(
+            post(AmbientTenantGraphVersionWriter.URI).header("X-Tenant-Ids", tenantB).with(csrf()))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
   }
 
   /**
    * Forces the pending flush from this test method with a native query the inspector leaves alone
    * (no table), so the flush stack holds no production frame, then reads the row through the
-   * transaction's JDBC connection, which the statement inspector does not rewrite: under the
-   * production active-tables list a scoped native read of an active table would not see a row of
-   * another tenant, which is exactly the row this test wrote on purpose.
+   * transaction's JDBC connection, which the statement inspector does not rewrite, so the read sees
+   * the row whatever the active-tables list says.
    */
-  private String readTenantFromTestFrame(String groupId) {
+  private String readTenantFromTestFrame(String simulationId) {
     entityManager.createNativeQuery("SELECT 1").getSingleResult();
     return jdbcTemplate.queryForObject(
-        "SELECT tenant_id FROM groups WHERE group_id = ?", String.class, groupId);
+        "SELECT tenant_id FROM attackpath_graph_version"
+            + " WHERE attackpath_graph_version_simulation_id = ?",
+        String.class,
+        simulationId);
   }
 }

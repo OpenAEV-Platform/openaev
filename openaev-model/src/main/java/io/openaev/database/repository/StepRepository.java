@@ -1,8 +1,11 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
 import jakarta.persistence.LockModeType;
+import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +15,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface StepRepository extends JpaRepository<Step, String> {
@@ -78,6 +82,27 @@ public interface StepRepository extends JpaRepository<Step, String> {
       @Param("activeStatus") List<StepStatus> activeStatus);
 
   /**
+   * Counts the steps of every workflow of a simulation with the given status and action class,
+   * created at or after {@code since}. JPQL, so a pending insert of the same transaction is flushed
+   * first and counted.
+   *
+   * @param simulationId the ID of the simulation
+   * @param status the step status to count
+   * @param stepAction the step action class to count
+   * @param since only steps created at or after this instant count
+   * @return the count of matching steps
+   */
+  @Query(
+      "SELECT count(s) FROM Step s WHERE s.workflow.simulation.id = :simulationId"
+          + " AND s.status = :status AND s.stepAction = :stepAction"
+          + " AND s.createdAt >= :since")
+  long countBySimulationAndStatusAndActionSince(
+      @Param("simulationId") String simulationId,
+      @Param("status") StepStatus status,
+      @Param("stepAction") StepActionClass stepAction,
+      @Param("since") Instant since);
+
+  /**
    * Counts the number of steps executed for a given step template in a workflow run.
    *
    * @param idWorkflowRun the ID of the workflow run
@@ -138,22 +163,28 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
   /**
-   * Return the stepId associated to a given injectId if it exists and step active.
+   * Return the stepId associated to a given injectId if it exists and step active. Only the steps
+   * of the workflows of the inject's simulation are searched: an inject of a non-chained simulation
+   * or of an atomic test finds no workflow, so {@code steps} is not read.
    *
    * @param injectId the injectId for which we want the associated step
    * @param status the list of active step statuses to consider
    * @return An optional filled with the stepId if found
    */
+  // Native: the inject link only lives in step_data; a read, no session side effect lost.
   @Query(
       value =
           """
-      SELECT step_id
-      FROM steps
-      WHERE jsonb_path_exists(
-        step_data,
+      SELECT s.step_id
+      FROM injects i
+      JOIN workflows w ON w.workflow_simulation_id = i.inject_exercise
+      JOIN steps s ON s.step_workflow_id = w.workflow_id
+      WHERE i.inject_id = :injectId
+      AND jsonb_path_exists(
+        s.step_data,
         '$.** ? (@.inject_id == $id)',
-        jsonb_build_object('id', to_jsonb(:injectId))
-      ) and step_status::text in (:#{#status.![name()]})
+        jsonb_build_object('id', to_jsonb(i.inject_id))
+      ) and s.step_status::text in (:#{#status.![name()]})
       LIMIT 1
       """,
       nativeQuery = true)
@@ -161,25 +192,15 @@ public interface StepRepository extends JpaRepository<Step, String> {
       @Param("injectId") String injectId, @Param("status") List<StepStatus> status);
 
   /**
-   * Resolves the tenant that owns a step: step -&gt; workflow -&gt; simulation -&gt; tenant. Used
-   * to stamp the tenant on chaining events (#6357). NATIVE on purpose: {@code exercises} is a v1
-   * {@code @Filter} entity ({@code tenantFilter}), so a JPQL path through it would be re-filtered
-   * by the ambient {@code TenantContext} and, on a scheduler/queue producer thread that carries the
-   * default (or wrong) tenant, could silently return empty and stamp the event with null. A native
-   * query bypasses the Hibernate filter, so the stamp is truly context-free. Also no lazy
-   * navigation, so it is safe with no open session. Empty for a workflow with no simulation
-   * (standalone run); the caller falls back to the default tenant.
+   * Reads the tenant a step belongs to from its own {@code tenant_id}, which is set from its
+   * workflow when the row is written. Used to stamp the tenant on chaining update events (#6357). A
+   * scalar projection of the foreign key: no entity or lazy association is loaded, so it needs no
+   * open session, and {@code Step} carries no Hibernate filter, so the ambient {@code
+   * TenantContext} of a producer thread does not change the result. Empty when no such step exists
+   * or, once {@code steps} is tenant-active, when the transaction's scope does not include its
+   * tenant.
    */
-  @Query(
-      value =
-          """
-      SELECT e.tenant_id
-      FROM steps s
-      JOIN workflows w ON w.workflow_id = s.step_workflow_id
-      JOIN exercises e ON e.exercise_id = w.workflow_simulation_id
-      WHERE s.step_id = :stepId
-      """,
-      nativeQuery = true)
+  @Query("SELECT s.tenant.id FROM Step s WHERE s.id = :stepId")
   Optional<String> findTenantIdByStepId(@Param("stepId") String stepId);
 
   /**
@@ -228,41 +249,40 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @param status the list of active step statuses to consider
    * @return set of step IDs that reference any of the given inject IDs
    */
+  // Native: the inject link only lives in step_data; a read, no session side effect lost.
   @Query(
       value =
           """
       SELECT DISTINCT s.step_id
-      FROM steps s
-      WHERE EXISTS (
-        SELECT 1
-        FROM injects i
-        WHERE i.inject_id IN (:injectIds)
-        AND jsonb_path_exists(
-          s.step_data,
-          '$.** ? (@.inject_id == $id)',
-          jsonb_build_object('id', to_jsonb(i.inject_id))
-      ) and step_status::text in (:#{#status.![name()]})
-      )
+      FROM injects i
+      JOIN workflows w ON w.workflow_simulation_id = i.inject_exercise
+      JOIN steps s ON s.step_workflow_id = w.workflow_id
+      WHERE i.inject_id IN (:injectIds)
+      AND jsonb_path_exists(
+        s.step_data,
+        '$.** ? (@.inject_id == $id)',
+        jsonb_build_object('id', to_jsonb(i.inject_id))
+      ) and s.step_status::text in (:#{#status.![name()]})
       """,
       nativeQuery = true)
   Set<String> findStepIdsActiveByInjectIds(
       @Param("injectIds") Set<String> injectIds, @Param("status") List<StepStatus> status);
 
+  // Native: the inject link only lives in step_data; a read, no session side effect lost.
   @Query(
       value =
           """
         SELECT DISTINCT s.step_id
-        FROM steps s
-        WHERE EXISTS (
-          SELECT 1
-          FROM injects_expectations ie
-          WHERE ie.inject_expectation_id IN (:expectationIds)
-          AND jsonb_path_exists(
-            s.step_data,
-            '$.** ? (@.inject_id == $id)',
-            jsonb_build_object('id', to_jsonb(ie.inject_id))
-          ) AND s.step_status::text in (:#{#status.![name()]})
-        )
+        FROM injects_expectations ie
+        JOIN injects i ON i.inject_id = ie.inject_id
+        JOIN workflows w ON w.workflow_simulation_id = i.inject_exercise
+        JOIN steps s ON s.step_workflow_id = w.workflow_id
+        WHERE ie.inject_expectation_id IN (:expectationIds)
+        AND jsonb_path_exists(
+          s.step_data,
+          '$.** ? (@.inject_id == $id)',
+          jsonb_build_object('id', to_jsonb(i.inject_id))
+        ) AND s.step_status::text in (:#{#status.![name()]})
         """,
       nativeQuery = true)
   Set<String> findStepIdsActiveByExpectationIds(
@@ -284,6 +304,33 @@ public interface StepRepository extends JpaRepository<Step, String> {
   boolean existsByStepTemplateIdAndWorkflowId(String stepTemplateId, String workflowRunId);
 
   /**
+   * Whether a step template has not ended in a workflow run: one of its run steps is READY or RUN,
+   * or one of its targets waits in the delay queue (held back by the rate limit). Both are read in
+   * one statement: a delayed target the queue turns into a READY step between two reads would
+   * otherwise be in neither.
+   *
+   * @param stepTemplateId the ID of the step template
+   * @param workflowRunId the ID of the workflow run
+   * @return {@code true} if the template has not ended in the run
+   */
+  @Query(
+      value =
+          """
+      SELECT EXISTS (
+               SELECT 1 FROM steps
+               WHERE step_template_id = :stepTemplateId
+                 AND step_workflow_id = :workflowRunId
+                 AND step_status IN ('READY', 'RUN'))
+          OR EXISTS (
+               SELECT 1 FROM steps_delay_queue
+               WHERE steps_delay_queue_step_template_id = :stepTemplateId
+                 AND steps_delay_queue_workflow_run_id = :workflowRunId)
+      """,
+      nativeQuery = true)
+  boolean existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+      @Param("stepTemplateId") String stepTemplateId, @Param("workflowRunId") String workflowRunId);
+
+  /**
    * Returns {@code true} if the given step template has already spawned at least one run step
    * (READY/RUN/END) in any workflow run - i.e. it has been evaluated at least once. The idempotent
    * author guard uses this to tell a duplicate author of a still-pending template (collapse it)
@@ -296,36 +343,70 @@ public interface StepRepository extends JpaRepository<Step, String> {
   boolean existsByStepTemplateId(String stepTemplateId);
 
   /**
-   * Checks whether the given workflow references the given injector contract in one of its steps.
+   * The tenant of the given workflow, if one of its steps references the given injector contract.
+   * The tenant comes back from the same query instead of a separate workflow fetch, which would
+   * introduce a circular dependency ({@code InjectorContractService} -> {@code WorkflowService} ->
+   * ... -> {@code InjectorContractService}).
    *
    * <p>{@code step_data.inject_injector_contract} holds the serialized {@link
    * io.openaev.database.model.InjectorContract} for steps created through the chaining UI, but
    * legacy steps may only hold the contract ID as a plain string: both shapes are handled.
    *
+   * <p>Native because it reads {@code step_data} through jsonb operators JPQL cannot express; it is
+   * read-only, so no indexed, audited or streamed row is skipped. {@code workflows} and {@code
+   * steps} are tenant-active, so the statement inspector scopes both tables to the transaction's
+   * tenant scope; the statement also states its own tenant predicates: it answers only for a
+   * workflow of one of {@code tenantIds}, the caller's scope, and reads only the steps of the
+   * workflow's own tenant. Do not return this value to a client.
+   *
    * @param workflowId the ID of the workflow whose steps are inspected
    * @param injectorContractId the injector contract ID to look for
-   * @return {@code true} if the workflow references the injector contract
+   * @param tenantIds the tenants the caller reads in; a workflow of another tenant answers nothing
+   * @return the workflow's tenant id if it is one of {@code tenantIds} and references the contract,
+   *     empty otherwise
    */
   @Query(
       value =
           """
-        SELECT EXISTS (
-          SELECT 1
-          FROM steps s
-          WHERE s.step_workflow_id = :workflowId
-            AND (
-              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
-                AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
-              OR
-              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
-                AND s.step_data ->> 'inject_injector_contract' = :injectorContractId)
-            )
-        )
+        SELECT w.tenant_id
+        FROM workflows w
+        WHERE w.workflow_id = :workflowId
+          AND w.tenant_id IN (:tenantIds)
+          AND EXISTS (
+            SELECT 1
+            FROM steps s
+            WHERE s.step_workflow_id = w.workflow_id
+              AND s.tenant_id = w.tenant_id
+              AND (
+                (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+                  AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
+                OR
+                (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+                  AND s.step_data ->> 'inject_injector_contract' = :injectorContractId)
+              )
+          )
         """,
       nativeQuery = true)
-  boolean existsInjectorContractByWorkflowIdAndInjectorContractId(
+  Optional<String> findWorkflowTenantIdIfReferencesInjectorContract(
       @Param("workflowId") String workflowId,
-      @Param("injectorContractId") String injectorContractId);
+      @Param("injectorContractId") String injectorContractId,
+      @Param("tenantIds") Collection<String> tenantIds);
+
+  /** The injector contract a step template runs, from either shape of its JSON data. */
+  String STEP_CONTRACT_ID =
+      """
+      (CASE jsonb_typeof(s.step_data -> 'inject_injector_contract')
+        WHEN 'object' THEN s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id'
+        WHEN 'string' THEN s.step_data ->> 'inject_injector_contract'
+      END)""";
+
+  /** The step templates of the tenant's scenario logic maps: simulations keep what they ran. */
+  String SCENARIO_STEP_TEMPLATES =
+      """
+      FROM steps s
+      JOIN workflows w ON w.workflow_id = s.step_workflow_id
+      JOIN scenarios sc ON sc.scenario_id = w.workflow_scenario_id
+      WHERE s.step_status = 'TEMPLATE' AND s.step_template_id IS NULL AND sc.tenant_id = :tenantId""";
 
   /**
    * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code
@@ -340,12 +421,12 @@ public interface StepRepository extends JpaRepository<Step, String> {
    *
    * <p>Tenant scoping is mandatory here: {@code InjectorContract} has a composite {@code (id,
    * tenant_id)} key and the default contracts are provisioned id-for-id into every tenant, so the
-   * same contract id string legitimately exists in several tenants at once. Native SQL bypasses the
-   * Hibernate {@code tenantFilter}, and the {@code steps} table has no {@code tenant_id} of its
-   * own, so the tenant is resolved through the owning workflow's scenario or simulation ({@code
-   * COALESCE} - a workflow is attached to exactly one of the two). A workflow attached to neither
-   * is unreachable from any tenant UI and is deliberately left alone rather than risk sweeping
-   * another tenant's graph.
+   * same contract id string legitimately exists in several tenants at once. The tenant is matched
+   * explicitly in the SQL. It is resolved through the owning workflow's scenario or simulation
+   * ({@code COALESCE} - a workflow is attached to exactly one of the two), which gives the same
+   * value as the step's own {@code tenant_id}, since that column is set from the owner when the row
+   * is written. A workflow attached to neither is unreachable from any tenant UI and is
+   * deliberately left alone rather than risk sweeping another tenant's graph.
    *
    * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
    * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code
@@ -367,16 +448,38 @@ public interface StepRepository extends JpaRepository<Step, String> {
         WHERE s.step_status = 'TEMPLATE'
           AND s.step_template_id IS NULL
           AND COALESCE(sc.tenant_id, e.tenant_id) = :tenantId
-          AND (
-            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
-              AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' IN (:injectorContractIds))
-            OR
-            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
-              AND s.step_data ->> 'inject_injector_contract' IN (:injectorContractIds))
-          )
-        """,
+          AND \s"""
+              + STEP_CONTRACT_ID
+              + " IN (:injectorContractIds)",
       nativeQuery = true)
   List<Step> findTemplateStepsByInjectorContractIds(
       @Param("injectorContractIds") Collection<String> injectorContractIds,
       @Param("tenantId") String tenantId);
+
+  /** The scenario step templates running this injector contract. */
+  // Native: the contract is read from the step's JSON data; a read, no session side effect lost.
+  @Query(
+      value =
+          "SELECT s.* "
+              + SCENARIO_STEP_TEMPLATES
+              + " AND "
+              + STEP_CONTRACT_ID
+              + " = :injectorContractId",
+      nativeQuery = true)
+  List<Step> findScenarioTemplatesByTenantIdAndInjectorContractId(
+      @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
+
+  /** The steps among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Step> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The steps among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Step> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

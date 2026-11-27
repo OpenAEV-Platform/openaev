@@ -19,6 +19,10 @@ public interface CustomDashboardRepository
 
   Optional<CustomDashboard> findByName(@NotBlank final String name);
 
+  /** The tenant's oldest dashboard with this exact name, when several share it. */
+  Optional<CustomDashboard> findFirstByNameAndTenantIdOrderByCreationDateAsc(
+      @NotBlank final String name, @NotBlank final String tenantId);
+
   /**
    * Loads the {@code custom_dashboard_widgets} of the given dashboards inside the scoped
    * transaction, for the search endpoint that returns the raw entity: a lazy {@code widgets}
@@ -60,6 +64,26 @@ public interface CustomDashboardRepository
       """,
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);
+
+  /**
+   * Number of scenarios that show this dashboard in their Analysis tab (the reference is cleared by
+   * the foreign key when the dashboard is deleted).
+   */
+  @Query(
+      value =
+          "SELECT count(*) FROM scenarios s WHERE s.scenario_custom_dashboard = :customDashboardId",
+      nativeQuery = true)
+  long countScenariosUsing(@Param("customDashboardId") String customDashboardId);
+
+  /**
+   * Number of simulations that show this dashboard in their Analysis tab (the reference is cleared
+   * by the foreign key when the dashboard is deleted).
+   */
+  @Query(
+      value =
+          "SELECT count(*) FROM exercises e WHERE e.exercise_custom_dashboard = :customDashboardId",
+      nativeQuery = true)
+  long countSimulationsUsing(@Param("customDashboardId") String customDashboardId);
 
   @Modifying
   @Query(

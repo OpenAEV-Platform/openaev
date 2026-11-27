@@ -12,13 +12,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
@@ -49,7 +50,7 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -64,7 +65,8 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
   }
 
   private void ensureServiceAccount(String tenantId) {
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantId), tenantId);
     entityManager.flush();
     entityManager.clear();
   }

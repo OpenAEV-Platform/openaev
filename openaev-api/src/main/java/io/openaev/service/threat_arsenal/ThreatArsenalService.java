@@ -7,11 +7,16 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -28,15 +33,21 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.PermissionService;
+import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadUsageService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -50,10 +61,24 @@ public class ThreatArsenalService {
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
   private final InjectorContractService injectorContractService;
+  private final PayloadUsageService payloadUsageService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final AmbientTenantBridge ambientTenantBridge;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
+  private final UserService userService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+
+  // PermissionService pulls in InjectService, which depends on this service, so a plain
+  // constructor-injected field here is a circular bean dependency. @Lazy setter injection (same
+  // pattern as TenantGroupService.setPermissionService) defers resolving it until first use.
+  private PermissionService permissionService;
+
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -240,6 +265,8 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
+    payloadService.assertNameAvailable(
+        writeScopeResolver.tenantForWrite(ctx, null), actionInput.name(), null);
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -281,6 +308,8 @@ public class ThreatArsenalService {
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+    Payload payload = injectorContract.getPayload();
+    payloadService.assertRenameAvailable(payload, actionInput.name());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID
@@ -363,7 +392,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }
@@ -401,7 +431,8 @@ public class ThreatArsenalService {
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         providingFilterContext.searchInput(),
         InjectorContract.class);
   }
@@ -410,14 +441,8 @@ public class ThreatArsenalService {
       Specification<InjectorContract> baseSpecification,
       ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext,
       Specification<InjectorContract> searchSpecification) {
-    if (!providingFilterContext.hasProvidingFilters()) {
-      return baseSpecification;
-    }
-    if (providingFilterContext.mode() == io.openaev.database.model.Filters.FilterMode.or
-        && providingFilterContext.hasRemainingFilters()) {
-      return baseSpecification.or(providingFilterContext.specification().and(searchSpecification));
-    }
-    return baseSpecification.and(providingFilterContext.specification());
+    return providingFilterSpecificationBuilder.combine(
+        baseSpecification, providingFilterContext, searchSpecification);
   }
 
   /**
@@ -432,16 +457,18 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void delete(
-      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for this transaction (isEligibleForDeletion resolves InjectorContract#getInjectorType(),
-      // which is v2 tenant-scoped through the injectors table; without a scope it silently reads
-      // null and every action looks "orphaned", bypassing the deletion guard).
+      // TenantScopeTransactionAspect reads it to set the tenant scope for this transaction
+      // (isEligibleForDeletion resolves InjectorContract#getInjectorType(), which is v2
+      // tenant-scoped through the injectors table; without a scope it silently reads null and
+      // every action looks "orphaned", bypassing the deletion guard). The body reads the tenant
+      // of the copy to delete from it too.
       TxCtx ctx, String actionId) {
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (!isEligibleForDeletion(injectorContract)) {
       throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");
     }
-    this.injectorContractService.deleteInjectorContractById(actionId);
+    this.injectorContractService.deleteInjectorContractById(actionId, tenantId);
   }
 
   /**
@@ -454,25 +481,63 @@ public class ThreatArsenalService {
    * deleted (payload-based, and - for collector-sourced payloads - only when deprecated), mirroring
    * the per-row delete eligibility. Non-eligible actions are silently skipped.
    *
-   * <p>Deliberately NOT transactional as a whole: the scope and eligibility are resolved in a short
-   * read transaction, then the actions are deleted in small independent chunks through {@link
+   * <p>Deliberately NOT transactional as a whole: the eligibility is resolved in a short read
+   * transaction, then the actions are deleted in small independent chunks through {@link
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
-   * @param ctx the tenant scope for the read transaction and each chunk transaction (the eligible
-   *     resolution and every chunk read/write InjectorContract#getInjectorType()/getPayload()
-   *     through the v2 tenant-scoped injectors table)
+   * <p>The whole deletion happens in one tenant, the one the request writes to: the tenant of the
+   * route, or the single tenant the selector names. A scope naming several tenants, or none, cannot
+   * designate it and the request is refused (400) before anything is read. Acting in one tenant is
+   * what bounds a selection: an item id is not a tenant boundary, since injectors_contracts keys
+   * its rows on (id, tenant_id) and two tenants onboarded from the same source hold two rows under
+   * the same id, so a selection replayed in a second tenant would delete namesake rows the caller
+   * never selected.
+   *
+   * <p>The eligibility and the deletion are both read in that tenant. The ambient tenant follows it
+   * for the injector contracts, and every read and chunk transaction carries its scope for the
+   * injectors and payloads that InjectorContract#getInjectorType()/getPayload() resolve through.
+   * The delete right is checked there too: the endpoint's access check reads the request context
+   * tenant, which is the default one on the non-prefixed route, while the write tenant is the one
+   * the selector names.
+   *
+   * @param ctx the request scope, which the write tenant is resolved from
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
   public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    User caller = userService.currentUser();
+    return ambientTenantBridge.callInTenant(
+        tenantId,
+        () ->
+            mayDeleteInTenant(caller, tenantId)
+                ? bulkDeleteInTenant(tenantId, input)
+                : List.<String>of());
+  }
+
+  /**
+   * The decision the endpoint's access check takes, read in the write tenant: the caller's
+   * capabilities are the ones of its groups in the ambient tenant (User#getCapabilities), which the
+   * bridge has moved to the write tenant. The scope is passed for the reads the check itself makes.
+   */
+  private boolean mayDeleteInTenant(User caller, String tenantId) {
+    return permissionService.hasPermissionInTenant(
+        TxCtx.forTenant(tenantId), caller, "", ResourceType.THREAT_ARSENAL, Action.DELETE);
+  }
+
+  private List<String> bulkDeleteInTenant(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    TxCtx tenantScope = TxCtx.forTenant(tenantId);
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(ctx, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(
+            tenantScope, () -> resolveEligibleIds(tenantId, input));
     return bulkDeleteExecutor.deleteInChunks(
-        ctx,
+        tenantScope,
         "threat arsenal items",
         eligibleIds,
-        chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
+        chunk ->
+            chunk.forEach(id -> injectorContractService.deleteInjectorContractById(id, tenantId)));
   }
 
   /**
@@ -485,7 +550,12 @@ public class ThreatArsenalService {
    * was deleted. The explicit-selection path stays entity-based: it is bounded by what the user
    * ticked on screen.
    */
-  private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
+  private List<String> resolveEligibleIds(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    return payloadUsageService.notInUse(resolveCandidateIds(input), tenantId);
+  }
+
+  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
     List<String> idsToProcess = input.getInjectorContractIdsToProcess();
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
       return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();
@@ -538,8 +608,7 @@ public class ThreatArsenalService {
       return false;
     }
     // Collector-sourced payloads can only be deleted once deprecated.
-    boolean fromCollector = payload.getCollectorType() != null;
-    return !fromCollector || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
+    return !payload.isFromCollector() || payload.getStatus() == Payload.PAYLOAD_STATUS.DEPRECATED;
   }
 
   /** Same eligibility rule as above, decided from a search output instead of the entity. */

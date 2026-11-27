@@ -1,10 +1,14 @@
 package io.openaev.opencti.service;
 
-import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_EMAIL_PATTERN;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,13 +20,12 @@ import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.opencti.client.OpenCTIClient;
+import io.openaev.opencti.client.mutations.Mutation;
 import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.PushStixBundle;
-import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.TenantRoleService;
@@ -84,11 +87,11 @@ public class OpenCTIServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedRoleId() {
-    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().roleId());
   }
 
   private String tenantScopedGroupId() {
-    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().groupId());
   }
 
   @Nested
@@ -103,9 +106,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenThrow(IOException.class);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         assertThatThrownBy(() -> openCTIService.registerConnector(testConnector))
             .isInstanceOf(IOException.class);
@@ -118,9 +118,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response errorResponse = ResponseFixture.getErrorResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(errorResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         assertThatThrownBy(() -> openCTIService.registerConnector(testConnector))
             .isInstanceOf(ConnectorError.class)
@@ -167,9 +164,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         RegisterConnector.ResponsePayload payload = openCTIService.registerConnector(testConnector);
 
@@ -188,9 +182,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true); // so it can ping!
         Response errorResponse = ResponseFixture.getErrorResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(errorResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         assertThatThrownBy(() -> openCTIService.pingConnector(testConnector))
             .isInstanceOf(ConnectorError.class)
@@ -205,9 +196,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
       public void whenRequestCrashes_throwException() throws IOException {
         ConnectorBase testConnector = ConnectorFixture.getDefaultConnector();
         testConnector.setRegistered(true); // so it can ping!
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenThrow(IOException.class);
 
         assertThatThrownBy(() -> openCTIService.pingConnector(testConnector))
@@ -242,9 +230,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         okResponse.setData((ObjectNode) mapper.readTree(payloadText));
 
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         Ping.ResponsePayload payload = openCTIService.pingConnector(testConnector);
 
@@ -343,6 +328,99 @@ public class OpenCTIServiceTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Jwks negotiation without introspection")
+  public class JwksNegotiation {
+    private static final String JWKS = "{\"keys\":[]}";
+
+    private Mutation registerWithJwks(boolean withJwks) {
+      return argThat(
+          (Mutation m) -> m instanceof RegisterConnector rc && rc.getWithJwks() == withJwks);
+    }
+
+    private Mutation pingWithJwks(boolean withJwks) {
+      return argThat((Mutation m) -> m instanceof Ping p && p.getWithJwks() == withJwks);
+    }
+
+    private Response registeredWithJwks(ConnectorBase connector) throws IOException {
+      Response okResponse = ResponseFixture.getOkResponse();
+      ObjectNode content = mapper.createObjectNode();
+      content.put("id", connector.getId());
+      content.put("jwks", JWKS);
+      okResponse.getData().set("registerConnector", content);
+      return okResponse;
+    }
+
+    @Test
+    @DisplayName("OpenCTI with jwks: one call, jwks kept and remembered")
+    public void given_openCTIWithJwks_should_registerWithJwksInOneCall() throws Exception {
+      // Arrange
+      ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+      when(mockOpenCTIClient.execute(any(), any(), registerWithJwks(true)))
+          .thenReturn(registeredWithJwks(connector));
+
+      // Act
+      openCTIService.registerConnector(connector);
+
+      // Assert
+      assertThat(connector.isRegistered()).isTrue();
+      assertThat(connector.isSupportsJwks()).isTrue();
+      assertThat(connector.getJwks()).isEqualTo(JWKS);
+      verify(mockOpenCTIClient, times(1)).execute(any(), any(), any(Mutation.class));
+    }
+
+    @Test
+    @DisplayName("OpenCTI 6.x rejecting jwks: retry once without it")
+    public void given_openCTIWithoutJwksField_should_registerWithoutJwks() throws Exception {
+      // Arrange
+      ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+      when(mockOpenCTIClient.execute(any(), any(), registerWithJwks(true)))
+          .thenReturn(ResponseFixture.getJwksFieldUnknownResponse());
+      when(mockOpenCTIClient.execute(any(), any(), registerWithJwks(false)))
+          .thenReturn(ResponseFixture.getOkResponse());
+
+      // Act
+      openCTIService.registerConnector(connector);
+
+      // Assert
+      assertThat(connector.isRegistered()).isTrue();
+      assertThat(connector.isSupportsJwks()).isFalse();
+      verify(mockOpenCTIClient, times(1)).execute(any(), any(), registerWithJwks(false));
+    }
+
+    @Test
+    @DisplayName("Jwks already supported: never fall back without jwks")
+    public void given_jwksAlreadySupported_should_notPingWithoutJwks() throws Exception {
+      // Arrange
+      ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+      connector.setRegistered(true);
+      connector.setSupportsJwks(true);
+      when(mockOpenCTIClient.execute(any(), any(), pingWithJwks(true)))
+          .thenReturn(ResponseFixture.getJwksFieldUnknownResponse());
+
+      // Act & Assert
+      assertThatThrownBy(() -> openCTIService.pingConnector(connector))
+          .isInstanceOf(ConnectorError.class);
+      verify(mockOpenCTIClient, never()).execute(any(), any(), pingWithJwks(false));
+    }
+
+    @Test
+    @DisplayName("Error other than jwks rejection: no retry without jwks")
+    public void given_otherError_should_notPingWithoutJwks() throws Exception {
+      // Arrange
+      ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+      connector.setRegistered(true);
+      when(mockOpenCTIClient.execute(any(), any(), pingWithJwks(true)))
+          .thenReturn(ResponseFixture.getErrorResponse());
+
+      // Act & Assert
+      assertThatThrownBy(() -> openCTIService.pingConnector(connector))
+          .isInstanceOf(ConnectorError.class);
+      assertThat(connector.isSupportsJwks()).isFalse();
+      verify(mockOpenCTIClient, never()).execute(any(), any(), pingWithJwks(false));
+    }
+  }
+
+  @Nested
   @DisplayName("Automated privileges provisioning")
   public class AutomatedPrivilegesProvisioning {
     @Nested
@@ -357,9 +435,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -371,9 +446,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.orElseThrow().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -394,9 +470,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -408,9 +481,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -421,9 +495,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -434,9 +505,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -459,9 +530,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -472,9 +540,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -487,9 +555,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -501,8 +566,8 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -530,9 +595,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(RegisterConnector.class)))
             .thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.registerConnector(testConnector);
         entityManager.flush();
@@ -544,8 +606,8 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -563,9 +625,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true);
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -577,9 +636,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -600,9 +660,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true);
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -614,9 +671,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -627,9 +685,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true);
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -640,9 +695,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -665,9 +720,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true);
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -678,9 +730,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -693,9 +745,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
         testConnector.setRegistered(true);
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -707,8 +756,8 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
@@ -736,9 +785,6 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         Response okResponse = ResponseFixture.getOkResponse();
         when(mockOpenCTIClient.execute(any(), any(), any(Ping.class))).thenReturn(okResponse);
-        Response jwksSchemaResponse = ResponseFixture.getSchemaResponseWithJwks();
-        when(mockOpenCTIClient.execute(any(), any(), any(QueryTypeFields.class)))
-            .thenReturn(jwksSchemaResponse);
 
         openCTIService.pingConnector(testConnector);
         entityManager.flush();
@@ -750,8 +796,8 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
-        assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
+        assertThat(user.get().getFirstname()).isEqualTo("Security Coverage");
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }

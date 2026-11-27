@@ -21,8 +21,9 @@ import {
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import useScenarioPermissions from '../../../../../utils/permissions/useScenarioPermissions';
 import { type ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
 import NoDashboardComponent from '../../../workspaces/custom_dashboards/NoDashboardComponent';
@@ -30,8 +31,10 @@ import SelectDashboardButton from '../../../workspaces/custom_dashboards/SelectD
 
 const ScenarioAnalysis = () => {
   const dispatch = useAppDispatch();
-  const ability = useAbility();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
+  const ability = useAbility();
+  const { canManage } = useScenarioPermissions(scenarioId);
+  const canChooseDashboard = canManage && ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS);
 
   const { scenario, tenantSettings }: {
     scenario: Scenario;
@@ -138,7 +141,7 @@ const ScenarioAnalysis = () => {
     },
     paramsBuilder,
     parentContextId: scenarioId,
-    canChooseDashboard: ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenarioId),
+    canChooseDashboard,
     handleSelectNewDashboard,
     fetchCustomDashboard: () => fetchCustomDashboardFromScenario(scenarioId),
     fetchCount: (widgetId: string, params: Record<string, string | undefined>) => countByScenario(scenarioId, widgetId, params),
@@ -147,21 +150,19 @@ const ScenarioAnalysis = () => {
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesByScenario(scenarioId, widgetId, params, pagination),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesByByScenario(scenarioId, widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsByScenario(scenarioId, widgetId, params),
-  }), [effectiveDashboardId, scenarioId, paramsBuilder, ability, handleSelectNewDashboard]);
+  }), [effectiveDashboardId, scenarioId, paramsBuilder, canChooseDashboard, handleSelectNewDashboard]);
 
   return (
     <CustomDashboardWrapper
       configuration={configuration}
       noDashboardSlot={(
         <NoDashboardComponent
-          actionComponent={(
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.RESOURCE} field={scenarioId}>
-              <SelectDashboardButton
-                variant="text"
-                handleApplyChange={handleSelectNewDashboard}
-                scenarioOrSimulationId={scenarioId}
-              />
-            </Can>
+          actionComponent={canChooseDashboard && (
+            <SelectDashboardButton
+              variant="text"
+              handleApplyChange={handleSelectNewDashboard}
+              scenarioOrSimulationId={scenarioId}
+            />
           )}
         />
       )}

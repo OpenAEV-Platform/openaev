@@ -1,31 +1,36 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.database.repository.FindingRepository.FindingCountRow;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity;
+import io.openaev.finding.identity.LocationIdentity.AssetLocation;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
-import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.finding.FindingRecordingService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -35,12 +40,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingService {
 
   private static final String HOST = "host";
-  private final InjectService injectService;
 
   private final FindingRepository findingRepository;
   private final FindingMapper findingMapper;
-  private final FindingWriter findingWriter;
-  private final TenantWriteScopeResolver tenantWriteScopeResolver;
+  private final FindingRecordingService findingRecordingService;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -56,68 +59,53 @@ public class FindingService {
     return fromIterable(this.findingRepository.findAll());
   }
 
-  public Finding finding(@NotNull final String id) {
+  /** Loads a finding inside the request's tenant scope. Throws if not found there. */
+  public Finding finding(@NotNull final TxCtx ctx, @NotNull final String id) {
     return this.findingRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantIdIn(id, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
   /**
    * Resolves the group-wide data backing the summary of a finding - the group being every
-   * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
-   * to the mapper.
+   * occurrence sharing its (type, value) in the tenant of the finding - and delegates the assembly
+   * of the output to the mapper.
    */
-  public FindingSummaryOutput findingSummary(@NotNull final String id) {
-    Finding finding = finding(id);
-    String tenantId = TenantContext.getCurrentTenant();
+  public FindingSummaryOutput findingSummary(@NotNull final TxCtx ctx, @NotNull final String id) {
+    Finding finding = finding(ctx, id);
+    String tenantId = finding.getTenant().getId();
     ContractOutputType type = finding.getType();
-    String value = finding.getValue();
+    String displayValue = finding.getValueDisplay();
 
     FindingRepository.FindingSeenAggregate seen =
-        this.findingRepository.findSeenAggregate(type, value, tenantId);
+        this.findingRepository.findSeenAggregate(type, displayValue, tenantId);
 
     FindingMapper.FindingImpactCounts counts =
         new FindingMapper.FindingImpactCounts(
-            this.findingRepository.countDistinctAssets(type, value, tenantId),
-            this.findingRepository.countDistinctTeams(type, value, tenantId),
-            this.findingRepository.countDistinctUsers(type, value, tenantId),
-            this.findingRepository.countDistinctAssetGroups(type, value, tenantId));
+            this.findingRepository.countDistinctAssets(type, displayValue, tenantId),
+            this.findingRepository.countDistinctTeams(type, displayValue, tenantId),
+            this.findingRepository.countDistinctUsers(type, displayValue, tenantId));
 
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }
 
-  public Finding createFinding(
-      @NotNull final TxCtx ctx, @NotNull final Finding finding, @NotBlank final String injectId) {
-    Inject inject = this.injectService.inject(injectId);
-    finding.setInject(inject);
-    // The inject's tenant is validated against the request scope, not trusted: inject() is a
-    // primary key load that no tenant predicate filters, and the endpoint's @AccessControl checks a
-    // capability with no resourceId, so a caller could otherwise attribute a finding to a tenant
-    // that does not own the inject.
-    String tenantId =
-        this.tenantWriteScopeResolver.tenantForWrite(
-            ctx, inject.getTenant() != null ? inject.getTenant().getId() : null);
-    finding.setTenant(new Tenant(tenantId));
-    return this.findingRepository.save(finding);
-  }
-
-  public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
-    if (!finding.getInject().getId().equals(injectId)) {
-      throw new IllegalArgumentException("Inject id cannot be changed: " + injectId);
-    }
-    return this.findingRepository.save(finding);
-  }
-
-  public void deleteFinding(@NotNull final String id) {
-    if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
-      throw new EntityNotFoundException("Finding not found with id: " + id);
-    }
-    this.findingRepository.deleteById(id);
+  /**
+   * Records what an inject detected, retried once: two batches creating the same location, finding
+   * or tag at once collide on its unique key, and the retry finds what the other one created.
+   */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public List<Finding> recordFindingsByInject(
+      @NotNull final TxCtx ctx,
+      @NotNull final Inject inject,
+      @NotNull final List<DetectedFinding> detections) {
+    return recordWithRetry(ctx, inject, detections);
   }
 
   /**
-   * Generates findings based on the provided JSON node and context. It determines whether the
-   * execution is agent-based or injector-based and processes the findings accordingly.
+   * Records the findings of a structured output: an agent execution locates them on the asset whose
+   * host they name (its own asset when none is named), an injector on the assets of the output.
+   * Entries that fail {@code validator} are skipped: one malformed finding must not throw out of
+   * the execution callback, which would leave the inject stuck.
    *
    * @param executionContext The context of the execution, containing information about whether it's
    *     an agent execution and relevant data for processing.
@@ -127,12 +115,8 @@ public class FindingService {
    *     generated.
    * @param validator A predicate function to validate the format of each finding in the JSON node.
    * @param valueExtractor A function to extract the value for each finding from the JSON node.
-   * @param assetExtractor A function to extract associated asset IDs for each finding from the JSON
-   *     node (used for injector findings).
-   * @param userExtractor A function to extract associated user IDs for each finding from the JSON
-   *     node (used for injector findings).
-   * @param teamExtractor A function to extract associated team IDs for each finding from the JSON
-   *     node (used for injector findings).
+   * @param locationExtractor A function to extract the locations (assets or users) of each finding
+   *     from the JSON node (used for injector findings).
    */
   public void generateFindings(
       ExecutionProcessingContext executionContext,
@@ -140,77 +124,73 @@ public class FindingService {
       JsonNode structuredOutputNode,
       Predicate<JsonNode> validator,
       Function<JsonNode, String> valueExtractor,
-      Function<JsonNode, List<String>> assetExtractor,
-      Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
-
-    if (executionContext.isAgentExecution()) {
-      processAgentFindings(
-          structuredOutputNode,
-          executionContext.inject(),
-          executionContext.agent(),
-          contractOutputContext,
-          executionContext.valueTargetedAssetsMap(),
-          validator,
-          valueExtractor);
-    } else {
-      processInjectorFindings(
-          structuredOutputNode,
-          executionContext.inject(),
-          contractOutputContext,
-          validator,
-          valueExtractor,
-          assetExtractor,
-          userExtractor,
-          teamExtractor);
-    }
-  }
-
-  public void processAgentFindings(
-      JsonNode structuredOutputNode,
-      Inject inject,
-      Agent agent,
-      ContractOutputContext contractOutputContext,
-      Map<String, Endpoint> valueTargetedAssetsMap,
-      Predicate<JsonNode> validator,
-      Function<JsonNode, String> valueExtractor) {
-
-    if (structuredOutputNode == null || !structuredOutputNode.isArray()) {
-      log.debug("Skipping agent findings: structuredOutputNode is null or not an array");
+      Function<JsonNode, List<LocationIdentity>> locationExtractor) {
+    if (structuredOutputNode == null) {
+      log.debug("Skipping findings: structuredOutputNode is null");
       return;
     }
+    List<DetectedFinding> detections =
+        executionContext.isAgentExecution()
+            ? toAgentDetections(
+                structuredOutputNode,
+                executionContext.agent(),
+                executionContext.valueTargetedAssetsMap(),
+                contractOutputContext,
+                validator,
+                valueExtractor)
+            : toInjectorDetections(
+                structuredOutputNode,
+                contractOutputContext,
+                validator,
+                valueExtractor,
+                locationExtractor);
+    if (detections.isEmpty()) {
+      return;
+    }
+    Inject inject = executionContext.inject();
+    recordWithRetry(TxCtx.forTenant(inject.getTenant().getId()), inject, detections);
+  }
 
-    log.debug("Processing {} nodes for agent finding", structuredOutputNode.size());
-    for (JsonNode jsonNode : structuredOutputNode) {
-      if (!validator.test(jsonNode)) {
-        log.error("Validation failed for node: {}", jsonNode);
-        continue;
-      }
-
-      resolveAssetFromStructuredOutput(jsonNode, valueTargetedAssetsMap, agent)
-          .ifPresentOrElse(
-              asset ->
-                  saveAgentFinding(
-                      inject, asset, contractOutputContext, valueExtractor.apply(jsonNode)),
-              () -> log.warn("Finding dropped: No asset match for host in {}", jsonNode));
+  // Each attempt runs in its own REQUIRES_NEW transaction, so a failed one leaves the next clean
+  private List<Finding> recordWithRetry(
+      TxCtx ctx, Inject inject, List<DetectedFinding> detections) {
+    try {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
+    } catch (DataIntegrityViolationException concurrentBatch) {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
     }
   }
 
-  public void saveAgentFinding(
-      Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
-
-    String tenantId = inject.getTenant() != null ? inject.getTenant().getId() : null;
-
-    findingWriter.saveCompleteFinding(
-        tenantId == null ? TxCtx.missing() : TxCtx.forTenant(tenantId),
-        contractOutputContext.key(),
-        contractOutputContext.type().name(),
-        value,
-        new String[0],
-        inject.getId(),
-        contractOutputContext.name(),
-        asset.getId(),
-        contractOutputContext.tagIds());
+  private List<DetectedFinding> toAgentDetections(
+      JsonNode structuredOutputNode,
+      Agent agent,
+      Map<String, Endpoint> valueTargetedAssetsMap,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator,
+      Function<JsonNode, String> valueExtractor) {
+    if (!structuredOutputNode.isArray()) {
+      log.debug("Skipping agent findings: structuredOutputNode is not an array");
+      return List.of();
+    }
+    List<DetectedFinding> detections = new ArrayList<>();
+    for (JsonNode node : structuredOutputNode) {
+      if (!validator.test(node)) {
+        log.error("Validation failed for node: {}", node);
+        continue;
+      }
+      String value = valueExtractor.apply(node);
+      if (!hasText(value)) {
+        log.warn("Skipping {} finding without value: {}", contractOutputContext.type(), node);
+        continue;
+      }
+      resolveAssetFromStructuredOutput(node, valueTargetedAssetsMap, agent)
+          .ifPresentOrElse(
+              asset ->
+                  detections.add(
+                      detection(contractOutputContext, value, new AssetLocation(asset.getId()))),
+              () -> log.warn("Finding dropped: No asset match for host in {}", node));
+    }
+    return detections;
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(
@@ -226,199 +206,58 @@ public class FindingService {
         .map(valueTargetedAssetsMap::get);
   }
 
-  public void processInjectorFindings(
+  // One detection per location of each valid entry
+  private List<DetectedFinding> toInjectorDetections(
       JsonNode structuredOutputNode,
-      Inject inject,
       ContractOutputContext contractOutputContext,
       Predicate<JsonNode> validator,
       Function<JsonNode, String> valueExtractor,
-      Function<JsonNode, List<String>> assetExtractor,
-      Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
-
-    if (structuredOutputNode == null) {
-      log.debug("Skipping injector findings: structuredOutputNode is null");
-      return;
+      Function<JsonNode, List<LocationIdentity>> locationExtractor) {
+    List<JsonNode> nodes =
+        contractOutputContext.isMultiple() && structuredOutputNode.isArray()
+            ? StreamSupport.stream(structuredOutputNode.spliterator(), false).toList()
+            : List.of(structuredOutputNode);
+    List<DetectedFinding> detections = new ArrayList<>();
+    for (JsonNode node : nodes) {
+      if (!validator.test(node)) {
+        log.warn("Skipping malformed {} finding: {}", contractOutputContext.type(), node);
+        continue;
+      }
+      String value = valueExtractor.apply(node);
+      if (!hasText(value)) {
+        log.warn("Skipping {} finding without value: {}", contractOutputContext.type(), node);
+        continue;
+      }
+      for (LocationIdentity location : locationExtractor.apply(node)) {
+        detections.add(detection(contractOutputContext, value, location));
+      }
     }
+    return detections;
+  }
 
-    List<Finding> findings =
-        buildFindings(
-            structuredOutputNode,
-            contractOutputContext,
-            validator,
-            valueExtractor,
-            assetExtractor,
-            userExtractor,
-            teamExtractor);
+  private static DetectedFinding detection(
+      ContractOutputContext contractOutputContext, String value, LocationIdentity location) {
+    return DetectedFinding.builder()
+        .type(contractOutputContext.type())
+        .value(value)
+        .field(contractOutputContext.key())
+        .name(contractOutputContext.name())
+        .location(location)
+        .tagIds(new HashSet<>(Arrays.asList(contractOutputContext.tagIds())))
+        .build();
+  }
 
-    createFindings(findings, inject.getId());
+  /** The number of findings per asset id, for the XTM counterpart lookup facts. */
+  public List<FindingCountRow> countFindingsByAssetIdIn(Collection<String> assetIds) {
+    return findingRepository.countFindingsByAssetIdIn(assetIds);
   }
 
   /**
-   * Persists a list of findings in the database, associating them with a specific inject.
-   *
-   * @param findings The list of findings to be created and persisted.
-   * @param injectId The identifier of to inject to which the findings will be associated. Must not
-   *     be blank.
+   * The number of findings and affected assets per upper-cased value of the given type, for the XTM
+   * counterpart lookup facts.
    */
-  public void createFindings(
-      @NotNull final List<Finding> findings, @NotBlank final String injectId) {
-    Inject inject = injectService.inject(injectId);
-    findings.forEach(
-        finding -> {
-          finding.setInject(inject);
-          finding.setTenant(inject.getTenant());
-        });
-    List<Finding> deduplicatedFindings = deduplicateFindings(findings);
-    findingRepository.saveAll(deduplicatedFindings);
-  }
-
-  /**
-   * Deduplicates a list of findings based on the unique constraint keys: value, type, and field.
-   * When duplicates are found, their assets, teams and users are merged into the first occurrence.
-   *
-   * @param findings the raw list of findings, potentially containing duplicates
-   * @return a deduplicated list with associations merged
-   */
-  private List<Finding> deduplicateFindings(@NotNull final List<Finding> findings) {
-    Map<String, Finding> seen = new java.util.LinkedHashMap<>();
-    for (Finding finding : findings) {
-      String key = finding.getValue() + "|" + finding.getType() + "|" + finding.getField();
-      Finding existing = seen.get(key);
-      if (existing == null) {
-        seen.put(key, finding);
-      } else {
-        log.debug(
-            "Duplicate finding detected (value={}, type={}, field={}): merging associations",
-            finding.getValue(),
-            finding.getType(),
-            finding.getField());
-        if (finding.getAssets() != null) {
-          List<Asset> merged =
-              new ArrayList<>(existing.getAssets() != null ? existing.getAssets() : List.of());
-          finding
-              .getAssets()
-              .forEach(
-                  a -> {
-                    if (!merged.contains(a)) merged.add(a);
-                  });
-          existing.setAssets(merged);
-        }
-        if (finding.getTeams() != null) {
-          List<Team> merged =
-              new ArrayList<>(existing.getTeams() != null ? existing.getTeams() : List.of());
-          finding
-              .getTeams()
-              .forEach(
-                  t -> {
-                    if (!merged.contains(t)) merged.add(t);
-                  });
-          existing.setTeams(merged);
-        }
-        if (finding.getUsers() != null) {
-          List<User> merged =
-              new ArrayList<>(existing.getUsers() != null ? existing.getUsers() : List.of());
-          finding
-              .getUsers()
-              .forEach(
-                  u -> {
-                    if (!merged.contains(u)) merged.add(u);
-                  });
-          existing.setUsers(merged);
-        }
-      }
-    }
-    return new ArrayList<>(seen.values());
-  }
-
-  public List<Finding> buildFindings(
-      JsonNode structuredOutputNode,
-      ContractOutputContext contractOutputContext,
-      Predicate<JsonNode> validator,
-      Function<JsonNode, String> valueExtractor,
-      Function<JsonNode, List<String>> assetExtractor,
-      Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
-
-    if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
-      List<Finding> findings = new ArrayList<>();
-      for (JsonNode node : structuredOutputNode) {
-        // Skip malformed entries instead of aborting the whole batch: a single bad finding must not
-        // throw out of the execution callback, which would prevent the COMPLETE trace from being
-        // saved and leave the inject stuck (ultimately flipped to ERROR).
-        if (!validator.test(node)) {
-          log.warn("Skipping malformed {} finding: {}", contractOutputContext.type(), node);
-          continue;
-        }
-        findings.add(
-            buildSingleFinding(
-                node,
-                contractOutputContext,
-                validator,
-                valueExtractor,
-                assetExtractor,
-                userExtractor,
-                teamExtractor));
-      }
-      return findings;
-    }
-
-    return List.of(
-        buildSingleFinding(
-            structuredOutputNode,
-            contractOutputContext,
-            validator,
-            valueExtractor,
-            assetExtractor,
-            userExtractor,
-            teamExtractor));
-  }
-
-  private Finding buildSingleFinding(
-      JsonNode structuredOutputNode,
-      ContractOutputContext contractOutputContext,
-      Predicate<JsonNode> validator,
-      Function<JsonNode, String> valueExtractor,
-      Function<JsonNode, List<String>> assetExtractor,
-      Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
-
-    if (!validator.test(structuredOutputNode)) {
-      throw new IllegalArgumentException(
-          "Finding not correctly formatted: " + structuredOutputNode);
-    }
-
-    Finding finding = FindingUtils.createFinding(contractOutputContext);
-    finding.setValue(valueExtractor.apply(structuredOutputNode));
-    return linkFinding(structuredOutputNode, finding, assetExtractor, userExtractor, teamExtractor);
-  }
-
-  private Finding linkFinding(
-      JsonNode structuredOutputNode,
-      Finding finding,
-      Function<JsonNode, List<String>> assetExtractor,
-      Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
-
-    List<String> assetIds = assetExtractor.apply(structuredOutputNode);
-    if (!assetIds.isEmpty()) {
-      finding.setAssets(fetchEntities(assetIds, assetRepository::findById));
-    }
-
-    List<String> teamIds = teamExtractor.apply(structuredOutputNode);
-    if (!teamIds.isEmpty()) {
-      finding.setTeams(fetchEntities(teamIds, teamRepository::findById));
-    }
-
-    List<String> userIds = userExtractor.apply(structuredOutputNode);
-    if (!userIds.isEmpty()) {
-      finding.setUsers(fetchEntities(userIds, userRepository::findById));
-    }
-
-    return finding;
-  }
-
-  private <T> List<T> fetchEntities(List<String> ids, Function<String, Optional<T>> finder) {
-    return ids.stream().map(finder).filter(Optional::isPresent).map(Optional::get).toList();
+  public List<FindingCountRow> countFindingsByTypeAndValueIn(
+      ContractOutputType type, Collection<String> values) {
+    return findingRepository.countFindingsByTypeAndValueIn(type, values);
   }
 }

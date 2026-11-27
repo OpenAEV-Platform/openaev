@@ -46,22 +46,13 @@ class JsonTypeDirtyOnLoadCoverageTest {
    */
   private static final Set<String> LATENT_UNTIL_THEIR_TABLE_ACTIVATES =
       Set.of(
-          "BaseInjectExpectation.results",
+          "InjectExpectationResult.metadata",
           "TechnicalInjectExpectation.expectedSecurityPlatforms",
           "CatalogConnectorConfiguration.connectorConfigurationDefault",
-          "Condition.keyTypes",
           "ConnectorInstanceConfiguration.value",
           "InjectDependency.injectDependencyCondition",
           "InjectStatus.payloadOutput",
-          "Step.conditionKeyTypes",
-          "Step.data",
-          "Step.input",
-          "Step.output",
-          "Step.outputParser",
-          "Scenario.autonomousConfig",
-          "UserEvent.payload",
-          "WorkflowScopeRule.snapshotEnd",
-          "WorkflowScopeRule.snapshotStart");
+          "UserEvent.payload");
 
   @Nested
   @DisplayName("the inventory it is built on")
@@ -135,6 +126,21 @@ class JsonTypeDirtyOnLoadCoverageTest {
       both.retainAll(LATENT_UNTIL_THEIR_TABLE_ACTIVATES);
 
       assertTrue(both.isEmpty(), "a field is both probed and recorded as latent: " + both);
+    }
+
+    @Test
+    @DisplayName(
+        "given a field probed ahead of its activation, when compared, then it is still latent")
+    void given_a_field_probed_ahead_of_activation_should_still_be_latent() {
+      Set<String> notLatent =
+          new TreeSet<>(JsonTypeDirtyOnLoadProbeTest.PROBED_AHEAD_OF_ACTIVATION);
+      notLatent.removeAll(LATENT_UNTIL_THEIR_TABLE_ACTIVATES);
+
+      assertTrue(
+          notLatent.isEmpty(),
+          "a field probed ahead of its activation is no longer latent, so its table is active:"
+              + " move it from PROBED_AHEAD_OF_ACTIVATION to PROBED_FIELDS: "
+              + notLatent);
     }
   }
 }

@@ -14,7 +14,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -27,7 +28,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,11 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path so the per-request scope is set once: re-applying the
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
+@CoversTenantIsolation("mitigations")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=mitigations")
 @WithMockUser(isAdmin = true)
 @DisplayName("mitigations read and write isolation through the real HTTP endpoint")
-class MitigationHttpIsolationTest extends IntegrationTest {
+class MitigationHttpIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_MITIGATIONS = "/api/tenants/{tenantId}/mitigations";
   private static final String TENANT_MITIGATION_BY_ID = TENANT_MITIGATIONS + "/{mitigationId}";

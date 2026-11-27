@@ -16,6 +16,7 @@ import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFac
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.utils.fixtures.TokenFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -49,6 +50,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
   @Autowired private UserComposer userComposer;
@@ -59,7 +61,8 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   void setUp() throws Exception {
     userComposer.reset();
     tokenComposer.reset();
-    manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {

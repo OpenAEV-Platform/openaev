@@ -35,6 +35,9 @@ Automatic Expectations are validated by technical signals from connected securit
 |---|---|
 | Prevention | A security control blocks the attack |
 | Detection | A security alert or incident is raised |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| Logging | The attack left raw events in the logs of a security tool, whatever its alerts say |
+{%- endif %}
 | Vulnerability | A CVE is present on the target |
 | Article | Targets read or acknowledge a media pressure article |
 
@@ -87,8 +90,10 @@ A single Expectation can receive multiple validation results for the same Inject
 When automated result retrieval is not possible (e.g., non-technical Injects), record results manually:
 
 1. Open the Inject result page.
-2. Click the **shield** icon labeled **Add a result**.
+2. On the Expectation card, click **Add a result**: the **shield** icon for Detection, Prevention, and Vulnerability Expectations, the **clipboard** icon for Manual, Challenge, and Article Expectations.
 3. Fill in the result form and save.
+
+For Manual, Challenge, and Article Expectations, the **Add a result** button stays available after a score is set, so you can change the score later. The new result replaces the previous one.
 
 ### How the final result is computed
 
@@ -98,7 +103,8 @@ When the score is set depends on the Expectation type:
 
 - **Detection and Prevention**: OpenAEV settles the Expectation as soon as one result reaches the expected score. OpenAEV does not wait for the other security platforms. A result they send later is still recorded but cannot lower the score.
 - **Detection and Prevention without a success**: OpenAEV waits until every expected security platform has answered, then keeps the highest score. If the Expectation expires first, OpenAEV marks the missing results as failed.
-- **Vulnerability**: OpenAEV always waits until every expected source has answered, even after a first result.
+- **Vulnerability**: OpenAEV settles the Expectation as soon as one source reports the Asset as vulnerable. OpenAEV does not wait for the other sources, because none of them can make the Asset less vulnerable.
+- **Vulnerability without a finding**: OpenAEV waits until every expected source has answered "Not vulnerable". If the Expectation expires first, OpenAEV marks the missing results as "Not vulnerable": no finding means the Asset is not vulnerable.
 
 !!! warning
 
@@ -149,15 +155,21 @@ Expectations must validate within a defined time window. If the time expires, th
 | Expectation type | Default |
 |---|---|
 | Detection / Prevention | 6 hours |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| Logging | 6 hours |
+{%- endif %}
 | Human (manual, article, challenge) | 24 hours |
 
 Override expiration times globally (environment variables) or per Expectation (UI):
 
-| Parameter | Environment variable | Default (seconds) | Description |
-|---|---|---|---|
-| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection and prevention) |
-| `openaev.expectation.detection.expiration-time` | `OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME` | 21600 | Detection Expectations |
-| `openaev.expectation.prevention.expiration-time` | `OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME` | 21600 | Prevention Expectations |
+| Parameter | Environment variable | Default (seconds) | Description                                                |
+|---|---|---|------------------------------------------------------------|
+| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection, prevention and logging) |
+| `openaev.expectation.detection.expiration-time` | `OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME` | 21600 | Detection Expectations                                     |
+| `openaev.expectation.prevention.expiration-time` | `OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME` | 21600 | Prevention Expectations                                    |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| `openaev.expectation.logging.expiration-time` | `OPENAEV_EXPECTATION_LOGGING_EXPIRATION-TIME` | 21600 | Logging Expectations ("Not Logged" when they expire). When unset, the technical expiration time applies |
+{%- endif %}
 | `openaev.expectation.human.expiration-time` | `OPENAEV_EXPECTATION_HUMAN_EXPIRATION-TIME` | 86400 | Human Expectations (manual, challenge, article) |
 | `openaev.expectation.challenge.expiration-time` | `OPENAEV_EXPECTATION_CHALLENGE_EXPIRATION-TIME` | 86400 | Challenge Expectations |
 | `openaev.expectation.article.expiration-time` | `OPENAEV_EXPECTATION_ARTICLE_EXPIRATION-TIME` | 86400 | Article Expectations |

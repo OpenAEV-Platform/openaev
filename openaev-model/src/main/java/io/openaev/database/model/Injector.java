@@ -31,10 +31,10 @@ import org.hibernate.annotations.Type;
 @EntityListeners({ModelBaseListener.class})
 @IdClass(ConnectorCompositeId.class)
 /**
- * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
- * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed at go-live: the
- * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
- * not re-add either.
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The inspector scopes
+ * every query, and write attribution is explicit via TenantWriteScopeResolver. Do not add a
+ * Hibernate filter ({@code TenantFilterRemovedArchTest}), nor a listener that stamps the tenant
+ * from {@code TenantContext}.
  */
 public class Injector extends BaseConnectorEntity implements TenantIdBase, AuditStateCapturable {
 
@@ -84,6 +84,10 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase, Audit
   @Column(name = "injector_payloads")
   @JsonProperty("injector_payloads")
   private boolean payloads = false;
+
+  @Column(name = "injector_commit")
+  @JsonProperty("injector_commit")
+  private String commit;
 
   @Column(name = "injector_created_at")
   @JsonProperty("injector_created_at")

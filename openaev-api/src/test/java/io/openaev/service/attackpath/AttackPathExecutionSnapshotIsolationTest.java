@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -41,6 +42,7 @@ import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -70,6 +72,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * refuses to open inside an active one, and {@code onRun}'s own {@code REQUIRES_NEW} commits
  * independently of any test transaction anyway), so cleanup below is explicit.
  */
+@CoversTenantIsolation({"attackpath_execution_collector", "attackpath_execution_remediation"})
 @TestPropertySource(
     properties =
         "openaev.tenant.active-tables=attackpath_execution_collector,attackpath_execution_remediation")
@@ -379,7 +382,7 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceName("EDR platform " + suffix);
     result.setResult("Prevented");
-    result.setDate("2026-09-01T10:00:00Z");
+    result.setDate(Instant.parse("2026-09-01T10:00:00Z"));
     prevention.setResults(List.of(result));
     runAsTheExecutorWould(
         () -> ingestionService.upsertExecutionCollectors(inject, List.of(prevention)));

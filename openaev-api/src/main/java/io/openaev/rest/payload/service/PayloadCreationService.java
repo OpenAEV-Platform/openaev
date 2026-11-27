@@ -5,8 +5,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-import io.openaev.config.OpenAEVAnonymous;
-import io.openaev.config.SessionHelper;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
@@ -19,7 +17,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import io.openaev.service.UserService;
+import io.openaev.service.AuthorService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +41,7 @@ public class PayloadCreationService {
   private final DomainService domainService;
   private final DocumentService documentService;
   private final ResultsMetricCollector resultsMetricCollector;
-  private final UserService userService;
+  private final AuthorService authorService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
   public record PayloadInjectorContractCreationResult(
@@ -71,6 +69,28 @@ public class PayloadCreationService {
     return createInternal(ctx, explicitTenant, input);
   }
 
+  /** The payload the input describes, not saved: the importer compares its content first. */
+  public Payload toPayload(TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      input.setDetectionRemediations(null);
+    }
+    PayloadType payloadType = PayloadType.fromString(input.getType());
+    validateArchitecture(payloadType.key, input.getExecutionArch());
+
+    Payload payload = payloadType.getPayloadSupplier().get();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, explicitTenant);
+    payload.setTenant(new Tenant(tenantId));
+    payloadUtils.copyProperties(input, payload);
+    if (payload instanceof Executable executable) {
+      executable.setExecutableFile(
+          documentService.documentInTenant(input.getExecutableFile(), tenantId));
+    } else if (payload instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.documentInTenant(input.getFileDropFile(), tenantId));
+    }
+    return payload;
+  }
+
   /**
    * Shared body of both {@code createPayload} overloads, called directly rather than through {@code
    * this.createPayload(...)}: an intra-class call to a @Transactional method bypasses the Spring
@@ -79,35 +99,10 @@ public class PayloadCreationService {
    */
   private PayloadInjectorContractCreationResult createInternal(
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      input.setDetectionRemediations(null);
-    }
-
-    return create(ctx, explicitTenant, input);
-  }
-
-  private PayloadInjectorContractCreationResult create(
-      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
-    validateArchitecture(payloadType.key, input.getExecutionArch());
-
-    Payload payload = payloadType.getPayloadSupplier().get();
-    payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
-
-    // Manually created payloads are authored by the current user. System-driven
-    // creations (startup datapacks, schedulers) have no authenticated user and
-    // stay authorless.
-    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
-      payload.setAuthorUser(userService.currentUser());
-    }
-
-    if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
-    }
+    Payload payload = toPayload(ctx, explicitTenant, input);
+    payloadUtils.validateDocumentArguments(payload, payload.getTenant().getId());
+    authorService.authorByCurrentUser(payload);
 
     Payload payloadSaved = payloadRepository.save(payload);
     // The id collections default to empty lists on the input, but callers that build the
@@ -115,13 +110,21 @@ public class PayloadCreationService {
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException
     // ("Ids must not be null") on a null argument, surfacing as a confusing 400. Treat an
     // absent collection as "no associations" instead.
+    // The ids named in the body resolve in the tenant of the payload written: an id of another
+    // tenant is treated like an unknown id.
+    String payloadTenantId = payloadSaved.getTenant().getId();
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
             fromIterable(
-                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
-            iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+                attackPatternRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getAttackPatternsIds()), payloadTenantId)),
+            iterableToSet(
+                domainService.findAllByIdInTenant(
+                    emptyIfNull(input.getDomainIds()), payloadTenantId)),
+            iterableToSet(
+                tagRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getTagIds()), payloadTenantId)));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);

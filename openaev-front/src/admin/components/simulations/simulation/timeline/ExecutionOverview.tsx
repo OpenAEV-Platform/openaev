@@ -18,7 +18,7 @@ import { SectionBlock } from '../../../../../components/common/detail/EntityDeta
 import { useFormatter } from '../../../../../components/i18n';
 import SearchFilter from '../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput, type InjectInput } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
 import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
@@ -148,7 +148,7 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
         .filter((time: number) => time >= now)
         .reduce((min: number | null, time: number) => (min === null || time < min ? time : min), null);
 
-  const onUpdateInject = async (inject: Inject) => {
+  const onUpdateInject = async (inject: InjectInput) => {
     if (selectedInjectId) {
       await dispatch(updateInjectForExercise(exerciseId, selectedInjectId, inject));
     }

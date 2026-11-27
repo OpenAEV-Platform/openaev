@@ -64,7 +64,7 @@ public class AttackPatternUpsertService {
       return List.of();
     }
     Map<String, AttackPattern> existingByExternalId = loadExisting(inputs, tenantId);
-    Map<String, KillChainPhase> phasesById = loadPhases(inputs);
+    Map<String, KillChainPhase> phasesById = loadPhases(inputs, tenantId);
     Map<String, AttackPattern> parentsByStixId = loadParents(inputs, tenantId);
     List<AttackPattern> upserted = new ArrayList<>();
     for (AttackPatternCreateInput input : inputs) {
@@ -93,7 +93,8 @@ public class AttackPatternUpsertService {
         .collect(toMap(AttackPattern::getExternalId, identity(), (a, b) -> a));
   }
 
-  private Map<String, KillChainPhase> loadPhases(List<AttackPatternCreateInput> inputs) {
+  private Map<String, KillChainPhase> loadPhases(
+      List<AttackPatternCreateInput> inputs, String tenantId) {
     Set<String> ids =
         inputs.stream()
             .map(AttackPatternCreateInput::getKillChainPhasesIds)
@@ -103,7 +104,7 @@ public class AttackPatternUpsertService {
     if (ids.isEmpty()) {
       return Map.of();
     }
-    return fromIterable(killChainPhaseRepository.findAllById(ids)).stream()
+    return killChainPhaseRepository.findAllByIdInTenant(ids, tenantId).stream()
         .collect(toMap(KillChainPhase::getId, identity()));
   }
 

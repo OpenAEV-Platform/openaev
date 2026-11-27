@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectService;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ class DetectionBehaviorTest {
   @Mock private CollectorService collectorService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectExpectationResultRepository injectExpectationResultRepository;
 
   @Nested
   @DisplayName("supports")
@@ -31,7 +33,11 @@ class DetectionBehaviorTest {
     void given_detection_expectation_should_return_true() {
       // Arrange
       DetectionBehavior behavior =
-          new DetectionBehavior(collectorService, injectService, injectExpectationRepository);
+          new DetectionBehavior(
+              collectorService,
+              injectService,
+              injectExpectationRepository,
+              injectExpectationResultRepository);
       DetectionInjectExpectation expectation = new DetectionInjectExpectation();
 
       // Act
@@ -46,7 +52,11 @@ class DetectionBehaviorTest {
     void given_non_detection_expectation_should_return_false() {
       // Arrange
       DetectionBehavior behavior =
-          new DetectionBehavior(collectorService, injectService, injectExpectationRepository);
+          new DetectionBehavior(
+              collectorService,
+              injectService,
+              injectExpectationRepository,
+              injectExpectationResultRepository);
       PreventionInjectExpectation expectation = new PreventionInjectExpectation();
 
       // Act

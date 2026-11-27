@@ -10,7 +10,7 @@ import type { InjectExpectationResult } from '../../../../../utils/api-types';
 import { computeLabel } from '../../../../../utils/String';
 import { expectationTypeColor, expectationTypeIcon } from '../../../common/ExpectationIconByType';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
-import { isManualExpectation } from '../../../common/injects/expectations/ExpectationUtils';
+import { isManualExpectation, isTechnicalExpectation } from '../../../common/injects/expectations/ExpectationUtils';
 import DetectionPreventionExpectationsValidationForm
   from '../../../simulations/simulation/validation/expectations/DetectionPreventionExpectationsValidationForm';
 import ManualExpectationsValidationForm
@@ -145,7 +145,7 @@ const EditInjectExpectationResultDialog = ({ open, injectExpectation, sourceIds,
         )}
         {isManualExpectation(expectationType)
           && <ManualExpectationsValidationForm expectation={injectExpectation} onUpdate={onUpdate} withSummary={false} hideActions />}
-        {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)
+        {isTechnicalExpectation(expectationType)
           && (
             <DetectionPreventionExpectationsValidationForm
               expectation={injectExpectation}

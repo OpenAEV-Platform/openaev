@@ -2,7 +2,9 @@ package io.openaev.utils;
 
 import io.openaev.database.model.*;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.hibernate.Hibernate;
 
@@ -21,6 +23,116 @@ import org.hibernate.Hibernate;
 public class AgentUtils {
 
   private AgentUtils() {}
+
+  // -- Values substituted into agent scripts --
+  //
+  // The installation directory and the service name reported by an agent end up in the generated
+  // install / upgrade scripts (shell on Linux and macOS, PowerShell on Windows), where several
+  // templates expand them unquoted, inside double quotes, as native-command arguments or as
+  // regular-expression operands. They are therefore restricted to what the agent installers
+  // actually produce, rather than escaped. ASCII only: a non-ASCII letter can decode to a quote
+  // character in a script file that has no byte-order mark.
+
+  private static final String BRAND = "(?:openaev|openbas|oaev|obas)";
+
+  // Absolute or relative POSIX path made of plain segments: no space, no backslash, no "." / ".."
+  // segment, no segment starting with "-".
+  private static final String UNIX_SEGMENT = "(?!-)(?!\\.{1,2}(?:/|$))[A-Za-z0-9_.@+-]+";
+
+  // Windows path, optionally starting with a drive letter, made of backslash-separated segments
+  // that do not start or end with a space, and are not "." or "..". No UNC prefix, no other colon.
+  private static final String WINDOWS_SEGMENT =
+      "(?!-)(?!\\.{1,2}(?:\\\\|$))[A-Za-z0-9_.@+-](?:[A-Za-z0-9_.@+() -]*[A-Za-z0-9_.@+)-])?";
+
+  // Every directory and service name the platform produces by default carries the product name;
+  // requiring it keeps a forged value from pointing at an unrelated directory or system service.
+  private static final Pattern UNIX_INSTALLATION_DIR =
+      Pattern.compile(
+          "(?i)(?=.{1,255}\\z)(?=.*" + BRAND + ")/?" + UNIX_SEGMENT + "(?:/" + UNIX_SEGMENT + ")*");
+
+  private static final Pattern WINDOWS_INSTALLATION_DIR =
+      Pattern.compile(
+          "(?i)(?=.{1,255}\\z)(?=.*"
+              + BRAND
+              + ")(?:[A-Za-z]:\\\\)?"
+              + WINDOWS_SEGMENT
+              + "(?:\\\\"
+              + WINDOWS_SEGMENT
+              + ")*");
+
+  private static final Pattern SERVICE_NAME =
+      Pattern.compile("(?i)(?=.{1,128}\\z)" + BRAND + "[A-Za-z0-9._@-]*");
+
+  private static boolean isWindows(String platform) {
+    return platform != null && platform.toLowerCase(Locale.ROOT).equals("windows");
+  }
+
+  /**
+   * Tells whether an installation directory supplied by a caller can be placed in an agent script
+   * without changing its structure.
+   *
+   * @param platform the agent platform ("windows", "linux" or "macos", any case)
+   * @param installationDir the value supplied by a caller (never a server-side default)
+   * @return true when the value is a plain path of the expected shape for the platform
+   */
+  public static boolean isSafeInstallationDir(String platform, String installationDir) {
+    if (installationDir == null) {
+      return false;
+    }
+    Pattern pattern = isWindows(platform) ? WINDOWS_INSTALLATION_DIR : UNIX_INSTALLATION_DIR;
+    return pattern.matcher(installationDir).matches();
+  }
+
+  /**
+   * Tells whether a service name supplied by a caller can be placed in an agent script without
+   * changing its structure.
+   *
+   * @param serviceName the value supplied by a caller (never a server-side default)
+   * @return true when the value is a plain name in the agent naming family
+   */
+  public static boolean isSafeServiceName(String serviceName) {
+    return serviceName != null && SERVICE_NAME.matcher(serviceName).matches();
+  }
+
+  /**
+   * Checks the optional installation directory and service name reported by an agent. A null or
+   * empty value is fine: the server default applies.
+   *
+   * @return true when each supplied value is safe to place in an agent script
+   */
+  public static boolean areSafeAgentScriptInputs(
+      String platform, String installationDir, String serviceName) {
+    boolean dirOk =
+        installationDir == null
+            || installationDir.isEmpty()
+            || isSafeInstallationDir(platform, installationDir);
+    boolean nameOk = serviceName == null || serviceName.isEmpty() || isSafeServiceName(serviceName);
+    return dirOk && nameOk;
+  }
+
+  /**
+   * Same check as {@link #isSafeInstallationDir(String, String)}, failing with an exception.
+   *
+   * @throws IllegalArgumentException when the value is not safe
+   */
+  public static String requireSafeInstallationDir(String platform, String installationDir) {
+    if (!isSafeInstallationDir(platform, installationDir)) {
+      throw new IllegalArgumentException("Invalid installation directory");
+    }
+    return installationDir;
+  }
+
+  /**
+   * Same check as {@link #isSafeServiceName(String)}, failing with an exception.
+   *
+   * @throws IllegalArgumentException when the value is not safe
+   */
+  public static String requireSafeServiceName(String serviceName) {
+    if (!isSafeServiceName(serviceName)) {
+      throw new IllegalArgumentException("Invalid service name");
+    }
+    return serviceName;
+  }
 
   /**
    * List of supported platform types.
@@ -190,6 +302,8 @@ public class AgentUtils {
                                         || ExecutionTraceStatus.AGENT_INACTIVE.equals(
                                             trace.getStatus())
                                         || ExecutionTraceStatus.AGENT_OVERLOADED.equals(
+                                            trace.getStatus())
+                                        || ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED.equals(
                                             trace.getStatus())))))
         .orElse(Boolean.TRUE)
         .booleanValue(); // If there are no traces, return true by default

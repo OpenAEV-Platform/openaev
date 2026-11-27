@@ -5,19 +5,18 @@ import static io.openaev.expectation.ExpectationType.HUMAN_RESPONSE;
 import static io.openaev.expectation.ExpectationType.PREVENTION;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.utils.fixtures.ExpectationResultByTypeFixture.createDefaultExpectationResultsByType;
-import static io.openaev.utils.fixtures.RawInjectExpectationFixture.createDefaultInjectExpectation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.BaseInjectExpectation;
-import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.fixtures.InjectExpectationFixture;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import java.util.List;
 import java.util.Set;
@@ -53,35 +52,34 @@ class ResultUtilsTest extends IntegrationTest {
     String injectId2 = "1838c23d-3bbe-4d8e-ba40-aa8b5fd1614d";
 
     Set<String> injectIds = Set.of(injectId1, injectId2);
-
-    List<RawInjectExpectationIndexing> expectations =
+    List<BaseInjectExpectation> expectations2 =
         List.of(
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 50.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 0.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
-            createDefaultInjectExpectation(
-                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0));
-    when(injectExpectationRepository.rawForComputeGlobalByInjectIds(injectIds))
-        .thenReturn(expectations);
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, 0.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, 50.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, 0.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, 0.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, 100.0, 100.0),
+            InjectExpectationFixture.createExpectationForTypeAndScoreAndExpectedScore(
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, 0.0, 100.0));
+    when(injectExpectationRepository.forComputeGlobalByInjectIds(injectIds))
+        .thenReturn(expectations2);
 
     var result = resultUtils.computeGlobalExpectationResults(injectIds);
 

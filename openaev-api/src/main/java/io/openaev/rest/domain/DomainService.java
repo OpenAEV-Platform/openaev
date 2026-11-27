@@ -8,7 +8,6 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
@@ -41,7 +40,7 @@ public class DomainService implements DependenciesManager {
   private final DomainRepository domainRepository;
 
   /** Default domain name for uncategorized contracts. */
-  private static final String TO_CLASSIFY = "To classify";
+  public static final String TO_CLASSIFY = "To classify";
 
   /** Default color for new domains. */
   private static final String DEFAULT_DOMAIN_COLOR = "#FFFFFF";
@@ -77,19 +76,15 @@ public class DomainService implements DependenciesManager {
                     (String.format("%s: %s", DOMAIN_ID_NOT_FOUND_MSG, domainId))));
   }
 
-  public Iterable<Domain> findAllById(final List<String> domainIds) {
-    return domainRepository.findAllById(domainIds);
+  /** The domains among the given ids that belong to the given tenant. */
+  public List<Domain> findAllByIdInTenant(
+      final Collection<String> domainIds, final String tenantId) {
+    return domainRepository.findAllByIdInTenant(domainIds, tenantId);
   }
 
   @Transactional
   public Domain upsert(final DomainBaseInput input, final String tenantId) {
     return doUpsert(input.getName(), input.getColor(), new Tenant(tenantId));
-  }
-
-  @Transactional
-  public Domain upsert(final DomainBaseInput input) {
-    return doUpsert(
-        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
   }
 
   @Transactional

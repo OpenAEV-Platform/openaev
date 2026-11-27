@@ -154,6 +154,7 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+  REVOKE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.REVOKE)),
 
   // Credentials -
   ACCESS_CREDENTIALS(
@@ -471,13 +472,13 @@ public enum Capability {
   DELETE_MARKING_DEFINITION(
       MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
 
-  // Marking assignment
-  ASSIGN_MARKING(
+  // Marking assignment - one capability for both directions, no separate ACCESS tier.
+  MANAGE_MARKING_ASSIGNMENT(
       null,
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE)),
-  DELETE_MARKING_ASSIGNMENT(ASSIGN_MARKING, pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
+      pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE),
+      pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
 
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
@@ -518,6 +519,13 @@ public enum Capability {
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
+  // Sends content releases to the catalogue: meant for the collector's account alone.
+  SYNC_CATALOG(
+      null,
+      CapabilityGroup.SERVICE,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CATALOG_SYNC, Action.CREATE)),
 
   // STIX
   MANAGE_STIX_BUNDLE(

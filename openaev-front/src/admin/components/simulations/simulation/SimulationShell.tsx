@@ -7,6 +7,7 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type SimulationDetails } from '../../../../utils/api-types';
+import useExplorationGraph from '../../../../utils/hooks/useExplorationGraph';
 import ExerciseHeader from './ExerciseHeader';
 import buildSimulationTabs from './simulationTabs';
 
@@ -27,6 +28,7 @@ const SimulationShell: FunctionComponent<{
   const { t } = useFormatter();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const graphEnabled = useExplorationGraph();
   // Mirror the route gate in Index.tsx exactly: the Attack path screen is workflow-backed, so its
   // tab must only appear when the route is actually registered. A plan-mode / dry-run simulation has
   // no workflow yet, so offering the tab here would route to NotFound (the 404 users were seeing).
@@ -53,6 +55,7 @@ const SimulationShell: FunctionComponent<{
     lessonsEnabled: exercise.exercise_lessons_enabled,
     isAutonomous,
     hasWorkflow,
+    graphEnabled,
     t,
   });
 

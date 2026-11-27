@@ -6,7 +6,6 @@ import {
   CodeOutlined,
   DataObjectOutlined,
   DomainOutlined,
-  GroupsOutlined,
   InfoOutlined,
   MemoryOutlined,
   PersonOutlined,
@@ -46,28 +45,19 @@ import {
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
+import { isFeatureEnabled } from '../../../utils/utils';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
+import { type ExpectationType, expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
-
-// Human labels for the predefined expectation types carried by a payload/contract.
-const EXPECTATION_TYPE_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  ARTICLE: 'Article',
-  CHALLENGE: 'Challenge',
-};
-
-type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'VULNERABILITY';
+import { getActionStatus, getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
+import PayloadTrustLine from './versions/PayloadTrustLine';
 
 interface Props {
-  action: ThreatArsenalAction;
+  action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;
   payload: PayloadType | null;
   // Predefined expectation types declared by the contract (payload- or
   // injector-based), passed separately so contracts without a payload still
@@ -92,6 +82,9 @@ interface Props {
   // the whole store.
   documentsMap?: Record<string, ApiDocument>;
   loading: boolean;
+  // Shown on the trust line: usages on other versions, and the newer Filigran base of a customized copy.
+  toMove?: number;
+  newBase?: string;
 }
 
 const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
@@ -103,6 +96,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   providing,
   documentsMap: documentsMapOverride,
   loading,
+  toMove,
+  newBase,
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
@@ -131,7 +126,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status ?? payload?.payload_status;
+  const status = getActionStatus(action, action.action_payload?.payload_status ?? payload?.payload_status);
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -182,15 +177,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
       ? expectationDetails
       : expectationTypes.map(type => ({ expectation_type: type }));
 
-  // The author is the payload's author (a person, team or organization) when
+  // The author is the payload's author (a person or an organization) when
   // set. It can legitimately be absent - such actions are shown with a dash, not
   // a made-up default - and can be filtered via the sidebar "No author" facet.
   const authorName = action.action_author_name;
   const authorType = action.action_author_type;
   const AuthorIcon = (() => {
     switch (authorType) {
-      case 'team':
-        return GroupsOutlined;
       case 'organization':
         return DomainOutlined;
       case 'user':
@@ -321,6 +314,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               </Typography>
             )}
 
+            {isFeatureEnabled('CATALOG') && (
+              <div style={{ marginTop: theme.spacing(1.5) }}>
+                <PayloadTrustLine action={action} toMove={toMove} newBase={newBase} />
+              </div>
+            )}
+
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
@@ -403,7 +402,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                         }}
                       >
                         <PlatformIcon platform={platform} width={14} />
-                        <Typography variant="caption" sx={{ fontWeight: 500 }}>{t(platform)}</Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontWeight: 500 }}
+                        >
+                          {t(platform)}
+                        </Typography>
                       </Box>
                     ))}
                   </Box>
@@ -581,7 +585,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               // Distinct name: `platforms` at component level holds the endpoint platforms.
               const expectedPlatformTypes = expectedPlatforms[type] ?? [];
               const technical = isTechnicalExpectation(type);
-              const typeLabel = t(EXPECTATION_TYPE_LABELS[type] ?? type);
+              const typeLabel = t(expectationTypeLabelKey(type) ?? type);
               const name = row.expectation_name;
               // Ordered rows sort first (server-side), so their 1-based position
               // IS the declared sequence - shown as a step numeral to make the
@@ -675,7 +679,8 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                                 }}
                               />
                             </TooltipTrigger>
-                            {row.expectation_description && <TooltipContent>{row.expectation_description}</TooltipContent>}
+                            {row.expectation_description
+                              && <TooltipContent>{row.expectation_description}</TooltipContent>}
                           </Tooltip>
                         )}
                       </Box>

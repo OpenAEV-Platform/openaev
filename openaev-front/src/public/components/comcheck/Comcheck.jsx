@@ -2,14 +2,12 @@ import { Paper } from '@filigran/design-system';
 import { CheckCircleOutlineOutlined } from '@mui/icons-material';
 import { AppBar, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchComcheckStatus } from '../../../actions/Comcheck';
 import { useFormatter } from '../../../components/i18n';
-import { useHelper } from '../../../store';
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -40,13 +38,33 @@ const useStyles = makeStyles()(() => ({
 const Comcheck = () => {
   const theme = useTheme();
   const { classes } = useStyles();
-  const dispatch = useDispatch();
   const { fldt, t } = useFormatter();
   const { statusId } = useParams();
-  const status = useHelper(helper => helper.getComcheckStatus(statusId));
+  // loading, then answered (the status), refused (409: already answered or closed) or failed.
+  const [outcome, setOutcome] = useState({ state: 'loading' });
+  // One request per status id for this mounted page: the answer is recorded by the request itself, so the replay
+  // of the effect by StrictMode (development) must reuse it, or its second request would get the 409 of the first.
+  // A ref lives and dies with the mounted page: a later visit mounts again and asks again.
+  const request = useRef(null);
   useEffect(() => {
-    dispatch(fetchComcheckStatus(statusId));
-  }, []);
+    if (request.current?.statusId !== statusId) {
+      request.current = {
+        statusId,
+        promise: fetchComcheckStatus(statusId),
+      };
+    }
+    let current = true;
+    request.current.promise
+      .then(status => current && setOutcome({
+        state: 'answered',
+        status,
+      }))
+      .catch(error => current && setOutcome({ state: (error?.response?.status ?? error?.status) === 409 ? 'refused' : 'failed' }));
+    return () => {
+      current = false;
+    };
+  }, [statusId]);
+  const status = outcome.status;
   const [dimension, setDimension] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -73,23 +91,32 @@ const Comcheck = () => {
           </Toolbar>
         </AppBar>
         <div className={classes.content}>
-          {t('Your communication check is')}
+          {outcome.state === 'refused' && (
+            <div data-testid="comcheck-refused">
+              {t('This communication check has already been answered or is closed.')}
+            </div>
+          )}
+          {(outcome.state === 'answered' || outcome.state === 'failed') && (
+            <>
+              {t('Your communication check is')}
           &nbsp;
-          <strong>
-            {status?.comcheckstatus_receive_date
-              ? t('successful')
-              : t('failed')}
-          </strong>
-          .
-          <br />
-          <CheckCircleOutlineOutlined color="success" sx={{ fontSize: 50 }} />
-          <br />
-          <pre>
-            {t('Verification done at')}
-            {' '}
-            {fldt(status?.comcheckstatus_receive_date)}
-            .
-          </pre>
+              <strong>
+                {status?.comcheckstatus_receive_date
+                  ? t('successful')
+                  : t('failed')}
+              </strong>
+              .
+              <br />
+              <CheckCircleOutlineOutlined color="success" sx={{ fontSize: 50 }} />
+              <br />
+              <pre>
+                {t('Verification done at')}
+                {' '}
+                {fldt(status?.comcheckstatus_receive_date)}
+                .
+              </pre>
+            </>
+          )}
         </div>
       </Paper>
     </div>

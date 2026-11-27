@@ -15,6 +15,8 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.exception.ActionRefusedException;
+import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
@@ -48,6 +50,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -460,6 +463,18 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
+  public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
+    log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("The request took too long and was stopped."), HttpStatus.GATEWAY_TIMEOUT);
+  }
+
   @ExceptionHandler(AlreadyExistingException.class)
   public ResponseEntity<ErrorMessage> handleAlreadyExistingException(AlreadyExistingException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
@@ -509,6 +524,29 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // Spring also matches this handler when the exception arrives wrapped in another one.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(ActionRefusedException.class)
+  public ResponseEntity<ErrorMessage> handleActionRefusedException(ActionRefusedException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(UnknownEngineFieldException.class)
+  public ResponseEntity<ErrorMessage> handleUnknownEngineFieldException(
+      UnknownEngineFieldException ex) {
+    log.debug("UnknownEngineFieldException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
+  // A credential resolution refused with one of the error codes,
+  // so the injector can report it in the inject execution trace.
+  @ExceptionHandler(CredentialResolutionException.class)
+  public ResponseEntity<ErrorMessage> handleCredentialResolutionException(
+      CredentialResolutionException ex) {
+    return new ResponseEntity<>(
+        new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
+  }
+
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
   // simulation): a client error, not a platform failure, so it must carry its business message
   // with a 400 instead of the 500 the checked ChainingException produced. ChainingException itself
@@ -529,6 +567,15 @@ public class RestBehavior {
       TenantSelectorRequiredException ex) {
     return new ResponseEntity<>(
         new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantSingleScopeRequiredException.class)
+  public ResponseEntity<ErrorMessage> handleTenantSingleScopeRequiredException(
+      TenantSingleScopeRequiredException ex) {
+    log.debug("TenantSingleScopeRequiredException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(
+        new ErrorMessage(TenantSingleScopeRequiredException.CODE), HttpStatus.BAD_REQUEST);
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -606,6 +653,21 @@ public class RestBehavior {
         requestMethod(),
         requestUri());
     return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
+  }
+
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(TenantScopeForbiddenException.class)
+  public ResponseEntity<ErrorMessage> handleTenantScopeForbiddenException(
+      TenantScopeForbiddenException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
+  }
+
+  // The code the client translates: the default 403 body drops the message of a ForbiddenException.
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(MarkingAboveClearanceException.class)
+  public ResponseEntity<ErrorMessage> handleMarkingAboveClearanceException(
+      MarkingAboveClearanceException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.FORBIDDEN);
   }
 
   // -- 500 INTERNAL_SERVER_ERROR --
@@ -706,6 +768,12 @@ public class RestBehavior {
       errorBag.setError(e.getMessage());
     }
     return errorBag;
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ErrorMessage> handleConflictException(ConflictException ex) {
+    log.debug("ConflictException: {}", ex.getReason(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.CONFLICT);
   }
 
   // -- 415 UNSUPPORTED_MEDIA_TYPE --
@@ -844,13 +912,16 @@ public class RestBehavior {
   }
 
   /**
-   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
-   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
-   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
-   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams}, {@code user_tags} and
+   * {@code user_organization} associations every endpoint returning a raw {@link User} serializes.
+   * They are loaded after the controller returns, through open-in-view, where the tenant scope is
+   * already gone: a lazy load at that point runs unscoped and fails closed, so the array comes back
+   * empty although the memberships exist.
    */
   protected static User hydrateUserForResponse(User user) {
     Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    user.loadOrganizations();
     return user;
   }
 }

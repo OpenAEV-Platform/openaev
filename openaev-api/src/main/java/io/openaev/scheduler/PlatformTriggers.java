@@ -1,6 +1,7 @@
 package io.openaev.scheduler;
 
 import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVITY_MONITOR_TRIGGER;
+import static io.openaev.scheduler.jobs.AssetFreshnessJob.ASSET_FRESHNESS_TRIGGER;
 import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
@@ -36,7 +37,10 @@ public class PlatformTriggers {
   @Value("${openaev.cron.config.agent.inactivity.monitor.interval:5}")
   private int agentInactivityMonitorIntervalMinutes;
 
-  @Value("${openaev.credentials.status-validation.cron:0 */6 * * * ?}")
+  @Value("${openaev.cron.config.asset.freshness.interval:60}")
+  private int assetFreshnessIntervalMinutes;
+
+  @Value("${openaev.credentials.status-validation.cron:0 0 */6 * * ?}")
   private String credentialsConnectivityCheckCron;
 
   @Autowired
@@ -136,6 +140,17 @@ public class PlatformTriggers {
             simpleSchedule()
                 .withIntervalInMinutes(agentInactivityMonitorIntervalMinutes)
                 .repeatForever())
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger assetFreshnessTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.assetFreshnessJobDetail())
+        .withIdentity(ASSET_FRESHNESS_TRIGGER)
+        .withSchedule(
+            simpleSchedule().withIntervalInMinutes(assetFreshnessIntervalMinutes).repeatForever())
         .build();
   }
 

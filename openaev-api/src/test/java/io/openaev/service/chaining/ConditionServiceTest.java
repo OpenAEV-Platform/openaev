@@ -1109,6 +1109,76 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_dependOnParentStillRunning_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      // The parent step has a run step that is READY or RUN: it was launched, it has not ended.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+      when(stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+              dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_dependOnParentTargetStillDelayed_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      // Every run step of the parent has ended, but a target held back by the rate limit waits in
+      // the delay queue: the parent has not ended on every target. The query reads both in one
+      // statement (see StepUnfinishedQueryIntegrationTest).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+      when(stepRepository.existsUnfinishedByStepTemplateIdAndWorkflowRunId(
+              dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
     void given_multipleDependOnConditions_allSatisfied_should_returnDirectBatch()
         throws ChainingException {
       // -------- Arrange --------
@@ -1657,14 +1727,19 @@ public class ConditionServiceTest {
     void shouldLinkAllExistingRootConditionsToStep() {
       Step step = new Step();
       step.setId("step-1");
+      Tenant tenant = new Tenant();
+      tenant.setId("tenant-1");
+      step.setTenant(tenant);
 
       Condition root1 = new Condition();
       root1.setId("c-1");
       Condition root2 = new Condition();
       root2.setId("c-2");
 
-      when(conditionRepository.findById("c-1")).thenReturn(Optional.of(root1));
-      when(conditionRepository.findById("c-2")).thenReturn(Optional.of(root2));
+      when(conditionRepository.findByIdAndTenantId("c-1", "tenant-1"))
+          .thenReturn(Optional.of(root1));
+      when(conditionRepository.findByIdAndTenantId("c-2", "tenant-1"))
+          .thenReturn(Optional.of(root2));
 
       conditionService.linkExistingConditionsToStep(step, List.of("c-1", "c-2"));
 
@@ -1684,6 +1759,7 @@ public class ConditionServiceTest {
       conditionService.linkExistingConditionsToStep(step, List.of());
 
       verify(conditionRepository, never()).findById(anyString());
+      verify(conditionRepository, never()).findByIdAndTenantId(anyString(), anyString());
       verify(conditionRepository, never()).save(any());
     }
   }
@@ -1831,7 +1907,8 @@ public class ConditionServiceTest {
       Step linkedStep = new Step();
       linkedStep.setId(linkedStepId);
 
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(stepRepository.findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID))
+          .thenReturn(List.of(linkedStep));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1844,7 +1921,7 @@ public class ConditionServiceTest {
       assertEquals(ConditionType.AND, createdRoot.getType());
       assertEquals(1, createdRoot.getConditionChildren().size());
 
-      verify(stepRepository).findAllById(List.of(linkedStepId));
+      verify(stepRepository).findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID);
 
       Condition savedChild = createdRoot.getConditionChildren().getFirst();
       assertEquals("445", savedChild.getValue());
@@ -1871,6 +1948,7 @@ public class ConditionServiceTest {
       existingRoot.setDescription("old-desc");
       existingRoot.setWorkflowId("wf-old");
       existingRoot.setType(ConditionType.OR);
+      existingRoot.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
 
       Condition oldChild = new Condition();
       oldChild.setConditionParent(existingRoot);
@@ -1904,7 +1982,8 @@ public class ConditionServiceTest {
       linkedStep.setId(linkedStepId);
 
       when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
-      when(stepRepository.findAllById(List.of(linkedStepId))).thenReturn(List.of(linkedStep));
+      when(stepRepository.findAllByIdInTenant(List.of(linkedStepId), Tenant.DEFAULT_TENANT_UUID))
+          .thenReturn(List.of(linkedStep));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 

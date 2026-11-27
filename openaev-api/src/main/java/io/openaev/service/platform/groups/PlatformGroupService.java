@@ -4,24 +4,28 @@ import static io.openaev.database.model.CapabilityScope.PLATFORM;
 import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.platformScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
+import static io.openaev.service.account.PrivilegeEscalationValidator.capabilitiesOfAllRoles;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,11 +39,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformGroupService {
 
   private final GroupRepository groupRepository;
-  private final RoleRepository roleRepository;
+  private final PlatformRoleService platformRoleService;
   private final UserRepository userRepository;
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final EntityManager entityManager;
 
   // -- CREATE --
 
@@ -82,8 +87,19 @@ public class PlatformGroupService {
   @Transactional(readOnly = true)
   public Group findById(@NotBlank final String id) {
     return groupRepository
-        .findById(id)
+        .findByIdAndTenantIsNull(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform group not found: " + id));
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Group> findByName(@NotBlank final String name) {
+    return groupRepository.findByNameAndTenantIsNull(name);
+  }
+
+  /** Every platform group of this name, as the name is not unique. */
+  @Transactional(readOnly = true)
+  public List<Group> findAllByName(@NotBlank final String name) {
+    return groupRepository.findAllByNameAndTenantIsNull(name);
   }
 
   @Transactional(readOnly = true)
@@ -115,7 +131,7 @@ public class PlatformGroupService {
     Group group = findById(groupId);
     if (defaultUserAssignation && !group.isDefaultUserAssignation()) {
       assertCanAssignCapabilities(
-          userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+          userService.currentUser(), capabilitiesOfRolesOf(group), PLATFORM);
     }
     group.setName(name);
     group.setDescription(description);
@@ -126,7 +142,7 @@ public class PlatformGroupService {
   public Set<String> updateGroupRoles(@NotBlank final String groupId, List<String> roleIds) {
     Group group = findById(groupId);
     Set<String> uniqueRoleIds = new LinkedHashSet<>(roleIds);
-    List<Role> roles = roleRepository.findAllById(uniqueRoleIds);
+    List<Role> roles = platformRoleService.findByIds(new ArrayList<>(uniqueRoleIds));
     if (roles.size() != uniqueRoleIds.size()) {
       throw new EntityNotFoundException("One or more Role not found in: " + uniqueRoleIds);
     }
@@ -138,8 +154,7 @@ public class PlatformGroupService {
 
   public List<String> updateGroupUsers(@NotBlank final String groupId, List<String> userIds) {
     Group group = findById(groupId);
-    assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+    assertCanAssignCapabilities(userService.currentUser(), capabilitiesOfRolesOf(group), PLATFORM);
     Set<String> uniqueUserIds = new LinkedHashSet<>(userIds);
     // Union of before and after: a user dropped from the group loses clearance (fail-open if the
     // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
@@ -158,12 +173,20 @@ public class PlatformGroupService {
 
   public void delete(@NotBlank final String groupId) {
     Group group = findById(groupId);
-    // Clear bidirectional associations before delete to avoid TransientObjectException
-    // (User entities in the persistence context would otherwise still reference the removed Group)
     List<String> members = group.getUsers().stream().map(User::getId).toList();
-    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+    // User.groups is EAGER, so loading group.getUsers() above already pulled each member's own
+    // groups collection into this session, a second mapping of the same join table owned from the
+    // user side. Detaching each member drops it from this session's managed set without editing
+    // that collection, so nothing is flushed through it: there is no stale reference to the group
+    // once it is gone, and no rewrite of a membership set this delete never means to touch.
+    // Deleting the group removes the join rows it owns on its own side (Group.users).
+    group.getUsers().forEach(entityManager::detach);
     groupRepository.delete(group);
     // Deleting the group revokes whatever markings it granted, for every member at once.
     markingClearanceCacheManager.evictForUsers(members);
+  }
+
+  private Set<Capability> capabilitiesOfRolesOf(Group group) {
+    return capabilitiesOfAllRoles(group, groupRepository.findRoleIdsByGroupId(group.getId()));
   }
 }

@@ -73,7 +73,7 @@ jobs:
       )
     permissions:
       pull-requests: write # tick, untick or append the Deployment checkbox
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       deploy: ${{ steps.decide.outputs.deploy }}
       head_sha: ${{ steps.decide.outputs.head_sha }}
@@ -196,7 +196,7 @@ jobs:
     permissions:
       actions: write # needed to dispatch the build workflow
       deployments: write # needed to create deployments and statuses
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Create deployment and dispatch build
         uses: actions/github-script@v9
@@ -260,7 +260,7 @@ jobs:
       cancel-in-progress: true
     permissions:
       deployments: write # needed to mark deployments inactive
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Mark deployments inactive
         uses: actions/github-script@v9

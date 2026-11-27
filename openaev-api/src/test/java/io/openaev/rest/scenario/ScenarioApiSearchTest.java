@@ -6,16 +6,17 @@ import static io.openaev.database.model.Scenario.SEVERITY.critical;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static java.lang.String.valueOf;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.scenario.form.GetScenariosInput;
@@ -24,6 +25,8 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.GroupFixtureWriter;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -35,9 +38,10 @@ import org.springframework.test.web.servlet.MockMvc;
 public class ScenarioApiSearchTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioRepository scenarioRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
 
@@ -60,7 +64,12 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+        });
   }
 
   @Nested
@@ -75,6 +84,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Retrieving first page of scenarios by textsearch")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_working_search_input_should_return_a_page_of_scenarios() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("Crisis").build();
@@ -110,6 +120,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of scenarios by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_name_should_return_a_page_of_scenarios_sort_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -117,18 +128,13 @@ public class ScenarioApiSearchTest extends IntegrationTest {
                 .sorts(List.of(SortField.builder().property("scenario_name").build()))
                 .build();
 
-        mvc.perform(
-                post(SCENARIO_URI + "/search")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.content.[0].scenario_name").value("Crisis scenario"))
-            .andExpect(jsonPath("$.content.[1].scenario_name").value("Incident response scenario"));
+        assertSortedBefore(
+            search(searchPaginationInput), "Crisis scenario", "Incident response scenario");
       }
 
       @Test
       @DisplayName("Sorting page of scenarios by category")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_category_should_return_a_page_of_scenarios_sort_by_category()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -141,14 +147,33 @@ public class ScenarioApiSearchTest extends IntegrationTest {
                             .build()))
                 .build();
 
-        mvc.perform(
-                post(SCENARIO_URI + "/search")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.content.[0].scenario_name").value("Incident response scenario"))
-            .andExpect(jsonPath("$.content.[1].scenario_name").value("Crisis scenario"));
+        assertSortedBefore(
+            search(searchPaginationInput), "Incident response scenario", "Crisis scenario");
+      }
+
+      /** The names the search returns, in the order it returned them. */
+      private List<String> search(SearchPaginationInput input) throws Exception {
+        String response =
+            mvc.perform(
+                    post(SCENARIO_URI + "/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(input))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.read(response, "$.content[*].scenario_name");
+      }
+
+      /**
+       * Asserts the order of the class's own two scenarios inside the page. The page is read in the
+       * caller's whole tenant scope, not in the ambient tenant alone, so it may carry rows another
+       * class committed; the sort is the subject here, the set of rows is not.
+       */
+      private void assertSortedBefore(List<String> names, String first, String second) {
+        assertThat(names).contains(first, second);
+        assertThat(names.indexOf(first)).isLessThan(names.indexOf(second));
       }
     }
 
@@ -158,6 +183,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of scenarios by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_name_should_return_a_page_of_scenarios_filter_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -174,6 +200,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of scenarios by category")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_category_should_return_a_page_of_scenarios_filter_by_category()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -191,6 +218,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of scenarios by severity")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_severity_should_return_a_page_of_scenarios_filter_by_severity()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -208,6 +236,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search scenarios by ids as admin")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_list_of_ids_select_scenarios() throws Exception {
         GetScenariosInput getScenariosInput = new GetScenariosInput();
         getScenariosInput.setScenarioIds(SCENARIO_IDS);
@@ -224,7 +253,10 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search scenarios by ids as granted user")
-      @WithMockUser(isAdmin = false, withCapabilities = Capability.ACCESS_ASSESSMENT)
+      @WithMockUser(
+          isAdmin = false,
+          withCapabilities = Capability.ACCESS_ASSESSMENT,
+          autoJoinDefaultTenant = true)
       void given_list_of_ids_select_scenarios_with_capabilities() throws Exception {
         GetScenariosInput getScenariosInput = new GetScenariosInput();
         getScenariosInput.setScenarioIds(SCENARIO_IDS);
@@ -258,13 +290,13 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search scenarios by ids as user granted on some scenario")
-      @WithMockUser(isAdmin = false)
+      @WithMockUser(isAdmin = false, autoJoinDefaultTenant = true)
       void given_list_of_ids_select_scenarios_without_capabilities_with_grants() throws Exception {
         Scenario scenarioGranted = ScenarioFixture.createDefaultIncidentResponseScenario();
         User user = userRepository.findById(currentUser().getId()).get();
         Group group = new Group();
         group.setName("test");
-        group = groupRepository.save(group);
+        group = groupFixtureWriter.save(group);
         scenarioGranted.getGrants().addAll(group.getGrants());
         scenarioGranted = scenarioRepository.save(scenarioGranted);
 
@@ -281,7 +313,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
         group.setGrants(List.of(grantObserver, grantPlanner));
         group.setUsers(List.of(user));
-        groupRepository.save(group);
+        groupFixtureWriter.save(group);
         SCENARIO_IDS.add(scenarioGranted.getId());
 
         GetScenariosInput getScenariosInput = new GetScenariosInput();

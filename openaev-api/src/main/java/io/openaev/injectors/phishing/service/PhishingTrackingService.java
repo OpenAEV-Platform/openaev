@@ -21,9 +21,14 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity.UnknownLocation;
+import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -55,12 +60,14 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Expectation polarity is inverted for phishing.</b> A phishing expectation measures whether
  * the recipient RESISTED a step (opening the lure, following the link, submitting data). Resisting
  * is the desired outcome, so each of the three step expectations is pre-scored to its full expected
- * score at send time - GREEN / "resisted" - by {@link #initializeExpectationsAsResisted(String)}.
- * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment
- * the recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the
- * generic expiration collector never touches these rows: a recipient who never interacts simply
- * keeps the green "resisted" verdict for good, which is exactly the intended "expired means
- * success" semantics without a bespoke expiration branch.
+ * score at send time - GREEN / "resisted" - by {@link
+ * io.openaev.service.expectation.PhishingBehavior}, which gives each step a default "no
+ * interaction" result when the expectations are created. The matching transition then flips the
+ * step to a zero score - RED / "fell for it" - the moment the recipient performs it. Because a
+ * pre-scored row is no longer {@code score IS NULL}, the generic expiration collector never touches
+ * these rows: a recipient who never interacts simply keeps the green "resisted" verdict for good,
+ * which is exactly the intended "expired means success" semantics without a bespoke expiration
+ * branch.
  *
  * <p><b>Automated probes never score.</b> Mail security gateways detonate every URL and pre-fetch
  * remote images right at delivery (Microsoft Defender Safe Links being the canonical case), so
@@ -71,6 +78,12 @@ import org.springframework.transaction.annotation.Transactional;
  * probe's forensic origin. Every scored flip also carries the triggering request's IP, user agent,
  * delay and an automation hint (see {@link #buildSourceMetadata}) so an analyst can always audit
  * WHERE a verdict came from.
+ *
+ * <p><b>Only a person interacting with the landing page scores.</b> Scanners that hide behind a
+ * browser user agent and arrive later still load the tracking image, and an email cannot run code
+ * to prove a person is reading it. So the image load never flips "email opened" (see {@link
+ * #markOpened}): both "email opened" and "link clicked" flip on the landing page's interaction
+ * confirmation.
  *
  * <p>All methods are tenant-scoped: the executor runs inside the inject execution job (tenant
  * filter set), and the public endpoints set the tenant before calling in - {@code HostedPublicApi}
@@ -210,6 +223,13 @@ public class PhishingTrackingService {
   private static final String SCANNER_IGNORED_MESSAGE =
       "Automated scanner activity detected and ignored";
 
+  /**
+   * Result message stamped on the "email opened" step when the tracking image loaded without being
+   * flagged as automated. The step stays green: an image load is not proof that a person read the
+   * email (see {@link #markOpened}).
+   */
+  public static final String UNCONFIRMED_OPEN_MESSAGE = "Email image loaded, open not confirmed";
+
   /** Result message stamped on a team step whose recomputed verdict is RED ("fell for it"). */
   private static final String TEAM_COMPROMISED_MESSAGE = "A team member fell for the phishing";
 
@@ -247,7 +267,9 @@ public class PhishingTrackingService {
   private final TeamRepository teamRepository;
   private final StepRepository stepRepository;
   private final FindingService findingService;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final PhishingTrackingPublicLookupService publicLookupService;
+  private final AttackPathFindingIngestionService attackPathFindingIngestion;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
   public static String generateToken() {
@@ -428,6 +450,26 @@ public class PhishingTrackingService {
   }
 
   /**
+   * Scoped entry point for {@code markPageFetched}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markPageFetched(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markPageFetched(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markBotClicked}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markBotClicked(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markBotClicked(token, ip, userAgent);
+  }
+
+  /**
    * Scoped entry point for {@code markSubmitted}, see {@link #resolveAndBackfillByToken(TxCtx,
    * String)}. {@code resolvedLandingPage} keeps feeding credential capture, as in the unscoped
    * overload below: the caller resolved it under its own single-tenant scope and {@code
@@ -460,30 +502,29 @@ public class PhishingTrackingService {
   }
 
   /**
-   * Marks the email as opened (first open wins) and flips the "email opened" step to compromised.
-   *
-   * <p>A hit identified as an automated probe (scanner user agent, or landing within seconds of
-   * delivery) is NOT scored: it neither sets the timestamp nor flips the step - it only annotates
-   * the still-green step so the analyst can see the lure was scanned. The recipient's own open
-   * later still wins the "first open" transition with a truthful timestamp.
+   * Records the tracking image of the lure email being loaded. This is NOT an open: mail security
+   * scanners and privacy proxies (Defender, Apple Mail Privacy Protection...) load remote images
+   * with no person reading the email, and an email cannot run code to tell them apart. The "email
+   * opened" step only flips with an interaction on the landing page (see {@link #markClicked}); the
+   * image load only annotates the still-green step with its origin, so the analyst can see it.
    */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
     Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
-    return optResult.map(
+    optResult.ifPresent(
         result -> {
-          if (isAutomatedProbe(result, userAgent)) {
-            annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
-            return result;
+          boolean automated = isAutomatedProbe(result, userAgent);
+          annotateResistedSteps(
+              result,
+              Set.of(STEP_OPENED),
+              automated ? SCANNER_IGNORED_MESSAGE : UNCONFIRMED_OPEN_MESSAGE,
+              ip,
+              userAgent);
+          if (automated) {
+            recordBotActivity(result, false);
           }
-          if (result.getOpenedAt() == null) {
-            result.setOpenedAt(now());
-          }
-          applyRequestMetadata(result, ip, userAgent);
-          PhishingResult saved = phishingResultRepository.save(result);
-          compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
-          return saved;
         });
+    return optResult;
   }
 
   /**
@@ -501,6 +542,7 @@ public class PhishingTrackingService {
         result -> {
           if (isAutomatedProbe(result, userAgent)) {
             annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            recordBotActivity(result, true);
             return result;
           }
           if (result.getOpenedAt() == null) {
@@ -519,6 +561,49 @@ public class PhishingTrackingService {
               userAgent);
           return saved;
         });
+  }
+
+  /**
+   * Handles the landing page content being fetched, which on its own is NOT a click: only the
+   * browser-side confirmation (see {@link #markBotClicked} and {@link #markClicked}) proves a human
+   * interacted with the page. A fetch identified as an automated probe is still logged as
+   * automated, exactly like {@link #markClicked} would; any other fetch changes nothing.
+   */
+  public Optional<PhishingResult> markPageFetched(
+      @NotBlank final String token, final String ip, final String userAgent) {
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    optResult.ifPresent(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            recordBotActivity(result, true);
+          }
+        });
+    return optResult;
+  }
+
+  /**
+   * Logs a click the landing page itself reported as automated (webdriver flag, or a confirmation
+   * sent before any human could have reacted). Never scores: same treatment as an automated probe
+   * caught by {@link #isAutomatedProbe}.
+   */
+  public Optional<PhishingResult> markBotClicked(
+      @NotBlank final String token, final String ip, final String userAgent) {
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    optResult.ifPresent(
+        result -> {
+          annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+          recordBotActivity(result, true);
+        });
+    return optResult;
+  }
+
+  /** Logs an automated hit that was not scored; nothing is persisted on the tracking row. */
+  private void recordBotActivity(final PhishingResult result, final boolean clicked) {
+    log.info(
+        "Phishing automated {} ignored for scoring (result {})",
+        clicked ? "click" : "open",
+        result.getId());
   }
 
   /**
@@ -637,6 +722,19 @@ public class PhishingTrackingService {
       final Set<String> stepNames,
       final String ip,
       final String userAgent) {
+    annotateResistedSteps(result, stepNames, SCANNER_IGNORED_MESSAGE, ip, userAgent);
+  }
+
+  /**
+   * Same annotation with a caller-chosen message: an unscored tracking image load is not always a
+   * scanner (see {@link #markOpened}).
+   */
+  private void annotateResistedSteps(
+      final PhishingResult result,
+      final Set<String> stepNames,
+      final String message,
+      final String ip,
+      final String userAgent) {
     User user = result.getUser();
     Inject inject = result.getInject();
     if (user == null || inject == null) {
@@ -654,8 +752,7 @@ public class PhishingTrackingService {
         .forEach(
             expectation -> {
               InjectExpectationResult annotation =
-                  buildForPlayerManualValidation(
-                      SCANNER_IGNORED_MESSAGE, expectation.getExpectedScore());
+                  buildForPlayerManualValidation(message, expectation.getExpectedScore());
               if (!sourceMetadata.isEmpty()) {
                 annotation.setMetadata(sourceMetadata);
               }
@@ -692,22 +789,44 @@ public class PhishingTrackingService {
     if (value == null || value.isBlank()) {
       return;
     }
-    Finding finding = new Finding();
-    finding.setType(ContractOutputType.Credentials);
-    finding.setField(CREDENTIALS_FIELD);
-    finding.setValue(value);
-    finding.setName(landingPage.getName());
-    if (result.getUser() != null) {
-      finding.setUsers(List.of(result.getUser()));
-    }
-    if (result.getTeam() != null) {
-      finding.setTeams(List.of(result.getTeam()));
-    }
+    // Located on the user who submitted; a team is not a location
+    DetectedFinding detection =
+        DetectedFinding.builder()
+            .type(ContractOutputType.Credentials)
+            .value(value)
+            .field(CREDENTIALS_FIELD)
+            .name(landingPage.getName())
+            .location(
+                result.getUser() != null
+                    ? new UserLocation(result.getUser().getId())
+                    : UnknownLocation.INSTANCE)
+            .build();
+    Finding finding;
     try {
-      findingService.createFindings(List.of(finding), inject.getId());
+      finding =
+          findingService
+              .recordFindingsByInject(
+                  TxCtx.forTenant(inject.getTenant().getId()), inject, List.of(detection))
+              .getFirst();
       result.setFinding(finding);
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
+      return;
+    }
+    // Outside the try: a failing read is a real error, not one to swallow and commit past
+    result.setFindingOccurrence(
+        findingOccurrenceService.occurrence(finding.getId(), inject.getId()).orElse(null));
+    // A chained run copies its findings onto the attack path on each step execution event, but a
+    // submission raises none: copy this one (and only this one, by its id set on create) once it
+    // is committed, or the attack path never shows it. Only a chained execution carries a step
+    // (see createResult).
+    if (result.getStep() != null) {
+      try {
+        attackPathFindingIngestion.copyFindingAfterCommit(
+            inject, result.getStep(), finding.getId());
+      } catch (Exception e) {
+        log.warn("Attack-path finding copy skipped for inject {} (non-fatal)", inject.getId(), e);
+      }
     }
   }
 

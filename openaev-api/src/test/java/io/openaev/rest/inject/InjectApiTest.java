@@ -14,6 +14,7 @@ import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_T
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,7 +29,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
@@ -50,12 +53,14 @@ import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.KeepRabbit;
+import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -103,6 +108,7 @@ class InjectApiTest extends IntegrationTest {
   static Team TEAM;
   static Agent AGENT;
   @Resource protected ObjectMapper mapper;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager entityManager;
   @Autowired private ScenarioService scenarioService;
@@ -134,6 +140,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private PayloadRevocationRepository payloadRevocationRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
@@ -148,6 +155,7 @@ class InjectApiTest extends IntegrationTest {
   @MockitoBean private SecretsProviderResolver secretsProviderResolver;
 
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private CredentialMetricCollector credentialMetricCollector;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -156,8 +164,10 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
     // The manager bootstrap above joins this test's transaction and pins its scope to the default
     // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
@@ -170,14 +180,14 @@ class InjectApiTest extends IntegrationTest {
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    scenario.setFrom("test@test.com");
     scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     SCENARIO = scenarioService.createScenario(scenario);
 
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setStart(Instant.now());
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     exercise.setStatus(RUNNING);
     EXERCISE = exerciseService.createExercise(exercise);
@@ -386,17 +396,19 @@ class InjectApiTest extends IntegrationTest {
         throws Exception {
       input.setAuthorisation("wrong-code");
 
-      mvc.perform(
-              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isForbidden())
-          .andExpect(
-              result ->
-                  assertEquals(
-                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isForbidden())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_ACCESS_DENIED");
     }
 
     @Test
@@ -476,16 +488,42 @@ class InjectApiTest extends IntegrationTest {
     void given_attachmentNotOnInject_should_returnNotFound() throws Exception {
       input.setAttachmentId("missing-attachment");
 
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_NOT_FOUND");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A refused resolution should be counted under its error code in the telemetry")
+    void given_refusedResolution_should_countErrorCodeInTelemetry() throws Exception {
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.NETWORK_ERROR);
+      secretReferenceRepository.save(credentialReference);
+      credentialMetricCollector.collectResolutionFailures();
+      credentialMetricCollector.collectResolutionSuccesses();
+
       mvc.perform(
               post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isNotFound())
-          .andExpect(
-              result ->
-                  assertEquals("CREDENTIAL_NOT_FOUND", result.getResolvedException().getMessage()));
+          .andExpect(status().isBadRequest());
+
+      assertThat(credentialMetricCollector.collectResolutionFailures())
+          .containsExactlyEntriesOf(
+              Map.of(Attributes.of(stringKey("error_code"), "CREDENTIAL_INACTIVE"), 1L));
+      assertThat(credentialMetricCollector.collectResolutionSuccesses()).isZero();
     }
 
     @Test
@@ -501,6 +539,31 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A successful resolution should be counted as a success in the telemetry")
+    void given_successfulResolution_should_countSuccessInTelemetry() throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("alice", "secret123"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+      credentialMetricCollector.collectResolutionSuccesses();
+      credentialMetricCollector.collectResolutionFailures();
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      assertThat(credentialMetricCollector.collectResolutionSuccesses()).isEqualTo(1L);
+      assertThat(credentialMetricCollector.collectResolutionFailures()).isEmpty();
     }
   }
 
@@ -725,6 +788,7 @@ class InjectApiTest extends IntegrationTest {
     injectInput.setDependsDuration(0L);
     InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
+    inject.setExercise(EXERCISE);
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();
@@ -1671,6 +1735,51 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+
+    @DisplayName("Should refuse a revoked payload version to the agent and trace why")
+    @Test
+    void given_revokedPayloadVersion_should_refuseItAndTraceTheReason() throws Exception {
+      // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      Command payloadCommand =
+          PayloadFixture.createCommand("bash", "echo Hello World", List.of(), "echo cleanup");
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(new HashMap<>()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
+              .persist()
+              .get();
+      PayloadRevocation revocation = new PayloadRevocation();
+      revocation.setTenant(payloadCommand.getTenant());
+      revocation.setPayload(payloadCommand);
+      revocation.setReason("Deletes user files");
+      payloadRevocationRepository.save(revocation);
+      String agentId = targetAgentWrapper.get().getId();
+
+      // -- EXECUTE --
+      mvc.perform(
+              get(INJECT_URI + "/" + injectSaved.getId() + "/" + agentId + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // -- ASSERT --
+      verify(injectStatusService)
+          .setImplantErrorTrace(
+              injectSaved.getId(), agentId, "Payload revoked: Deletes user files");
+      verify(injectStatusService, never())
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
     }
 
     @DisplayName(
@@ -2736,8 +2845,8 @@ class InjectApiTest extends IntegrationTest {
 
       @Test
       @DisplayName(
-          "Should merge assets of duplicate PortsScan findings when two assets expose the same host/port/service")
-      void shouldMergeAssetsOfDuplicatePortScanFindingsWhenTwoAssetsHaveSameHostPortService()
+          "Should create one PortsScan finding per asset when two assets expose the same host/port/service")
+      void shouldCreateOnePortScanFindingPerAssetWhenTwoAssetsHaveSameHostPortService()
           throws Exception {
         // -- PREPARE --
         Endpoint endpointA = EndpointFixture.createEndpoint();
@@ -2799,18 +2908,17 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Finding> findings = findingRepository.findAllByInjectId(inject.getId());
-        assertEquals(
-            1,
-            findings.size(),
-            "Two PortsScan entries with same host/port/service must be consolidated into one finding");
-        Finding merged = findings.getFirst();
-        assertEquals(ContractOutputType.PortsScan, merged.getType());
-        assertEquals("192.168.1.10:8080 (http)", merged.getValue());
-        List<String> assetIds = merged.getAssets().stream().map(Asset::getId).toList();
-        assertTrue(
-            assetIds.contains(endpointASaved.getId()), "Merged finding must be linked to asset A");
-        assertTrue(
-            assetIds.contains(endpointBSaved.getId()), "Merged finding must be linked to asset B");
+        assertThat(findings)
+            .hasSize(2)
+            .allSatisfy(
+                finding -> {
+                  assertEquals(ContractOutputType.PortsScan, finding.getType());
+                  assertEquals("192.168.1.10:8080 (http)", finding.getValue());
+                  assertEquals(1, finding.getAssets().size());
+                });
+        assertThat(findings)
+            .extracting(finding -> finding.getAssets().getFirst().getId())
+            .containsExactlyInAnyOrder(endpointASaved.getId(), endpointBSaved.getId());
       }
 
       // CVE

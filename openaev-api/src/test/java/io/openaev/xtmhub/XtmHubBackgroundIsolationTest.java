@@ -1,8 +1,6 @@
 package io.openaev.xtmhub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -29,8 +27,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Production-like proof for the background refresh path with {@code tenant_xtmhub_registrations}
- * activated. The job must read the candidate registrations across tenants, then update each tenant
- * under its own scoped transaction so one tenant's failure rolls back only that tenant.
+ * activated. The job must read the candidate registrations across tenants, update each tenant under
+ * its own scoped transaction, then send the emails outside every transaction, one tenant at a time.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = true)
@@ -79,22 +77,23 @@ class XtmHubBackgroundIsolationTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "given one tenant fails after its write when refreshing all tenants then only that tenant rolls back")
-  void givenOneTenantFailsAfterItsWrite_whenRefreshingAllTenants_thenOnlyThatTenantRollsBack() {
+      "given the email of one tenant fails when refreshing all tenants then the other tenant is"
+          + " notified and the failed one stays to be notified")
+  void
+      givenOneTenantEmailFails_whenRefreshingAllTenants_thenOtherTenantNotifiedAndFailedOneStays() {
     // Arrange
     when(xtmHubClient.refreshRegistrationStatusAllTenants(
             anyString(), anyString(), anyString(), any()))
         .thenReturn(
             Map.of(
-                tenantA, XtmHubConnectivityStatus.INACTIVE,
-                tenantB, XtmHubConnectivityStatus.INACTIVE));
+                tenantA, XtmHubConnectivityResult.INACTIVE,
+                tenantB, XtmHubConnectivityResult.INACTIVE));
     doThrow(new IllegalStateException("boom for tenant B"))
         .when(xtmHubEmailService)
         .sendTenantLostConnectivityEmail(tenantB, "http://localhost/" + tenantB);
 
     // Act
-    IllegalStateException aggregate =
-        assertThrows(IllegalStateException.class, xtmHubService::refreshConnectivityAllTenants);
+    xtmHubService.refreshConnectivityAllTenants();
 
     // Assert
     assertEquals(
@@ -102,21 +101,17 @@ class XtmHubBackgroundIsolationTest extends IntegrationTest {
         rawStatus(tenantA),
         "tenant A must commit its scoped update");
     assertEquals(
-        XtmHubRegistrationStatus.REGISTERED.name(),
+        XtmHubRegistrationStatus.LOST_CONNECTIVITY.name(),
         rawStatus(tenantB),
-        "tenant B must roll back its scoped update");
+        "tenant B must commit its scoped update, its email is sent after the loop");
     assertEquals(
         false,
         rawConnectivityEligible(tenantA),
-        "tenant A must commit its connectivity-notification flag update");
+        "tenant A must be marked as notified once its email is sent");
     assertEquals(
         true,
         rawConnectivityEligible(tenantB),
-        "tenant B must roll back its connectivity-notification flag update");
-    assertEquals(1, aggregate.getSuppressed().length, "the failing tenant cause must be preserved");
-    assertTrue(
-        aggregate.getSuppressed()[0].getMessage().contains("boom for tenant B"),
-        "the aggregate must retain the failing tenant cause");
+        "tenant B must stay to be notified, its email failed");
   }
 
   private void seedRegistration(String tenantId, String token) {

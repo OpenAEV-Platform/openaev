@@ -38,7 +38,7 @@ public class AttackPatternCoverageApi {
   @Operation(
       summary = "Global MITRE ATT&CK coverage",
       description =
-          "Tenant-wide ATT&CK matrix aggregating prevention and detection results across simulations (Elasticsearch, identical to the home security-coverage matrix)")
+          "Tenant-wide ATT&CK matrix aggregating prevention, detection and logging results across simulations (Elasticsearch, identical to the home security-coverage matrix)")
   public List<AttackPatternCoverageOutput> attackPatternsCoverage(
       TxCtx ctx, @RequestParam(required = false) final Integer latest) {
     if (latest != null && latest < 1) {

@@ -39,6 +39,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -161,7 +162,9 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user with ACCESS_DOCUMENTS should download the file")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_human_user_with_access_documents_capability_should_download() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
@@ -181,7 +184,7 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user without ACCESS_DOCUMENTS should be forbidden")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void given_human_user_without_access_documents_capability_should_be_forbidden()
         throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
@@ -201,7 +204,8 @@ class DocumentApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given a service-account capability set should no longer download via /file")
     @WithMockUser(
-        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS})
+        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS},
+        autoJoinDefaultTenant = true)
     void given_service_account_token_should_no_longer_download_via_original_endpoint()
         throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
@@ -250,7 +254,9 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user with ACCESS_DOCUMENTS should be forbidden on /agent-file")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_human_user_with_access_documents_capability_should_be_forbidden() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
@@ -260,7 +266,7 @@ class DocumentApiTest extends IntegrationTest {
     /** A user without any relevant capability must be forbidden on the agent route. */
     @Test
     @DisplayName("Given a user without capabilities should be forbidden on /agent-file")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void given_user_without_capabilities_should_be_forbidden() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
@@ -320,7 +326,8 @@ class DocumentApiTest extends IntegrationTest {
           Capability.ACCESS_CHALLENGES,
           Capability.ACCESS_LESSONS_LEARNED,
           Capability.ACCESS_SECURITY_PLATFORMS
-        })
+        },
+        autoJoinDefaultTenant = true)
     void given_observer_default_role_should_still_list_and_search_documents() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
@@ -356,6 +363,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Given a document related to a payload should no delete the payload")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void givenADocumentRelatedToAPayload_ShouldNoDeleteDocument() throws Exception {
       Document document = getDocumentWithPayload();
 
@@ -367,6 +375,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Given a document used as a security platform logo should not delete the document")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void givenADocumentUsedAsSecurityPlatformLogo_ShouldNotDeleteDocument() throws Exception {
       Document document = getDocumentUsedAsSecurityPlatformLogo();
       // Reload from DB so the document's reverse logo collections are populated
@@ -381,6 +390,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Given a document without related entities should be deleted")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void givenADocumentWithRelationsShouldBeDeleted() throws Exception {
       Document document = getDocumentWithChallenge();
       Challenge challenge = document.getChallenges().stream().findFirst().get();
@@ -519,6 +529,77 @@ class DocumentApiTest extends IntegrationTest {
       assertEquals("My test document", JsonPath.read(response, "$.document_description"));
       assertEquals(scenario.getId(), JsonPath.read(response, "$.document_scenarios[0]"));
       assertEquals(exercise.getId(), JsonPath.read(response, "$.document_exercises[0]"));
+    }
+
+    @Test
+    @DisplayName(
+        "Given an existing name and new content should point the document at the new content")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_existing_name_and_new_content_should_point_the_document_at_the_new_content()
+        throws Exception {
+      // Arrange
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      byte[] newContent = "new content".getBytes(StandardCharsets.UTF_8);
+      String newTarget =
+          DigestUtils.md5Hex(newContent) + "." + FilenameUtils.getExtension(document.getName());
+
+      // Act
+      String response =
+          upsert(document.getName(), newContent)
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertEquals(document.getId(), JsonPath.read(response, "$.document_id"));
+      assertEquals(
+          newTarget, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+    }
+
+    @Test
+    @DisplayName("Given a generated report name and new content should refuse the upsert")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_generated_report_name_and_new_content_should_refuse_the_upsert() throws Exception {
+      // Arrange
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .persist()
+              .get();
+      Reporting reporting = ReportingFixture.createDefaultReporting();
+      reporting.setTenant(document.getTenant());
+      entityManager.persist(reporting);
+      ReportingGeneration generation = new ReportingGeneration();
+      generation.setReporting(reporting);
+      generation.setFormat(ReportingFormat.PDF);
+      generation.setDocument(document);
+      generation.setTenant(document.getTenant());
+      entityManager.persist(generation);
+      entityManager.flush();
+      String target = document.getTarget();
+
+      // Act
+      upsert(document.getName(), "new content".getBytes(StandardCharsets.UTF_8))
+          // Assert
+          .andExpect(status().isBadRequest());
+      assertEquals(target, documentRepository.findById(document.getId()).orElseThrow().getTarget());
+    }
+
+    private ResultActions upsert(String fileName, byte[] content) throws Exception {
+      MockPart inputPart =
+          new MockPart("input", mapper.writeValueAsBytes(new DocumentCreateInput()));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      return mvc.perform(
+          multipart(DOCUMENT_API + "/upsert")
+              .part(inputPart)
+              .file(new MockMultipartFile("file", fileName, MediaType.TEXT_PLAIN_VALUE, content))
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
     }
 
     @Test

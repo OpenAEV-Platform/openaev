@@ -1,5 +1,6 @@
+import { Alert } from '@filigran/design-system';
 import { Box } from '@mui/material';
-import { type FunctionComponent, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -22,10 +23,14 @@ import { type InjectorContractConverted } from '../../../../../utils/api-types-c
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import computeAttackPatterns from '../../../../../utils/injector_contract/InjectorContractUtils';
-import { isNotEmptyField } from '../../../../../utils/utils';
+import { isEmptyField, isFeatureEnabled, isNotEmptyField } from '../../../../../utils/utils';
+import { getContractFieldDefaultValue, parseContractFields } from '../../../chaining/logic/drawer/ConfigureActionDetail.utils';
+import PayloadContractVersionSelect from '../../../threat_arsenal/versions/PayloadContractVersionSelect';
+import { predefinedExpectations } from '../expectations/ExpectationUtils';
 import InjectForm from '../form/InjectForm';
 import InjectCardComponent from '../InjectCardComponent';
 import InjectIcon from '../InjectIcon';
+import { isRequiredField } from '../utils';
 
 interface Props {
   contractId: string;
@@ -39,6 +44,17 @@ interface Props {
   variablesFromExerciseOrScenario?: Variable[];
 }
 
+// Mandatory fields of the new version that the previous one did not have, without a default.
+const newMandatoryArguments = (previous: InjectorContract, next: InjectorContract): string[] => {
+  const previousKeys = new Set(parseContractFields(previous.injector_contract_content).map(field => field.key));
+  const fields = parseContractFields(next.injector_contract_content);
+  return fields
+    .filter(field => !previousKeys.has(field.key)
+      && isRequiredField(field, fields, { inject_content: {} })
+      && isEmptyField(getContractFieldDefaultValue(field)))
+    .map(field => field.label ?? field.key);
+};
+
 // Step 2 of the inject creation flow: the selected contract is fetched and the
 // full configuration form renders inside a drawer over the contract picker.
 const InjectCreationConfig: FunctionComponent<Props> = ({
@@ -51,7 +67,8 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
   uriVariable = '',
   variablesFromExerciseOrScenario = [],
 }) => {
-  const { tPick } = useFormatter();
+  const { t, tPick } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const dispatch = useAppDispatch();
 
   // InjectForm always calls handleClose() after a successful submit. Here the
@@ -90,6 +107,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
   };
 
   const [contract, setContract] = useState<InjectorContract | null>(null);
+  const [missingArguments, setMissingArguments] = useState<string[]>([]);
   const [selectedInjectorName, setSelectedInjectorName] = useState<string>('');
   useEffect(() => {
     directFetchInjectorContract(contractId).then((result: { data: InjectorContract }) => {
@@ -98,12 +116,19 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
       setSelectedInjectorName(names ? Object.values(names)[0] ?? '' : '');
     });
   }, [contractId]);
+  const parsedContent = useMemo(
+    () => (contract ? JSON.parse(contract.injector_contract_content) as InjectorContractConverted['convertedContent'] : undefined),
+    [contract],
+  );
 
   if (!contract) {
     return <Loader variant="inElement" />;
   }
 
-  const parsedContent = JSON.parse(contract.injector_contract_content) as InjectorContractConverted['convertedContent'];
+  const changeVersion = (next: InjectorContract) => {
+    setMissingArguments(newMandatoryArguments(contract, next));
+    setContract(next);
+  };
   const payloadType = contract.injector_contract_payload
     ? contract.injector_contract_payload.payload_collector_type ?? contract.injector_contract_payload.payload_type
     : contract.injector_contract_injector_type;
@@ -133,9 +158,18 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           />
         )}
         title={killChainPhaseLabel || selectedInjectorName || ''}
-        action={null}
+        action={(
+          <PayloadContractVersionSelect
+            action={contract}
+            value={contract.injector_contract_id}
+            onChange={changeVersion}
+          />
+        )}
         content={tPick(contract.injector_contract_labels)}
       />
+      {missingArguments.length > 0 && (
+        <Alert severity="warning" title={`${t('This version needs values for')} ${missingArguments.map(label => t(label)).join(', ')}`} />
+      )}
       <InjectForm
         handleClose={handleClose}
         isAtomic={isAtomic}
@@ -157,8 +191,9 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           inject_teams: [],
           inject_assets: [],
           inject_asset_groups: [],
+          inject_secret_references: [],
           inject_documents: [],
-          inject_content: { expectations: parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations?.filter(e => e.expectation_is_predefined) },
+          inject_content: { expectations: predefinedExpectations(parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations, isLoggingEnabled) },
         }}
         injectorContractContent={parsedContent}
         onSubmitInject={handleSubmit}

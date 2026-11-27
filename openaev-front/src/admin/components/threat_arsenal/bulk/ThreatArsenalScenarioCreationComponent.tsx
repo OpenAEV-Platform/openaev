@@ -61,7 +61,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
     scenario_lessons_enabled: false,
     scenario_message_header: t('SIMULATION HEADER'),
     scenario_message_footer: t('SIMULATION FOOTER'),
-    scenario_mail_from_name: settings.default_mailer ?? '',
+    scenario_mail_from_name: settings.default_mailer_name ?? '',
     scenario_mails_reply_to: [settings.default_reply_to ?? ''],
   };
 

@@ -42,10 +42,8 @@ import org.springframework.stereotype.Service;
  * not per-tenant), like {@code total_users_count} in {@link GlobalMetricCollector}. How that is
  * achieved depends on which isolation the counted table is on, and the difference is easy to miss.
  *
- * <p>For a table still on v1, it comes for free: the suppliers run on the OpenTelemetry exporter
- * thread outside any {@code @Transactional} method, so the Hibernate {@code tenantFilter} is never
- * enabled (it is only turned on by {@code HibernateFilterTransactionAspect} on method-level
- * {@code @Transactional} executions) and the count spans every tenant.
+ * <p>A table outside {@code openaev.tenant.active-tables} comes for free: the suppliers run on the
+ * OpenTelemetry exporter thread outside any scope and the count spans every tenant.
  *
  * <p>For a table in {@code openaev.tenant.active-tables} that reasoning does NOT hold. {@code
  * TenantStatementInspector} does not care whether a transaction is active: with {@code
@@ -56,8 +54,8 @@ import org.springframework.stereotype.Service;
  * <p>{@link #collectSecurityPlatforms()} and {@link #collectEndpoints()} carry the same scope for
  * the same reason: both count rows of the {@code assets} table (#6438).
  *
- * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to any
- * other gauge here whose table joins a future activation.
+ * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to
+ * every gauge here that counts a tenant table: under {@code *} each of them is armed.
  */
 @Slf4j
 @Service
@@ -110,7 +108,7 @@ public class ProductInventoryMetricCollector {
         "Number of organizations",
         () -> safeCount(this::countOrganizations));
     metricRegistry.registerGauge(
-        "injects_total", "Number of injects", () -> safeCount(injectRepository::count));
+        "injects_total", "Number of injects", () -> safeCount(this::countInjects));
     metricRegistry.registerGauge(
         "challenges_total", "Number of challenges", () -> safeCount(this::countChallenges));
     metricRegistry.registerGauge(
@@ -132,9 +130,7 @@ public class ProductInventoryMetricCollector {
         "Number of notification triggers",
         () -> safeCount(this::countNotificationTriggers));
     metricRegistry.registerGauge(
-        "workflows_total",
-        "Number of chaining workflows",
-        () -> safeCount(workflowRepository::count));
+        "workflows_total", "Number of chaining workflows", () -> safeCount(this::countWorkflows));
     metricRegistry.registerGauge(
         "findings_total", "Number of findings", () -> safeCount(this::countFindings));
     metricRegistry.registerGauge(
@@ -162,8 +158,8 @@ public class ProductInventoryMetricCollector {
               () ->
                   entityManager
                       .createQuery(
-                          "select p.type, p.source, p.status, count(p) from Payload p"
-                              + " group by p.type, p.source, p.status",
+                          "select p.type, p.identity.source, p.status, count(p) from Payload p"
+                              + " group by p.type, p.identity.source, p.status",
                           Object[].class)
                       .getResultList());
       for (Object[] row : rows) {
@@ -269,12 +265,26 @@ public class ProductInventoryMetricCollector {
     return tenantTx.<Long>execute(TxCtx.allTenants(), () -> findingRepository.count());
   }
 
-  private long countRecurringScenarios() {
-    return entityManager
-        .createQuery(
-            "select count(s) from Scenario s where s.recurrence is not null and s.recurrence <> ''",
-            Long.class)
-        .getSingleResult();
+  /** Counts injects across the whole platform (injects is v2-active). */
+  long countInjects() {
+    return countAcrossAllTenants(injectRepository::count);
+  }
+
+  /** Counts chaining workflows across the whole platform, ready for the workflows activation. */
+  long countWorkflows() {
+    return countAcrossAllTenants(workflowRepository::count);
+  }
+
+  /** Counts recurring scenarios across the whole platform, ready for the scenarios activation. */
+  long countRecurringScenarios() {
+    return countAcrossAllTenants(
+        () ->
+            entityManager
+                .createQuery(
+                    "select count(s) from Scenario s"
+                        + " where s.recurrence is not null and s.recurrence <> ''",
+                    Long.class)
+                .getSingleResult());
   }
 
   /**

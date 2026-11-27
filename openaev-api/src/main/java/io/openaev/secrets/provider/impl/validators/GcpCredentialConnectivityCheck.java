@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.validators;
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -11,12 +12,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,8 +56,15 @@ public class GcpCredentialConnectivityCheck {
    * used rather than v3 because it accepts the human-readable project id directly, which is what is
    * stored on the credential.
    */
-  private static final String PROJECT_ENDPOINT =
-      "https://cloudresourcemanager.googleapis.com/v1/projects/";
+  static final String PROJECT_ENDPOINT = "https://cloudresourcemanager.googleapis.com/v1/projects/";
+
+  /**
+   * What a project id may be made of: letters, digits, and the {@code - . :} of legacy
+   * domain-scoped ids, starting with a letter or a digit. It is appended to a URL path, so a slash,
+   * a dot-only segment ({@code ..}), a query or a fragment must never get through.
+   */
+  private static final Pattern PROJECT_ID_PATTERN =
+      Pattern.compile("[A-Za-z0-9][A-Za-z0-9.:-]{0,99}");
 
   /** Google answers a revoked or expired refresh token with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_GRANT = "invalid_grant";
@@ -87,28 +98,69 @@ public class GcpCredentialConnectivityCheck {
   private int timeoutSeconds;
 
   /**
+   * On-premise opt-out: lets the endpoint overrides point at internal addresses, loopback and
+   * link-local included. Off by default, so a credential cannot be used to probe the platform's own
+   * network.
+   */
+  @Value("${openaev.credentials.endpoint-allow-internal-targets:false}")
+  private boolean allowInternalEndpoints;
+
+  /**
    * Checks a service account key file.
    *
    * @param privateKeyJson the decrypted key file content
    * @param scope the OAuth scope the credential is stored for
    * @param projectId optional project to additionally probe with a resource-manager read
+   * @param customResourceManagerUri optional token server of a sovereign or mocked cloud
+   * @param customProjectsUri optional projects endpoint of a sovereign or mocked cloud
    * @return the outcome, never null
    */
   public SecretConnectionResult validateServiceAccount(
-      byte[] privateKeyJson, String scope, String projectId) {
-    if (privateKeyJson == null || privateKeyJson.length == 0 || isBlank(scope)) {
+      byte[] privateKeyJson,
+      String scope,
+      String projectId,
+      String customResourceManagerUri,
+      String customProjectsUri) {
+    if (privateKeyJson == null
+        || privateKeyJson.length == 0
+        || isBlank(scope)
+        || isMalformedProjectId(projectId)
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customResourceManagerUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     GoogleCredentials credentials;
     try {
-      credentials = googleCredentialsFactory.forServiceAccount(privateKeyJson, scope);
+      credentials =
+          googleCredentialsFactory.forServiceAccount(
+              privateKeyJson, scope, customResourceManagerUri);
     } catch (IOException | RuntimeException e) {
-      // Malformed or unparsable stored key: the configuration is broken, so the credential cannot
-      // be checked at all — never "rejected".
+      // Malformed or unparsable stored key, or malformed override: the configuration is broken, so
+      // the credential cannot be checked at all — never "rejected".
       return SecretConnectionResult.formatError();
     }
-    return probe(credentials, projectId);
+    if (isBlank(customResourceManagerUri)) {
+      // The SDK calls the token server the key file declares, as it parsed it: that one is checked,
+      // not a second reading of the file.
+      String declaredTokenUri = declaredTokenUri(credentials);
+      if (!allowInternalEndpoints
+          && declaredTokenUri != null
+          && !EndpointUrls.hasHost(declaredTokenUri)) {
+        // The SDK would call it, and no host can be read from it to check.
+        return SecretConnectionResult.formatError();
+      }
+      refused = EndpointUrls.refusal(allowInternalEndpoints, timeoutSeconds, declaredTokenUri);
+      if (refused.isPresent()) {
+        return refused.get();
+      }
+    }
+    return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
 
   /**
@@ -119,24 +171,82 @@ public class GcpCredentialConnectivityCheck {
    * @param refreshToken the decrypted refresh token
    * @param scope the OAuth scope the credential is stored for
    * @param projectId optional project to additionally probe with a resource-manager read
+   * @param customTokenUri optional token server of a sovereign or mocked cloud
+   * @param customProjectsUri optional projects endpoint of a sovereign or mocked cloud
    * @return the outcome, never null
    */
   public SecretConnectionResult validateOAuth2(
-      String clientId, String clientSecret, String refreshToken, String scope, String projectId) {
-    if (isBlank(clientId) || isBlank(clientSecret) || isBlank(refreshToken) || isBlank(scope)) {
+      String clientId,
+      String clientSecret,
+      String refreshToken,
+      String scope,
+      String projectId,
+      String customTokenUri,
+      String customProjectsUri) {
+    if (isBlank(clientId)
+        || isBlank(clientSecret)
+        || isBlank(refreshToken)
+        || isBlank(scope)
+        || isMalformedProjectId(projectId)
+        || EndpointUrls.isMalformedOverride(customProjectsUri)) {
       return SecretConnectionResult.formatError();
+    }
+    Optional<SecretConnectionResult> refused =
+        EndpointUrls.refusal(
+            allowInternalEndpoints, timeoutSeconds, customTokenUri, customProjectsUri);
+    if (refused.isPresent()) {
+      return refused.get();
     }
 
     GoogleCredentials credentials;
     try {
-      credentials = googleCredentialsFactory.forOAuth2(clientId, clientSecret, refreshToken, scope);
+      credentials =
+          googleCredentialsFactory.forOAuth2(
+              clientId, clientSecret, refreshToken, scope, customTokenUri);
     } catch (RuntimeException e) {
       return SecretConnectionResult.formatError();
     }
-    return probe(credentials, projectId);
+    return probe(credentials, projectId, projectsEndpoint(customProjectsUri));
   }
 
-  private SecretConnectionResult probe(GoogleCredentials credentials, String projectId) {
+  /**
+   * The token server a service account declares, which the SDK calls when no override replaces it.
+   * Google's own token servers (the current {@code oauth2.googleapis.com} and the {@code
+   * accounts.google.com} of older key files) are not returned: they are never looked up, so a
+   * network that resolves nothing but through a proxy keeps working.
+   */
+  static String declaredTokenUri(GoogleCredentials credentials) {
+    if (credentials instanceof ServiceAccountCredentials account
+        && account.getTokenServerUri() != null
+        && !isGoogleTokenServer(account.getTokenServerUri())) {
+      return account.getTokenServerUri().toString();
+    }
+    return null;
+  }
+
+  private static boolean isGoogleTokenServer(URI tokenUri) {
+    String host = tokenUri.getHost() == null ? "" : tokenUri.getHost().toLowerCase(Locale.ROOT);
+    return "https".equalsIgnoreCase(tokenUri.getScheme())
+        && ("accounts.google.com".equals(host)
+            || "googleapis.com".equals(host)
+            || host.endsWith(".googleapis.com"));
+  }
+
+  /** An absent project id is fine, it only skips the project read. */
+  private static boolean isMalformedProjectId(String projectId) {
+    return !isBlank(projectId) && !PROJECT_ID_PATTERN.matcher(projectId).matches();
+  }
+
+  /**
+   * The base the project id is appended to: the stored override when present, the official resource
+   * manager otherwise.
+   */
+  static String projectsEndpoint(String customProjectsUri) {
+    return isBlank(customProjectsUri) ? PROJECT_ENDPOINT : withTrailingSlash(customProjectsUri);
+  }
+
+  private SecretConnectionResult probe(
+      GoogleCredentials credentials, String projectId, String projectsEndpoint) {
     Duration timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
     String token;
     try {
@@ -158,7 +268,7 @@ public class GcpCredentialConnectivityCheck {
     if (isBlank(projectId)) {
       return SecretConnectionResult.active();
     }
-    return probeProject(projectId, token, timeout);
+    return probeProject(projectsEndpoint, projectId, token, timeout);
   }
 
   /**
@@ -184,10 +294,14 @@ public class GcpCredentialConnectivityCheck {
    * resource-manager SDK: the status code alone answers the question, and pulling the full GCP
    * resource-manager client in for one call would add a large dependency tree for no gain.
    */
-  private SecretConnectionResult probeProject(String projectId, String token, Duration timeout) {
-    URI uri = URI.create(PROJECT_ENDPOINT + projectId);
-
-    try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
+  private SecretConnectionResult probeProject(
+      String projectsEndpoint, String projectId, String token, Duration timeout) {
+    try (HttpClient httpClient =
+        HttpClient.newBuilder()
+            .connectTimeout(timeout)
+            .sslContext(googleCredentialsFactory.sslContext())
+            .build()) {
+      URI uri = URI.create(projectsEndpoint + projectId);
       HttpRequest request =
           HttpRequest.newBuilder(uri)
               .GET()
@@ -197,6 +311,8 @@ public class GcpCredentialConnectivityCheck {
       HttpResponse<Void> response =
           httpClient.send(request, HttpResponse.BodyHandlers.discarding());
       return mapStatusCode(response.statusCode());
+    } catch (IllegalArgumentException e) {
+      return SecretConnectionResult.formatError();
     } catch (java.net.http.HttpTimeoutException e) {
       return SecretConnectionResult.timeout();
     } catch (IOException e) {
@@ -322,6 +438,10 @@ public class GcpCredentialConnectivityCheck {
       }
     }
     return false;
+  }
+
+  private static String withTrailingSlash(String endpoint) {
+    return endpoint.endsWith("/") ? endpoint : endpoint + "/";
   }
 
   private static boolean isBlank(String value) {

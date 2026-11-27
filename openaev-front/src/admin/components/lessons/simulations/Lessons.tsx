@@ -1,7 +1,6 @@
 import { Button, Paper, Switch } from '@filigran/design-system';
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SendOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
@@ -117,7 +116,7 @@ const Lessons: FunctionComponent<Props> = ({
     }
     return setOpenSendLessons(false);
   };
-  const answers = R.groupBy(R.prop('lessons_answer_question'), lessonsAnswers);
+  const answers = Object.groupBy(lessonsAnswers, item => String(item.lessons_answer_question));
   const selectedQuestionAnswers = selectedQuestion && selectedQuestion.lessonsquestion_id
     ? answers[selectedQuestion.lessonsquestion_id] || []
     : [];
@@ -340,11 +339,13 @@ const Lessons: FunctionComponent<Props> = ({
       >
         <DialogTitle>{t('Objective achievement evaluation')}</DialogTitle>
         <DialogContent>
-          <ObjectiveEvaluations
-            objectiveId={selectedObjective}
-            isUpdatable={source.isUpdatable}
-            handleClose={() => setSelectedObjective(null)}
-          />
+          {selectedObjective && (
+            <ObjectiveEvaluations
+              objectiveId={selectedObjective}
+              isUpdatable={source.isUpdatable}
+              handleClose={() => setSelectedObjective(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <LessonsApplyTemplateDialog

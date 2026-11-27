@@ -26,6 +26,7 @@ import io.openaev.rest.challenge.form.ChallengeInput;
 import io.openaev.rest.challenge.form.FlagInput;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -46,6 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
 class ChallengeApiTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
 
   @Autowired private ScenarioService scenarioService;
@@ -69,8 +71,8 @@ class ChallengeApiTest extends IntegrationTest {
     assertNotNull(scenarioCreated, "Scenario should be successfully created");
     tenantIsolationHelper.grantCapabilitiesInTenant(
         scenarioCreated.getTenant().getId(), Set.of(Capability.ACCESS_ASSESSMENT));
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        scenarioCreated.getTenant().getId());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, scenarioCreated.getTenant().getId());
     String SCENARIO_ID = scenarioCreated.getId();
 
     Challenge challenge = createDefaultChallenge();

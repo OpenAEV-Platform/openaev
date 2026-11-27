@@ -1,5 +1,6 @@
 package io.openaev.sso;
 
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -7,9 +8,13 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.opencti.connectors.Constants;
+import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -29,6 +34,7 @@ import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
+import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +45,41 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Autowired UserComposer userComposer;
   @Autowired private UserMappingService userMappingService;
   @Autowired protected EntityManager entityManager;
+  @Autowired private GroupRepository groupRepository;
+  @Autowired private UserRepository userRepository;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+
+  /**
+   * The platform groups the auto-create tests below name: findOrCreateGroup commits them in a
+   * nested platform-write transaction (executeNewAsPlatformWrite), independently of this class's
+   * own rollback, so they are deleted the same way, in their own platform-write transaction.
+   *
+   * <p>{@code @AfterTransaction}, not {@code @AfterEach}: a test that grants the group a membership
+   * flushes a {@code users_groups} row referencing it inside the class's own, not-yet-ended
+   * transaction, which holds a key-share lock on the group row for the duration of that
+   * transaction. An {@code @AfterEach} runs before that transaction ends, so its delete, in a
+   * separate platform-write transaction, waits on a lock that only releases once the method it is
+   * waiting on finishes. {@code @AfterTransaction} runs once the class's transaction has already
+   * rolled back, so the lock is gone and the membership row never existed on disk to begin with.
+   */
+  private static final List<String> AUTO_CREATED_PLATFORM_GROUP_NAMES =
+      List.of("admin", "admin2", "SOC");
 
   @BeforeEach
   public void setup() {
     tenantGroupComposer.reset();
+  }
+
+  @AfterTransaction
+  void cleanupAutoCreatedPlatformGroups() {
+    for (String name : AUTO_CREATED_PLATFORM_GROUP_NAMES) {
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            groupRepository.findByNameAndTenantIsNull(name).ifPresent(groupRepository::delete);
+            return null;
+          });
+    }
   }
 
   private String tenantScopedId(String id) {
@@ -52,11 +89,11 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedGroupId() {
-    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().groupId());
   }
 
   private String tenantScopedRoleId() {
-    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().roleId());
   }
 
   @Nested
@@ -91,7 +128,8 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]";
+        "[{\"tenantId\": \"%s\",\"idpGroup\": \"observer\",\"userGroup\": \"observerUserGroup\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
     Group specificGroup = TenantGroupFixture.getGroup("observerUserGroup");
     specificGroup.setId(tenantScopedGroupId());
     specificGroup.setDescription("a description");
@@ -107,9 +145,13 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
-    assertTrue(user.getUnscopedGroups().contains(specificGroup));
+    assertTrue(
+        user.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(specificGroup.getId())));
   }
 
   @Test
@@ -128,6 +170,9 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     Group userGroup = user.getUnscopedGroups().get(0);
@@ -203,6 +248,9 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
@@ -215,7 +263,8 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // -- ARRANGE ---
     String object =
-        "[{\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]";
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"observerOAEV1\",\"autoCreate\": \"true\"},{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer2\",\"userGroup\": \"observerOAEV2\",\"autoCreate\": \"true\"}]"
+            .formatted(TenantContext.getCurrentTenant());
     Group specificGroup1 = TenantGroupFixture.getGroup("observerOAEV1");
     specificGroup1.setId(tenantScopedGroupId());
     specificGroup1.setDescription("a description");
@@ -237,10 +286,147 @@ public class UserMappingServiceTest extends IntegrationTest {
 
     // ---- ACT ----
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
 
     // -- ASSERT --
     assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
     assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("observerOAEV1");
+  }
+
+  @Test
+  @DisplayName(
+      "When removed from the idp group and several tenant groups share the name, revoke them all")
+  public void given_duplicateGroupNames_should_revokeEveryOneWithoutFailingTheLogin() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    Group twin1 = TenantGroupFixture.getGroup("twinOAEV");
+    twin1.setRoles(new ArrayList<>());
+    tenantGroupComposer.forGroup(twin1).persist();
+    Group twin2 = TenantGroupFixture.getGroup("twinOAEV");
+    twin2.setRoles(new ArrayList<>());
+    tenantGroupComposer.forGroup(twin2).persist();
+    entityManager.flush();
+    entityManager.clear();
+    User user = UserFixture.getUser();
+    user.getUnscopedGroups().addAll(List.of(twin1, twin2));
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("another-idp-group"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName(
+      "When the idp still lists the group and several tenant groups share the name, keep the membership the user holds")
+  public void given_duplicateGroupNamesAndAMembership_should_keepItWithoutFailingTheLogin() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    List<Group> twins = persistTwinTenantGroups("twinOAEV");
+    Group held = twins.getLast();
+    User user = UserFixture.getUser();
+    user.getUnscopedGroups().add(held);
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer1"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().stream().map(Group::getId).toList())
+        .isEqualTo(List.of(held.getId()));
+  }
+
+  @Test
+  @DisplayName(
+      "When the idp lists the group, several tenant groups share the name and the user holds none, join the lowest id")
+  public void given_duplicateGroupNamesAndNoMembership_should_joinTheLowestId() {
+
+    // -- ARRANGE ---
+    String object =
+        "[{\"tenantId\": \"%1$s\",\"idpGroup\": \"observer1\",\"userGroup\": \"twinOAEV\",\"autoCreate\": \"false\"}]"
+            .formatted(TenantContext.getCurrentTenant());
+    List<Group> twins = persistTwinTenantGroups("twinOAEV");
+    User user = UserFixture.getUser();
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer1"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    assertThat(user.getUnscopedGroups().stream().map(Group::getId).toList())
+        .isEqualTo(List.of(twins.getFirst().getId()));
+  }
+
+  /** Two tenant groups of {@code name}, in ascending id order. */
+  private List<Group> persistTwinTenantGroups(String name) {
+    List<Group> twins = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      Group twin = TenantGroupFixture.getGroup(name);
+      twin.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(twin).persist();
+      twins.add(twin);
+    }
+    entityManager.flush();
+    entityManager.clear();
+    twins.sort(Comparator.comparing(Group::getId));
+    return twins;
+  }
+
+  @Test
+  @DisplayName("With a tenant ID the group is a tenant group, without it a platform group")
+  public void whenTenantIdIsSet_useTenantGroup_otherwisePlatformGroup() {
+
+    // -- ARRANGE ---
+    String tenantId = TenantContext.getCurrentTenant();
+    String object =
+        "[{\"idpGroup\": \"observer\",\"userGroup\": \"SOC\",\"autoCreate\": \"true\"},{\"tenantId\": \"%s\",\"idpGroup\": \"observer\",\"userGroup\": \"SOC\",\"autoCreate\": \"true\"}]"
+            .formatted(tenantId);
+    User user = UserFixture.getUser();
+    userComposer.forUser(user).persist();
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // ---- ACT ----
+    userMappingService.mapCurrentUserWithGroup(object, user, List.of("observer"));
+    entityManager.flush();
+    entityManager.clear();
+    user = userRepository.findById(user.getId()).orElseThrow();
+
+    // -- ASSERT --
+    List<Group> groups = user.getUnscopedGroups();
+    assertThat(groups.size()).isEqualTo(2);
+    assertTrue(groups.stream().anyMatch(group -> group.getTenant() == null));
+    assertTrue(
+        groups.stream()
+            .anyMatch(
+                group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId())));
+    assertTrue(user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId)));
   }
 
   @Nested

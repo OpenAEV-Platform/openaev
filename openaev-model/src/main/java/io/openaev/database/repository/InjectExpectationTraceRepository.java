@@ -26,6 +26,27 @@ public interface InjectExpectationTraceRepository
       @Param("expectationIds") final Collection<String> expectationIds,
       @Param("sourceId") final String sourceId);
 
+  /** One collected alert and the inject whose expectation it answered. */
+  interface AlertInjectRow {
+    String getAlertLink();
+
+    String getInjectId();
+
+    String getInjectTitle();
+
+    String getExerciseId();
+  }
+
+  // The reverse alert lookup of the XTM counterpart contract: which injects a collected alert
+  // answered, newest alert first, so the first row per link is the pivot.
+  @Query(
+      "select t.alertLink as alertLink, i.id as injectId, i.title as injectTitle,"
+          + " e.id as exerciseId from InjectExpectationTrace t join t.injectExpectation ie"
+          + " join ie.inject i left join i.exercise e where t.alertLink in :alertLinks"
+          + " order by t.alertDate desc")
+  List<AlertInjectRow> findAlertInjectsByAlertLinkIn(
+      @Param("alertLinks") final Collection<String> alertLinks);
+
   @Query("select t from InjectExpectationTrace t where t.injectExpectation.id in :expectationIds")
   List<InjectExpectationTrace> findByInjectExpectationIdIn(
       @Param("expectationIds") final Collection<String> expectationIds);
@@ -41,8 +62,8 @@ public interface InjectExpectationTraceRepository
   @Modifying
   @Query(
       value =
-          "INSERT INTO injects_expectations_traces (inject_expectation_trace_id, inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_link, inject_expectation_trace_alert_name, inject_expectation_trace_date, inject_expectation_trace_created_at, inject_expectation_trace_updated_at) "
-              + "VALUES (:id, :expectationId, :securityPlatformId, :alertLink, :alertName, :alertDate, :createdAtDate, :updatedAtDate) "
+          "INSERT INTO injects_expectations_traces (inject_expectation_trace_id, inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_link, inject_expectation_trace_alert_name, inject_expectation_trace_date, inject_expectation_trace_match_type, inject_expectation_trace_created_at, inject_expectation_trace_updated_at) "
+              + "VALUES (:id, :expectationId, :securityPlatformId, :alertLink, :alertName, :alertDate, :matchType, :createdAtDate, :updatedAtDate) "
               + "ON CONFLICT (inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_name, inject_expectation_trace_alert_link) DO NOTHING",
       nativeQuery = true)
   void insertIfNotExists(
@@ -52,6 +73,7 @@ public interface InjectExpectationTraceRepository
       @Param("alertLink") String alertLink,
       @Param("alertName") String alertName,
       @Param("alertDate") Instant alertDate,
+      @Param("matchType") String matchType,
       @Param("createdAtDate") Instant createdAtDate,
       @Param("updatedAtDate") Instant updatedAtDate);
 }

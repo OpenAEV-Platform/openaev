@@ -22,7 +22,10 @@ implemented.
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
-| [Elasticsearch 9](#elasticsearch-9)                            | -             | \[MigrationVersion\]        |
+| [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
+| [Windows agent token encrypted with DPAPI](#windows-agent-token-dpapi) | -             | \[MigrationVersion\]        |
+| [Tenant of the non-prefixed API routes](#non-prefixed-route-tenant) | -             | \[MigrationVersion\]        |
+| [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
 
@@ -132,10 +135,47 @@ For more details, see [this migration guide](breaking-changes/MigrationVersion-t
 
 <a id="elasticsearch-9"></a>
 
-#### Elasticsearch 9
+#### Elasticsearch 9 and engine auto-detection
 
-Starting with **OpenAEV \[MigrationVersion\]**, the platform requires an Elasticsearch 9 cluster. The 9.x client
-tags its requests as `compatible-with=9`, which an 8.x server rejects, so every engine call fails against
-Elasticsearch 8. OpenSearch deployments are unaffected.
+Starting with **OpenAEV \[MigrationVersion\]**, the platform supports Elasticsearch 8.19+, Elasticsearch 9 and
+OpenSearch, and detects which one runs behind `engine.url` at startup. The `engine.engine-selector` parameter
+is removed: a value still set is ignored with a warning. `engine.client` forces a client when the detection
+cannot decide.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
+
+<a id="windows-agent-token-dpapi"></a>
+
+#### Windows agent token encrypted with DPAPI
+
+Starting with **OpenAEV \[MigrationVersion\]**, the Windows agent encrypts its token with DPAPI (Data Protection API)
+instead of storing it in clear text in its config file. Hosts running the agent in **service-user** mode must
+reinstall the agent after upgrading: an upgrade only replaces the binary, so the agent cannot remove the token from its
+config file and stops until it is reinstalled.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
+
+<a id="non-prefixed-route-tenant"></a>
+
+#### Tenant of the non-prefixed API routes
+
+Starting with **OpenAEV \[MigrationVersion\]**, endpoints called on the non-prefixed API routes (`/api/...`) read the
+tenants of the request scope: the tenant named in the `X-Tenant-Ids` header, or every tenant of the caller without the
+header. Finding reads, session endpoints, the profile organization, the import mapper dry run and bulk operations are
+concerned. The tenant-prefixed routes, which the web interface uses, are unchanged.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-non-prefixed-route-tenant.md)
+
+## OpenAEV 3.261016.0
+
+### Introduction
+
+<a id="windows-agent-config-permissions"></a>
+
+#### Windows agents running under a named service account
+
+Starting with **OpenAEV 3.261016.0**, the agent installer limits access to the agent's config file, which contains its
+token, to SYSTEM, Administrators and the agent's account. Hosts running the agent in **service-user** mode must
+reinstall the agent after upgrading: an upgrade only replaces the binary and does not fix existing file permissions.
+
+For more details, see [this migration guide](breaking-changes/3.261016.0-windows-agent-config-permissions.md)

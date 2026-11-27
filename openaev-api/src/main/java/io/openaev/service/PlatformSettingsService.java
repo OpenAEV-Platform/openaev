@@ -9,7 +9,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Optional.ofNullable;
 
-import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.RunMode;
@@ -22,15 +21,21 @@ import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
+import io.openaev.ee.LicenseSource;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.OAuthProvider;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.rest.settings.response.PublicPlatformSettings;
+import io.openaev.rest.settings.response.RuntimeSettingOutput;
 import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.service.settings.RuntimeSetting;
+import io.openaev.service.settings.RuntimeSettingsService;
+import io.openaev.service.settings.ThemeAssetUrlValidator;
 import io.openaev.utils.InstanceCreationDate;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.config.XtmHubConfig;
@@ -41,6 +46,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -65,6 +71,13 @@ public class PlatformSettingsService {
   public static final String THEME_TYPE_DARK = "dark";
 
   private final ApplicationContext context;
+
+  /** Prefix of the platform rows that hold the reports of the sources of a banner. */
+  private static final String BANNER_SOURCE_PREFIX = "platform_banner_source.";
+
+  /** A source reports every minute: a report older than this is a source that is gone. */
+  static final Duration BANNER_SOURCE_TTL = Duration.ofMinutes(5);
+
   private final Environment env;
   private final SettingRepository settingRepository;
   private final XtmHubConfig xtmHubConfig;
@@ -75,20 +88,16 @@ public class PlatformSettingsService {
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneIdentity xtmOneIdentity;
   private final OpenTelemetry openTelemetry;
+  private final ThemeAssetUrlValidator themeAssetUrlValidator;
+  private final RuntimeSettingsService runtimeSettingsService;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
 
-  @Value("${openaev.mail.imap.enabled}")
-  private boolean imapEnabled;
-
-  @Value("${openaev.mail.imap.username}")
-  private String imapUsername;
-
   @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private PlatformMailSender platformMailSender;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   @Resource private RabbitmqService rabbitmqService;
-  @Resource private EngineConfig engineConfig;
   @Autowired private LicenseCacheManager licenseCacheManager;
 
   // -- PROVIDERS --
@@ -168,16 +177,6 @@ public class PlatformSettingsService {
       return updateSetting;
     }
     return new Setting(themeKey, value);
-  }
-
-  /**
-   * Save setting
-   *
-   * @param setting setting to save
-   * @return setting saved
-   */
-  public Setting save(Setting setting) {
-    return this.settingRepository.save(setting);
   }
 
   private RunMode resolveRunMode() {
@@ -286,14 +285,9 @@ public class PlatformSettingsService {
 
     // Authenticated-only fields
     platformSettings.setPlatformLicense(licenseCacheManager.getEnterpriseEditionInfo());
-    if (this.imapEnabled) {
-      platformSettings.setDefaultMailer(this.imapUsername);
-      platformSettings.setDefaultReplyTo(this.imapUsername);
-    } else {
-      platformSettings.setDefaultMailer(openAEVConfig.getDefaultMailer());
-      platformSettings.setDefaultReplyTo(openAEVConfig.getDefaultReplyTo());
-    }
-    platformSettings.setDefaultMailerName(openAEVConfig.getDefaultMailerName());
+    platformSettings.setDefaultMailer(platformMailSender.getEmail());
+    platformSettings.setDefaultReplyTo(platformMailSender.getReplyTo());
+    platformSettings.setDefaultMailerName(platformMailSender.getName());
     platformSettings.setSmtpServiceAvailable(
         ofNullable(dbSettings.get(SMTP_SERVICE_AVAILABLE.key()))
             .map(Setting::getValue)
@@ -344,7 +338,7 @@ public class PlatformSettingsService {
       platformSettings.setPostgreVersion(settingRepository.getServerVersion());
       platformSettings.setJavaVersion(Runtime.version().toString());
       platformSettings.setRabbitMQVersion(rabbitmqService.getVersion());
-      platformSettings.setAnalyticsEngineType(engineConfig.getEngineSelector());
+      platformSettings.setAnalyticsEngineType(engineService.getEngineType().getKey());
       platformSettings.setAnalyticsEngineVersion(engineService.getEngineVersion());
     }
 
@@ -353,6 +347,8 @@ public class PlatformSettingsService {
         expectationPropertiesConfig.getDetectionExpirationTime());
     platformSettings.setPreventionExpirationTime(
         expectationPropertiesConfig.getPreventionExpirationTime());
+    platformSettings.setLoggingExpirationTime(
+        expectationPropertiesConfig.getLoggingExpirationTime());
     platformSettings.setVulnerabilityExpirationTime(
         expectationPropertiesConfig.getVulnerabilityExpirationTime());
     platformSettings.setChallengeExpirationTime(
@@ -372,6 +368,19 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
 
+    // XTM Composer: what it reported, only once one is registered
+    if (StringUtils.hasText(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_ID.key()))) {
+      platformSettings.setXtmComposerVersion(
+          ofNullable(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_VERSION.key()))
+              .filter(StringUtils::hasText)
+              .orElse(XTM_COMPOSER_VERSION.defaultValue()));
+      platformSettings.setXtmComposerImage(
+          ofNullable(getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_IMAGE.key()))
+              .orElse(XTM_COMPOSER_IMAGE.defaultValue()));
+      platformSettings.setXtmComposerLastConnectivityCheck(
+          getValueFromMapOfSettings(dbSettings, XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()));
+    }
+
     // SESSION MANAGEMENT
     platformSettings.setPlatformSessionTimeout(sessionTimeout.toMillis());
     platformSettings.setPlatformSessionIdleTimeout(
@@ -381,6 +390,27 @@ public class PlatformSettingsService {
             .map(Setting::getValue)
             .map(Integer::parseInt)
             .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
+
+    // RUNTIME SETTINGS: env var > value set in the UI > configured default
+    platformSettings.setRuntimeSettings(
+        runtimeSettingsService.resolveAll().stream()
+            .map(
+                resolved ->
+                    new RuntimeSettingOutput(
+                        resolved.setting().key(),
+                        resolved.value(),
+                        resolved.source().label(),
+                        resolved.envVar(),
+                        resolved.locked(),
+                        resolved.setting().type().name().toLowerCase(java.util.Locale.ROOT),
+                        resolved.setting().type() == RuntimeSetting.Type.INTEGER
+                            ? resolved.setting().min()
+                            : null,
+                        resolved.setting().type() == RuntimeSetting.Type.INTEGER
+                            ? resolved.setting().max()
+                            : null,
+                        resolved.setting().enterpriseOnly()))
+            .toList());
     return platformSettings;
   }
 
@@ -466,6 +496,14 @@ public class PlatformSettingsService {
     Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
+    // Enterprise Edition granted by the Filigran license of XTM One is not revocable here: XTM One
+    // owns it. Installing an own license stays possible (it then takes precedence).
+    if ((certPem == null || certPem.isBlank())
+        && licenseCacheManager.getEnterpriseEditionInfo().getSource() == LicenseSource.xtm_one) {
+      throw new BadRequestException(
+          "The Enterprise Edition is granted by the Filigran license of XTM One and cannot be"
+              + " disabled in this platform");
+    }
     if (certPem != null && !certPem.isEmpty()) {
       License license = enterpriseEditionService.verifyCertificate(certPem);
       if (!license.isLicenseValidated()) {
@@ -497,6 +535,11 @@ public class PlatformSettingsService {
             PLATFORM_SESSION_MAX_CONCURRENT.key(),
             String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsRuntime(SettingsRuntimeUpdateInput input) {
+    runtimeSettingsService.update(input.getSettings());
     return findSettings();
   }
 
@@ -532,6 +575,11 @@ public class PlatformSettingsService {
   }
 
   private PlatformSettings updateTheme(ThemeInput input, String themeType) {
+    validateThemeUrl(input.getLogoUrl());
+    validateThemeUrl(input.getLogoUrlCollapsed());
+    validateThemeUrl(input.getLogoLoginUrl());
+    validateThemeUrl(input.getLoginAsideImage());
+
     Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
 
@@ -619,6 +667,16 @@ public class PlatformSettingsService {
   }
 
   /**
+   * Rejects theme image/logo urls that are not well-formed http(s) urls pointing at a public
+   * target, to prevent SSRF via platform-level theme configuration.
+   */
+  private void validateThemeUrl(String url) {
+    if (StringUtils.hasText(url)) {
+      themeAssetUrlValidator.validateUrl(url);
+    }
+  }
+
+  /**
    * Saves a map of settings
    *
    * @param settingsMap map of settings to save
@@ -635,20 +693,6 @@ public class PlatformSettingsService {
         });
 
     return mapOfSettings(fromIterable(this.settingRepository.saveAll(settingsToSave)));
-  }
-
-  /**
-   * Saves a setting by key. Updates the value if the key exists, creates a new setting otherwise.
-   *
-   * @param key the setting key
-   * @param value the setting value
-   * @return the saved setting
-   */
-  public Setting saveSetting(String key, String value) {
-    Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElse(new Setting(key, value));
-    setting.setValue(value);
-    return settingRepository.save(setting);
   }
 
   public void updateXTMHubEmailNotification(boolean shouldSendConnectivityEmail) {
@@ -673,12 +717,62 @@ public class PlatformSettingsService {
   }
 
   public void errorMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
-    Optional<Setting> bannerLevelOpt =
-        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_BANNER + "." + banner.key());
-    if (bannerLevelOpt.isEmpty()) {
-      Setting bannerLevel =
-          resolve(bannerLevelOpt, PLATFORM_BANNER + "." + banner.key(), banner.level().name());
-      settingRepository.save(bannerLevel);
+    settingRepository.insertPlatformSettingIfAbsent(
+        UUID.randomUUID().toString(), PLATFORM_BANNER + "." + banner.key(), banner.level().name());
+  }
+
+  /**
+   * Records whether {@code source} (an executor of a tenant, for example) raises {@code banner},
+   * then writes the banner from the reports of every source. The reports are platform rows of
+   * {@code parameters}, one per source that raises the banner and renewed each time it reports, so
+   * any node computes the same banner from the same rows: it shows while at least one source
+   * reported within {@link #BANNER_SOURCE_TTL}, and clears otherwise. A report not renewed within
+   * that time (a node that died, an executor removed without stopping) is deleted here. Callers are
+   * serialised on the banner by a transaction-level lock. Runs in a platform-write transaction.
+   */
+  public void reportMessageSource(
+      @NotBlank final BannerMessage.BANNER_KEYS banner, @NotBlank String source, boolean raised) {
+    String bannerKey = PLATFORM_BANNER + "." + banner.key();
+    settingRepository.lockUntilEndOfTransaction(bannerKey);
+    String sourceKey = BANNER_SOURCE_PREFIX + banner.key() + "." + source;
+    if (raised) {
+      Setting report =
+          settingRepository
+              .findByKeyAndTenantIsNull(sourceKey)
+              .orElseGet(() -> new Setting(sourceKey, ""));
+      report.setValue(String.valueOf(System.currentTimeMillis()));
+      settingRepository.save(report);
+    } else {
+      settingRepository.deleteByKeyIn(List.of(sourceKey));
+    }
+    syncMessage(banner);
+  }
+
+  private void syncMessage(final BannerMessage.BANNER_KEYS banner) {
+    long oldestLive = System.currentTimeMillis() - BANNER_SOURCE_TTL.toMillis();
+    List<Setting> reports =
+        settingRepository.findAllByKeyStartingWithAndTenantIsNull(
+            BANNER_SOURCE_PREFIX + banner.key() + ".");
+    List<String> expired =
+        reports.stream()
+            .filter(report -> !isLive(report, oldestLive))
+            .map(Setting::getKey)
+            .toList();
+    if (!expired.isEmpty()) {
+      settingRepository.deleteByKeyIn(expired);
+    }
+    if (reports.size() > expired.size()) {
+      errorMessage(banner);
+    } else {
+      cleanMessage(banner);
+    }
+  }
+
+  private static boolean isLive(Setting report, long oldestLive) {
+    try {
+      return Long.parseLong(report.getValue()) >= oldestLive;
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 

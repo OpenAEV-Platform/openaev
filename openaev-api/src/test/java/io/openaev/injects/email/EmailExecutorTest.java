@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class EmailExecutorTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private UserRepository userRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private ExecutionContextService executionContextService;
@@ -108,16 +109,19 @@ public class EmailExecutorTest extends IntegrationTest {
     ExecutableInject executableInject =
         new ExecutableInject(true, true, inject, userInjectContexts);
     Execution execution = new Execution(executableInject.isRuntime());
+    // Rows committed before the test (another tenant, an earlier run) are not this call's doing.
+    long expectationsBefore = injectExpectationRepository.count();
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);
 
     // -- ASSERT --
     // No BaseInjectExpectation should be created.
-    assertEquals(Collections.emptyList(), injectExpectationRepository.findAll());
+    assertEquals(expectationsBefore, injectExpectationRepository.count());
   }
 
   @Test
@@ -157,7 +161,8 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);

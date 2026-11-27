@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.model.Team;
@@ -27,9 +29,12 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
 import io.openaev.service.MailingService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -52,6 +57,9 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   static Team TEAM;
   static User USER;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -64,7 +72,8 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 
@@ -75,10 +84,15 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.lessonsCategoryRepository.delete(LESSONCATEGORY);
-    this.exerciseRepository.delete(EXERCISE);
-    this.teamRepository.delete(TEAM);
-    this.userRepository.delete(USER);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.lessonsCategoryRepository.delete(LESSONCATEGORY);
+          this.exerciseRepository.delete(EXERCISE);
+          this.teamRepository.delete(TEAM);
+          this.userRepository.delete(USER);
+        });
   }
 
   private LessonsCategory getLessonCategory() {
@@ -97,7 +111,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @DisplayName("Send surveys for exercise lessons")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void sendExerciseLessonsTest() throws Exception {
 
     // -- PREPARE --
@@ -118,11 +132,11 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
-    verify(mailingService)
-        .sendEmail(
-            lessonSubject,
-            lessonBody,
-            List.of(user),
-            exerciseRepository.findById(EXERCISE.getId()));
+    // The exercise is read in the scope of the tenant that owns it, as the request read it.
+    Optional<Exercise> exercise =
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> exerciseRepository.findById(EXERCISE.getId()));
+    verify(mailingService).sendEmail(lessonSubject, lessonBody, List.of(user), exercise);
   }
 }

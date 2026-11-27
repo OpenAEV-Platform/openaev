@@ -12,6 +12,7 @@ import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -27,6 +28,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
+import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.util.*;
 import java.util.UUID;
@@ -60,6 +62,9 @@ class StepServiceTest {
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private TenantScopedTransaction tenantScopedTransaction;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
+  @Mock private StepEventService stepEventService;
+  @Mock private EntityManager entityManager;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -81,7 +86,12 @@ class StepServiceTest {
         .thenAnswer(invocation -> new HashSet<>(invocation.<Set<String>>getArgument(2)));
     queueChainingJob =
         new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, tenantScopedTransaction);
+            stepDelayQueueService,
+            stepService,
+            workflowService,
+            tenantScopedTransaction,
+            stepEventService,
+            entityManager);
     lenient()
         .doAnswer(
             invocation -> {
@@ -355,8 +365,7 @@ class StepServiceTest {
         assertThrows(
             ChainingException.class,
             () ->
-                stepService.createReadySteps(
-                    nextStepTemplateToExecute, workflowRun, "{\"a\":1}", 0));
+                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
 
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
@@ -394,7 +403,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertTrue(result.isEmpty());
@@ -452,7 +461,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertEquals(1, result.size());
@@ -514,7 +523,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert
         assertEquals(1, result.size());
@@ -603,7 +612,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert: the step must not be silently skipped - the remaining assets still get a READY
         // step each.
@@ -670,7 +679,7 @@ class StepServiceTest {
             .thenReturn(Set.of());
 
         List<Step> firstCycle =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // The step readies once AND commits a stable, NON-EMPTY hash set (the crux of the fix:
         // before, the null hash meant an empty commit and an endless re-ready storm).
@@ -689,7 +698,7 @@ class StepServiceTest {
             .thenReturn(Set.of(stableHash));
 
         List<Step> secondCycle =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // The step is NOT re-readied: the recomputed fallback hash is deterministic and matches the
         // committed one, so the batch is filtered out. ready() was invoked exactly once overall.
@@ -747,7 +756,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
 
         // Assert: a single READY step, for the only hash this call committed.
         assertEquals(List.of(stepReady), result);
@@ -883,6 +892,76 @@ class StepServiceTest {
       verify(stepRepository).save(stepCaptor.capture());
       assertSame(step, stepCaptor.getValue());
       verifyNoMoreInteractions(stepRepository);
+    }
+  }
+
+  /* ============================================================
+   * Step templates as the current reader sees them
+   * ============================================================ */
+  @Nested
+  class ReaderOutput {
+
+    private Step templateWithAssets(String id, String... assetIds) {
+      Workflow workflow = new Workflow();
+      workflow.setTenant(new Tenant("tenant-1"));
+      Step step = new Step();
+      step.setId(id);
+      step.setWorkflow(workflow);
+      step.setData(
+          "{\"inject_title\":\"nmap\",\"inject_assets\":["
+              + Arrays.stream(assetIds).map(a -> "\"" + a + "\"").collect(Collectors.joining(","))
+              + "]}");
+      return step;
+    }
+
+    @Test
+    void given_templatesWithAssets_should_lookUpTheHiddenIdsOnceAndCutThem() {
+      // Arrange
+      Step first = templateWithAssets("s-1", "green", "red");
+      Step second = templateWithAssets("s-2", "red", "other");
+      when(scopeSnapshotService.hiddenAssetIds(eq("tenant-1"), anyCollection()))
+          .thenReturn(Set.of("red"));
+
+      // Act
+      List<StepOutput> outputs = stepService.toReaderOutputs(List.of(first, second));
+
+      // Assert
+      assertEquals(1, outputs.get(0).getData().get("inject_assets").size());
+      assertEquals("green", outputs.get(0).getData().get("inject_assets").get(0).asText());
+      assertEquals(1, outputs.get(1).getData().get("inject_assets").size());
+      assertEquals("other", outputs.get(1).getData().get("inject_assets").get(0).asText());
+      verify(scopeSnapshotService)
+          .hiddenAssetIds(
+              eq("tenant-1"),
+              argThat(ids -> Set.copyOf(ids).equals(Set.of("green", "red", "other"))));
+    }
+
+    @Test
+    void given_templatesWithoutAssets_should_notLookAnythingUp() {
+      // Arrange
+      Step step = templateWithAssets("s-1");
+
+      // Act
+      List<StepOutput> outputs = stepService.toReaderOutputs(List.of(step));
+
+      // Assert
+      assertEquals("s-1", outputs.get(0).getId());
+      verifyNoInteractions(scopeSnapshotService);
+    }
+
+    @Test
+    void given_oneTemplate_should_mapItLikeTheList() {
+      // Arrange
+      Step step = templateWithAssets("s-1", "green");
+      when(scopeSnapshotService.hiddenAssetIds(eq("tenant-1"), anyCollection()))
+          .thenReturn(Set.of());
+
+      // Act
+      StepOutput output = stepService.toReaderOutput(step);
+
+      // Assert
+      assertEquals("s-1", output.getId());
+      assertEquals(1, output.getData().get("inject_assets").size());
     }
   }
 
@@ -1071,11 +1150,11 @@ class StepServiceTest {
           if (throwException) {
             doThrow(new ChainingException("error"))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           } else {
             doReturn(List.of(mock(Step.class)))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
+                .createReadySteps(any(Step.class), any(Workflow.class), any());
           }
         }
 
@@ -1084,9 +1163,9 @@ class StepServiceTest {
 
         // Assert
         if (stepFound) {
-          verify(stepService).createReadySteps(step, workflowRun, null, 0);
+          verify(stepService).createReadySteps(step, workflowRun, null);
         } else {
-          verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+          verify(stepService, never()).createReadySteps(any(), any(), any());
         }
       }
 
@@ -1276,8 +1355,6 @@ class StepServiceTest {
       Step existing = new Step();
       Workflow existingWorkflow = new Workflow();
       existing.setWorkflow(existingWorkflow);
-      existing.setConditionSteps(
-          new ArrayList<>(List.of(new ConditionStep(), new ConditionStep())));
 
       Step candidate = new Step();
       candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -1306,7 +1383,6 @@ class StepServiceTest {
       assertSame(saved, updated);
       assertEquals(5, existing.getLimitExecution());
       assertEquals("{\"updated\":true}", existing.getData());
-      assertTrue(existing.getConditionSteps().isEmpty());
       verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);

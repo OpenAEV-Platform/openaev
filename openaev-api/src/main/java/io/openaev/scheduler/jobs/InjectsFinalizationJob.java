@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.scheduler.jobs.InjectsExecutionJob.DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasValidResults;
 import static java.time.Instant.now;
 
@@ -21,6 +20,7 @@ import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.NotificationEventService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.settings.InjectExecutionThresholdService;
 import io.openaev.utils.ExecutionTraceUtils;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,10 +46,6 @@ public class InjectsFinalizationJob implements Job {
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
-  @Value(
-      "${inject.execution.threshold.minutes:" + DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES + "}")
-  private Integer injectExecutionThreshold;
-
   private final InjectHelper injectHelper;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
@@ -60,6 +56,7 @@ public class InjectsFinalizationJob implements Job {
   private final WorkflowService workflowService;
   private final TenantScopedJobRunner tenantScopedJobRunner;
   private final InjectAgentResolverService injectAgentResolverService;
+  private final InjectExecutionThresholdService injectExecutionThresholdService;
 
   @Override
   @LogExecutionTime
@@ -76,12 +73,25 @@ public class InjectsFinalizationJob implements Job {
 
   @VisibleForTesting
   void handleInjectExpectationCollectStatus() {
-    // Cross-tenant: no transaction is open here, so no v1 filter narrows the read. Once injects is
-    // activated this sweep needs the primitive.
-    List<Inject> injects = injectService.getExecutedAndNotFinished();
-    if (injects.isEmpty()) {
-      return;
-    }
+    // The sweep is cross-tenant and reads under allTenants(). Only the ids leave it: each tenant's
+    // injects are refetched, evaluated and saved inside that tenant's scope, like
+    // handlePendingInject
+    // below. Saving the swept entities instead merges them back, and the merge reloads each
+    // inject's
+    // injector contract: once that table is tenant-isolated, an unscoped merge cannot load it and
+    // throws, which stops execute() before the phases below, for every tenant.
+    Map<String, List<String>> collectingIdsByTenant =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> idsByTenant(injectService.getExecutedAndNotFinished()));
+    collectingIdsByTenant.forEach(
+        (tenantId, injectIds) ->
+            tenantScopedJobRunner.runInTenant(
+                tenantId,
+                () -> completeFinishedCollections(injectRepository.findAllById(injectIds))));
+  }
+
+  @VisibleForTesting
+  void completeFinishedCollections(List<Inject> injects) {
     List<Inject> fulfilled = new ArrayList<>();
     for (Inject inject : injects) {
       // An expectation is done collecting when it has nothing to collect (no result
@@ -112,33 +122,31 @@ public class InjectsFinalizationJob implements Job {
   }
 
   public void handleAutoClosingSimulations() {
-    // Change status of finished simulations.
-    List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
-    // Filter out the simulations using the new chaining engine.
-    mustBeFinishedSimulations =
-        mustBeFinishedSimulations.stream()
-            .filter(simulation -> !workflowService.existsBySimulationId(simulation.getId()))
-            .toList();
-    if (mustBeFinishedSimulations.isEmpty()) {
-      return;
-    }
-
-    Map<String, List<String>> simulationIdsByTenant = new LinkedHashMap<>();
-    mustBeFinishedSimulations.forEach(
-        simulation ->
-            simulationIdsByTenant
-                .computeIfAbsent(simulation.getTenant().getId(), key -> new ArrayList<>())
-                .add(simulation.getId()));
+    // Change status of finished simulations. The candidates are read across tenants and only their
+    // ids leave that read; each tenant's simulations are then finished in that tenant's scope.
+    Map<String, List<String>> simulationIdsByTenant =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> idsByTenant(exerciseRepository.thatMustBeFinished()));
 
     simulationIdsByTenant.forEach(
         (tenantId, simulationIds) ->
             tenantScopedJobRunner.runInTenant(
                 tenantId,
                 () -> {
+                  // Leave the simulations of the chaining engine to it. Their workflow lives in
+                  // the simulation's tenant, and once workflows is tenant-isolated an unscoped
+                  // check finds none, so it runs here, under that tenant's scope.
+                  List<String> notChainedIds =
+                      simulationIds.stream()
+                          .filter(id -> !workflowService.existsBySimulationId(id))
+                          .toList();
+                  if (notChainedIds.isEmpty()) {
+                    return;
+                  }
                   // Refetch in tenant scope so eager securityCoverage is resolved under multitenant
                   // v2.
                   List<Exercise> exercisesToFinish =
-                      new ArrayList<>(exerciseRepository.findAllById(simulationIds));
+                      new ArrayList<>(exerciseRepository.findAllById(notChainedIds));
                   exercisesToFinish.forEach(
                       exercise -> {
                         exercise.setStatus(ExerciseStatus.FINISHED);
@@ -168,47 +176,55 @@ public class InjectsFinalizationJob implements Job {
                                       .timestamp(Instant.now())
                                       .build(),
                                   delayForSimulationCompletedEvent));
+
+                  // the same event on the simulation itself, for its own triggers
+                  exercisesFinished.forEach(notificationEventService::sendSimulationCompleted);
                 }));
   }
 
   public void handlePendingInject() {
-    List<Inject> pendingInjects =
-        injectHelper.getAllPendingInjectsWithThresholdMinutes(this.injectExecutionThreshold);
-
-    if (pendingInjects.isEmpty()) {
-      return;
-    }
-
-    // Finalize each inject inside its own tenant's scope, the way handleAutoClosingSimulations
-    // already does. The sweep above is deliberately cross-tenant and stays so; what needs a scope
-    // is the per-inject work, because resolving the agents walks the inject's assets and asset
-    // groups. asset_groups is v2-active and the statement inspector rewrites by SQL text: with no
-    // scope it filters a findById like any other read, so AssetGroupService.assetGroup(id) finds
-    // nothing and throws.
-    // That exception escapes to execute(), so one inject targeting an asset group would stop the
-    // whole sweep, for every tenant. PendingInjectAssetGroupScopeTest pins both halves.
+    // The sweep is cross-tenant and reads under allTenants(). Its sub-query leaves out the injects
+    // of a running chaining workflow: once workflows is tenant-isolated, an unscoped sub-query
+    // reads nothing, and the sweep would time out the injects the chaining engine owns.
     //
-    // Only the ids cross the scope boundary, and each inject is refetched inside its tenant's
-    // transaction, exactly like the simulations above. Carrying the entities over would keep the
-    // eager Inject.assets collection loaded by the unscoped sweep, which is the very state this
-    // activation makes wrong: once assets is v2-active that collection comes back empty, and the
-    // finalization would silently see an agentless inject where there are agents.
-    Map<String, List<String>> pendingIdsByTenant = new LinkedHashMap<>();
-    for (Inject inject : pendingInjects) {
-      pendingIdsByTenant
-          .computeIfAbsent(inject.getTenant().getId(), key -> new ArrayList<>())
-          .add(inject.getId());
-    }
+    // Only the ids leave the sweep. Each inject is finalized inside its own tenant's scope, the way
+    // handleAutoClosingSimulations does, because resolving its agents walks its assets and asset
+    // groups: asset_groups is tenant-isolated, so with no scope AssetGroupService.assetGroup(id)
+    // finds nothing and throws, which escapes to execute() and stops the sweep for every tenant
+    // (PendingInjectAssetGroupScopeTest). Carrying the entities over instead would keep the eager
+    // Inject.assets collection the sweep loaded, which comes back empty once assets is isolated,
+    // and the finalization would see an agentless inject where there are agents.
+    //
+    // The threshold is a platform setting an administrator changes at runtime: it is read once per
+    // run (no restart), and the same value selects the injects and names the timeout traces.
+    int thresholdMinutes = injectExecutionThresholdService.thresholdMinutes();
+    Map<String, List<String>> pendingIdsByTenant =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () ->
+                idsByTenant(
+                    injectHelper.getAllPendingInjectsWithThresholdMinutes(thresholdMinutes)));
 
     pendingIdsByTenant.forEach(
         (tenantId, injectIds) ->
             tenantScopedJobRunner.runInTenant(
                 tenantId,
                 () ->
-                    injectRepository.findAllById(injectIds).forEach(this::finalizePendingInject)));
+                    injectRepository
+                        .findAllById(injectIds)
+                        .forEach(inject -> finalizePendingInject(inject, thresholdMinutes))));
   }
 
-  private void finalizePendingInject(Inject inject) {
+  private static Map<String, List<String>> idsByTenant(List<? extends TenantBase> rows) {
+    Map<String, List<String>> idsByTenant = new LinkedHashMap<>();
+    for (TenantBase row : rows) {
+      idsByTenant
+          .computeIfAbsent(row.getTenant().getId(), key -> new ArrayList<>())
+          .add(row.getId());
+    }
+    return idsByTenant;
+  }
+
+  private void finalizePendingInject(Inject inject, int thresholdMinutes) {
     InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     // Find agents that already have a COMPLETE trace
     Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
@@ -223,21 +239,22 @@ public class InjectsFinalizationJob implements Job {
       // the execution details show only the initial "waiting to be consumed" info trace - a red
       // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
       // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
+      // A not-targeted trace is written at dispatch, it says nothing about the execution outcome
       boolean hasCompleteTrace =
-          status.getTraces().stream()
-              .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+          ExecutionTraceUtils.completeTraces(status.getTraces())
+              .anyMatch(t -> !t.getStatus().isNotCounted());
       if (!hasCompleteTrace) {
-        ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
+        ExecutionTraceUtils.addAgentlessTimeoutTrace(status, thresholdMinutes);
       }
     } else {
       // Add a COMPLETE/TIMEOUT trace for each agent that never responded
       for (Agent agent : allAgents) {
         if (!completedAgentIds.contains(agent.getId())) {
-          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
+          ExecutionTraceUtils.addTimeoutTrace(status, agent, thresholdMinutes);
         }
       }
     }
-    injectStatusService.updateFinalInjectStatus(status);
+    injectStatusService.updateFinalInjectStatus(status, null);
     // Save + stream one by one: the timeout finalization must reach the execution screens in
     // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
     injectStatusService.saveAndStreamInject(status);

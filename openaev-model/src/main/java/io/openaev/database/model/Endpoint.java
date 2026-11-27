@@ -7,14 +7,12 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
-import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.*;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.BatchSize;
 
 // Identity comes from Asset (id only). Hashing the fields would initialize the lazy injects Set
 // (PersistentSet.hashCode reads it) and load every inject of the endpoint.
@@ -22,7 +20,6 @@ import org.hibernate.annotations.FetchMode;
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =
@@ -146,6 +143,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
   @Getter(onMethod_ = @JsonProperty("endpoint_is_eol"))
+  @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_is_eol")
   @JsonProperty("endpoint_is_eol")
   private boolean isEoL;
@@ -155,7 +153,9 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
-  @Fetch(FetchMode.SUBSELECT)
+  // Batch fetching, not @Fetch(SUBSELECT): same shape as Inject.expectations, which hits a
+  // Hibernate SubselectFetch bug on refresh.
+  @BatchSize(size = 1000)
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
   private List<Agent> agents = new ArrayList<>();
@@ -192,6 +192,12 @@ public class Endpoint extends Asset implements AuditStateCapturable {
     if (this.getCategory() == null) {
       this.setCategory(AssetCategory.HOST);
     }
+  }
+
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return "endpoints";
   }
 
   public Endpoint() {}

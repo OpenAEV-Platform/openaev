@@ -116,69 +116,90 @@ public class FindingDistinctSearchService {
   public Page<AggregatedFindingOutput> searchDistinctBySpecification(
       Specification<Finding> baseFilterSpec, Page<Finding> page) {
 
-    // Step 1: Extract distinct (type, value) keys
-    List<TypeValueKey> typeValueKeys =
+    // Step 1: Extract distinct (type, displayed value) keys. Grouping on the displayed value, never
+    // on the cleartext, keeps two secrets that look the same in one row (ADR-017).
+    List<TypeValueKey> displayValueKeys =
         page.getContent().stream()
-            .map(f -> new TypeValueKey(f.getType(), f.getValue()))
+            .map(f -> new TypeValueKey(f.getType(), f.getValueDisplay()))
             .distinct()
             .toList();
 
-    if (typeValueKeys.isEmpty()) {
+    if (displayValueKeys.isEmpty()) {
       return Page.empty(page.getPageable());
     }
 
     // Step 2: Fetch all findings with assets for those values/types
-    List<ContractOutputType> types = typeValueKeys.stream().map(TypeValueKey::getType).toList();
-    List<String> values = typeValueKeys.stream().map(TypeValueKey::getValue).toList();
+    List<ContractOutputType> types = displayValueKeys.stream().map(TypeValueKey::getType).toList();
+    List<String> displayValues = displayValueKeys.stream().map(TypeValueKey::getValue).toList();
 
     List<Finding> findingsWithAssets =
         findingRepository.findAll(
-            FindingSpecification.findAllWithAssetsByTypeValueIn(types, values, baseFilterSpec));
+            FindingSpecification.findAllWithAssetsByTypeDisplayValueIn(
+                types, displayValues, baseFilterSpec));
 
     // Step 3: Group assets by (type, value)
     Map<TypeValueKey, List<Asset>> groupedAssets =
         findingsWithAssets.stream()
-            .filter(f -> typeValueKeys.contains(new TypeValueKey(f.getType(), f.getValue())))
+            .filter(
+                f -> displayValueKeys.contains(new TypeValueKey(f.getType(), f.getValueDisplay())))
             .flatMap(
                 finding ->
                     finding.getAssets().stream()
                         .map(
                             asset ->
                                 Map.entry(
-                                    new TypeValueKey(finding.getType(), finding.getValue()),
+                                    new TypeValueKey(finding.getType(), finding.getValueDisplay()),
                                     asset)))
             .collect(
                 Collectors.groupingBy(
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
-    // Step 3b: Group-wide first/last seen per (type, value). The page row is the most recent
-    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), so its own
-    // updateDate already matches the group last seen; its creationDate, however, is that single
-    // occurrence's, not the group's. Compute first seen as the MIN creation date and last seen as
-    // the MAX update date across all occurrences in scope - findingsWithAssets holds exactly that
-    // set - so both cells stay group-correct.
+    // Step 3b: Group-wide row times and detection times per (type, value), across all occurrences
+    // in scope - findingsWithAssets holds exactly that set. The page row is the most recent
+    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), but its own
+    // dates are that single occurrence's, not the group's.
+    // - created/updated: MIN creation date and MAX update date (row times, any write moves them);
+    // - first/last seen: MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen,
+    //   updateDate)), the rule FindingRepository.findSeenAggregate applies to the summary, so the
+    //   summary, the get and the distinct search agree on when a finding was detected (#9846).
+    Map<TypeValueKey, Instant> createdByKey = new HashMap<>();
+    Map<TypeValueKey, Instant> updatedByKey = new HashMap<>();
     Map<TypeValueKey, Instant> firstSeenByKey = new HashMap<>();
     Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
     for (Finding occurrence : findingsWithAssets) {
-      TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValue());
-      if (!typeValueKeys.contains(key)) {
+      TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValueDisplay());
+      if (!displayValueKeys.contains(key)) {
         continue;
       }
-      firstSeenByKey.merge(key, occurrence.getCreationDate(), (a, b) -> a.isBefore(b) ? a : b);
-      lastSeenByKey.merge(key, occurrence.getUpdateDate(), (a, b) -> a.isAfter(b) ? a : b);
+      createdByKey.merge(key, occurrence.getCreationDate(), FindingDistinctSearchService::earliest);
+      updatedByKey.merge(key, occurrence.getUpdateDate(), FindingDistinctSearchService::latest);
+      firstSeenByKey.merge(
+          key, FindingMapper.firstSeenOf(occurrence), FindingDistinctSearchService::earliest);
+      lastSeenByKey.merge(
+          key, FindingMapper.lastSeenOf(occurrence), FindingDistinctSearchService::latest);
     }
 
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
     return page.map(
         finding -> {
-          TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValue());
+          TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValueDisplay());
           List<Asset> relatedAssets = groupedAssets.getOrDefault(key, List.of());
           return findingMapper.toAggregatedFindingOutput(
               finding,
               relatedAssets,
-              firstSeenByKey.getOrDefault(key, finding.getCreationDate()),
-              lastSeenByKey.getOrDefault(key, finding.getUpdateDate()));
+              createdByKey.getOrDefault(key, finding.getCreationDate()),
+              updatedByKey.getOrDefault(key, finding.getUpdateDate()),
+              firstSeenByKey.getOrDefault(key, FindingMapper.firstSeenOf(finding)),
+              lastSeenByKey.getOrDefault(key, FindingMapper.lastSeenOf(finding)));
         });
+  }
+
+  private static Instant earliest(Instant a, Instant b) {
+    return a.isBefore(b) ? a : b;
+  }
+
+  private static Instant latest(Instant a, Instant b) {
+    return a.isAfter(b) ? a : b;
   }
 }

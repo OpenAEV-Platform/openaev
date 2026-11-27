@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { initSorting } from '../../../../../components/common/queryable/Page';
 import type { Header } from '../../../../../components/common/SortHeadersList';
 import ItemMarkings from '../../../../../components/ItemMarkings';
-import type { Group, MarkingDefinitionOutput, SortField } from '../../../../../utils/api-types';
+import type { SortField, TenantGroupOutput } from '../../../../../utils/api-types';
 
 // Local Storage
 export const LOCAL_STORAGE_KEY_TENANT_GROUP = 'tenant_groups';
@@ -18,13 +18,15 @@ const FIELD_NAME = 'group_name';
 const FIELD_DESCRIPTION = 'group_description';
 const FIELD_DEFAULT_ASSIGN = 'group_default_user_assign';
 const FIELD_MARKINGS = 'group_markings';
+const FIELD_AUTO_NEW_MARKING = 'group_auto_new_marking';
 
 // Inline styles
 export const TENANT_GROUP_INLINE_STYLES: Record<string, CSSProperties> = {
   [FIELD_NAME]: { width: '25%' },
-  [FIELD_DESCRIPTION]: { width: '35%' },
+  [FIELD_DESCRIPTION]: { width: '25%' },
   [FIELD_MARKINGS]: { width: '20%' },
-  [FIELD_DEFAULT_ASSIGN]: { width: '20%' },
+  [FIELD_DEFAULT_ASSIGN]: { width: '15%' },
+  [FIELD_AUTO_NEW_MARKING]: { width: '15%' },
 };
 
 // Headers
@@ -32,23 +34,20 @@ export const TENANT_GROUP_INLINE_STYLES: Record<string, CSSProperties> = {
 // column (and any marking data) must not leak into the list at all, not merely render empty.
 export const getTenantGroupHeaders: (
   t: (text: string) => string,
-  options?: {
-    markingEnabled?: boolean;
-    markingDefinitions?: Record<string, MarkingDefinitionOutput>;
-  },
+  options?: { markingEnabled?: boolean },
 ) => Header[] = (t, options) => {
   const headers: Header[] = [
     {
       field: FIELD_NAME,
       label: t('Name'),
       isSortable: true,
-      value: (group: Group) => group.group_name,
+      value: (group: TenantGroupOutput) => group.group_name,
     },
     {
       field: FIELD_DESCRIPTION,
       label: t('Description'),
       isSortable: false,
-      value: (group: Group) => group.group_description || '-',
+      value: (group: TenantGroupOutput) => group.group_description || '-',
     },
   ];
   if (options?.markingEnabled) {
@@ -56,21 +55,27 @@ export const getTenantGroupHeaders: (
       field: FIELD_MARKINGS,
       label: t('Markings'),
       isSortable: false,
-      value: (group: Group) => createElement(ItemMarkings, {
-        markingIds: group.group_markings,
-        definitions: options.markingDefinitions ?? {},
-        variant: 'list',
-      }),
+      value: (group: TenantGroupOutput) => createElement(ItemMarkings, { markingIds: group.group_markings }),
     });
   }
   headers.push({
     field: FIELD_DEFAULT_ASSIGN,
     label: t('Auto assign'),
     isSortable: false,
-    value: (group: Group) => group.group_default_user_assign
+    value: (group: TenantGroupOutput) => group.group_default_user_assign
       ? createElement(CheckCircleOutlined, { fontSize: 'small' })
       : '-',
   });
+  if (options?.markingEnabled) {
+    headers.push({
+      field: FIELD_AUTO_NEW_MARKING,
+      label: t('Auto assign new markings'),
+      isSortable: false,
+      value: (group: TenantGroupOutput) => group.group_auto_new_marking
+        ? createElement(CheckCircleOutlined, { fontSize: 'small' })
+        : '-',
+    });
+  }
   return headers;
 };
 

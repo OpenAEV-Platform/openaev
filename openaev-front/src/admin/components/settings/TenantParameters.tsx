@@ -1,8 +1,9 @@
-import { Paper, Switch } from '@filigran/design-system';
+import { Paper, Switch, Tabs, TabsContent, TabsList, TabsTrigger } from '@filigran/design-system';
 import { ListItem, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { type CSSProperties, useMemo, useState } from 'react';
 
-import { fetchPlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
+import { fetchPlatformParameters, updatePlatformRuntimeParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import type { LoggedHelper } from '../../../actions/helper';
 import {
   fetchTenantSettings,
@@ -24,17 +25,48 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
 import PlatformInfoPanel from './PlatformInfoPanel';
+import RuntimeSettingsForm from './RuntimeSettingsForm';
+import StarterPackDashboardsRestore from './StarterPackDashboardsRestore';
 import TenantParametersForm from './TenantParametersForm';
 import ThemeForm from './ThemeForm';
 import ToolsPanel from './ToolsPanel';
 
+const THEME_KEYS = [
+  'accent_color',
+  'background_color',
+  'login_aside_color',
+  'login_aside_gradient_end',
+  'login_aside_gradient_start',
+  'login_aside_image',
+  'logo_login_url',
+  'logo_url',
+  'logo_url_collapsed',
+  'navigation_color',
+  'paper_color',
+  'primary_color',
+  'secondary_color',
+  'text_color',
+] as const;
+
+const themeValues = (stored?: ThemeInput): ThemeInput => Object.fromEntries(
+  THEME_KEYS.map(key => [key, stored?.[key] ?? '']),
+) as ThemeInput;
+
+/**
+ * Settings > Parameters. A 12-column grid, every card stretched to its row:
+ * row 1, the configuration (6) beside the platform information and its tools (6);
+ * row 2, the runtime settings (5) beside the themes, dark and light as tabs of one card (7).
+ * Under 1200 px each card takes the whole width.
+ */
 const TenantParameters = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const ability = useAbility();
   const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const cannotManagePlatform = ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   const { currentUserTenant } = useAuth();
+  const [themeTab, setThemeTab] = useState<'dark' | 'light'>('dark');
 
   const { tenantSettings, settings }: {
     tenantSettings: TenantSettingsOutput;
@@ -55,6 +87,9 @@ const TenantParameters = () => {
   };
 
   const updatePlatformWhitemark = (data: SettingsPlatformWhitemarkUpdateInput) => dispatch(updatePlatformWhitemarkParameters(data));
+  const onUpdateRuntime = async (values: Record<string, string | number | boolean>) => {
+    await dispatch(updatePlatformRuntimeParameters({ settings: values as unknown as Record<string, object> }));
+  };
 
   const onUpdateDarkTheme = async (data: ThemeInput) => {
     await updateTenantDarkTheme(data);
@@ -65,31 +100,16 @@ const TenantParameters = () => {
     dispatch(fetchTenantSettings());
   };
 
-  const initialValuesDark = {
-    accent_color: tenantSettings.platform_dark_theme?.accent_color ?? '',
-    background_color: tenantSettings.platform_dark_theme?.background_color ?? '',
-    logo_login_url: tenantSettings.platform_dark_theme?.logo_login_url ?? '',
-    logo_url: tenantSettings.platform_dark_theme?.logo_url ?? '',
-    logo_url_collapsed: tenantSettings.platform_dark_theme?.logo_url_collapsed ?? '',
-    navigation_color: tenantSettings.platform_dark_theme?.navigation_color ?? '',
-    paper_color: tenantSettings.platform_dark_theme?.paper_color ?? '',
-    primary_color: tenantSettings.platform_dark_theme?.primary_color ?? '',
-    secondary_color: tenantSettings.platform_dark_theme?.secondary_color ?? '',
-    text_color: tenantSettings.platform_dark_theme?.text_color ?? '',
-  };
+  // Stable references: ThemeForm resets to its initial values when they change.
+  const darkValues = useMemo(() => themeValues(tenantSettings.platform_dark_theme), [tenantSettings.platform_dark_theme]);
+  const lightValues = useMemo(() => themeValues(tenantSettings.platform_light_theme), [tenantSettings.platform_light_theme]);
 
-  const initialValuesLight = {
-    accent_color: tenantSettings.platform_light_theme?.accent_color ?? '',
-    background_color: tenantSettings.platform_light_theme?.background_color ?? '',
-    logo_login_url: tenantSettings.platform_light_theme?.logo_login_url ?? '',
-    logo_url: tenantSettings.platform_light_theme?.logo_url ?? '',
-    logo_url_collapsed: tenantSettings.platform_light_theme?.logo_url_collapsed ?? '',
-    navigation_color: tenantSettings.platform_light_theme?.navigation_color ?? '',
-    paper_color: tenantSettings.platform_light_theme?.paper_color ?? '',
-    primary_color: tenantSettings.platform_light_theme?.primary_color ?? '',
-    secondary_color: tenantSettings.platform_light_theme?.secondary_color ?? '',
-    text_color: tenantSettings.platform_light_theme?.text_color ?? '',
-  };
+  const cell = (span: number): CSSProperties => ({
+    gridColumn: `span ${span}`,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+  });
 
   return (
     <>
@@ -103,41 +123,49 @@ const TenantParameters = () => {
           },
         ]}
       />
-      <div style={{
-        display: 'grid',
-        gap: `${theme.spacing(3)} 0`,
-      }}
-      >
-        <div style={{
+      <div
+        className="tenant-parameters-grid"
+        style={{
           display: 'grid',
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+          gap: theme.spacing(3),
+          alignItems: 'stretch',
+          paddingBottom: theme.spacing(1),
+        }}
+      >
+        <style>
+          {'@media (max-width: 1199px) { .tenant-parameters-grid > div { grid-column: span 12 !important; } }'}
+        </style>
+        <div style={cell(6)}>
+          <SectionLabel>{t('Configuration')}</SectionLabel>
+          <Paper padding={16} style={{ flex: 1 }}>
+            <TenantParametersForm
+              onSubmit={onSubmit}
+              initialValues={{
+                platform_name: tenantSettings.platform_name ?? '',
+                platform_theme: tenantSettings.platform_theme ?? '',
+                platform_lang: tenantSettings.platform_lang ?? '',
+                platform_home_dashboard: tenantSettings.platform_home_dashboard ?? '',
+                platform_scenario_dashboard: tenantSettings.platform_scenario_dashboard ?? '',
+                platform_simulation_dashboard: tenantSettings.platform_simulation_dashboard ?? '',
+              }}
+              canNotManage={cannotManage}
+            />
+          </Paper>
+          {!cannotManage && ability.can(ACTIONS.MANAGE, SUBJECTS.DASHBOARDS) && (
+            <div style={{ marginTop: theme.spacing(3) }}>
+              <SectionLabel>{t('Starter pack dashboards')}</SectionLabel>
+              <Paper padding={16}>
+                <StarterPackDashboardsRestore onRestored={() => dispatch(fetchTenantSettings())} />
+              </Paper>
+            </div>
+          )}
+        </div>
+        <div style={{
+          ...cell(6),
+          gap: theme.spacing(3),
         }}
         >
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          >
-            <SectionLabel>{t('Configuration')}</SectionLabel>
-            <Paper
-              padding={16}
-              style={{ flex: 1 }}
-            >
-              <TenantParametersForm
-                onSubmit={onSubmit}
-                initialValues={{
-                  platform_name: tenantSettings.platform_name ?? '',
-                  platform_theme: tenantSettings.platform_theme ?? '',
-                  platform_lang: tenantSettings.platform_lang ?? '',
-                  platform_home_dashboard: tenantSettings.platform_home_dashboard ?? '',
-                  platform_scenario_dashboard: tenantSettings.platform_scenario_dashboard ?? '',
-                  platform_simulation_dashboard: tenantSettings.platform_simulation_dashboard ?? '',
-                }}
-                canNotManage={cannotManage}
-              />
-            </Paper>
-          </div>
           <div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -159,68 +187,79 @@ const TenantParameters = () => {
                 </ListItem>
               )}
               bottomContent={(
-                <>
-                  <ListItem>
-                    <ListItemText primary={(
-                      <span style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                      >
-                        {t('Remove Filigran logos')}
-                        {settings.platform_license?.license_is_validated !== true && <EEChip clickable featureDetectedInfo="WHITEMARK" />}
-                      </span>
-                    )}
-                    />
-                    {/* The row's text is a ListItemText sibling, not a <label>
-                        bound to the control, so the name is carried directly. */}
-                    <Switch
-                      aria-label={t('Remove Filigran logos')}
-                      disabled={settings.platform_license?.license_is_validated === false || ability.cannot(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS)}
-                      checked={settings.platform_whitemark === 'true'}
-                      onCheckedChange={checked => updatePlatformWhitemark({ platform_whitemark: String(checked === true) })}
-                    />
-                  </ListItem>
-                </>
+                <ListItem>
+                  <ListItemText primary={(
+                    <span style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                    >
+                      {t('Remove Filigran logos')}
+                      {settings.platform_license?.license_is_validated !== true && <EEChip clickable featureDetectedInfo="WHITEMARK" />}
+                    </span>
+                  )}
+                  />
+                  {/* The row's text is a ListItemText sibling, not a <label>
+                      bound to the control, so the name is carried directly. */}
+                  <Switch
+                    aria-label={t('Remove Filigran logos')}
+                    disabled={settings.platform_license?.license_is_validated === false || cannotManagePlatform}
+                    checked={settings.platform_whitemark === 'true'}
+                    onCheckedChange={checked => updatePlatformWhitemark({ platform_whitemark: String(checked === true) })}
+                  />
+                </ListItem>
               )}
             />
           </div>
-        </div>
-        <div style={{
-          display: 'grid',
-          gap: `0px ${theme.spacing(3)}`,
-          gridTemplateColumns: '1fr 1fr 1fr',
-        }}
-        >
-          <div>
-            <SectionLabel>{t('Dark theme')}</SectionLabel>
-            <Paper padding={16}>
-              <ThemeForm
-                mode="dark"
-                onSubmit={onUpdateDarkTheme}
-                initialValues={initialValuesDark}
-                canNotManage={cannotManage}
-              />
-            </Paper>
-          </div>
-          <div>
-            <SectionLabel>{t('Light theme')}</SectionLabel>
-            <Paper padding={16}>
-              <ThemeForm
-                mode="light"
-                onSubmit={onUpdateLightTheme}
-                initialValues={initialValuesLight}
-                canNotManage={cannotManage}
-              />
-            </Paper>
-          </div>
-          <div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+          >
             <SectionLabel>{t('Tools')}</SectionLabel>
             <ToolsPanel settings={settings} />
           </div>
         </div>
-        <div style={{ marginBottom: theme.spacing(1) }} />
+        <div style={cell(5)}>
+          <SectionLabel>{t('Execution and agents')}</SectionLabel>
+          <Paper padding={16} style={{ flex: 1 }}>
+            <RuntimeSettingsForm
+              settings={settings.runtime_settings ?? []}
+              onSubmit={onUpdateRuntime}
+              canNotManage={cannotManagePlatform}
+            />
+          </Paper>
+        </div>
+        <div style={cell(7)}>
+          <SectionLabel>{t('Themes')}</SectionLabel>
+          <Paper padding={16} style={{ flex: 1 }}>
+            <Tabs value={themeTab} onValueChange={value => setThemeTab(value as 'dark' | 'light')}>
+              <TabsList>
+                <TabsTrigger value="dark">{t('Dark theme')}</TabsTrigger>
+                <TabsTrigger value="light">{t('Light theme')}</TabsTrigger>
+              </TabsList>
+              {/* Both forms stay mounted: an unsaved edit survives a switch of tab. */}
+              <TabsContent value="dark" forceMount hidden={themeTab !== 'dark'} style={{ paddingTop: theme.spacing(2) }}>
+                <ThemeForm
+                  mode="dark"
+                  onSubmit={onUpdateDarkTheme}
+                  initialValues={darkValues}
+                  canNotManage={cannotManage}
+                />
+              </TabsContent>
+              <TabsContent value="light" forceMount hidden={themeTab !== 'light'} style={{ paddingTop: theme.spacing(2) }}>
+                <ThemeForm
+                  mode="light"
+                  onSubmit={onUpdateLightTheme}
+                  initialValues={lightValues}
+                  canNotManage={cannotManage}
+                />
+              </TabsContent>
+            </Tabs>
+          </Paper>
+        </div>
       </div>
     </>
   );

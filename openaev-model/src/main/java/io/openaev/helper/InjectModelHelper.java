@@ -3,7 +3,6 @@ package io.openaev.helper;
 import static io.openaev.database.model.Inject.SPEED_STANDARD;
 import static io.openaev.database.model.InjectorContract.*;
 import static java.time.Duration.between;
-import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -37,9 +36,10 @@ public class InjectModelHelper {
     // Utility class - prevent instantiation
   }
 
-  private static boolean isTextOrTextarea(JsonNode jsonField) {
+  /** Fields whose contract default value stands in for an empty inject content value. */
+  private static boolean hasDefaultValueFallback(JsonNode jsonField) {
     String type = jsonField.get("type").asText();
-    return "text".equals(type) || "textarea".equals(type);
+    return "text".equals(type) || "textarea".equals(type) || "document".equals(type);
   }
 
   private static boolean isFieldValid(
@@ -79,7 +79,7 @@ public class InjectModelHelper {
    * @return the computed execution timestamp
    */
   public static Instant computeInjectDate(
-      Instant source, int speed, Long dependsDuration, Exercise exercise) {
+      Instant source, int speed, Long dependsDuration, Exercise exercise, Instant nowReference) {
     // Compute origin execution date
     long duration = ofNullable(dependsDuration).orElse(0L) / speed;
     Instant standardExecutionDate = source.plusSeconds(duration);
@@ -113,7 +113,7 @@ public class InjectModelHelper {
           exercise
               .getCurrentPause()
               .filter(pauseTime -> pauseTime.isBefore(finalAfterPausesExecutionDate))
-              .map(pauseTime -> between(pauseTime, now()).getSeconds())
+              .map(pauseTime -> between(pauseTime, nowReference).getSeconds())
               .orElse(0L);
     }
     long globalPauseDelay = previousPauseDelay + currentPauseDelay;
@@ -141,9 +141,9 @@ public class InjectModelHelper {
    * @return the computed date, or empty if not applicable
    */
   public static Optional<Instant> getDate(
-      Exercise exercise, Scenario scenario, Long dependsDuration) {
+      Exercise exercise, Scenario scenario, Long dependsDuration, Instant nowReference) {
     if (exercise == null && scenario == null) {
-      return Optional.ofNullable(now().minusSeconds(30));
+      return Optional.ofNullable(nowReference.minusSeconds(30));
     }
 
     if (scenario != null) {
@@ -158,7 +158,9 @@ public class InjectModelHelper {
     }
     return exercise
         .getStart()
-        .map(source -> computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise));
+        .map(
+            source ->
+                computeInjectDate(source, SPEED_STANDARD, dependsDuration, exercise, nowReference));
   }
 
   /**
@@ -176,6 +178,7 @@ public class InjectModelHelper {
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
       @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences,
       @NotNull final JsonNode jsonField,
       @NotNull final ObjectNode content,
       @NotNull final ArrayNode injectContractFields) {
@@ -198,12 +201,17 @@ public class InjectModelHelper {
           isSet = false;
         }
       }
+      case CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE -> {
+        if (secretReferences.isEmpty()) {
+          isSet = false;
+        }
+      }
       default -> {
         if (content == null) {
           isSet = false;
           break;
         }
-        if (isTextOrTextarea(jsonField)) {
+        if (hasDefaultValueFallback(jsonField)) {
           isSet = isFieldValid(content, injectContractFields, key);
         } else if (content.get(key) == null
             || (content.get(key).isArray() && content.get(key).isEmpty())
@@ -214,42 +222,6 @@ public class InjectModelHelper {
       }
     }
     return isSet;
-  }
-
-  /**
-   * Checks if the inject content includes detection or prevention expectations.
-   *
-   * <p>This is used to determine if an inject requires security tool validation (e.g., EDR
-   * detection, firewall blocking) rather than just execution completion.
-   *
-   * @param content the inject content JSON
-   * @return {@code true} if the inject has DETECTION or PREVENTION expectations
-   */
-  public static boolean isDetectionOrPrevention(final ObjectNode content) {
-    if (content == null
-        || content.get("expectations") == null
-        || content.get("expectations").isNull()) {
-      return false;
-    }
-
-    JsonNode valueNode = content.get("expectations");
-
-    if (valueNode.isArray()) {
-      for (JsonNode node : valueNode) {
-        if (!node.isNull()
-            && node.get("expectation_type") != null
-            && !node.get("expectation_type").isNull()) {
-          BaseInjectExpectation.EXPECTATION_TYPE type =
-              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
-          if (BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
-              || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
   }
 
   /**

@@ -15,6 +15,8 @@ import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
@@ -25,6 +27,13 @@ import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +44,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LogService - logSessionExpiredEvent")
@@ -45,22 +55,23 @@ class LogServiceTest {
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private TenantScopedTransaction tenantScopedTransaction;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   private LogService logService;
 
+  private final io.openaev.engine.facade.EngineService engineService =
+      mock(io.openaev.engine.facade.EngineService.class);
+  private final io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
+      mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+
   @BeforeEach
   void setUp() {
-    io.openaev.engine.facade.EngineService engineService =
-        mock(io.openaev.engine.facade.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
-    // Normalization is exercised in LogServiceSignatureNormalizationTest; here it must behave as a
-    // pass-through so the assertions below target redaction only. Returning Mockito's default
-    // (null) would blank out input/output/signature before they reach the transport.
-    io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
-        mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+    // Pass-through so the assertions below target redaction only; Mockito's default (null) would
+    // blank out input/output before they reach the transport.
     lenient()
         .when(objectNormalizationUtils.normalize(any(JsonNode.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -68,18 +79,143 @@ class LogServiceTest {
         .when(objectNormalizationUtils.normalize(any(JsonNode.class), anyString()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    logService =
-        new LogService(
-            auditLogProperties,
-            auditLogTransportDispatcherUtils,
-            objectNormalizationUtils,
-            engineService,
-            mock(UserService.class),
-            enterpriseEditionService,
-            licenseCacheManager,
-            platformSettingsService);
+    // The banner is written on the calling thread, so the assertions below can read it at once.
+    logService = logServiceOn(Runnable::run);
     lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+  }
+
+  private LogService logServiceOn(Executor taskLoggerExecutor) {
+    return new LogService(
+        auditLogProperties,
+        auditLogTransportDispatcherUtils,
+        objectNormalizationUtils,
+        engineService,
+        mock(UserService.class),
+        enterpriseEditionService,
+        licenseCacheManager,
+        platformSettingsService,
+        tenantScopedTransaction,
+        taskLoggerExecutor);
+  }
+
+  @Nested
+  @DisplayName("audit banner")
+  class AuditBanner {
+
+    @Test
+    @DisplayName("given_theLicenseStateDoesNotChange_should_writeTheBannerOnce")
+    void given_theLicenseStateDoesNotChange_should_writeTheBannerOnce() {
+      // -- PREPARE --
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(1))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theLicenseStateChanges_should_writeTheBannerAgain")
+    void given_theLicenseStateChanges_should_writeTheBannerAgain() {
+      // -- PREPARE --
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false, true, true);
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theBannerWasWritten_should_writeItAgainOnceTheRecheckIntervalHasPassed")
+    void given_theBannerWasWritten_should_writeItAgainOnceTheRecheckIntervalHasPassed() {
+      // -- PREPARE -- another node, or a manual edit, may have removed the row since
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      logService.isEnabled();
+      logService.isEnabled();
+      verify(tenantScopedTransaction, times(1))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE --
+      ReflectionTestUtils.setField(logService, "bannerRequestedAt", new AtomicLong(0L));
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theBannerWriteFailsOnce_should_writeTheBannerAgainOnTheNextCall")
+    void given_theBannerWriteFailsOnce_should_writeTheBannerAgainOnTheNextCall() {
+      // -- PREPARE -- the first write fails, the second succeeds
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      doThrow(new IllegalStateException("no connection available"))
+          .doNothing()
+          .when(tenantScopedTransaction)
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY -- the failed write is retried at once, the successful one is not repeated
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides")
+    void given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides() {
+      // -- PREPARE -- a pool that cannot give a connection to the banner write
+      doThrow(new IllegalStateException("no connection available"))
+          .when(tenantScopedTransaction)
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE + VERIFY -- the license is valid, so audit stays on
+      assertThat(logService.isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("given_aLicenseStateChange_should_writeTheBannerOnTheExecutorNotTheCallingThread")
+    void given_aLicenseStateChange_should_writeTheBannerOnTheExecutorNotTheCallingThread()
+        throws Exception {
+      // -- PREPARE --
+      ExecutorService executor = Executors.newSingleThreadExecutor();
+      try {
+        LogService offThread = logServiceOn(executor);
+        when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+        AtomicReference<Thread> writer = new AtomicReference<>();
+        CountDownLatch written = new CountDownLatch(1);
+        doAnswer(
+                invocation -> {
+                  writer.set(Thread.currentThread());
+                  written.countDown();
+                  return null;
+                })
+            .when(tenantScopedTransaction)
+            .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+        // -- EXECUTE --
+        offThread.isEnabled();
+
+        // -- VERIFY --
+        assertThat(written.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(writer.get()).isNotSameAs(Thread.currentThread());
+      } finally {
+        executor.shutdownNow();
+      }
+    }
   }
 
   @Nested
@@ -281,7 +417,6 @@ class LogServiceTest {
             "group-id",
             null,
             null,
-            null,
             entityDiffs,
             Level.WARNING,
             "uuid-8");
@@ -292,7 +427,7 @@ class LogServiceTest {
   }
 
   @Nested
-  @DisplayName("logRequestEvent — redaction of entity_diffs and signature")
+  @DisplayName("logRequestEvent — redaction of entity_diffs")
   class LogRequestEventRedaction {
 
     private static final String REDACTED = "*** Redacted ***";
@@ -318,7 +453,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-1",
-          null,
           null,
           null,
           entityDiffs,
@@ -347,7 +481,6 @@ class LogServiceTest {
           "id-2",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r2");
@@ -369,7 +502,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-3",
-          null,
           null,
           null,
           entityDiffs,
@@ -411,7 +543,6 @@ class LogServiceTest {
           "cred-1",
           input,
           output,
-          null,
           null,
           Level.WARNING,
           "uuid-r-credential-1");
@@ -457,7 +588,6 @@ class LogServiceTest {
           "id-4",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r4");
@@ -480,7 +610,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-5",
-          null,
           null,
           null,
           entityDiffs,
@@ -512,7 +641,6 @@ class LogServiceTest {
           "user-1",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r6");
@@ -541,7 +669,6 @@ class LogServiceTest {
           "group-1",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r7");
@@ -567,7 +694,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-8",
-          null,
           null,
           null,
           entityDiffs,
@@ -602,7 +728,6 @@ class LogServiceTest {
           "id-9",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r9");
@@ -611,133 +736,6 @@ class LogServiceTest {
       @SuppressWarnings("unchecked")
       Map<String, Object> before = (Map<String, Object>) captureEntityDiffs().get("before");
       assertThat(before).containsEntry("user_password", REDACTED).containsEntry("user_name", "bob");
-    }
-
-    // -- signature: sensitive field redaction --
-
-    @Test
-    @DisplayName("given_signatureWithPasswordField_should_redactPasswordValue")
-    void given_signatureWithPasswordField_should_redactPasswordValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("user_password", "plaintext");
-      signature.put("algo", "sha256");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-10",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r10");
-
-      // Assert
-      JsonNode sig = captureSignature();
-      assertThat(sig.get("user_password").asText()).isEqualTo(REDACTED);
-      assertThat(sig.get("algo").asText()).isEqualTo("sha256");
-    }
-
-    @Test
-    @DisplayName("given_signatureWithTokenField_should_hashTokenValue")
-    void given_signatureWithTokenField_should_hashTokenValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("api_token", "tok-xyz-789");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-11",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r11");
-
-      // Assert
-      assertThat(captureSignature().get("api_token").asText())
-          .isEqualTo(CryptoHelper.hashWithSHA256("tok-xyz-789"));
-    }
-
-    @Test
-    @DisplayName("given_signatureWithSecretField_should_redactSecretValue")
-    void given_signatureWithSecretField_should_redactSecretValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("client_secret", "very-secret");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-12",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r12");
-
-      // Assert
-      assertThat(captureSignature().get("client_secret").asText()).isEqualTo(REDACTED);
-    }
-
-    @Test
-    @DisplayName("given_nullSignature_should_notSetSignatureOnRequestMetadata")
-    void given_nullSignature_should_notSetSignatureOnRequestMetadata() {
-      // Act – no signatureNode passed
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-13",
-          null,
-          null,
-          null,
-          null,
-          Level.WARNING,
-          "uuid-r13");
-
-      // Assert
-      assertThat(captureEvent().getRequestMetadata().getSignature()).isNull();
-    }
-
-    @Test
-    @DisplayName("given_signatureWithPIIFields_and_userResourceType_should_removePIIKeys")
-    void given_signatureWithPIIFields_and_userResourceType_should_removePIIKeys() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("user_email", "bob@example.com");
-      signature.put("user_phone", "+1-555-0100");
-      signature.put("method_name", "updateProfile");
-
-      // Act
-      logService.logRequestEvent(
-          "update",
-          "success",
-          ResourceType.USER,
-          "user-2",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r14");
-
-      // Assert
-      JsonNode sig = captureSignature();
-      assertThat(sig.has("user_email")).isFalse();
-      assertThat(sig.has("user_phone")).isFalse();
-      assertThat(sig.get("method_name").asText()).isEqualTo("updateProfile");
     }
 
     // -- helpers --
@@ -751,10 +749,6 @@ class LogServiceTest {
     @SuppressWarnings("unchecked")
     private Map<String, Object> captureEntityDiffs() {
       return (Map<String, Object>) captureEvent().getContextData().get("entity_diffs");
-    }
-
-    private JsonNode captureSignature() {
-      return captureEvent().getRequestMetadata().getSignature();
     }
   }
 

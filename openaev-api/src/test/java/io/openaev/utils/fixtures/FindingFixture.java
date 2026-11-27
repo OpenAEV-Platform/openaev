@@ -2,21 +2,31 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.Tenant;
 import java.util.UUID;
 
 public class FindingFixture {
 
+  private static Finding newFinding() {
+    Finding finding = new Finding();
+    finding.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    return finding;
+  }
+
   public static final String TEXT_FIELD = "text_field";
   public static final String IPV6_FIELD = "ipv6_field";
   public static final String CREDENTIALS_FIELD = "credentials_field";
+  public static final String PASSWORD_POLICY_FIELD = "password_policy_field";
+  public static final String ACCOUNT_FIELD = "account_field";
+  public static final String CREDENTIALS_USERNAME = "admin";
+  public static final String CREDENTIALS_PASSWORD = "motdepasse";
 
   public static Finding createDefaultTextFinding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.Text);
     finding.setName("Text");
     finding.setField(TEXT_FIELD);
     finding.setValue("text_value");
-    finding.setLabels(new String[] {"reconnaissance phase"});
     return finding;
   }
 
@@ -30,17 +40,16 @@ public class FindingFixture {
     String cveName =
         "CVE-%d-%d"
             .formatted(Math.round(Math.random() * 1000), Math.round(Math.random() * 1000000));
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.CVE);
     finding.setName("vulnerability");
     finding.setField(TEXT_FIELD);
     finding.setValue(cveName);
-    finding.setLabels(new String[] {"reconnaissance phase"});
     return finding;
   }
 
   public static Finding createDefaultIPV6Finding() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.IPv6);
     finding.setName("Ipv6");
     finding.setField(IPV6_FIELD);
@@ -48,12 +57,56 @@ public class FindingFixture {
     return finding;
   }
 
+  public static Finding createCredentialsFinding(String value) {
+    Finding finding = createDefaultFindingCredentials();
+    finding.setValue(value);
+    return finding;
+  }
+
   public static Finding createDefaultFindingCredentials() {
-    Finding finding = new Finding();
+    Finding finding = newFinding();
     finding.setType(ContractOutputType.Credentials);
     finding.setName("Credentials");
     finding.setField(CREDENTIALS_FIELD);
     finding.setValue("admin:admin");
+    return finding;
+  }
+
+  /**
+   * Credentials whose password differs from the username, unlike {@code admin:admin}: a search on
+   * the password then cannot match the readable username instead, so it tells whether the secret
+   * itself is searchable.
+   */
+  public static Finding createFindingCredentialsWithDistinctPassword() {
+    Finding finding = createDefaultFindingCredentials();
+    finding.setValue(CREDENTIALS_USERNAME + ":" + CREDENTIALS_PASSWORD);
+    return finding;
+  }
+
+  public static Finding createDefaultPasswordPolicyFinding() {
+    Finding finding = newFinding();
+    finding.setType(ContractOutputType.PasswordPolicy);
+    finding.setName("Password policy");
+    finding.setField(PASSWORD_POLICY_FIELD);
+    finding.setValue("Minimum password length: 8");
+    return finding;
+  }
+
+  public static Finding createDefaultKerberoastableAccountFinding() {
+    Finding finding = newFinding();
+    finding.setType(ContractOutputType.KerberoastableAccount);
+    finding.setName("Kerberoastable account");
+    finding.setField(ACCOUNT_FIELD);
+    finding.setValue("svc_sqlserver");
+    return finding;
+  }
+
+  public static Finding createDefaultAsreproastableAccountFinding() {
+    Finding finding = newFinding();
+    finding.setType(ContractOutputType.AsreproastableAccount);
+    finding.setName("AS-REP roastable account");
+    finding.setField(ACCOUNT_FIELD);
+    finding.setValue("jdoe_nopreauth");
     return finding;
   }
 }

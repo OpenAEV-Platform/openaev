@@ -9,9 +9,14 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,10 +88,12 @@ class StepRepositoryTest extends IntegrationTest {
     Inject inject = InjectFixture.getDefaultInject();
     BaseInjectExpectation expectation =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+    ExerciseComposer.Composer simulation =
+        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
 
     injectComposer
         .forInject(inject)
-        .withExercise(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withExercise(simulation)
         .withExpectation(
             injectExpectationComposer
                 .forExpectation(expectation)
@@ -102,7 +109,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withSimulation(simulation)
         .withStep(stepComposer.forStep(step))
         .persist();
 
@@ -124,6 +131,9 @@ class StepRepositoryTest extends IntegrationTest {
     // - inject2 has 1 expectation, referenced by step2
     // - step3 references an inject with no expectations
 
+    ExerciseComposer.Composer simulation =
+        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
+
     // Create inject1 with 3 expectations
     Inject inject1 = InjectFixture.getDefaultInject();
     BaseInjectExpectation expectation1 =
@@ -135,7 +145,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     injectComposer
         .forInject(inject1)
-        .withExercise(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withExercise(simulation)
         .withExpectation(
             injectExpectationComposer
                 .forExpectation(expectation1)
@@ -157,7 +167,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     injectComposer
         .forInject(inject2)
-        .withExercise(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withExercise(simulation)
         .withExpectation(
             injectExpectationComposer
                 .forExpectation(expectation4)
@@ -166,10 +176,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     // Create inject3 with no expectations
     Inject inject3 = InjectFixture.getDefaultInject();
-    injectComposer
-        .forInject(inject3)
-        .withExercise(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-        .persist();
+    injectComposer.forInject(inject3).withExercise(simulation).persist();
 
     // Create steps
     Step step1 =
@@ -195,7 +202,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withSimulation(simulation)
         .withStep(stepComposer.forStep(step1))
         .withStep(stepComposer.forStep(step2))
         .withStep(stepComposer.forStep(step3))
@@ -361,7 +368,10 @@ class StepRepositoryTest extends IntegrationTest {
         .withStep(stepComposer.forStep(otherTenantTemplate))
         .persist();
 
-    // WHEN
+    // WHEN: every sweep runs in one scope that holds both tenants, as a payload deletion's
+    // per-tenant sweeps do, so only the tenant argument keeps a sweep to its own tenant
+    DefaultTenantScopeTestListener.setAmbientScope(
+        entityManager, tenantId + "," + otherTenant.getId());
     List<Step> matched =
         stepRepository.findTemplateStepsByInjectorContractIds(
             List.of(objectContractId, stringContractId), tenantId);
@@ -383,7 +393,8 @@ class StepRepositoryTest extends IntegrationTest {
         matchedIds.contains(otherTenantTemplate.getId()),
         "another tenant's TEMPLATE step on the same contract id must be out of scope");
 
-    // AND: the same sweep scoped to the other tenant only sees that tenant's own step.
+    // AND: the same sweep for the other tenant, in the same scope, only sees that tenant's own
+    // step
     Set<String> otherTenantMatchedIds =
         stepRepository
             .findTemplateStepsByInjectorContractIds(
@@ -398,7 +409,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
+  void whenFindWorkflowTenantIdIfReferencesInjectorContract_thenChecksBothJsonShapes() {
     // GIVEN
     String objectContractId = "contract-object";
     String stringContractId = "contract-string";
@@ -427,14 +438,122 @@ class StepRepositoryTest extends IntegrationTest {
             .get();
 
     // WHEN / THEN
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), objectContractId));
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), stringContractId));
-    Assertions.assertFalse(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), "contract-missing"));
+    String tenantId = workflow.getTenant().getId();
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), objectContractId, Set.of(tenantId)));
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), stringContractId, Set.of(tenantId)));
+    Assertions.assertEquals(
+        Optional.empty(),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), "contract-missing", Set.of(tenantId)));
+  }
+
+  @Test
+  void given_aWorkflowOutsideTheGivenTenants_should_answerNoTenant() {
+    // Arrange
+    String contractId = "contract-object";
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data(
+                            "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                                + contractId
+                                + "\"}}")
+                        .build()))
+            .persist()
+            .get();
+    String otherTenantId = UUID.randomUUID().toString();
+
+    // Act: the workflow references the contract, but its tenant is not one of the given ones
+    Optional<String> tenantId =
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), contractId, Set.of(otherTenantId));
+
+    // Assert
+    Assertions.assertEquals(Optional.empty(), tenantId);
+  }
+
+  @Nested
+  @DisplayName("Active step lookups by inject are scoped to the inject's simulation")
+  class ActiveStepLookupScope {
+
+    @Test
+    void given_stepsReferencingTheInjectInSeveralSimulations_should_returnOnlyTheStepOfItsOwn() {
+      // Arrange: a chained inject, run by a step of its simulation's workflow
+      BaseInjectExpectation chainedExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      ExerciseComposer.Composer chainedSimulation =
+          simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
+      Inject chainedInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExercise(chainedSimulation)
+              .withExpectation(
+                  injectExpectationComposer
+                      .forExpectation(chainedExpectation)
+                      .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+              .persist()
+              .get();
+      Step ownStep = StepFixture.getInjectExecutionStep(StepStatus.RUN, chainedInject.getId());
+      workflowComposer
+          .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+          .withSimulation(chainedSimulation)
+          .withStep(stepComposer.forStep(ownStep))
+          .persist();
+      // AND: an inject of a non-chained simulation
+      BaseInjectExpectation nonChainedExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      Inject nonChainedInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExercise(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+              .withExpectation(
+                  injectExpectationComposer
+                      .forExpectation(nonChainedExpectation)
+                      .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+              .persist()
+              .get();
+      // AND: active steps of another simulation's workflow referencing both injects
+      Step otherSimulationStep =
+          StepFixture.getInjectExecutionStep(StepStatus.RUN, chainedInject.getId());
+      Step nonChainedReference =
+          StepFixture.getInjectExecutionStep(StepStatus.RUN, nonChainedInject.getId());
+      workflowComposer
+          .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+          .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+          .withStep(stepComposer.forStep(otherSimulationStep))
+          .withStep(stepComposer.forStep(nonChainedReference))
+          .persist();
+
+      // Act
+      Optional<String> chainedStepId =
+          stepRepository.findStepIdActiveByInjectId(chainedInject.getId(), ACTIVE_STEP_STATUS);
+      Optional<String> nonChainedStepId =
+          stepRepository.findStepIdActiveByInjectId(nonChainedInject.getId(), ACTIVE_STEP_STATUS);
+      Set<String> stepIdsByInjects =
+          stepRepository.findStepIdsActiveByInjectIds(
+              Set.of(chainedInject.getId(), nonChainedInject.getId()), ACTIVE_STEP_STATUS);
+      Set<String> stepIdsByExpectations =
+          stepRepository.findStepIdsActiveByExpectationIds(
+              Set.of(chainedExpectation.getId(), nonChainedExpectation.getId()),
+              ACTIVE_STEP_STATUS);
+
+      // Assert
+      Assertions.assertEquals(Optional.of(ownStep.getId()), chainedStepId);
+      Assertions.assertEquals(Optional.empty(), nonChainedStepId);
+      Assertions.assertEquals(Set.of(ownStep.getId()), stepIdsByInjects);
+      Assertions.assertEquals(Set.of(ownStep.getId()), stepIdsByExpectations);
+    }
   }
 }

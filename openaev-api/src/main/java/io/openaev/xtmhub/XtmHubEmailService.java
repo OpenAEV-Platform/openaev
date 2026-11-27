@@ -59,7 +59,7 @@ public class XtmHubEmailService {
 
   public void sendTenantLostConnectivityEmail(String tenantId, String tenantUrl) {
 
-    List<User> administrators = findTenantAdmins();
+    List<User> administrators = findTenantAdmins(tenantId);
     if (administrators.isEmpty()) {
       log.error(
           "No tenant administrators found to send XTM Hub lost connectivity email for tenant {}",
@@ -69,10 +69,8 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody(tenantUrl);
-      // Background scheduled path (no ambient transaction, no v2 scope): sendEmail resolves the
-      // tenant-scoped injectors table for the email notifier, and must use THIS tenant's email
-      // integration, not the platform default (the tenantId was previously computed but never
-      // passed to sendEmail, so it always used the default tenant's config; fixed here).
+      // Called outside any transaction: MailingService reads the email contract of the tenant it
+      // is given, a tenant-scoped table, so the send runs in a short transaction scoped to it.
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators, tenantId));
@@ -123,14 +121,31 @@ public class XtmHubEmailService {
         baseUrl);
   }
 
-  private List<User> findTenantAdmins() {
-    return userRepository.adminsOrUsersHavingCapabilities(
-        List.of(Capability.MANAGE_TENANT_SETTINGS.toString(), Capability.BYPASS.toString()));
+  /**
+   * Runs outside any transaction, on the scheduler thread. The roles joined by the lookup are read
+   * through the statement inspector, which returns the platform roles and those of the tenants in
+   * the transaction's scope only: scoped to the tenant, the lookup reads that tenant's roles and
+   * the platform's, never another tenant's.
+   */
+  private List<User> findTenantAdmins(String tenantId) {
+    return tenantTx.executeReadOnly(
+        TxCtx.forTenant(tenantId),
+        () ->
+            userRepository.findTenantAdministrators(
+                tenantId, List.of(Capability.MANAGE_TENANT_SETTINGS, Capability.BYPASS)));
   }
 
+  /**
+   * Platform administrators hold their capabilities through platform groups and platform roles,
+   * which are read in any scope: the platform default tenant carries the scope, as for the send of
+   * the platform email.
+   */
   private List<User> findPlatformAdmins() {
-    return userRepository.adminsOrUsersHavingCapabilities(
-        List.of(Capability.MANAGE_PLATFORM_SETTINGS.toString(), Capability.BYPASS.toString()));
+    return tenantTx.executeReadOnly(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () ->
+            userRepository.findPlatformAdministrators(
+                List.of(Capability.MANAGE_PLATFORM_SETTINGS, Capability.BYPASS)));
   }
 
   private String getTemplate() {

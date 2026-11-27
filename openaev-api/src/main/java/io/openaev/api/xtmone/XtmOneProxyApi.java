@@ -12,6 +12,7 @@ import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -109,7 +110,7 @@ public class XtmOneProxyApi extends RestBehavior {
               + " supplied agent_slug is validated against the discovered intent catalog before"
               + " the request is forwarded.")
   public ResponseEntity<StreamingResponseBody> postAgentStream(
-      TxCtx ctx, @Valid @RequestBody AgentCallInput input) {
+      TxCtx ctx, @Valid @RequestBody AgentCallInput input, HttpServletResponse response) {
     if (!config.isConfigured()) {
       StreamingResponseBody errorBody =
           out ->
@@ -140,8 +141,9 @@ public class XtmOneProxyApi extends RestBehavior {
                   byte[] buf = new byte[4096];
                   int n;
                   while ((n = sseStream.read(buf)) != -1) {
+                    // Spring 7 makes outputStream.flush() a no-op: flush the response itself.
                     outputStream.write(buf, 0, n);
-                    outputStream.flush();
+                    response.flushBuffer();
                   }
                 });
           } catch (ResponseStatusException e) {
@@ -156,13 +158,13 @@ public class XtmOneProxyApi extends RestBehavior {
             outputStream.write(
                 ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
                     .getBytes(StandardCharsets.UTF_8));
-            outputStream.flush();
+            response.flushBuffer();
           } catch (Exception e) {
             log.warn("[XTM One Proxy] Stream error, agent={}.", validatedSlug, e);
             outputStream.write(
                 ("data: {\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant.\"}\n\n")
                     .getBytes(StandardCharsets.UTF_8));
-            outputStream.flush();
+            response.flushBuffer();
           }
         };
 

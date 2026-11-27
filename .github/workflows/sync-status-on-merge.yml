@@ -21,7 +21,7 @@ permissions:
 jobs:
   sync-status:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'issues' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -29,11 +29,11 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          client-id: ${{ vars.OPENAEV_PR_CHECKS_CLIENT_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
       - name: Sync status
-        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@main
+        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@7d1dbb14c31f82a69a00bf72ee5a18b85035e248 # main
         with:
           token: ${{ steps.generate-token.outputs.token }}
           pr-number: ${{ github.event.inputs.pr_number || '' }}

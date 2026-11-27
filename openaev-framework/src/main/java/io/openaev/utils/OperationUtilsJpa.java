@@ -338,6 +338,63 @@ public final class OperationUtilsJpa {
     return cb.like(cb.lower(paths), escapeLike(text.toLowerCase()) + "%", LIKE_ESCAPE);
   }
 
+  // -- NOT END WITH --
+
+  /** See {@link #notEqualsTexts(Expression, CriteriaBuilder, List, Class)}. */
+  public static Predicate notEndWithTexts(
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (isEmpty(texts)) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream().map(text -> notEndWithText(paths, cb, text, type)).toArray(Predicate[]::new);
+
+    return cb.and(predicates);
+  }
+
+  public static Predicate notEndWithText(
+      Expression<String> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (isEmpty(text)) {
+      return cb.conjunction();
+    }
+
+    return endWithText(paths, cb, text, type).not();
+  }
+
+  // -- END WITH --
+
+  public static Predicate endWithTexts(
+      Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (isEmpty(texts)) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream().map(text -> endWithText(paths, cb, text, type)).toArray(Predicate[]::new);
+
+    return cb.or(predicates);
+  }
+
+  public static Predicate endWithText(
+      Expression<String> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (isEmpty(text)) {
+      return cb.conjunction();
+    }
+
+    if (isCollection(type)) {
+      Expression<String> values = lower(arrayToString(avals(paths, cb), cb), cb);
+      return cb.like(values, "%" + escapeLike(text.toLowerCase()), LIKE_ESCAPE);
+    }
+    if (isArray(type)) {
+      // Array columns: lower() cannot be applied to the array expression directly.
+      Expression<String> values = lower(arrayToString(paths, cb), cb);
+      return cb.like(values, "%" + escapeLike(text.toLowerCase()), LIKE_ESCAPE);
+    }
+
+    return cb.like(cb.lower(paths), "%" + escapeLike(text.toLowerCase()), LIKE_ESCAPE);
+  }
+
   // -- NOT EMPTY --
 
   public static Predicate notEmpty(Expression<String> paths, CriteriaBuilder cb, Class<?> type) {
@@ -351,7 +408,7 @@ public final class OperationUtilsJpa {
       value = paths;
     }
 
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (!canBeBlank(type)) {
       return cb.isNotNull(value);
     }
 
@@ -368,7 +425,7 @@ public final class OperationUtilsJpa {
     } else {
       value = paths;
     }
-    if (type.equals(Instant.class) || type.isEnum()) {
+    if (!canBeBlank(type)) {
       return cb.isNull(value);
     }
     return cb.or(cb.isNull(value), cb.equal(value, ""), cb.equal(value, " "));
@@ -516,5 +573,11 @@ public final class OperationUtilsJpa {
 
   private static boolean isArray(Class<?> type) {
     return type.isArray() || type.isAssignableFrom(List.class);
+  }
+
+  // Only text, arrays and collections can be blank; any other type is a plain null check.
+  static boolean canBeBlank(Class<?> type) {
+    return type != null
+        && (CharSequence.class.isAssignableFrom(type) || isArray(type) || isCollection(type));
   }
 }

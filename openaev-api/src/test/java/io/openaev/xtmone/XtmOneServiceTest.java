@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
@@ -23,6 +26,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,9 +45,11 @@ class XtmOneServiceTest {
   @Mock private XtmOneClient client;
   @Mock private PlatformSettingsService platformSettingsService;
   @Mock private TenantSettingsService tenantSettingsService;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private EnterpriseEditionService eeService;
   @Mock private XtmOneEntitlementService entitlementService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private XtmOneHealthSnapshot healthSnapshot;
 
   @InjectMocks private XtmOneService xtmOneService;
 
@@ -58,6 +64,10 @@ class XtmOneServiceTest {
 
   private void arrangeConfigured(String resolvedName) {
     when(config.isConfigured()).thenReturn(true);
+    // The tenant-aware read opens its own default-tenant transaction: run the work inline.
+    lenient()
+        .when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
     when(platformSettingsService.findSettings()).thenReturn(stubPlatformSettings());
     when(platformSettingsService.getPlatformVersion()).thenReturn("1.0.0");
     when(tenantSettingsService.resolveSettingValue(anyString(), eq(PLATFORM_NAME)))
@@ -86,6 +96,7 @@ class XtmOneServiceTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertEquals(renamed, nameCaptor.getValue());
     // The tenant-aware resolution is scoped to the default tenant on the background tick.
@@ -113,8 +124,75 @@ class XtmOneServiceTest {
             any(),
             any(),
             eq("aev"),
+            any(),
             any());
     assertEquals(PLATFORM_NAME.defaultValue(), nameCaptor.getValue());
+  }
+
+  @Test
+  @DisplayName("Given a health snapshot should send it with the registration")
+  void given_healthSnapshot_should_sendItWithTheRegistration() {
+    // -- ARRANGE --
+    arrangeConfigured("OpenAEV");
+    Map<String, Object> snapshot = Map.of("schema_version", 1, "agents", Map.of("total", 3));
+    when(healthSnapshot.build()).thenReturn(snapshot);
+
+    // -- ACT --
+    xtmOneService.autoRegister();
+
+    // -- ASSERT --
+    verify(client)
+        .register(
+            eq("openaev"),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            any(),
+            eq("aev"),
+            any(),
+            eq(snapshot));
+  }
+
+  @Test
+  @DisplayName("Given a non-release build commit should register with the dev build version")
+  void given_buildCommit_should_registerWithTheDevBuildVersion() {
+    // -- ARRANGE --
+    arrangeConfigured("OpenAEV");
+    when(config.getBuildCommit()).thenReturn("0165BBD6a1b2c3d4e5f60718293a4b5c6d7e8f90");
+
+    // -- ACT --
+    xtmOneService.autoRegister();
+
+    // -- ASSERT --
+    ArgumentCaptor<String> versionCaptor = ArgumentCaptor.forClass(String.class);
+    verify(client)
+        .register(
+            eq("openaev"),
+            anyString(),
+            anyString(),
+            versionCaptor.capture(),
+            anyString(),
+            any(),
+            any(),
+            eq("aev"),
+            any(),
+            any());
+    assertEquals("1.0.0-dev.0165bbd", versionCaptor.getValue());
+    // The platform version used everywhere else keeps the release version.
+    verify(config).setPlatformVersion("1.0.0");
+  }
+
+  @Test
+  @DisplayName("Given a release or an unusable commit should keep the plain version")
+  void given_noUsableCommit_should_keepThePlainVersion() {
+    assertEquals("1.0.0", XtmOneService.buildVersion("1.0.0", null));
+    assertEquals("1.0.0", XtmOneService.buildVersion("1.0.0", ""));
+    assertEquals("1.0.0", XtmOneService.buildVersion("1.0.0", "abc12"));
+    assertEquals("1.0.0", XtmOneService.buildVersion("1.0.0", "not-a-commit"));
+    assertEquals("", XtmOneService.buildVersion(null, "0165bbd"));
+    assertEquals("1.0.0-dev.0165bbd", XtmOneService.buildVersion("1.0.0", " 0165bbd "));
   }
 
   @Test
@@ -129,6 +207,7 @@ class XtmOneServiceTest {
     // -- ASSERT --
     verifyNoInteractions(client);
     verifyNoInteractions(entitlementService);
+    verifyNoInteractions(healthSnapshot);
   }
 
   @Test
@@ -139,7 +218,7 @@ class XtmOneServiceTest {
     Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
     Map<String, Object> answer = Map.of("ee_enabled", true);
     when(platformSettingsService.findInstanceCreationDate()).thenReturn(Optional.of(createdAt));
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --
@@ -157,7 +236,7 @@ class XtmOneServiceTest {
     // -- ARRANGE --
     arrangeConfigured("OpenAEV");
     Map<String, Object> answer = Map.of("xtm_license_pem", "pem");
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
     when(entitlementService.onRegistrationAnswer(eq(answer), anyString(), any(), eq(false)))
         .thenReturn(true);
@@ -194,7 +273,7 @@ class XtmOneServiceTest {
     when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
     when(eeService.isLicenseActive(license)).thenCallRealMethod();
     Map<String, Object> answer = Map.of("ee_enabled", true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --
@@ -217,7 +296,7 @@ class XtmOneServiceTest {
     when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
     when(eeService.isLicenseActive(license)).thenCallRealMethod();
     Map<String, Object> answer = Map.of("ee_enabled", true);
-    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
 
     // -- ACT --

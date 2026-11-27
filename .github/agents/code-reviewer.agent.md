@@ -23,6 +23,7 @@ Always load:
 Load conditionally based on the diff:
 - **Frontend files (`.tsx`, `.ts`)** → read `.github/instructions/frontend.instructions.md`
 - **Migration files** → read `.github/instructions/migration.instructions.md`
+- **Workflow or composite action files (`.github/workflows/**`, `.github/actions/**`)** → read `.github/instructions/ci.instructions.md`
 
 Then:
 - **Follow `.claude/skills/review-code/SKILL.md`** step-by-step — run every command
@@ -43,25 +44,27 @@ Then:
 
 | Check | Rule |
 |---|---|
-| **Module boundaries** | Respects `openaev-model` / `openaev-api` separation? No new code in `openaev-framework` (deprecated). |
-| **Layering** | Controller → Service → Repository? No repository injection in controllers? |
-| **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
-| **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
-| **Service pattern** | Business logic in `@Service`, `@Transactional` on each method, `readOnly = true` on reads |
-| **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
-| **Error handling** | Uses `ElementNotFoundException`? Returns proper HTTP status codes? |
-| **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
+| **Module boundaries** | [copilot-instructions.md › Architecture](../copilot-instructions.md#architecture), [backend.instructions.md › Package Rule](../instructions/backend.instructions.md) |
+| **Layering, service boundary, error handling** | [backend.instructions.md › Layering](../instructions/backend.instructions.md#layering) |
+| **Entity logic, types** | [backend.instructions.md › Entities](../instructions/backend.instructions.md#entities) |
+| **Naming** | [backend.instructions.md › Code Quality](../instructions/backend.instructions.md#code-quality), [database.instructions.md › Schema Naming](../instructions/database.instructions.md#schema-naming) |
+| **DTO pattern, tenant routes, preview features** | [backend.instructions.md › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi) |
+| **Mapping** | [backend.instructions.md › API DTOs, Mappers & Sub-resources](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources) |
+| **No unused code** | [backend.instructions.md › Scope of a Pull Request](../instructions/backend.instructions.md#scope-of-a-pull-request) |
+| **Service pattern, one role per service, type rules on the enum** | [backend.instructions.md › Services](../instructions/backend.instructions.md#services) |
+| **No writes in read paths** | [backend.instructions.md › Hibernate](../instructions/backend.instructions.md#hibernate) |
+| **Logging** | [backend.instructions.md › Lombok](../instructions/backend.instructions.md#lombok) |
+| **CI scripts** | [ci.instructions.md › No `${{ }}` inside scripts](../instructions/ci.instructions.md#no---inside-scripts) → 🔴 when the value can come from a PR, branch name or other untrusted input |
 
 ### Phase 3 — Code Quality
 
-| Check | What to look for |
+| Check | Rule |
 |---|---|
-| **Dead code** | Unused imports, commented-out blocks, unreachable branches |
-| **Complexity** | Methods >30 lines, >3 levels of nesting, >4 parameters |
-| **Duplication** | Copy-pasted logic that should be extracted |
-| **Null safety** | Proper use of `Optional`, null checks on external inputs |
-| **Immutability** | Prefer `final` fields, records for DTOs, unmodifiable collections |
-| **Transactions** | `org.springframework.transaction.annotation.Transactional` (never `jakarta.transaction.Transactional`) |
+| **Dead code, duplication** | [backend.instructions.md › Scope of a Pull Request](../instructions/backend.instructions.md#scope-of-a-pull-request) |
+| **Complexity** | Hint, not a rule: a method over 30 lines, 3 levels of nesting or 4 parameters is worth a look |
+| **Null safety, immutability** | [backend.instructions.md › Code Quality](../instructions/backend.instructions.md#code-quality) |
+| **Javadoc** | [backend.instructions.md › Code Comments](../instructions/backend.instructions.md#code-comments) → 🟡 `suggestion:` remove it |
+| **Transactions** | [backend.instructions.md › Services](../instructions/backend.instructions.md#services) |
 
 ### Phase 4 — Delegation Check
 

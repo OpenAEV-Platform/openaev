@@ -12,9 +12,7 @@ import static java.util.Collections.emptyList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -52,26 +50,33 @@ public class InjectUtils {
   private final InjectorRepository injectorRepository;
 
   /**
-   * Resolves the {@link Injector} for an inject being created or updated.
+   * Resolves the {@link Injector} for an inject being created or updated, in the tenant of its
+   * contract.
    *
    * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
    * injector is auto-resolved from the contract's first linked injector (single-instance fallback).
    *
+   * <p>Injectors have a composite key and built-in ids repeat across tenants, so the lookup names a
+   * tenant: the contract's, which is the one the inject is written in. A contract with no tenant
+   * resolves no injector.
+   *
    * @param injectorId explicit injector ID from the input (may be null/blank)
    * @param injectorContract the contract associated with the inject
    * @return the resolved Injector, or {@code null} if no contract is provided
-   * @throws ElementNotFoundException if the explicit injector ID does not exist
+   * @throws ElementNotFoundException if the explicit injector ID does not exist in the tenant of
+   *     the contract
    */
   public Injector resolveInjector(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    String tenantId =
+        injectorContract != null && injectorContract.getTenant() != null
+            ? injectorContract.getTenant().getId()
+            : null;
     if (StringUtils.isNotBlank(injectorId)) {
-      // injectors has a composite PK (injector_id, tenant_id) and built-in ids repeat across
-      // tenants, so resolve by id AND tenant. TenantContext is the current tenant for this
-      // v1-scoped call site, consistent with the contract fallback below.
-      return injectorRepository
-          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-          .orElseThrow(
-              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+      if (tenantId == null) {
+        throw new ElementNotFoundException("Injector not found with id: " + injectorId);
+      }
+      return resolveInjectorInTenant(injectorId, tenantId);
     }
     // Auto-resolve from linked injectors (single-instance fallback)
     if (injectorContract != null
@@ -79,16 +84,25 @@ public class InjectUtils {
         && !injectorContract.getInjectors().isEmpty()) {
       return injectorContract.getInjectors().getFirst();
     }
-    if (injectorContract != null) {
-      // The inject entity itself is still on multi-tenancy v1, so there is no TxCtx to read
-      // here yet; TenantContext is the legitimate source of the current tenant for this
-      // v1-scoped call site until injects are activated on v2.
+    if (tenantId != null) {
       return injectorRepository
-          .findFirstByContractsCompositeIdIdAndTenantId(
-              injectorContract.getId(), TenantContext.getCurrentTenant())
+          .findFirstByContractsCompositeIdIdAndTenantId(injectorContract.getId(), tenantId)
           .orElse(null);
     }
     return null;
+  }
+
+  /**
+   * Resolves an explicit injector id in {@code tenantId}, for a caller that has no contract to take
+   * the tenant from.
+   *
+   * @throws ElementNotFoundException if the injector does not exist in that tenant
+   */
+  public Injector resolveInjectorInTenant(String injectorId, String tenantId) {
+    return injectorRepository
+        .findByIdAndTenantId(injectorId, tenantId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
   }
 
   /**
@@ -264,10 +278,12 @@ public class InjectUtils {
     return inject.getExpectations().stream()
         .filter(
             expectation -> {
+              // A player targeted outside of any team (chaining scope player) is its own leaf
               boolean teamMatch =
                   expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
-                      && tableTopInjectExpectation.getTeam() != null
-                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
+                      && (tableTopInjectExpectation.getTeam() != null
+                          ? firstIds.contains(tableTopInjectExpectation.getTeam().getId())
+                          : tableTopInjectExpectation.getUser() != null);
               boolean assetMatch =
                   expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
                       && isAssetExpectation(technicalInjectExpectation)
@@ -317,6 +333,28 @@ public class InjectUtils {
   private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
 
   /**
+   * Gives an inject to a scenario, and to no simulation, and stamps it with the scenario's tenant:
+   * the owner of an inject decides its tenant, whatever tenant the request or the job that creates
+   * it runs in.
+   */
+  public static void attachToScenario(@NotNull Inject inject, @NotNull Scenario scenario) {
+    inject.setScenario(scenario);
+    inject.setExercise(null);
+    inject.setTenant(scenario.getTenant());
+  }
+
+  /**
+   * Gives an inject to a simulation, and to no scenario, and stamps it with the simulation's
+   * tenant: the owner of an inject decides its tenant, whatever tenant the request or the job that
+   * creates it runs in.
+   */
+  public static void attachToExercise(@NotNull Inject inject, @NotNull Exercise exercise) {
+    inject.setExercise(exercise);
+    inject.setScenario(null);
+    inject.setTenant(exercise.getTenant());
+  }
+
+  /**
    * Creates a deep copy of an inject.
    *
    * <p>Duplicates all properties of the source inject including content, teams, assets, asset
@@ -362,11 +400,17 @@ public class InjectUtils {
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
+    duplicatedInject.setSecretReferences(new ArrayList<>(injectOrigin.getSecretReferences()));
     // Carry the recurrence schedule forward so a scheduled atomic testing keeps relaunching after
     // each occurrence (relaunch = duplicate + delete old).
     duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
     duplicatedInject.setRecurrenceStart(injectOrigin.getRecurrenceStart());
     duplicatedInject.setRecurrenceEnd(injectOrigin.getRecurrenceEnd());
+    duplicatedInject.setScheduledBy(injectOrigin.getScheduledBy());
+    // launchedBy is deliberately NOT copied here: it must reflect whoever is relaunching THIS
+    // occurrence, not the previous launcher. The caller (InjectService.doRelaunch) stamps it
+    // explicitly right after duplication - never let it fall through as a silent copy the way
+    // `user` and the recurrence fields above intentionally do.
     return duplicatedInject;
   }
 

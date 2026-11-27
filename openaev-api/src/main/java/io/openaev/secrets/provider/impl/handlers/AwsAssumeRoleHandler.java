@@ -37,8 +37,13 @@ public class AwsAssumeRoleHandler implements SecretHandler {
 
   @Override
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
-    AwsAssumeRoleSecret awsSecret =
-        existingSecret instanceof AwsAssumeRoleSecret casted ? casted : new AwsAssumeRoleSecret();
+    AwsAssumeRoleSecret awsSecret;
+    if (existingSecret instanceof AwsAssumeRoleSecret casted) {
+      refuseEndpointChangeWithoutNewSecretValues(casted, request);
+      awsSecret = casted;
+    } else {
+      awsSecret = new AwsAssumeRoleSecret();
+    }
 
     if (request.awsDefaultRegion() != null) {
       awsSecret.setAwsDefaultRegion(request.awsDefaultRegion());
@@ -49,15 +54,16 @@ public class AwsAssumeRoleHandler implements SecretHandler {
     }
 
     if (request.awsExternalId() != null) {
-      awsSecret.setAwsExternalId(
-          nativeEncryptionService.encrypt(
-              Objects.requireNonNull(
-                  request.awsExternalId(), "request.awsExternalId must not be null")));
+      if (request.awsExternalId().isBlank()) {
+        awsSecret.setAwsExternalId(null);
+      } else {
+        awsSecret.setAwsExternalId(nativeEncryptionService.encrypt(request.awsExternalId()));
+      }
     }
 
     if (request.awsSourceIdentityType() != null) {
       awsSecret.setAwsSourceIdentityType(request.awsSourceIdentityType());
-      if (STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())) {
+      if (!STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())) {
         awsSecret.setAwsSourceProfileAccessKeyId(null);
         awsSecret.setAwsSourceProfileSecretAccessKey(null);
       }
@@ -73,6 +79,14 @@ public class AwsAssumeRoleHandler implements SecretHandler {
               Objects.requireNonNull(
                   request.awsSourceProfileSecretAccessKey(),
                   "request.awsSourceProfileSecretAccessKey must not be null")));
+    }
+
+    if (request.awsAccountId() != null) {
+      awsSecret.setAwsAccountId(SecretHandler.blankToNull(request.awsAccountId()));
+    }
+
+    if (request.awsEndpointUrl() != null) {
+      awsSecret.setAwsEndpointUrl(SecretHandler.blankToNull(request.awsEndpointUrl()));
     }
 
     if (awsSecret.getAwsDefaultRegion() == null
@@ -99,7 +113,11 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsDefaultRegion(),
           awsAssumeRoleSecret.getAwsRoleArn(),
           awsAssumeRoleSecret.getAwsSourceIdentityType(),
-          awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId());
+          awsAssumeRoleSecret.getAwsExternalId() != null,
+          awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
+          awsAssumeRoleSecret.getAwsSourceProfileSecretAccessKey() != null,
+          awsAssumeRoleSecret.getAwsAccountId(),
+          awsAssumeRoleSecret.getAwsEndpointUrl());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
   }
@@ -126,7 +144,9 @@ public class AwsAssumeRoleHandler implements SecretHandler {
         awsAssumeRoleSecret.getAwsSourceIdentityType(),
         externalId,
         awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
-        sourceProfileSecretAccessKey);
+        sourceProfileSecretAccessKey,
+        awsAssumeRoleSecret.getAwsAccountId(),
+        awsAssumeRoleSecret.getAwsEndpointUrl());
   }
 
   @Override
@@ -151,6 +171,31 @@ public class AwsAssumeRoleHandler implements SecretHandler {
         externalId,
         awsAssumeRoleSecret.getAwsSourceIdentityType(),
         awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
-        sourceProfileSecretAccessKey);
+        sourceProfileSecretAccessKey,
+        awsAssumeRoleSecret.getAwsEndpointUrl());
+  }
+
+  /**
+   * The stored secrets must not be replayed against a new endpoint: the caller has to supply them
+   * again, otherwise whoever can edit the credential could redirect them to a host they control.
+   * The identity type of the request is optional, so the stored one applies when it is absent.
+   */
+  private static void refuseEndpointChangeWithoutNewSecretValues(
+      AwsAssumeRoleSecret existing, SecretStoreRequest request) {
+    if (!SecretHandler.redirectsEndpoint(existing.getAwsEndpointUrl(), request.awsEndpointUrl())) {
+      return;
+    }
+    var identityType =
+        request.awsSourceIdentityType() != null
+            ? request.awsSourceIdentityType()
+            : existing.getAwsSourceIdentityType();
+    boolean externalIdMissing =
+        existing.getAwsExternalId() != null && request.awsExternalId() == null;
+    boolean sourceSecretMissing =
+        STATIC_ACCESS_KEY.equals(identityType) && request.awsSourceProfileSecretAccessKey() == null;
+    if (externalIdMissing || sourceSecretMissing) {
+      throw new IllegalArgumentException(
+          "AWS external id (if set) and source profile secret access key (if used) must be reset in order to change the endpoint URL");
+    }
   }
 }

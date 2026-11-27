@@ -69,7 +69,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario and team input, should add team to scenario successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioAndTeamInput_should_replaceTeamToScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Scenario scenario = getScenario();
@@ -126,7 +126,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with teams, should retrieve teams successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioWithTeams_should_retrieveTeamsSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);
@@ -143,7 +143,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given a chained scenario with scoped teams, should retrieve scoped teams successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_chainedScenarioWithScopedTeams_should_retrieveScopedTeamsSuccessfully()
       throws Exception {
     // -- PREPARE --
@@ -248,7 +248,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with a team, should remove team from scenario successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioWithTeam_should_removeTeamFromScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);
@@ -328,6 +328,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   class SearchScenarioTeams {
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns global and scenario teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndScenarioTeams()
         throws Exception {
@@ -364,6 +365,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Returns only scenario teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyScenarioTeams()
         throws Exception {
@@ -418,6 +420,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "Deselecting a team should remove its scenario-team-user links only for that scenario")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void deselectedTeamShouldRemoveLinksOnlyForCurrentScenario() throws Exception {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1sc@fake.email"));
@@ -490,6 +493,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Calling replaceTeams twice with same payload must not cause duplicate key error")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void callingReplaceTeamsTwiceShouldNotCauseDuplicateKey() throws Exception {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT2", "tom-rt2sc@fake.email"));
@@ -536,6 +540,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Replacing teams should update the scenario team list in database")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
       Team teamToRemove = TeamFixture.getEmptyTeam();

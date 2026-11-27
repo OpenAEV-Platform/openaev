@@ -156,6 +156,14 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -187,15 +195,25 @@ export interface AggregatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -226,7 +244,7 @@ export interface AggregatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -248,8 +266,6 @@ export interface AiAttack {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -267,6 +283,7 @@ export interface AiAttack {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -378,6 +395,8 @@ export interface AiTargetInput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  /** @uniqueItems true */
+  asset_markings?: string[];
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
@@ -405,6 +424,14 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -532,6 +559,7 @@ export interface Asset {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -553,6 +581,9 @@ export interface Asset {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -560,8 +591,8 @@ export interface Asset {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -642,7 +673,12 @@ export interface Asset {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -667,6 +703,136 @@ export interface AssetBulkProcessingInput {
   asset_ids_to_ignore?: string[];
   asset_ids_to_process?: string[];
   search_pagination_input?: SearchPaginationInput;
+}
+
+export interface AssetBulkReplaceMarkingsInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  marking_ids: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface AssetBulkUpdateInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
+    | "GENERIC_ASSET";
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  /** Sets the internet-facing flag of every selected asset; null leaves it unchanged */
+  asset_internet_facing?: boolean | null;
+  /** Must belong to asset_category; requires asset_category */
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "EMAIL_SECURITY"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
+  /** Tag ids added to every selected asset (existing tags are kept) */
+  asset_tags_to_add?: string[];
+  asset_url?: string | null;
+  search_pagination_input?: SearchPaginationInput;
+}
+
+export interface AssetFreshnessSettingsInput {
+  asset_discovery_tag?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   * @max 3650
+   */
+  asset_stale_after_days: number;
 }
 
 export interface AssetGroup {
@@ -749,6 +915,14 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -768,22 +942,34 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
-export interface AssetMarkingsOutput {
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * Markings currently carried by the asset
-   * @uniqueItems true
-   */
-  asset_markings?: string[];
-  /**
-   * Asset name
-   * @minLength 1
-   */
-  asset_name: string;
+export interface AssetLinkInput {
+  asset_link_type:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
+  /** @minLength 1 */
+  linked_asset_id: string;
+}
+
+export interface AssetLinkOutput {
+  /** @format date-time */
+  asset_link_created_at?: string;
+  asset_link_source_id?: string;
+  asset_link_source_name?: string;
+  asset_link_source_type?: string;
+  asset_link_target_id?: string;
+  asset_link_target_name?: string;
+  asset_link_target_type?: string;
+  asset_link_type?:
+    | "CONNECTS_TO"
+    | "DEPENDS_ON"
+    | "HOSTS"
+    | "LOGGED_ON"
+    | "RUNS_ON"
+    | "USES";
 }
 
 export interface AssetOptionOutput {
@@ -822,6 +1008,7 @@ export interface AssetOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Asset criticality */
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
@@ -832,6 +1019,11 @@ export interface AssetOutput {
    * @minLength 1
    */
   asset_id: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -918,7 +1110,12 @@ export interface AssetOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -957,10 +1154,6 @@ export interface AssetSnapshotOutput {
   asset_snapshot_name?: string;
 }
 
-export interface AssetUpdateMarkingsInput {
-  asset_markings: string[];
-}
-
 export interface AtomicInjectorContractOutput {
   convertedContent?: object;
   /** @minLength 1 */
@@ -993,6 +1186,7 @@ export interface AtomicTestingInput {
   inject_documents?: InjectDocumentInput[];
   inject_injector?: string;
   inject_injector_contract?: string;
+  inject_secret_references?: string[];
   inject_tags?: string[];
   inject_teams?: string[];
   /** @minLength 1 */
@@ -1176,6 +1370,7 @@ export interface AttackPathExecutionDetailDTO {
   findings?: AttackPathExecutionFindingItemDTO[];
   injectId?: string;
   injectorCommandLine?: string;
+  loggingStatus?: string;
   payloadId?: string;
   payloadName?: string;
   preventionStatus?: string;
@@ -1216,6 +1411,7 @@ export interface AttackPathFindingPageDTO {
 
 export interface AttackPathFindingVerdictsDTO {
   detection?: string;
+  logging?: string;
   prevention?: string;
   vulnerability?: string;
 }
@@ -1343,6 +1539,10 @@ export interface AttackPatternCoverageOutput {
   /** @format int64 */
   detection_total?: number;
   kill_chain_phases?: KillChainPhaseCoverage[];
+  /** @format int64 */
+  logging_success?: number;
+  /** @format int64 */
+  logging_total?: number;
   /** @format int64 */
   prevention_success?: number;
   /** @format int64 */
@@ -1936,6 +2136,45 @@ export interface AutonomousTriggerFilter {
   value?: string;
 }
 
+export type AvailableActionOutput = BaseAvailableActionOutput &
+  (
+    | BaseAvailableActionOutputActionKindMapping<
+        "PAYLOAD",
+        AvailablePayloadActionOutput
+      >
+    | BaseAvailableActionOutputActionKindMapping<
+        "INTEGRATION",
+        AvailableIntegrationActionOutput
+      >
+  );
+
+export type AvailableIntegrationActionOutput = BaseAvailableActionOutput & {
+  action_attack_patterns: string[];
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  /** @minLength 1 */
+  action_integration_id: string;
+  action_integration_logo_url?: string;
+  /** @minLength 1 */
+  action_integration_title: string;
+  action_labels: Record<string, string>;
+  action_platforms: string[];
+};
+
+export type AvailablePayloadActionOutput = BaseAvailableActionOutput & {
+  action_domain?: string;
+  /** @minLength 1 */
+  action_id: string;
+  action_labels: Record<string, string>;
+  action_payload_description?: string;
+  /** @format date-time */
+  action_payload_published_at?: string;
+  /** @minLength 1 */
+  action_payload_version: string;
+  action_platforms: string[];
+};
+
 export type AverageConfiguration = UtilRequiredKeys<
   WidgetConfiguration,
   "widget_configuration_type" | "time_range" | "date_attribute"
@@ -1945,6 +2184,7 @@ export type AverageConfiguration = UtilRequiredKeys<
 
 export type AwsAccessKey = Value & {
   aws_access_key_id?: string;
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -1982,11 +2222,13 @@ export type AwsAccessKey = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_secret_access_key?: string;
   aws_session_token?: string;
 };
 
 export type AwsAssumeRole = Value & {
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -2024,6 +2266,7 @@ export type AwsAssumeRole = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
@@ -2032,18 +2275,34 @@ export type AwsAssumeRole = Value & {
 };
 
 export type AzureManagedIdentity = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
 };
 
 export type AzureServicePrincipal = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
+
+interface BaseAvailableActionOutput {
+  action_kind: string;
+}
+
+type BaseAvailableActionOutputActionKindMapping<Key, Type> = {
+  action_kind: Key;
+} & Type;
 
 interface BaseEsBase {
   /** @format date-time */
@@ -2083,6 +2342,14 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2133,8 +2400,6 @@ interface BasePayload {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2152,6 +2417,7 @@ interface BasePayload {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2227,6 +2493,7 @@ interface BasePayloadCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2530,6 +2797,103 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogInstallAllOutput {
+  failed_external_ids?: string[];
+  installed_ids?: string[];
+}
+
+export interface CatalogInstallOutput {
+  /** @minLength 1 */
+  installed_id: string;
+}
+
+export interface CatalogPayloadOutput {
+  catalog_payload_description?: string;
+  catalog_payload_domain?: string;
+  /** @minLength 1 */
+  catalog_payload_external_id: string;
+  catalog_payload_name?: string;
+  catalog_payload_platforms: string[];
+  /** @format date-time */
+  catalog_payload_published_at?: string;
+  /** @minLength 1 */
+  catalog_payload_version: string;
+}
+
+export interface CatalogScenarioInstallInput {
+  scenario_type: string;
+}
+
+export interface CatalogScenarioOutput {
+  catalog_scenario_author?: string;
+  catalog_scenario_category?: string;
+  catalog_scenario_changelog?: string;
+  catalog_scenario_description?: string;
+  /** @minLength 1 */
+  catalog_scenario_external_id: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
+  catalog_scenario_installed_scenario_id?: string;
+  catalog_scenario_main_focus?: string;
+  catalog_scenario_missing_requirements: CatalogScenarioRequirementOutput[];
+  catalog_scenario_name?: string;
+  catalog_scenario_payloads: CatalogPayloadOutput[];
+  catalog_scenario_platforms: string[];
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
+  catalog_scenario_type: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogScenarioRequirementOutput {
+  requirement_integration_id?: string;
+  /** @minLength 1 */
+  requirement_label: string;
+  /** @minLength 1 */
+  requirement_name: string;
+  requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
+}
+
+export interface CatalogScenarioVersionOutput {
+  catalog_scenario_changelog?: string;
+  /** @format int32 */
+  catalog_scenario_injects_count?: number;
+  catalog_scenario_main_focus?: string;
+  /** @format date-time */
+  catalog_scenario_published_at?: string;
+  catalog_scenario_severity?: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogSettingsInput {
+  payload_auto_install: boolean;
+  scenario_auto_install: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install: boolean;
+  scenario_auto_install: boolean;
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  release_approver?: string;
+  /** @format int32 */
+  unchanged?: number;
+}
+
+export type ChainedScenarioInstallInput = CatalogScenarioInstallInput & {
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+};
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -2710,6 +3074,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2726,6 +3099,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -2805,8 +3179,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2824,6 +3196,7 @@ export interface Command {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -3071,6 +3444,8 @@ export interface ConnectorInstanceConfiguration {
 }
 
 export interface ConnectorInstanceHealthInput {
+  /** Digest of the image the workload runs (algo:hex), as reported by XTM Composer; absent when the engine does not report it */
+  connector_instance_image_digest?: string;
   /** The connector instance id */
   connector_instance_is_in_reboot_loop?: boolean;
   /**
@@ -3104,10 +3479,26 @@ export interface ConnectorInstanceLogsInput {
 }
 
 export interface ConnectorInstanceOutput {
+  /** Container image the composer deploys (image:version), absent for a built-in instance */
+  connector_image?: string;
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  /** Digest of the image the container runs (algo:hex), as last reported by the composer; absent when unknown */
+  connector_instance_image_digest?: string;
+  /** Whether the container is in a reboot loop */
+  connector_instance_is_in_reboot_loop?: boolean;
   connector_instance_requested_status?: "starting" | "stopping";
+  /**
+   * Container restart count, as reported by the composer
+   * @format int32
+   */
+  connector_instance_restart_count?: number;
+  /**
+   * When the container last started, as reported by the composer
+   * @format date-time
+   */
+  connector_instance_started_at?: string;
 }
 
 export interface ConnectorInstancePersisted {
@@ -3118,6 +3509,7 @@ export interface ConnectorInstancePersisted {
   connector_instance_current_status: "started" | "stopped";
   /** @minLength 1 */
   connector_instance_id: string;
+  connector_instance_image_digest?: string;
   connector_instance_is_in_reboot_loop?: boolean;
   /** @uniqueItems true */
   connector_instance_logs: ConnectorInstanceLog[];
@@ -3140,6 +3532,26 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
 }
 
 export interface ContractOutputElement {
@@ -3245,6 +3657,8 @@ export interface ContractOutputElementInput {
 export interface ContractOutputElementSimple {
   /** @minLength 1 */
   contract_output_element_id: string;
+  /** True when the values extracted by this element are saved as findings. */
+  contract_output_element_is_finding: boolean;
   /**
    * Represents a unique key identifier.
    * @minLength 1
@@ -3294,6 +3708,25 @@ export interface ContractOutputElementSimple {
     | "expectation_signature";
 }
 
+export interface CounterpartLookupInput {
+  /**
+   * @maxItems 200
+   * @minItems 0
+   */
+  counterpart_keys: string[];
+}
+
+export interface CounterpartOutput {
+  counterpart_entity_id?: string;
+  counterpart_entity_type?: string;
+  counterpart_facts?: FactOutput[];
+  counterpart_key?: string;
+  counterpart_name?: string;
+  counterpart_product?: string;
+  counterpart_status?: string;
+  counterpart_url?: string;
+}
+
 export interface CreateConnectorInstanceInput {
   /** @minLength 1 */
   catalog_connector_id: string;
@@ -3336,13 +3769,17 @@ export interface CredentialBulkProcessingInput {
 }
 
 export interface CredentialContractField {
+  accepted_formats?: string[];
   choices?: string[];
   default_value?: string;
+  endpoint?: boolean;
+  field_description?: string;
   field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
   mandatory_condition_value?: string;
   required?: boolean;
+  reset_on_endpoint_change?: boolean;
   visible_condition_field?: string;
   visible_condition_value?: string;
 }
@@ -3381,6 +3818,8 @@ export interface CredentialFullOutput {
     | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
+  /** AWS account id */
+  credential_aws_account_id?: string;
   /** Secret AWS default region */
   credential_aws_default_region?:
     | "us-east-2"
@@ -3419,6 +3858,10 @@ export interface CredentialFullOutput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /** AWS endpoint URL override */
+  credential_aws_endpoint_url?: string;
+  /** Whether an AWS external id is stored; the external id itself is never returned */
+  credential_aws_external_id_defined?: boolean;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3429,10 +3872,18 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Whether an AWS source profile secret access key is stored; the key itself is never returned */
+  credential_aws_source_profile_secret_access_key_defined?: boolean;
+  /** Azure authority host URI */
+  credential_azure_authority_host_uri?: string;
   /** Azure client id */
   credential_azure_client_id?: string;
   /** Azure environment */
   credential_azure_environment?: string;
+  /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
+  credential_azure_requests_certificate_defined?: boolean;
+  /** Azure scope */
+  credential_azure_scope?: string;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3446,6 +3897,16 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP custom IAM URI */
+  credential_gcp_custom_iam_uri?: string;
+  /** Whether a GCP custom OAuth access token is stored; the token itself is never returned */
+  credential_gcp_custom_oauth_access_token_defined?: boolean;
+  /** GCP custom projects URI */
+  credential_gcp_custom_projects_uri?: string;
+  /** GCP custom resource manager URI */
+  credential_gcp_custom_resource_manager_uri?: string;
+  /** GCP custom token URI */
+  credential_gcp_custom_token_uri?: string;
   /** GCP OAuth client id */
   credential_gcp_oauth_client_id?: string;
   /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
@@ -3493,6 +3954,11 @@ export interface CredentialFullOutput {
 
 export interface CredentialInput {
   aws_access_key_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -3530,6 +3996,11 @@ export interface CredentialInput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_secret_access_key?: string;
@@ -3537,9 +4008,19 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_scope?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
   credential_auth_method:
@@ -3560,6 +4041,27 @@ export interface CredentialInput {
   credential_tags?: string[];
   credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_projects_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_resource_manager_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -3663,6 +4165,27 @@ export interface CustomDashboardParametersInput {
     | "startDate"
     | "endDate"
     | "scenario";
+}
+
+/** Scenarios, simulations and tenant defaults that use a custom dashboard */
+export interface CustomDashboardUsageOutput {
+  custom_dashboard_id: string;
+  /** The dashboard is the tenant default home dashboard (delete refused) */
+  default_home_dashboard: boolean;
+  /** The dashboard is the tenant default scenario dashboard */
+  default_scenario_dashboard: boolean;
+  /** The dashboard is the tenant default simulation dashboard */
+  default_simulation_dashboard: boolean;
+  /**
+   * Scenarios that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  scenarios_count: number;
+  /**
+   * Simulations that show this dashboard in their Analysis tab
+   * @format int64
+   */
+  simulations_count: number;
 }
 
 export interface CustomDomain {
@@ -3887,8 +4410,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -3906,6 +4427,7 @@ export interface DnsResolution {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -4073,6 +4595,7 @@ export interface Endpoint {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -4094,6 +4617,9 @@ export interface Endpoint {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -4101,8 +4627,8 @@ export interface Endpoint {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -4183,7 +4709,12 @@ export interface Endpoint {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -4218,6 +4749,7 @@ export interface EndpointInput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string | null;
   asset_cloud_provider?:
@@ -4320,7 +4852,12 @@ export interface EndpointInput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_url?: string | null;
   endpoint_agent_version?: string;
@@ -4359,6 +4896,7 @@ export interface EndpointOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Cloud native type */
   asset_cloud_native_type?: string;
@@ -4377,6 +4915,8 @@ export interface EndpointOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
+  /** Hostname, the key the XTM counterpart lookup matches on */
+  asset_hostname?: string;
   /**
    * Asset Id
    * @minLength 1
@@ -4384,6 +4924,11 @@ export interface EndpointOutput {
   asset_id: string;
   /** Whether the asset is internet-facing */
   asset_internet_facing?: boolean;
+  /**
+   * Last time a source observed the asset
+   * @format date-time
+   */
+  asset_last_seen?: string;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
@@ -4396,6 +4941,8 @@ export interface EndpointOutput {
    * @minLength 1
    */
   asset_name: string;
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   /** Asset subcategory */
   asset_subcategory?:
     | "SERVER"
@@ -4477,7 +5024,12 @@ export interface EndpointOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -4551,6 +5103,7 @@ export interface EndpointOverviewOutput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   /** Cloud native type */
   asset_cloud_native_type?: string;
@@ -4569,6 +5122,8 @@ export interface EndpointOverviewOutput {
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset description */
   asset_description?: string;
+  /** Reference of the asset in the system it was imported from (a link or an id), read by the cross-product pivots to mark that product as holding the asset */
+  asset_external_reference?: string;
   /** Hostname */
   asset_hostname?: string;
   /**
@@ -4583,6 +5138,8 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_ips?: string[];
+  /** Source of the last observation of the asset (collector or product) */
+  asset_last_seen_source?: string;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
@@ -4685,7 +5242,12 @@ export interface EndpointOverviewOutput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   /**
    * Tags
    * @uniqueItems true
@@ -4730,6 +5292,7 @@ export interface EndpointRegisterInput {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string | null;
   asset_cloud_provider?:
@@ -4832,7 +5395,12 @@ export interface EndpointRegisterInput {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_url?: string | null;
   elevated?: boolean;
@@ -4863,6 +5431,11 @@ export interface EndpointSimple {
    * @minLength 1
    */
   asset_id: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -4896,6 +5469,14 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -4915,28 +5496,6 @@ export interface EndpointTarget {
     | "SUCCESS";
 }
 
-export interface EndpointTargetOutput {
-  /**
-   * List agents installed
-   * @uniqueItems true
-   */
-  asset_agents?: AgentOutput[];
-  /** Hostname */
-  asset_hostname?: string;
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  asset_ips?: string[];
-  /** Seen IP */
-  asset_seen_ip?: string;
-}
-
 export interface EngineSortField {
   direction: "ASC" | "DESC";
   fieldName: string;
@@ -4951,15 +5510,19 @@ export interface EntitiesPaginationInput {
 
 export interface EsAsset {
   asset_category?: string;
+  asset_criticality?: string;
   asset_description?: string;
   asset_external_reference?: string;
   asset_hostname?: string;
+  asset_internet_facing?: boolean;
   /** @uniqueItems true */
   asset_ips?: string[];
   /** @uniqueItems true */
   asset_mac_addresses?: string[];
   asset_name?: string;
   asset_seen_ip?: string;
+  asset_subcategory?: string;
+  asset_url?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5152,6 +5715,8 @@ export interface EsEntities {
 }
 
 export interface EsFinding {
+  /** @uniqueItems true */
+  base_asset_groups_side?: string[];
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -5159,15 +5724,21 @@ export interface EsFinding {
   base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
-  base_inject_side?: string;
+  /** @uniqueItems true */
+  base_inject_side?: string[];
   base_representative?: string;
   base_restrictions?: string[];
-  base_scenario_side?: string;
-  base_simulation_side?: string;
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
   base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
-  finding_field?: string;
+  /** @uniqueItems true */
+  finding_field?: string[];
+  /** @format int64 */
+  finding_masking_version?: number;
   finding_type?: string;
   finding_value?: string;
 }
@@ -5243,7 +5814,6 @@ export interface EsInjectExpectation {
   inject_expectation_expiration_time?: number;
   inject_expectation_group?: boolean;
   inject_expectation_name?: string;
-  inject_expectation_results?: string;
   /** @format double */
   inject_expectation_score?: number;
   inject_expectation_status?: string;
@@ -5500,8 +6070,6 @@ export interface Executable {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5519,6 +6087,7 @@ export interface Executable {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5597,6 +6166,7 @@ export interface ExecutionTrace {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5646,6 +6216,7 @@ export interface ExecutionTraceOutput {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5735,6 +6306,7 @@ export interface Exercise {
   exercise_injects?: string[];
   exercise_injects_statistics?: Record<string, number>;
   exercise_kill_chain_phases?: KillChainPhase[];
+  exercise_launched_by?: string;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -5744,11 +6316,6 @@ export interface Exercise {
   exercise_logo_light?: string;
   /** @format int64 */
   exercise_logs_number?: number;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  exercise_mail_from: string;
   /**
    * @minLength 0
    * @maxLength 100
@@ -5905,16 +6472,12 @@ export interface ExercisesGlobalScoresOutput {
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
-  type: "DETECTION" | "HUMAN_RESPONSE" | "PREVENTION" | "VULNERABILITY";
-}
-
-export interface ExpectationUpdateInput {
-  /** @format double */
-  expectation_score: number;
-  source_id: string;
-  source_name: string;
-  source_platform?: string;
-  source_type: string;
+  type:
+    | "DETECTION"
+    | "HUMAN_RESPONSE"
+    | "LOGGING"
+    | "PREVENTION"
+    | "VULNERABILITY";
 }
 
 export interface ExpectationsDriftDismissInput {
@@ -5958,14 +6521,17 @@ export interface ExportOptionsInput {
   with_variable_values?: boolean;
 }
 
+export interface FactOutput {
+  fact_key?: string;
+  fact_value?: string;
+}
+
 export interface FileDrop {
   file_drop_file: string;
   listened?: boolean;
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5983,6 +6549,7 @@ export interface FileDrop {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -6046,6 +6613,8 @@ export interface Filter {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -6060,40 +6629,6 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
-export interface FindingInput {
-  /** @minLength 1 */
-  finding_field: string;
-  finding_inject_id?: string;
-  finding_labels?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @minLength 1 */
-  finding_value: string;
-}
-
 export interface FindingOutput {
   /**
    * Asset groups targeted by the inject that produced the finding
@@ -6103,7 +6638,7 @@ export interface FindingOutput {
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
-   * First time the finding was seen
+   * When the finding row was created. A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
@@ -6113,6 +6648,11 @@ export interface FindingOutput {
    */
   finding_field: string;
   /**
+   * First time the finding was detected; the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
@@ -6120,16 +6660,27 @@ export interface FindingOutput {
   /** Inject that produced the finding */
   finding_inject_id?: string;
   /**
-   * Deprecated, kept for backward compatibility
-   * @deprecated
+   * Last time the finding was detected; the last write time when the detection time is unknown
+   * @format date-time
    */
-  finding_labels?: string[];
+  finding_last_seen?: string;
+  /**
+   * When a re-test last ended on the finding
+   * @format date-time
+   */
+  finding_last_tested?: string;
   /** Finding name */
   finding_name?: string;
+  /** Re-test inject queued and not finished yet */
+  finding_retest_inject_id?: string;
   /** Scenario the finding was produced in */
   finding_scenario?: ScenarioSimple;
   /** Simulation the finding was produced in */
   finding_simulation?: ExerciseSimple;
+  /** Lifecycle status: OPEN, NOT_REPRODUCED or RESOLVED */
+  finding_status?: "OPEN" | "NOT_REPRODUCED" | "RESOLVED";
+  /** Inject whose run set the current status (a detection or a re-test) */
+  finding_status_inject_id?: string;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true
@@ -6167,7 +6718,7 @@ export interface FindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written. Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -6180,12 +6731,28 @@ export interface FindingOutput {
   finding_value: string;
 }
 
-export interface FindingSummaryOutput {
+export interface FindingRetestInput {
   /**
-   * Number of distinct impacted asset groups across all occurrences
-   * @format int64
+   * Ids of the findings to re-test
+   * @minItems 1
    */
-  finding_asset_groups_count?: number;
+  finding_ids: string[];
+}
+
+export interface FindingRetestOutput {
+  /**
+   * Finding re-tested
+   * @minLength 1
+   */
+  finding_id: string;
+  /**
+   * Inject queued to re-test the finding
+   * @minLength 1
+   */
+  retest_inject_id: string;
+}
+
+export interface FindingSummaryOutput {
   /**
    * Number of distinct impacted assets across all occurrences
    * @format int64
@@ -6278,10 +6845,13 @@ export interface FullTextSearchResult {
   /** @minLength 1 */
   name: string;
   /** @uniqueItems true */
-  tags?: Tag[];
+  tags?: string[];
 }
 
 export type GcpOAuth2 = Value & {
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -6290,6 +6860,7 @@ export type GcpOAuth2 = Value & {
 };
 
 export type GcpServiceAccount = Value & {
+  gcp_custom_resource_manager_uri?: string;
   /** @format byte */
   gcp_private_key_json?: Blob;
   gcp_project_id?: string;
@@ -6311,35 +6882,117 @@ export interface GlobalScoreBySimulationEndDate {
   simulation_end_date: string;
 }
 
-export interface Grant {
-  grant_group?: string;
-  /** @minLength 1 */
-  grant_id: string;
-  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
-  grant_resource?: string;
-  grant_resource_type?:
-    | "SCENARIO"
-    | "SIMULATION"
-    | "ATOMIC_TESTING"
-    | "AUTONOMOUS_RUN"
-    | "THREAT_ARSENAL"
-    | "PAYLOAD"
-    | "UNKNOWN";
-  listened?: boolean;
+export interface GraphEdgeOutput {
+  edge_id: string;
+  edge_result?: "SUCCESS" | "PENDING" | "FAILED";
+  edge_source: string;
+  edge_target: string;
+  edge_type:
+    | "MEMBER_OF"
+    | "FOUND_ON"
+    | "PRODUCED"
+    | "TARGETS"
+    | "PART_OF"
+    | "RUN_OF"
+    | "IDENTITY_OF"
+    | "WORKS_FOR"
+    | "IN_TEAM"
+    | "TEAM_OF"
+    | "LINKED_TO"
+    | "ATTACK_STEP";
 }
 
-export interface Group {
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  group_grants?: Grant[];
-  /** @minLength 1 */
+export interface GraphNodeOutput {
+  /** @format date-time */
+  node_date?: string;
+  node_entity_id: string;
+  /** @format int64 */
+  node_failed_count?: number;
+  /** @format int64 */
+  node_finding_count?: number;
+  node_id: string;
+  node_label: string;
+  node_relation_counts?: Record<string, number>;
+  node_result?: "SUCCESS" | "PENDING" | "FAILED";
+  node_subtype?: string;
+  node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+}
+
+export interface GraphOutput {
+  graph_edges: GraphEdgeOutput[];
+  graph_focus?: string;
+  graph_nodes: GraphNodeOutput[];
+  graph_path: string[];
+  graph_truncated?: boolean;
+}
+
+export interface GraphOverviewGroupOutput {
+  /** @format int64 */
+  group_asset_count?: number;
+  group_dynamic?: boolean;
+  /** @format int64 */
+  group_failed_count?: number;
+  /** @format double */
+  group_failure_rate?: number;
   group_id: string;
-  group_markings?: string[];
-  /** @minLength 1 */
   group_name: string;
-  group_roles?: string[];
-  group_users?: string[];
-  listened?: boolean;
+  /** @format int64 */
+  group_scored_count?: number;
+  group_ungrouped?: boolean;
+}
+
+export interface GraphOverviewLinkOutput {
+  /** @format int64 */
+  link_failed_count?: number;
+  link_group_id: string;
+  link_result?: "SUCCESS" | "PENDING" | "FAILED";
+  link_simulation_id: string;
+  link_simulation_name: string;
+}
+
+export interface GraphOverviewOutput {
+  /** @format int64 */
+  overview_asset_count?: number;
+  overview_groups: GraphOverviewGroupOutput[];
+  overview_links: GraphOverviewLinkOutput[];
+  overview_truncated?: boolean;
+}
+
+export interface GraphStartingPointOutput {
+  point_entity_id: string;
+  point_kind:
+    | "EXPOSED_ASSET"
+    | "FAILING_GROUP"
+    | "LATEST_SIMULATION"
+    | "TOP_FINDING"
+    | "ATTACK_PATH"
+    | "EXPOSED_PERSON";
+  point_label: string;
+  point_node_type:
+    | "ASSET"
+    | "ASSET_GROUP"
+    | "FINDING"
+    | "INJECT"
+    | "SIMULATION"
+    | "SCENARIO"
+    | "PERSON"
+    | "ORGANIZATION"
+    | "TEAM";
+  /** @format int64 */
+  point_score?: number;
+}
+
+export interface GraphStartingPointsOutput {
+  starting_points: GraphStartingPointOutput[];
 }
 
 export interface GroupGrantInput {
@@ -6356,6 +7009,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateMarkingsInput {
+  group_auto_new_marking?: boolean;
   group_markings: string[];
 }
 
@@ -6388,7 +7042,10 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
+  /** Key of the injector contract field the check is about, set on a missing mandatory field (its type can be unknown when the key is not a known check type) */
+  field?: string;
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6409,6 +7066,8 @@ export interface HealthCheck {
     | "OPTIONAL_ARGS"
     | "MESSAGE"
     | "SCOPE_DEFINITION"
+    | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
@@ -6437,6 +7096,13 @@ export interface HealthCheckDetailsOutput {
    * @example "success"
    */
   status?: string;
+}
+
+export interface ImportLine {
+  definition?: string;
+  outcome?: "CREATED" | "EXISTING" | "CONFLICT" | "INVALID";
+  stixId?: string;
+  type?: string;
 }
 
 export interface ImportMapper {
@@ -6494,6 +7160,31 @@ export interface ImportPostSummary {
   import_id: string;
 }
 
+export interface ImportReport {
+  import_columns: string[];
+  /** @format int32 */
+  import_created: number;
+  /** @format int32 */
+  import_ignored: number;
+  import_rows: ImportReportRow[];
+  /** @format int32 */
+  import_skipped: number;
+}
+
+export interface ImportReportRow {
+  import_row_params: Record<string, string>;
+  /** @format int32 */
+  import_row_position: number;
+  import_row_reason?:
+    | "MISSING_FIELD"
+    | "VALUE_TOO_LONG"
+    | "INVALID_VALUE"
+    | "CONFLICT"
+    | "INSUFFICIENT_ACCESS";
+  import_row_status: "CREATED" | "SKIPPED" | "IGNORED";
+  import_row_values: Record<string, string>;
+}
+
 export interface ImportResult {
   missingActions?: MissingImportedAction[];
 }
@@ -6547,12 +7238,14 @@ export interface Inject {
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_launched_by?: string;
   inject_recurrence?: string;
   /** @format date-time */
   inject_recurrence_end?: string;
   /** @format date-time */
   inject_recurrence_start?: string;
   inject_scenario?: string;
+  inject_scheduled_by?: string;
   inject_secret_references?: string[];
   /** @format date-time */
   inject_sent_at?: string;
@@ -6717,13 +7410,14 @@ export interface InjectExpectationAgentOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /** @format int64 */
   inject_expiration_time: number;
 }
 
 export interface InjectExpectationBulkUpdateInput {
-  inputs: Record<string, InjectExpectationUpdateInput>;
+  inputs: Record<string, InjectExpectationUpdateFromCollectorInput>;
 }
 
 export interface InjectExpectationOutput {
@@ -6809,6 +7503,7 @@ export interface InjectExpectationOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /**
    * Last update date of the inject expectation
@@ -6827,10 +7522,17 @@ export interface InjectExpectationOutput {
 }
 
 export interface InjectExpectationResult {
+  /** @format date-time */
   date?: string;
-  metadata?: Record<string, string>;
   /** @minLength 1 */
-  result: string;
+  inject_expectation_id: string;
+  /** @format date-time */
+  inject_expectation_result_created_at?: string;
+  /** @format date-time */
+  inject_expectation_result_updated_at?: string;
+  listened?: boolean;
+  metadata?: Record<string, string>;
+  result?: string;
   /** @format double */
   score?: number;
   sourceAssetId?: string;
@@ -6874,6 +7576,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6893,15 +7596,29 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
 
-export interface InjectExpectationUpdateInput {
+export interface InjectExpectationUpdateFromCollectorInput {
   collector_id: string;
   is_success: boolean;
   metadata?: Record<string, string>;
-  result: string;
+  /**
+   * Ignored for collectors: the result label is derived from is_success and the expectation type
+   * @deprecated
+   */
+  result?: string;
+}
+
+export interface InjectExpectationUpdateFromUIInput {
+  /** @format double */
+  expectation_score: number;
+  source_id: string;
+  source_name: string;
+  source_platform?: string;
+  source_type: string;
 }
 
 export interface InjectExportFromSearchRequestInput {
@@ -6970,6 +7687,7 @@ export interface InjectInput {
   inject_enabled?: boolean;
   inject_injector?: string;
   inject_injector_contract?: string;
+  inject_secret_references?: string[];
   inject_tags?: string[];
   inject_teams?: string[];
   /** @minLength 1 */
@@ -7033,6 +7751,7 @@ export interface InjectOutput {
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
+  inject_secret_references?: string[];
   /**
    * Sent date of the inject
    * @format date-time
@@ -7123,6 +7842,10 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by_user?: UserSimple;
+  /** Keys of the injector contract's mandatory fields this inject leaves empty: the reasons it is not ready (empty when it is ready) */
+  inject_missing_mandatory_fields: string[];
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -7137,6 +7860,8 @@ export interface InjectResultOverviewOutput {
    * @format date-time
    */
   inject_recurrence_start?: string;
+  /** User who last configured this inject's recurrence */
+  inject_scheduled_by_user?: UserSimple;
   /** status */
   inject_status?: InjectStatusSimple;
   /**
@@ -7228,7 +7953,17 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
     | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
+    | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
+
+export interface InjectTargetsOutput {
+  /** @minLength 1 */
+  inject_id: string;
+  inject_target_kinds: ("ASSETS" | "ASSET_GROUPS" | "TEAMS" | "HOSTS")[];
+  inject_targeted?: boolean;
+  /** @minLength 1 */
+  inject_title: string;
+}
 
 export interface InjectTeamsInput {
   inject_teams?: string[];
@@ -7258,6 +7993,7 @@ export interface InjectUpdateStatusInput {
 
 export interface Injector {
   injector_category?: string;
+  injector_commit?: string;
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
@@ -7289,6 +8025,7 @@ export interface Injector {
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** True when this contract can be used to create an atomic test. It does not tell whether a given inject is an atomic test: an inject is one when it belongs to no scenario and no simulation */
   injector_contract_atomic_testing?: boolean;
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
@@ -7310,7 +8047,6 @@ export interface InjectorContract {
   injector_contract_payload?: Payload;
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
-  injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
@@ -7519,6 +8255,8 @@ export interface InjectorContractInput {
 export interface InjectorContractSearchPaginationInput {
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, so the results come in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -7593,6 +8331,7 @@ export interface InjectorContractUpdateMappingInput {
 export interface InjectorCreateInput {
   injector_author?: string;
   injector_category?: string;
+  injector_commit?: string;
   injector_contracts?: InjectorContractInput[];
   injector_custom_contracts?: boolean;
   injector_executor_clear_commands?: Record<string, string>;
@@ -7612,6 +8351,7 @@ export interface InjectorOutput {
   catalog?: CatalogConnectorSimpleOutput;
   connector_instance?: ConnectorInstanceOutput;
   existing_injector?: boolean;
+  injector_commit?: string;
   injector_external?: boolean;
   /**
    * Injector id
@@ -7673,6 +8413,8 @@ export interface InstalledInjector {
 }
 
 export interface Internal {
+  draft_id?: string;
+  trigger?: string;
   /** @minLength 1 */
   work_id: string;
 }
@@ -8006,7 +8748,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
-  license_source?: "openaev" | "xtm_one";
+  license_source?: "openaev" | "xtm_one" | "filigran";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -8029,6 +8771,15 @@ export type ListConfiguration = UtilRequiredKeys<
 export interface ListPerspective {
   filter?: FilterGroup;
   name?: string;
+}
+
+export interface LocalObjectOutput {
+  object_facts?: FactOutput[];
+  object_id?: string;
+  object_key?: string;
+  object_name?: string;
+  object_type?: string;
+  object_url?: string;
 }
 
 export interface Log {
@@ -8067,6 +8818,55 @@ export interface LoginUserInput {
   password: string;
   /** The tenant ID the user is logging into (optional) */
   tenantId?: string;
+}
+
+export interface ManualTarget {
+  target_category?: string;
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
 }
 
 export interface MapperConditionOutput {
@@ -8113,20 +8913,169 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkedEndpointInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  asset_hostname?: string;
+  asset_internet_facing?: boolean | null;
+  asset_ips?: string[];
+  asset_linked_person?: string | null;
+  asset_mac_addresses?: string[];
+  /** @uniqueItems true */
+  asset_markings?: string[];
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "EMAIL_SECURITY"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY"
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
+  asset_tags?: string[];
+  asset_url?: string | null;
+  endpoint_agent_version?: string;
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
+  /** True if the endpoint is in an End of Life state */
+  endpoint_is_eol?: boolean;
+  endpoint_platform?:
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown";
+}
+
 export interface MarkingDefinitionInput {
   /**
    * @minLength 1
    * @pattern ^#[0-9a-fA-F]{6}$
    */
   marking_definition_color: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_definition: string;
   /**
    * @format int32
    * @min 0
    */
   marking_definition_order: number;
-  /** @minLength 1 */
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   marking_definition_type: string;
 }
 
@@ -8142,6 +9091,7 @@ export interface MarkingDefinitionOutput {
   /** @format int32 */
   marking_definition_order: number;
   marking_definition_protected: boolean;
+  marking_definition_stix_id?: string;
   /** @minLength 1 */
   marking_definition_type: string;
 }
@@ -8208,8 +9158,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -8227,6 +9175,7 @@ export interface NetworkTraffic {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -8279,6 +9228,55 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemOutput {
+  /**
+   * Creation date of the item
+   * @format date-time
+   */
+  news_feed_item_creation_date: string;
+  /**
+   * ID of the item in XTM Hub
+   * @minLength 1
+   */
+  news_feed_item_hub_id: string;
+  /**
+   * ID of the news feed item
+   * @minLength 1
+   */
+  news_feed_item_id: string;
+  /** Whether the item was read */
+  news_feed_item_is_read: boolean;
+  /** Tags of the item */
+  news_feed_item_tags: string[];
+  /**
+   * Title of the item
+   * @minLength 1
+   */
+  news_feed_item_title: string;
+  /** Type of the item, absent when OpenAEV no longer knows its type */
+  news_feed_item_type?: "RESOURCE_SCENARIO";
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
+  news_feed_item_url_path?: string;
+}
+
+export interface NewsFeedSettingsInput {
+  /**
+   * The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything
+   * @maxItems 50
+   * @minItems 0
+   */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
+export interface NewsFeedSettingsOutput {
+  /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
+  news_feed_settings_hub_connected: boolean;
+  /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
+  news_feed_settings_hub_registered: boolean;
+  /** The news feed types the current user is subscribed to */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
 export interface NotificationBulkProcessingInput {
   /** Ids excluded from the select-all scope */
   notification_ids_to_ignore?: string[];
@@ -8317,6 +9315,15 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
+    | "INSTALLED_AUTOMATICALLY"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
+    | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8387,6 +9394,7 @@ export interface NotificationTriggerInput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8429,6 +9437,15 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "BASE_UPDATE_AVAILABLE"
+    | "INSTALLED_AUTOMATICALLY"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
+    | "CRITICAL_ASSET_REACHED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8500,6 +9517,7 @@ export interface NotificationTriggerOutput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8779,8 +9797,65 @@ export interface PageAttackPatternOutput {
   totalPages?: number;
 }
 
+export interface PageAvailableActionOutput {
+  content?: AvailableActionOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageCatalogScenarioOutput {
+  content?: CatalogScenarioOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageConnectorInstanceLog {
   content?: ConnectorInstanceLog[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageContentChangeOutput {
+  content?: ContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8874,25 +9949,6 @@ export interface PageEndpointOutput {
   totalPages?: number;
 }
 
-export interface PageEndpointTargetOutput {
-  content?: EndpointTargetOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageExerciseSimple {
   content?: ExerciseSimple[];
   empty?: boolean;
@@ -8914,25 +9970,6 @@ export interface PageExerciseSimple {
 
 export interface PageFullTextSearchResult {
   content?: FullTextSearchResult[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageGroup {
-  content?: Group[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9102,6 +10139,25 @@ export interface PageMitigation {
   totalPages?: number;
 }
 
+export interface PageNewsFeedItemOutput {
+  content?: NewsFeedItemOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageNotificationOutput {
   content?: NotificationOutput[];
   empty?: boolean;
@@ -9180,6 +10236,25 @@ export interface PageOrganization {
 
 export interface PagePayload {
   content?: Payload[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagePayloadContentChangeOutput {
+  content?: PayloadContentChangeOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9463,6 +10538,25 @@ export interface PageTeamOutput {
   totalPages?: number;
 }
 
+export interface PageTenantGroupOutput {
+  content?: TenantGroupOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageTenantOutput {
   content?: TenantOutput[];
   empty?: boolean;
@@ -9609,6 +10703,30 @@ export interface PayloadCommandBlock {
   payload_cleanup_command?: string[];
 }
 
+export interface PayloadContentChangeOutput {
+  content_change_action:
+    | "INSTALL"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "SAVE";
+  /** @format date-time */
+  content_change_created_at: string;
+  /** The fields its version changed; empty when it made no version */
+  content_change_fields?: PayloadVersionChangeOutput[];
+  /** The version it came from; empty when the change made no version */
+  content_change_from_version?: string;
+  /** @minLength 1 */
+  content_change_id: string;
+  content_change_mode: "MANUAL" | "AUTO";
+  /** Who made the change; empty when the platform made it alone */
+  content_change_user?: string;
+  /** @minLength 1 */
+  content_change_version: string;
+}
+
 export type PayloadCreateInput = BasePayloadCreateInput &
   (
     | BasePayloadCreateInputPayloadTypeMapping<"Command", Command>
@@ -9617,6 +10735,58 @@ export type PayloadCreateInput = BasePayloadCreateInput &
     | BasePayloadCreateInputPayloadTypeMapping<"DnsResolution", DnsResolution>
     | BasePayloadCreateInputPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
   );
+
+export interface PayloadCustomizationOutput {
+  /**
+   * The action of the Filigran version the copy is built from
+   * @minLength 1
+   */
+  customization_base_action_id: string;
+  /** @minLength 1 */
+  customization_base_version: string;
+  /** The newer Filigran version the copy can take; empty when none */
+  customization_update?: PayloadCustomizationUpdateOutput;
+}
+
+export interface PayloadCustomizationUpdateInput {
+  /** Keep mine or take Filigran's, for every conflicting block */
+  update_choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED">;
+  /**
+   * The Filigran version reviewed
+   * @minLength 1
+   */
+  update_payload_id: string;
+}
+
+export interface PayloadCustomizationUpdateOutput {
+  /** The fields Filigran or the copy changed since the base version */
+  update_fields: PayloadFieldUpdateOutput[];
+  /** @minLength 1 */
+  update_payload_id: string;
+  /** The release notes of the newer versions, newest first */
+  update_release_notes: PayloadReleaseNoteOutput[];
+  /** @minLength 1 */
+  update_version: string;
+}
+
+export interface PayloadFieldUpdateOutput {
+  /** The value of the base version; empty when it has none */
+  field_base?: JsonNode;
+  /** The fields of a block conflict together: one choice settles them all */
+  field_block: "EXECUTION" | "PLATFORMS";
+  field_filigran?: JsonNode;
+  field_name:
+    | "COMMAND_EXECUTOR"
+    | "COMMAND_CONTENT"
+    | "CLEANUP_EXECUTOR"
+    | "CLEANUP_COMMAND"
+    | "PLATFORMS"
+    | "ARGUMENTS"
+    | "PREREQUISITES";
+  /** What the update does with the field; a conflict needs a choice */
+  field_status: "TAKE_APPLIED" | "KEEP_MINE" | "CONFLICT";
+  field_yours?: JsonNode;
+}
 
 export interface PayloadInput {
   agent_slug?: string;
@@ -9641,6 +10811,7 @@ export interface PayloadInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9724,6 +10895,7 @@ export interface PayloadOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of expectation type to expected security platform types (empty = any) */
@@ -9798,6 +10970,18 @@ export interface PayloadPrerequisite {
   get_command: string;
 }
 
+export interface PayloadReleaseNoteOutput {
+  /** @minLength 1 */
+  release_changelog: string;
+  /** @minLength 1 */
+  release_version: string;
+}
+
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  payload_revocation_reason: string;
+}
+
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
@@ -9827,6 +11011,7 @@ export interface PayloadUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9895,6 +11080,7 @@ export interface PayloadUpsertInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9941,9 +11127,82 @@ export interface PayloadUpsertInput {
   payload_type: string;
 }
 
+export interface PayloadUsageMoveInput {
+  /** @minLength 1 */
+  target_payload_id: string;
+  usage_ids: string[];
+}
+
+export interface PayloadUsageMoveOutput {
+  moved_ids: string[];
+  refused: PayloadUsageRefusal[];
+}
+
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /** @minLength 1 */
+  usage_type: "inject" | "atomic_testing" | "step";
+}
+
+export interface PayloadUsageRefusal {
+  reason: "NOT_ON_THIS_VERSION" | "MISSING_RIGHT" | "NOT_COMPATIBLE";
+  /** @minLength 1 */
+  usage_id: string;
+}
+
+export interface PayloadUsagesOutput {
+  payload_usages: PayloadUsageOutput[];
+  /** @format int32 */
+  payload_usages_hidden_count?: number;
+}
+
+export interface PayloadVersionChangeOutput {
+  change_after?: JsonNode;
+  /** Its value in the version just below; empty when it had none */
+  change_before?: JsonNode;
+  /**
+   * The changed field, as the payload names it
+   * @minLength 1
+   */
+  change_field: string;
+}
+
+export interface PayloadVersionOutput {
+  /**
+   * The Threat Arsenal action of this version
+   * @minLength 1
+   */
+  payload_action_id: string;
+  /** @minLength 1 */
+  payload_id: string;
+  payload_is_latest: boolean;
+  /** Its injects on older versions are kept there until a newer version */
+  payload_older_versions_kept: boolean;
+  payload_revocation_reason?: string;
+  payload_revoked: boolean;
+  /** @format date-time */
+  payload_revoked_at?: string;
+  /** The admin who revoked it; empty when revoked by the catalogue */
+  payload_revoked_by?: string;
+  /** Revoked by the catalogue: the tenant cannot lift it */
+  payload_revoked_by_catalogue: boolean;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
 export interface PayloadsDeprecateInput {
   collector_id: string;
   payload_external_ids: string[];
+}
+
+export interface PhishingConfirmInput {
+  /** @format int64 */
+  dwell_ms?: number;
+  webdriver?: boolean;
 }
 
 export interface PhishingEmailTemplate {
@@ -10039,6 +11298,8 @@ export interface PhishingLandingPageReader {
   phishing_landing_page_html?: string;
   phishing_landing_page_logo_dark?: string;
   phishing_landing_page_logo_light?: string;
+  /** @format int64 */
+  phishing_landing_page_min_dwell_ms: number;
   phishing_landing_page_name?: string;
   phishing_landing_page_primary_color_dark?: string;
   phishing_landing_page_primary_color_light?: string;
@@ -10107,6 +11368,11 @@ export interface PlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
+    | "CATALOG"
+    | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10125,6 +11391,11 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_detection_expiration_time: number;
+  /**
+   * Time to wait before logging time has expired
+   * @format int64
+   */
+  expectation_logging_expiration_time: number;
   /**
    * Default score for manuel expectation
    * @format int32
@@ -10225,10 +11496,18 @@ export interface PlatformSettings {
   postgre_version?: string;
   /** Current version of RabbitMQ */
   rabbitmq_version?: string;
+  /** Settings an administrator may change at runtime, each with its value in force and its source: env (environment variable, read-only), ui or default */
+  runtime_settings?: RuntimeSettingOutput[];
   /** SMTP Service availability */
   smtp_service_available?: string;
   /** True if telemetry manager enable */
   telemetry_manager_enable?: boolean;
+  /** Container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** Last connectivity check of XTM Composer */
+  xtm_composer_last_connectivity_check?: string;
+  /** Version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_version?: string;
   /** True if connection with XTM Hub is enabled */
   xtm_hub_enable?: boolean;
   /** True if xtmhub backend is reachable */
@@ -10303,6 +11582,14 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -10433,6 +11720,8 @@ export interface PropertySchemaDTO {
     | "not_contains"
     | "starts_with"
     | "not_starts_with"
+    | "ends_with"
+    | "not_ends_with"
     | "gt"
     | "gte"
     | "lt"
@@ -10494,6 +11783,11 @@ export interface PublicPlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
+    | "CATALOG"
+    | "EXPLORATION_GRAPH"
+    | "XTM_COUNTERPARTS"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10579,9 +11873,14 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author_name?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -10591,6 +11890,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 
@@ -10605,6 +11905,13 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface Refusal {
+  external_id?: string;
+  /** @minLength 1 */
+  reason: string;
+  version?: string;
 }
 
 export interface RegexGroup {
@@ -10669,10 +11976,15 @@ export interface RelatedFindingOutput {
    */
   finding_assets: EndpointSimple[];
   /**
-   * First time the finding was seen
+   * When the finding row was created (earliest across the group in distinct mode). A storage time, not a detection: read finding_first_seen for that.
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * First time the finding was detected (earliest across the group in distinct mode); the creation time when the detection time is unknown
+   * @format date-time
+   */
+  finding_first_seen?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -10680,6 +11992,11 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /**
+   * Last time the finding was detected (latest across the group in distinct mode); the last write time when the detection time is unknown
+   * @format date-time
+   */
+  finding_last_seen?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
@@ -10719,7 +12036,7 @@ export interface RelatedFindingOutput {
     | "kerberoastable_account"
     | "expectation_signature";
   /**
-   * Last time the finding was seen
+   * When the finding row was last written (latest across the group in distinct mode). Any write moves it (status, asset link, migration): read finding_last_seen for the last detection.
    * @format date-time
    */
   finding_updated_at: string;
@@ -10914,6 +12231,17 @@ export interface ResultDistribution {
   value: number;
 }
 
+export interface RevokedInjectOutput {
+  /** @minLength 1 */
+  inject_action_id: string;
+  /** @minLength 1 */
+  inject_action_name: string;
+  /** @minLength 1 */
+  inject_id: string;
+  /** @minLength 1 */
+  inject_title: string;
+}
+
 export interface RoleInput {
   /** @uniqueItems true */
   role_capabilities?: (
@@ -10934,6 +12262,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -10984,13 +12313,13 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11020,6 +12349,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11070,13 +12400,13 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11119,6 +12449,49 @@ export interface RuleAttributeUpdateInput {
   rule_attribute_name: string;
 }
 
+/** A platform setting an administrator may change unless its env var is set */
+export interface RuntimeSettingOutput {
+  /** Only effective with an Enterprise Edition license */
+  enterprise_only: boolean;
+  /**
+   * Environment variable that pins the setting when set
+   * @minLength 1
+   */
+  env_var: string;
+  /**
+   * Setting key
+   * @minLength 1
+   */
+  key: string;
+  /** True when the environment variable is set: the UI is read-only */
+  locked: boolean;
+  /**
+   * Highest value, for an integer
+   * @format int32
+   */
+  max?: number;
+  /**
+   * Lowest value, for an integer
+   * @format int32
+   */
+  min?: number;
+  /**
+   * Where the value comes from: env (environment variable, read-only), ui (set by an administrator) or default (configuration default)
+   * @minLength 1
+   */
+  source: "env" | "ui" | "default";
+  /**
+   * Value type
+   * @minLength 1
+   */
+  type: "integer" | "boolean";
+  /**
+   * Value in force, as text
+   * @minLength 1
+   */
+  value: string;
+}
+
 export interface Scenario {
   listened?: boolean;
   /** @format int64 */
@@ -11148,11 +12521,6 @@ export interface Scenario {
   scenario_lessons_categories?: string[];
   scenario_lessons_enabled?: boolean;
   /**
-   * @format email
-   * @minLength 1
-   */
-  scenario_mail_from: string;
-  /**
    * @minLength 0
    * @maxLength 100
    * @pattern ^[^\r\n\x00]*$
@@ -11178,11 +12546,13 @@ export interface Scenario {
     | "Internal"
     | "Unknown"
   )[];
+  scenario_reachability_assertion?: boolean;
   scenario_recurrence?: string;
   /** @format date-time */
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+  scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
@@ -11210,10 +12580,51 @@ export interface ScenarioBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface ScenarioCatalogStateOutput {
+  scenario_catalog_state_last_update?: ScenarioRevisionOutput;
+  scenario_catalog_state_revoked: boolean;
+}
+
 export interface ScenarioChallengesReader {
   scenario_challenges?: ChallengeInformation[];
   scenario_id?: string;
   scenario_information?: PublicScenario;
+}
+
+export interface ScenarioChangeOutput {
+  scenario_change_applied?: JsonNode;
+  scenario_change_base?: JsonNode;
+  scenario_change_editable: boolean;
+  scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
+  scenario_change_field_key?: string;
+  scenario_change_field_kind?:
+    | "NAME"
+    | "DESCRIPTION"
+    | "SEVERITY"
+    | "CATEGORY"
+    | "TITLE"
+    | "CONTRACT"
+    | "DEPENDS_DURATION"
+    | "DEPENDS_ON"
+    | "ARGUMENT"
+    | "VARIABLE";
+  /** @minLength 1 */
+  scenario_change_id: string;
+  scenario_change_local?: JsonNode;
+  scenario_change_status:
+    | "TAKE_APPLIED"
+    | "KEEP_MINE"
+    | "CONFLICT"
+    | "ADDED"
+    | "REMOVED";
+  scenario_change_title?: string;
+}
+
+export interface ScenarioChangelogOutput {
+  /** @minLength 1 */
+  scenario_changelog: string;
+  /** @minLength 1 */
+  scenario_changelog_version: string;
 }
 
 export interface ScenarioIdsAndInjectorContractsInputs {
@@ -11248,6 +12659,17 @@ export interface ScenarioInput {
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
+}
+
+export interface ScenarioLaunchCheckOutput {
+  launch_check_injects: InjectTargetsOutput[];
+  launch_check_missing_requirements: CatalogScenarioRequirementOutput[];
+  launch_check_revoked_injects: RevokedInjectOutput[];
+}
+
+export interface ScenarioLaunchOutput {
+  /** @minLength 1 */
+  simulation_id: string;
 }
 
 export interface ScenarioOutput {
@@ -11288,11 +12710,6 @@ export interface ScenarioOutput {
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
   /** Whether the lessons learned module is enabled for the scenario */
   scenario_lessons_enabled?: boolean;
-  /**
-   * From value of the scenario
-   * @minLength 1
-   */
-  scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
   /** @uniqueItems true */
@@ -11322,6 +12739,8 @@ export interface ScenarioOutput {
    * @format date-time
    */
   scenario_recurrence_start?: string;
+  /** User who last configured the scenario's recurrence */
+  scenario_scheduled_by_user?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -11342,8 +12761,21 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Catalogue version installed, empty for a scenario of the tenant */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
+}
+
+export interface ScenarioPayloadVersionOutput {
+  payload_name?: string;
+  /** @minLength 1 */
+  payload_version: string;
+}
+
+export interface ScenarioReachabilityAssertionInput {
+  /** True to make the scenario a reachability assertion: only read-only injects may run on its schedule */
+  scenario_reachability_assertion?: boolean;
 }
 
 export interface ScenarioRecurrenceInput {
@@ -11352,6 +12784,19 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+}
+
+export interface ScenarioRevisionOutput {
+  /** @minLength 1 */
+  scenario_revision_catalog_version: string;
+  /** @format date-time */
+  scenario_revision_created_at: string;
+  /** @minLength 1 */
+  scenario_revision_id: string;
+  /** @format int32 */
+  scenario_revision_number: number;
+  scenario_revision_reason: "INSTALL" | "UPDATE" | "ROLLBACK";
+  scenario_revision_user?: string;
 }
 
 export interface ScenarioSimple {
@@ -11363,6 +12808,13 @@ export interface ScenarioSimple {
 
 export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
+}
+
+export interface ScenarioTargetsInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
 }
 
 export interface ScenarioTeamPlayersEnableInput {
@@ -11384,6 +12836,25 @@ export interface ScenarioTeamUserOutput {
   user_id?: string;
 }
 
+export interface ScenarioUpdateInput {
+  scenario_update_choices?: Record<
+    string,
+    "KEEP_MINE" | "TAKE_APPLIED" | "EDIT"
+  >;
+  scenario_update_edits?: Record<string, string>;
+  /** @minLength 1 */
+  scenario_update_from_version: string;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  scenario_update_changelogs: ScenarioChangelogOutput[];
+  scenario_update_changes: ScenarioChangeOutput[];
+  scenario_update_from_version: string;
+  scenario_update_lost_dependencies: string[];
+  scenario_update_payloads_to_install: ScenarioPayloadVersionOutput[];
+  scenario_update_revoked_payloads: ScenarioPayloadVersionOutput[];
+}
+
 export interface ScenarioUpdateTagsInput {
   apply_tag_rule?: boolean;
   scenario_tags?: string[];
@@ -11391,6 +12862,23 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+export interface ScenarioVersionOutput {
+  /** @minLength 1 */
+  scenario_version: string;
+  scenario_version_changelog?: string;
+  scenario_version_current: boolean;
+  scenario_version_latest: boolean;
+  /** @format date-time */
+  scenario_version_published_at?: string;
+  scenario_version_status: "VERIFIED" | "DEPRECATED" | "REVOKED" | "UNLISTED";
+}
+
+export interface ScenarioVersionsOutput {
+  /** @format int64 */
+  scenario_simulations_count: number;
+  scenario_versions: ScenarioVersionOutput[];
 }
 
 /** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
@@ -11672,6 +13160,7 @@ export interface SecurityPlatform {
     | "SAAS_APPLICATION"
     | "AI_TARGET"
     | "SECURITY_PLATFORM"
+    | "SOURCE_CODE"
     | "GENERIC_ASSET";
   asset_cloud_native_type?: string;
   asset_cloud_provider?:
@@ -11693,6 +13182,9 @@ export interface SecurityPlatform {
   asset_id: string;
   asset_internet_facing?: boolean;
   asset_ips?: string[];
+  /** @format date-time */
+  asset_last_seen?: string;
+  asset_last_seen_source?: string;
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
   asset_markings?: string[];
@@ -11700,8 +13192,8 @@ export interface SecurityPlatform {
   /** @minLength 1 */
   asset_name: string;
   asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
+  /** Activity status: STALE when unseen past the tenant threshold, else derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
+  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS" | "STALE";
   asset_subcategory?:
     | "SERVER"
     | "WORKSTATION"
@@ -11782,7 +13274,12 @@ export interface SecurityPlatform {
     | "EMAIL_SECURITY"
     | "LLM_FIREWALL"
     | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
+    | "VULNERABILITY_SCANNER"
+    | "CODE_REPOSITORY"
+    | "CI_CD_PIPELINE"
+    | "PACKAGE_REGISTRY"
+    | "SOFTWARE_PACKAGE"
+    | "CODE_OTHER";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -11947,6 +13444,11 @@ export interface SettingsPlatformWhitemarkUpdateInput {
   platform_whitemark: string;
 }
 
+export interface SettingsRuntimeUpdateInput {
+  /** Runtime settings to store, by key (inject_execution_threshold_minutes, agent_max_simultaneous_jobs, agent_queue_threshold, agent_auto_update_enabled). A setting whose environment variable is set is refused */
+  settings: Record<string, any>;
+}
+
 export interface SettingsSessionsUpdateInput {
   /**
    * Maximum number of concurrent sessions per user (0 = unlimited)
@@ -11979,14 +13481,14 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** User who launched this exercise, or who last scheduled it when created unattended */
+  exercise_launched_by_user?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
   exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
-  /** @minLength 1 */
-  exercise_mail_from: string;
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
@@ -12113,6 +13615,16 @@ export interface SortObject {
   empty?: boolean;
   sorted?: boolean;
   unsorted?: boolean;
+}
+
+/** Starter-pack dashboards restored and tenant defaults set back */
+export interface StarterPackDashboardsRestoreOutput {
+  /** Tenant default dashboard settings that were empty and are set back */
+  defaults_set: string[];
+  /** Names of the starter-pack dashboards that already existed */
+  existing_dashboards: string[];
+  /** Names of the dashboards created by this restore */
+  restored_dashboards: string[];
 }
 
 export interface StatusPayload {
@@ -12606,6 +14118,14 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @uniqueItems true */
+  target_markings?: string[];
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -12646,7 +14166,24 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupGrantOutput {
+  grant_group?: string;
+  /** @minLength 1 */
+  grant_id: string;
+  grant_name: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  grant_resource?: string;
+  grant_resource_type?:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
+}
+
 export interface TenantGroupMarkingsOutput {
+  group_auto_new_marking?: boolean;
   /**
    * Group Id
    * @minLength 1
@@ -12662,6 +14199,21 @@ export interface TenantGroupMarkingsOutput {
    * @minLength 1
    */
   group_name: string;
+}
+
+export interface TenantGroupOutput {
+  group_auto_new_marking?: boolean;
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  group_grants?: TenantGroupGrantOutput[];
+  /** @minLength 1 */
+  group_id: string;
+  /** @uniqueItems true */
+  group_markings?: string[];
+  /** @minLength 1 */
+  group_name: string;
+  group_roles?: string[];
+  group_users?: string[];
 }
 
 export interface TenantInput {
@@ -12692,6 +14244,8 @@ export interface TenantSettingsOutput {
   platform_simulation_dashboard?: string;
   /** @minLength 1 */
   platform_theme: string;
+  xtm_opencrq_enable?: boolean;
+  xtm_opencrq_url?: string;
   xtm_opencti_enable?: boolean;
   xtm_opencti_url?: string;
 }
@@ -12788,12 +14342,25 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_domains_ids: string[];
+  /**
+   * Id the action's grants target: its payload identity, else the contract
+   * @minLength 1
+   */
+  action_grant_resource_id: string;
   /** Injector type */
   action_injector_type?: string;
   /** Labels */
   action_labels?: Record<string, string>;
   /** Payload attached */
   action_payload?: PayloadSimple;
+  /** The attached payload is a customized copy of a Filigran payload */
+  action_payload_customized?: boolean;
+  /** The attached payload comes from the Filigran catalogue */
+  action_payload_managed?: boolean;
+  /** The attached payload version is revoked in the tenant */
+  action_payload_revoked?: boolean;
+  /** Version of the attached payload */
+  action_payload_version?: string;
   /** Platforms */
   action_platforms?: (
     | "Linux"
@@ -12844,6 +14411,7 @@ export interface ThreatArsenalActionCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -12928,6 +14496,7 @@ export interface ThreatArsenalActionFullOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
@@ -12959,7 +14528,7 @@ export interface ThreatArsenalActionFullOutput {
    * Parsers used to process action outputs
    * @uniqueItems true
    */
-  action_output_parsers?: OutputParser[];
+  action_output_parsers?: OutputParserSimple[];
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"
@@ -13027,6 +14596,15 @@ export interface ThreatArsenalActionFullOutput {
   file_drop_file?: string;
 }
 
+export interface ThreatArsenalActionIdOutput {
+  /** @minLength 1 */
+  action_id: string;
+}
+
+export interface ThreatArsenalActionIdsInput {
+  action_ids: string[];
+}
+
 export interface ThreatArsenalActionUpdateInput {
   action_arguments?: PayloadArgument[];
   action_attack_patterns?: string[];
@@ -13044,6 +14622,7 @@ export interface ThreatArsenalActionUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -13161,6 +14740,7 @@ export interface ThreatArsenalExpectationDetail {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
 }
 
@@ -13170,6 +14750,13 @@ export interface ThreatArsenalFacetCountsOutput {
   /** Number of contracts per payload status under the current filters */
   statuses?: Record<string, number>;
 }
+
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
 
 export interface Token {
   listened?: boolean;
@@ -13293,7 +14880,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
@@ -13315,6 +14901,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13365,13 +14952,13 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -13393,7 +14980,7 @@ export interface User {
   user_email: string;
   /** First name of the user */
   user_firstname?: string;
-  user_grants?: Record<string, string>;
+  user_grants?: Record<string, UserGrant>;
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
@@ -13445,6 +15032,18 @@ export interface User {
   user_updated_at: string;
 }
 
+export interface UserGrant {
+  grant: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  type:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
+}
+
 export interface UserInput {
   /** @pattern ^$|^\+[\d\s\-.()]+$ */
   user_phone2?: string;
@@ -13484,6 +15083,13 @@ export interface UserOutput {
   /** @uniqueItems true */
   user_tags?: string[];
   user_tenants?: UserTenantOutput[];
+}
+
+export interface UserSimple {
+  user_email?: string;
+  /** @minLength 1 */
+  user_id: string;
+  user_name?: string;
 }
 
 export interface UserTenantOutput {
@@ -14119,6 +15725,13 @@ export interface WorkflowScopeRuleOutput {
   workflow_scope_rule_value_label?: string;
 }
 
+export interface XtmComposerConnectivityInput {
+  /** The container image XTM Composer runs from */
+  image?: string;
+  /** The XTM Composer version */
+  version?: string;
+}
+
 export interface XtmComposerInstanceOutput {
   /**
    * Connector image
@@ -14160,8 +15773,12 @@ export interface XtmComposerOutput {
    * @minLength 1
    */
   xtm_composer_id: string;
+  /** The container image XTM Composer reported, empty when it reported none */
+  xtm_composer_image?: string;
+  /** The version XTM Composer reported, 'unknown' when it reported none */
+  xtm_composer_reported_version?: string;
   /**
-   * XTM Composer Version
+   * The OpenAEV version XTM Composer registered against
    * @minLength 1
    */
   xtm_composer_version: string;
@@ -14173,6 +15790,8 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   id: string;
+  /** The container image XTM Composer runs from, optional */
+  image?: string;
   /**
    * The XTM Composer Name
    * @minLength 1
@@ -14183,11 +15802,19 @@ export interface XtmComposerRegisterInput {
    * @minLength 1
    */
   public_key: string;
+  /** The XTM Composer version, optional: an XTM Composer that sends none is recorded as 'unknown' */
+  version?: string;
 }
 
 export interface XtmComposerUpdateStatusInput {
   /** The connector instance current status */
   connector_instance_current_status: "started" | "stopped";
+}
+
+export interface XtmConnectionOutput {
+  xtm_connection_connected?: boolean;
+  xtm_connection_product?: string;
+  xtm_connection_url?: string;
 }
 
 export interface XtmHubContactUsInput {
@@ -14207,6 +15834,7 @@ export interface XtmHubRegisterInput {
 }
 
 export interface XtmHubRegistrationOutput {
+  tenant_xtmhub_registration_commercial_model?: "SAAS" | "OTHER";
   /** @format date-time */
   tenant_xtmhub_registration_date?: string;
   tenant_xtmhub_registration_id?: string;
@@ -14219,4 +15847,58 @@ export interface XtmHubRegistrationOutput {
   tenant_xtmhub_registration_token?: string;
   tenant_xtmhub_registration_user_id?: string;
   tenant_xtmhub_registration_user_name?: string;
+}
+
+export interface XtmPeerTokenInput {
+  /**
+   * The consumer product; only opencrq is accepted today, under the email opencrq@xtm.<product>.filigran.io
+   * @minLength 0
+   * @maxLength 64
+   */
+  consumer: string;
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The display name of the service account
+   * @minLength 0
+   * @maxLength 200
+   */
+  name: string;
+  /**
+   * The name of the token, rotated at every call
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenOutput {
+  email?: string;
+  name?: string;
+  token?: string;
+  token_name?: string;
+  user_id?: string;
+}
+
+export interface XtmPeerTokenRevokeInput {
+  /**
+   * The email identifying the service account
+   * @minLength 0
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * The name of the token to revoke
+   * @minLength 0
+   * @maxLength 200
+   */
+  token_name: string;
+}
+
+export interface XtmPeerTokenRevokeOutput {
+  revoked?: boolean;
 }

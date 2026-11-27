@@ -11,6 +11,22 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 - Separate `CreateInput` / `UpdateInput` from `Output` when fields differ
 - Use `@Valid` on all `@RequestBody` parameters
 - Use `@JsonIgnore` on any field that should not be serialized (`tenant_id`, internal relations)
+- **Outputs start minimal**: only the fields a screen or client reads today; add fields with the screen
+  that needs them
+- **One output per kind**: no shared output whose fields stay empty for some kinds
+- JSON names: `<object>_<field>` (`catalog_payload_name`); a result summary may use plain names
+  (`added`, `refused`)
+- A field another system reads is a contract: keep it, and never send `null` where it expects a string.
+  Removing, renaming or retyping an endpoint URL or method, a required input field, an output field or a
+  response status is a breaking change: it needs a migration plan
+- Inputs hold plain values and ids, never a JPA entity
+- An id list in an output is annotated `@ArraySchema(schema = @Schema(type = "string"))`
+
+## Responses
+
+- A controller method returns the output directly; a status other than 200 goes in `@ResponseStatus`
+  (`CREATED`, `NO_CONTENT`)
+- `ResponseEntity` only when the status or headers depend on the request
 
 ## Pagination
 
@@ -23,6 +39,12 @@ description: "API layer conventions: controller structure, DTOs, pagination, err
 
 - Use Bean Validation annotations: `@NotNull`, `@NotBlank`, `@Size`, `@Email`, `@Pattern`
 - Custom validation via `@Valid` + validator classes for complex business rules
+
+## OpenAPI
+
+- `@Operation` `summary`: 60 characters at most, plain words
+- `description` only when the summary is not enough: one sentence, 120 characters at most
+- `@ApiResponse` for each status the endpoint returns; complex fields documented with `@Schema`
 
 ## Anti-Patterns
 

@@ -2,7 +2,7 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in three inputs: `api-matrix`, `e2e-matrix` and `vulnerability-scan-fail-on-error`.
+only in two inputs: `api-matrix` and `e2e-matrix`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 20 job definitions in `_ci-pipeline.yml`,
-**14 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
+Almost nothing in this pipeline waits. Of the 19 job definitions in `_ci-pipeline.yml`,
+**13 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -52,16 +52,17 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The six real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
+| **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 16 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -74,7 +75,7 @@ gives up and fails the job — not how long the wait normally lasts.
 | **API Types Check** | artifact `openaev-api-jar` | 15 min | Backend Package (glibc) reaches any terminal non-success result |
 | **E2E Tests** | registry marker or image artifact for its architecture | 15 min | the arch-matched Docker Build cell reaches any terminal non-success result |
 | **Docker Merge** | markers or artifacts for both architectures of its variant | 15 min | either variant-matched Docker Build cell reaches any terminal non-success result |
-| **Container Vulnerability Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
+| **Aikido Image Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
 
 Each Docker build uploads an attempt-scoped marker only after its optional GHCR push
 succeeds. Consumers poll artifact metadata every 15 seconds, prefer a current-attempt
@@ -90,8 +91,7 @@ is cancelled, or is skipped cannot leave consumers waiting until the poll cap.
 
 It deliberately does **not** `needs:` Prepare Bundled Assets. It re-runs the same
 composite action inline with `upload-artifact: false`, which removes ~1.4 min of serial
-wait from the head of the critical path. This is why the job checks out with
-`fetch-depth: 0` — the asset version comes from `git describe`.
+wait from the head of the critical path.
 
 ---
 
@@ -108,10 +108,10 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
 | 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
 | 🔍 **Spotless Check** | 10 min | Java formatting |
-| 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + Vitest + coverage |
+| 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
-| 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
+| 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, are listed in the job summary and do not fail the job. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -122,7 +122,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
+| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov and without the Java migrations, against the latest report of `main`; on a failure, posts a `Backend Coverage` check that explains it (not on fork PRs) and fails, unless the PR description has a `Coverage exempt: <why>` line. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
@@ -135,14 +136,20 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 16 jobs:
+It `needs:` these 20 jobs:
 
-`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
+`adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
+`prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
+`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
+`backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
-**Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
-never hold a merge.
+**Advisory jobs.** `bom-override-guard` shows ⚠️ in the gate when it fails,
+and never fails it. A new check starts there so a false positive cannot block a merge; taking it out of
+the advisory list in the gate makes it blocking.
+
+**Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
+merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
+coverage rules that pass or fail run in our own `coverage-backend-gate` job.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
@@ -152,12 +159,32 @@ stays out of the run conclusion and does not page the on-call.
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
 
-### Container vulnerability enforcement policy
+### Aikido image scan enforcement policy
 
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| `vulnerability-scan-fail-on-error` | `false` | `true` |
-| Findings and scanner errors | Reported in logs and artifacts, marked ⚠️ advisory, never fail the gate | High/critical findings and scanner execution errors ❌ fail the gate |
+The job scans both images with Aikido's gates, which keep each scan in Aikido. On a pull
+request the PR gate counts the high or critical issues the pull request adds, compared with its
+base branch. On `main`, and in Nightly CI, the release gate counts the open high or critical
+issues of the images `openaev-ci-standard` and `openaev-ci-ubi9`; other branches and tags get
+their own image names in Aikido. Issues ignored in Aikido do not count, so a false positive is
+handled there by a member of the workspace.
+
+The job does not turn red on issues: it lists them in its job summary, each CVE linked to its
+public osv.dev page, and uploads the JSON results and the scanner output as the
+`aikido-image-scan` artifact. On a pull request the summary gives the installed and fixed versions
+and the file; on `main` it groups the issues by package, with a link to each in Aikido. No check is
+posted on the pull request.
+
+The job is blocking in the gate: if a scan or its report cannot be produced for any reason, the
+job fails and so does the gate, so a run either has its report or fails, from the pull request
+to the release. The downside is that an Aikido outage blocks merges until it ends.
+
+| Case | Job | Gate |
+|------|-----|------|
+| High/critical issue counted by Aikido | ✅, listed in the job summary and artifact | ✅ |
+| Issue already on the base branch (pull requests), or ignored in Aikido | ✅ | ✅ |
+| Scanner error, or the report cannot be produced or written to the job summary | ❌ fails | ❌ blocks |
+| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | ❌ blocks |
+| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | ✅ |
 
 ---
 
@@ -167,7 +194,7 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
+| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
 | Total expanded jobs | ≈ 36 | ≈ 59 |
 
 ### API Tests matrix
@@ -175,6 +202,16 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-class
 runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
 package is never silently untested.
+
+The platform detects its engine client from the server, so a cell selects an engine through the
+server it starts, with `search_engine`. Each value maps to a service of
+`openaev-dev/docker-compose.yml`, which owns the image tags:
+
+| `search_engine`  | Compose service              | Client detected   |
+|------------------|------------------------------|-------------------|
+| `elasticsearch`  | `openaev-dev-elasticsearch`  | Elasticsearch 9   |
+| `elasticsearch8` | `openaev-dev-elasticsearch8` | Elasticsearch 8   |
+| `opensearch`     | `openaev-dev-opensearch`     | OpenSearch        |
 
 |                 | Core CI | Nightly CI             |
 |-----------------|---------|------------------------|
@@ -188,14 +225,18 @@ package is never silently untested.
 | | Core CI                                          | Nightly CI                                             |
 |-|--------------------------------------------------|--------------------------------------------------------|
 | Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
-| Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
-| Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
+| Browsers | mostly chromium/chrome, plus firefox and webkit  | chrome, chromium, webkit, firefox, edge                |
+| Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
 | Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
-| Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **10**                                           | **25**                                                 |
+| Infra tests | 3 cells on PRs, 5 on main, mixed browsers        | 7 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **6 on PRs, 10 on main**                         | **25**                                                 |
 
-`ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
-critical path. `artifact_suffix` must stay unique per cell — the report artifact is named
+`ubi9` and `edge` are nightly-only: they exercise the same JAR and engine as the core cells.
+Core CI keeps most shards on Chromium and moves a few to Firefox and WebKit instead of
+running every browser: pull requests run one shard on each of them, main runs two on
+Firefox and one on WebKit, on other shards than pull requests. The `remaining` catch-all
+stays on Chromium on amd64, the only engine that collects E2E coverage, and WebKit stays
+off arm64, where it runs about twice as slow. `artifact_suffix` must stay unique per cell — the report artifact is named
 `playwright-report-<browser><suffix>` and duplicates fail the upload.
 
 ---

@@ -267,6 +267,62 @@ class ProductInventoryMetricCollectorTest {
     }
 
     @Test
+    @DisplayName("the injects gauge is wired to the scoped supplier, not the repository")
+    void given_injectsGauge_should_runInAllTenantsScope() {
+      // -- Arrange --
+      when(injectRepository.count()).thenReturn(12L);
+
+      // -- Act --
+      collector.init();
+
+      // -- Assert --
+      verify(metricRegistry).registerGauge(eq("injects_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(12L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName("the workflows gauge is wired to the scoped supplier, not the repository")
+    void given_workflowsGauge_should_runInAllTenantsScope() {
+      // -- Arrange --
+      when(workflowRepository.count()).thenReturn(5L);
+
+      // -- Act --
+      collector.init();
+
+      // -- Assert --
+      verify(metricRegistry).registerGauge(eq("workflows_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(5L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName("the recurring scenarios gauge is wired to the scoped supplier")
+    @SuppressWarnings("unchecked")
+    void given_recurringScenariosGauge_should_runInAllTenantsScope() {
+      // -- Arrange --
+      TypedQuery<Long> query = mock(TypedQuery.class);
+      when(query.getSingleResult()).thenReturn(3L);
+      when(entityManager.createQuery(contains("from Scenario s"), eq(Long.class)))
+          .thenReturn(query);
+
+      // -- Act --
+      collector.init();
+
+      // -- Assert --
+      verify(metricRegistry)
+          .registerGauge(eq("scenarios_recurring_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(3L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
     @DisplayName("channels gauge uses the all-tenants scoped transaction for v2 tables")
     void given_channelsGauge_should_runInAllTenantsScope() {
       when(channelRepository.count()).thenReturn(11L);

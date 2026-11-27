@@ -10,11 +10,15 @@ import static io.openaev.utils.fixtures.PayloadFixture.createCommand;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ScopeRuleSelectedMode;
@@ -25,13 +29,20 @@ import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.channel.ChannelContract;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 public class HealthCheckUtilsTest {
@@ -40,6 +51,7 @@ public class HealthCheckUtilsTest {
 
   @Autowired private HealthCheckUtils healthCheckUtils;
   @Autowired private DomainComposer domainComposer;
+  @MockitoBean private PreviewFeatureService previewFeatureService;
   @Autowired private ChannelContract channelContract;
 
   private InjectorContract prepareInjectorContract() throws JsonProcessingException {
@@ -61,6 +73,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -71,7 +84,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -88,6 +102,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -98,11 +113,35 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
       assertFalse(isReady);
+    }
+
+    @Test
+    void given_a_mandatory_field_left_empty_should_name_it_in_the_missing_fields()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildAssetField(true));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks =
+          healthCheckUtils.runContentChecks(
+              injectorContract,
+              injectorContract.getConvertedContent(),
+              false,
+              new ArrayList<>(),
+              new ArrayList<>(),
+              new ArrayList<>(),
+              new ArrayList<>());
+
+      // -- ASSERT --
+      assertEquals(List.of("assets"), HealthCheckUtils.missingMandatoryFields(checks));
+      assertTrue(checks.stream().anyMatch(check -> "assets".equals(check.getField())));
     }
 
     @Test
@@ -115,6 +154,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -125,7 +165,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -142,6 +183,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -152,7 +194,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -187,11 +230,18 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       List<HealthCheck> healthChecks =
           healthCheckUtils.runContentChecks(
-              injectorContract, prepareContentWithArticle(), allTeams, teams, assets, assetGroups);
+              injectorContract,
+              prepareContentWithArticle(),
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences);
 
       // -- ASSERT --
       assertEquals(1, healthChecks.size());
@@ -208,6 +258,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -218,7 +269,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -234,6 +286,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = List.of("teamId");
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -244,7 +297,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -265,6 +319,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -275,7 +330,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -292,6 +348,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = List.of("assetGroupId");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -302,7 +359,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -319,6 +377,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -329,7 +388,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -350,6 +410,7 @@ public class HealthCheckUtilsTest {
         List<String> teams = new ArrayList<>();
         List<String> assets = List.of();
         List<String> assetGroups = List.of();
+        List<String> secretReferences = new ArrayList<>();
 
         // -- EXECUTE --
         boolean isReady =
@@ -360,7 +421,8 @@ public class HealthCheckUtilsTest {
                     allTeams,
                     teams,
                     assets,
-                    assetGroups)
+                    assetGroups,
+                    secretReferences)
                 .isEmpty();
 
         // -- ASSERT --
@@ -377,6 +439,7 @@ public class HealthCheckUtilsTest {
         List<String> teams = new ArrayList<>();
         List<String> assets = List.of("assetId");
         List<String> assetGroups = List.of();
+        List<String> secretReferences = new ArrayList<>();
 
         // -- EXECUTE --
         boolean isReady =
@@ -387,7 +450,8 @@ public class HealthCheckUtilsTest {
                     allTeams,
                     teams,
                     assets,
-                    assetGroups)
+                    assetGroups,
+                    secretReferences)
                 .isEmpty();
 
         // -- ASSERT --
@@ -405,6 +469,7 @@ public class HealthCheckUtilsTest {
         List<String> teams = new ArrayList<>();
         List<String> assets = List.of();
         List<String> assetGroups = List.of("assetGroupId");
+        List<String> secretReferences = new ArrayList<>();
 
         // -- EXECUTE --
         boolean isReady =
@@ -415,7 +480,8 @@ public class HealthCheckUtilsTest {
                     allTeams,
                     teams,
                     assets,
-                    assetGroups)
+                    assetGroups,
+                    secretReferences)
                 .isEmpty();
 
         // -- ASSERT --
@@ -432,6 +498,7 @@ public class HealthCheckUtilsTest {
         List<String> teams = new ArrayList<>();
         List<String> assets = List.of("assetId");
         List<String> assetGroups = List.of("assetGroupId");
+        List<String> secretReferences = new ArrayList<>();
 
         // -- EXECUTE --
         boolean isReady =
@@ -442,7 +509,8 @@ public class HealthCheckUtilsTest {
                     allTeams,
                     teams,
                     assets,
-                    assetGroups)
+                    assetGroups,
+                    secretReferences)
                 .isEmpty();
 
         // -- ASSERT --
@@ -464,6 +532,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = List.of("assetGroupId");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -474,7 +543,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -494,6 +564,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of("assetId");
       List<String> assetGroups = List.of("assetGroupId2");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -504,7 +575,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -522,6 +594,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of();
       List<String> assetGroups = List.of("assetGroupId");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -532,7 +605,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -550,6 +624,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of();
       List<String> assetGroups = List.of("assetGroupId2");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -560,7 +635,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -581,6 +657,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = List.of();
       List<String> assetGroups = List.of("assetGroupId2");
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -591,7 +668,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -613,6 +691,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -623,7 +702,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -641,6 +721,7 @@ public class HealthCheckUtilsTest {
       List<String> teams = new ArrayList<>();
       List<String> assets = new ArrayList<>();
       List<String> assetGroups = new ArrayList<>();
+      List<String> secretReferences = new ArrayList<>();
 
       // -- EXECUTE --
       boolean isReady =
@@ -651,7 +732,8 @@ public class HealthCheckUtilsTest {
                   allTeams,
                   teams,
                   assets,
-                  assetGroups)
+                  assetGroups,
+                  secretReferences)
               .isEmpty();
 
       // -- ASSERT --
@@ -801,8 +883,8 @@ public class HealthCheckUtilsTest {
     @Test
     void
         given_audience_scope_entries_and_only_explicit_audience_steps_should_return_ineffective_audience_warning() {
-      // -- PREPARE -- every audience step carries an explicit drawer audience, so the scope's
-      // team entry is never consumed by the fallback and must be flagged as ineffective.
+      // -- PREPARE -- every audience step carries an explicit drawer audience that does not pick
+      // the scope's team, so the team entry is never consumed and must be flagged as ineffective.
       Workflow workflow = new Workflow();
       workflow.setWorkflowScopeRules(
           List.of(
@@ -834,6 +916,94 @@ public class HealthCheckUtilsTest {
       // -- ASSERT --
       assertFalse(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
       assertFalse(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
+    void given_scope_team_picked_in_explicit_audience_should_not_warn() {
+      // -- PREPARE -- the drawer of a chained scenario only offers its scope teams: picking the
+      // scope's team explicitly consumes the scope entry (issue #7884).
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_SCOPE_TEAM_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_scope_team_and_all_teams_audience_should_not_warn() {
+      // -- PREPARE -- in a chained workflow, all-teams mode targets the whole scope audience.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_all_teams_step_and_technical_only_scope_should_return_missing_audience_error() {
+      // -- PREPARE -- all-teams mode targets the scope audience, and the scope has no team/player.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_ID, "asset-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
+    void given_all_teams_step_and_player_only_scope_should_not_warn() {
+      // -- PREPARE -- all-teams mode targets the whole scope audience, individual players included.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.PLAYER_ID, "player-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_scope_player_and_only_explicit_audience_steps_should_return_ineffective_warning() {
+      // -- PREPARE -- the scope's team is picked in the drawer, but scope players are only
+      // consumed by the fallback, which an explicit drawer audience skips.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1"),
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.PLAYER_ID, "player-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_SCOPE_TEAM_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(hasDetail(checks, HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS));
     }
 
     @Test
@@ -886,6 +1056,24 @@ public class HealthCheckUtilsTest {
         "inject_all_teams":false,"inject_teams":["team-9"]}
         """;
 
+    /** The same tabletop step with the scope's team picked in the Configure-action drawer. */
+    private static final String EMAIL_STEP_WITH_SCOPE_TEAM_DATA =
+        """
+        {"inject_injector_contract":{"injector_contract_id":"contract-email",
+        "injector_contract_content":
+        "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+        "inject_all_teams":false,"inject_teams":["team-1"]}
+        """;
+
+    /** The same tabletop step in all-teams mode. */
+    private static final String EMAIL_STEP_WITH_ALL_TEAMS_DATA =
+        """
+        {"inject_injector_contract":{"injector_contract_id":"contract-email",
+        "injector_contract_content":
+        "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+        "inject_all_teams":true,"inject_teams":[]}
+        """;
+
     /** A technical step: payload inject running on an endpoint. */
     private static final String PAYLOAD_STEP_DATA =
         """
@@ -917,6 +1105,152 @@ public class HealthCheckUtilsTest {
       WorkflowScopeRule rule = buildScopeRule(mode, value);
       rule.setValueType(valueType);
       return rule;
+    }
+  }
+
+  @Nested
+  class MandatoryCredentialReferenceTests {
+
+    private List<HealthCheck> runCredentialChecks(
+        InjectorContract injectorContract, List<String> secretReferences) {
+      return healthCheckUtils.runContentChecks(
+          injectorContract,
+          injectorContract.getConvertedContent(),
+          false,
+          new ArrayList<>(),
+          new ArrayList<>(),
+          new ArrayList<>(),
+          secretReferences);
+    }
+
+    @Test
+    void given_a_mandatory_credential_reference_and_a_credential_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET))
+          .thenReturn(true);
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildCredentialReferenceField(true));
+
+      // -- EXECUTE --
+      List<HealthCheck> healthChecks =
+          runCredentialChecks(injectorContract, List.of("credentialId"));
+
+      // -- ASSERT --
+      assertTrue(healthChecks.isEmpty());
+    }
+
+    @Test
+    void given_a_mandatory_credential_reference_and_no_credential_should_not_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET))
+          .thenReturn(true);
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildCredentialReferenceField(true));
+
+      // -- EXECUTE --
+      List<HealthCheck> healthChecks = runCredentialChecks(injectorContract, new ArrayList<>());
+
+      // -- ASSERT --
+      assertEquals(1, healthChecks.size());
+      assertEquals(HealthCheck.Type.CREDENTIAL_REFERENCE, healthChecks.getFirst().getType());
+      assertEquals(HealthCheck.Detail.MANDATORY_CONTENT, healthChecks.getFirst().getDetail());
+    }
+
+    @Test
+    void given_an_optional_credential_reference_and_no_credential_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET))
+          .thenReturn(true);
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildCredentialReferenceField(false));
+
+      // -- EXECUTE --
+      List<HealthCheck> healthChecks = runCredentialChecks(injectorContract, new ArrayList<>());
+
+      // -- ASSERT --
+      assertTrue(healthChecks.isEmpty());
+    }
+
+    @Test
+    void given_a_mandatory_credential_reference_and_the_feature_disabled_should_be_ready()
+        throws JsonProcessingException {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET))
+          .thenReturn(false);
+      InjectorContract injectorContract = prepareInjectorContract();
+      addField(injectorContract, mapper, buildCredentialReferenceField(true));
+
+      // -- EXECUTE --
+      List<HealthCheck> healthChecks = runCredentialChecks(injectorContract, new ArrayList<>());
+
+      // -- ASSERT --
+      assertTrue(healthChecks.isEmpty());
+    }
+  }
+
+  @Nested
+  class CollectorChecks {
+
+    @ParameterizedTest(
+        name =
+            "{0} expectation, logging enabled: {1}, collector declaring [{2}] on {3}, expected"
+                + " platform: {4} -> error: {5}")
+    @CsvSource({
+      // Logging: only a collector declaring LOGGING, on the expected platform, answers it.
+      "LOGGING, true, LOGGING, SIEM, , false",
+      "LOGGING, true, , SIEM, , true",
+      "LOGGING, true, LOGGING, SIEM, SIEM, false",
+      "LOGGING, true, LOGGING, EDR, SIEM, true",
+      "LOGGING, false, , SIEM, , false",
+      // Detection and Prevention: a collector declaring no type still answers them.
+      "DETECTION, true, , EDR, , false",
+      "DETECTION, true, LOGGING, SIEM, , true",
+      "DETECTION, true, DETECTION, SIEM, EDR, true",
+      "PREVENTION, true, PREVENTION, EDR, EDR, false",
+      // An unknown expected platform type is skipped instead of breaking the check.
+      "LOGGING, true, LOGGING, SIEM, NOT_A_PLATFORM, false",
+      // Vulnerability is answered by its injector, not by a collector.
+      "VULNERABILITY, true, LOGGING, SIEM, , false"
+    })
+    void given_collector_fulfilled_expectation_should_require_a_collector_able_to_answer_it(
+        String expectationType,
+        boolean loggingEnabled,
+        String declaredType,
+        String collectorPlatformType,
+        String expectedPlatformType,
+        boolean expectError) {
+      // -- ARRANGE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(loggingEnabled);
+      Inject inject = new Inject();
+      ObjectNode content = mapper.createObjectNode();
+      ObjectNode expectation =
+          content.putArray("expectations").addObject().put("expectation_type", expectationType);
+      if (expectedPlatformType != null) {
+        expectation
+            .putArray("expectation_expected_security_platform_types")
+            .add(expectedPlatformType);
+      }
+      inject.setContent(content);
+      Collector collector = CollectorFixture.createDefaultCollector("collector");
+      collector.setSecurityPlatform(
+          SecurityPlatformFixture.createDefault("platform", collectorPlatformType));
+      if (declaredType != null) {
+        collector.setSupportedExpectationTypes(
+            new BaseInjectExpectation.EXPECTATION_TYPE[] {
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(declaredType)
+            });
+      }
+
+      // -- ACT --
+      List<HealthCheck> healthChecks =
+          healthCheckUtils.runCollectorChecks(inject, List.of(collector));
+
+      // -- ASSERT --
+      assertEquals(expectError, !healthChecks.isEmpty());
     }
   }
 }

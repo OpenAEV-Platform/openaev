@@ -1,7 +1,8 @@
 name: "[Core] CI"
 
 # Continuous Integration pipeline.
-# Container vulnerability findings are reported but intentionally never block Core CI.
+# A high or critical vulnerability that Aikido counts in the built images is listed in the
+# job summary of "Aikido Image Scan"; it does not fail the job.
 # ⚠️ Branch-protection status check: "pipeline / ✅ Pipeline Gate"
 
 on:
@@ -10,53 +11,67 @@ on:
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [main]
+  # The merge queue tests each queued pull request on top of main and of the pull requests ahead
+  # of it, and merges only when the Pipeline Gate passes on that combination.
+  merge_group:
 
 permissions:
   contents: read
   actions: read
   packages: write
+  # The backend coverage check reads the pull request description for a "Coverage exempt:" line.
+  pull-requests: read
 
 jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── API Tests: 9 shards + catch-all ──
+      # ── API Tests: 15 shards + catch-all ──
       # Shard patterns live in .github/shards; the catch-all covers unassigned tests.
+      # The engine client is detected from the server: elasticsearch8 starts an Elasticsearch 8.
       api-matrix: >
         [
-          {"shard":"1","shard_name":"elk8-1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"2","shard_name":"elk8-2","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"3","shard_name":"elk8-3","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"4","shard_name":"elk8-4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"5","shard_name":"elk8-5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"6","shard_name":"elk8-6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"elk8-7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"elk8-8","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"9","shard_name":"elk8-9","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"10","shard_name":"elk8-remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"1","shard_name":"elk8-1","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"2","shard_name":"elk8-2","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"3","shard_name":"elk8-3","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"4","shard_name":"elk8-4","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"5","shard_name":"elk8-5","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"6","shard_name":"elk8-6","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"7","shard_name":"elk8-7","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"elk8-8","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"9","shard_name":"elk8-9","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"10","shard_name":"elk8-10","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"11","shard_name":"elk8-11","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"12","shard_name":"elk8-12","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"13","shard_name":"elk8-13","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"14","shard_name":"elk8-14","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"15","shard_name":"elk8-15","search_engine":"elasticsearch8","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"16","shard_name":"elk8-remaining","search_engine":"elasticsearch8","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests ──
-      # PRs shard Chromium on AMD64; main and tags also cover supported browser/architecture combinations.
+      # Chromium runs most shards. A few run on Firefox and WebKit instead, not the same ones on
+      # pull requests and on main, so both engines are exercised without adding cells.
+      # The "remaining" catch-all stays on Chromium on amd64, the only engine that collects E2E
+      # coverage. WebKit stays off arm64, where it runs about twice as slow.
+      # Nightly runs every suite on every browser.
       e2e-matrix: >-
         ${{ github.event_name == 'pull_request' && '[
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"}
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
+        {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
+        {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"}
         ]' || '[
-        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
-        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
-        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
+        {"browser":"firefox","project":"firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
+        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
+        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
         {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-arm64-arsenals"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},
+        {"browser":"firefox","project":"firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
+        {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
+        {"browser":"chrome","project":"infra-chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"},
+        {"browser":"chrome","project":"infra-chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-24.04","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-agent"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-multitenant"}
         ]' }}
-      vulnerability-scan-fail-on-error: false
     secrets: inherit

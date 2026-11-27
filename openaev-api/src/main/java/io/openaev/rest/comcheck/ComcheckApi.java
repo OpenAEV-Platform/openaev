@@ -5,28 +5,38 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.rest.comcheck.form.ComcheckInput;
+import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class ComcheckApi extends RestBehavior {
 
+  /** The public route a comcheck mail links to. It carries no tenant: the status id names it. */
+  public static final String COMCHECK_URI = "/api/comcheck";
+
+  /** The reasons of the 409 the public route answers, shown to the player as they are. */
+  public static final String ALREADY_ANSWERED = "This communication check is already answered.";
+
+  public static final String CLOSED = "This communication check is closed.";
+
   private ComcheckRepository comcheckRepository;
   private TeamRepository teamRepository;
-  private ExerciseRepository exerciseRepository;
+  private ExerciseService exerciseService;
   private ComcheckStatusRepository comcheckStatusRepository;
 
   @Autowired
@@ -45,11 +55,11 @@ public class ComcheckApi extends RestBehavior {
   }
 
   @Autowired
-  public void setExerciseRepository(ExerciseRepository exerciseRepository) {
-    this.exerciseRepository = exerciseRepository;
+  public void setExerciseService(ExerciseService exerciseService) {
+    this.exerciseService = exerciseService;
   }
 
-  @GetMapping("/api/comcheck/{comcheckStatusId}")
+  @GetMapping(COMCHECK_URI + "/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
   public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
@@ -57,9 +67,13 @@ public class ComcheckApi extends RestBehavior {
         comcheckStatusRepository
             .findById(comcheckStatusId)
             .orElseThrow(ElementNotFoundException::new);
+    // A link opened again must neither fail nor move the date of the first answer.
+    if (comcheckStatus.getReceiveDate().isPresent()) {
+      throw new ConflictException(ALREADY_ANSWERED);
+    }
     Comcheck comcheck = comcheckStatus.getComcheck();
     if (!comcheck.getState().equals(Comcheck.COMCHECK_STATUS.RUNNING)) {
-      throw new UnsupportedOperationException("This comcheck is closed.");
+      throw new ConflictException(CLOSED);
     }
     comcheckStatus.setReceiveDate(now());
     ComcheckStatus status = comcheckStatusRepository.save(comcheckStatus);
@@ -84,7 +98,10 @@ public class ComcheckApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteComcheck(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String comcheckId) {
-    comcheckRepository.deleteById(comcheckId);
+    Specification<Comcheck> ofExercise =
+        ComcheckSpecification.fromExercise(exerciseId).and(ComcheckSpecification.id(comcheckId));
+    comcheckRepository.delete(
+        comcheckRepository.findOne(ofExercise).orElseThrow(ElementNotFoundException::new));
   }
 
   @PostMapping({
@@ -104,14 +121,15 @@ public class ComcheckApi extends RestBehavior {
     check.setName(comCheck.getName());
     check.setStart(now());
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     check.setExercise(exercise);
     // 02. Get users
     List<String> teamIds = comCheck.getTeamIds();
     List<Team> teams =
-        teamIds.isEmpty() ? exercise.getTeams() : fromIterable(teamRepository.findAllById(teamIds));
+        teamIds.isEmpty()
+            ? exercise.getTeams()
+            : fromIterable(
+                teamRepository.findAllByIdInTenant(teamIds, exercise.getTenant().getId()));
     List<User> users = teams.stream().flatMap(team -> team.getUsers().stream()).distinct().toList();
     List<ComcheckStatus> comcheckStatuses =
         users.stream()

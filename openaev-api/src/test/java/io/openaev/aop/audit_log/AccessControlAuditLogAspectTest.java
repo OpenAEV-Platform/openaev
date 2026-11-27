@@ -1,12 +1,19 @@
 package io.openaev.aop.audit_log;
 
+import static io.openaev.api.groups.PlatformGroupApi.PLATFORM_GROUPS_URI;
+import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
+import static io.openaev.rest.channel.ChannelApi.CHANNEL_URI;
+import static io.openaev.rest.tag.TagApi.TAG_URI;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
+import static io.openaev.utils.fixtures.ChannelFixture.getChannel;
+import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
@@ -21,29 +28,49 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.groups.PlatformGroupUpdateUsersInput;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Channel;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.exception.TenantScopeForbiddenException;
+import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.service.LogService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.composers.ChannelComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.fixtures.composers.TagComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.object.ObjectDiffUtils;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,11 +78,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,9 +101,14 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ChannelComposer channelComposer;
+  @Autowired private TagComposer tagComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private PlatformGroupComposer platformGroupComposer;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
@@ -127,7 +162,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               resourceIdCaptor.capture(),
               any(),
               any(),
-              any(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
@@ -164,13 +198,114 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               resourceIdCaptor.capture(),
               any(),
               any(),
-              any(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
       assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("Scope refusals: audit event emitted for unauthorized access")
+  class TenantScopeRefusalAudit {
+
+    @BeforeEach
+    void resetComposers() {
+      channelComposer.reset();
+      tagComposer.reset();
+    }
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("A read refused in another tenant of the scope is audited as unauthorized")
+    void given_readRightMissingInAnotherScopeTenant_should_logUnauthorizedEvent() throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.ACCESS_CHANNELS));
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "audit-scope-read-b", Set.of(Capability.ACCESS_ASSESSMENT));
+      Channel channel = getChannel();
+      channel.setTenant(tenantB);
+      String channelId = channelComposer.forChannel(channel).persist().get().getId();
+      entityManager.flush();
+
+      // Act
+      MockHttpServletResponse response =
+          performWithoutAmbientTenant(get(CHANNEL_URI + "/{channelId}", channelId));
+
+      // Assert
+      assertRefusedInScope(response);
+      assertUnauthorizedEvent(ResourceType.CHANNEL, channelId);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("A delete refused in another tenant of the scope is audited as unauthorized")
+    void given_deleteRightMissingInAnotherScopeTenant_should_logUnauthorizedEvent()
+        throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.MANAGE_TAGS, Capability.DELETE_TAGS));
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "audit-scope-delete-b", Set.of(Capability.ACCESS_TAGS));
+      Tag tag = getTagWithText("audit-scope-delete-tag");
+      tag.setTenant(tenantB);
+      String tagId = tagComposer.forTag(tag).persist().get().getId();
+      entityManager.flush();
+
+      // Act
+      MockHttpServletResponse response =
+          performWithoutAmbientTenant(delete(TAG_URI + "/{tagId}", tagId).with(csrf()));
+
+      // Assert
+      assertRefusedInScope(response);
+      assertUnauthorizedEvent(ResourceType.TAG, tagId);
+    }
+
+    private MockHttpServletResponse performWithoutAmbientTenant(
+        MockHttpServletRequestBuilder request) throws Exception {
+      // The non-prefixed route never sets the ambient tenant: reproduce production's empty
+      // thread-local instead of inheriting what the fixtures left on the test thread.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.hasCurrentTenant()).as("precondition: no ambient tenant").isFalse();
+      return mvc.perform(request).andReturn().getResponse();
+    }
+
+    private void assertRefusedInScope(MockHttpServletResponse response) throws Exception {
+      assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+      assertThat((String) JsonPath.read(response.getContentAsString(), "$.message"))
+          .as("the body names the scope rule and its remedy")
+          .isEqualTo(TenantScopeForbiddenException.MESSAGE);
+    }
+
+    private void assertUnauthorizedEvent(ResourceType resourceType, String resourceId) {
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
+              any(),
+              any(),
+              any());
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(resourceType);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(resourceId);
     }
   }
 
@@ -190,7 +325,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(EventStatus.class),
               any(),
               anyString(),
-              any(),
               any(),
               any(),
               any());
@@ -214,7 +348,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(EventStatus.class),
               any(),
               anyString(),
-              any(),
               any(),
               any(),
               any());
@@ -252,7 +385,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               inputCaptor.capture(),
               outputCaptor.capture(),
-              any(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.CREATE);
@@ -293,7 +425,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               resourceIdCaptor.capture(),
               any(),
               any(),
-              any(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.DELETE);
@@ -329,7 +460,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               any(),
               any(),
-              any(),
               any());
     }
 
@@ -339,8 +469,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Arrange — set up executor and service account required for agent registration
       executorComposer.reset();
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(
-          io.openaev.context.TenantContext.getCurrentTenant());
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       entityManager.flush();
 
       // Register the same agent twice; the second registration is a heartbeat
@@ -365,7 +495,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               any(),
               any(),
-              any(),
               any());
       reset(auditLogger);
       doReturn(true).when(auditLogger).isAuditLoggingEnabled();
@@ -385,7 +514,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(EventStatus.class),
               any(),
               anyString(),
-              any(),
               any(),
               any(),
               any());
@@ -416,7 +544,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
       // Act
       mvc.perform(
@@ -435,7 +562,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               resourceIdCaptor.capture(),
               inputCaptor.capture(),
               outputCaptor.capture(),
-              signatureCaptor.capture(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UPDATE);
@@ -445,8 +571,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       assertThat(inputCaptor.getValue()).isNotNull();
       assertThat(inputCaptor.getValue().path("team_name").asText()).isEqualTo("Updated Team Name");
       assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(signatureCaptor.getValue().path("method").asText()).contains("TeamApi.updateTeam");
     }
   }
 
@@ -486,7 +610,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               any(),
               outputCaptor.capture(),
-              any(),
               any());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UPDATE);
@@ -535,7 +658,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               any(),
               any(),
-              any(),
               snapshotsCaptor.capture());
 
       Map<String, AuditLogContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
@@ -572,10 +694,121 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString(),
               any(),
               any(),
-              any(),
               snapshotsCaptor.capture());
 
       assertThat(snapshotsCaptor.getValue()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Group member changes through the member endpoints")
+  class GroupMemberAudit {
+
+    /**
+     * Sends the member list to the endpoint, then returns the {@code group_users} change of the
+     * group in the audit entry, or {@code null} when the entry has none.
+     */
+    private ObjectDiffUtils.FieldChange putMembersAndGetMemberChange(
+        String membersUri, Object input, String groupId) throws Exception {
+      // The group is reloaded by the request, as in production
+      entityManager.flush();
+      entityManager.clear();
+      clearInvocations(auditLogger);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
+          ArgumentCaptor.forClass(Map.class);
+
+      mvc.perform(
+              put(membersUri)
+                  .content(objectMapper.writeValueAsString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              any(AuditEventScope.class),
+              any(EventStatus.class),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              snapshotsCaptor.capture());
+      AuditLogContext.EntitySnapshot snapshot = snapshotsCaptor.getValue().get(groupId);
+      if (snapshot == null) {
+        return null;
+      }
+      return ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
+          .filter(change -> change.field().equals("group_users"))
+          .findFirst()
+          .orElse(null);
+    }
+
+    private void assertMemberChange(
+        ObjectDiffUtils.FieldChange change, List<String> before, List<String> after) {
+      assertThat(change).as("the audit entry must hold the group_users change").isNotNull();
+      assertThat(change.oldValue())
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(before);
+      assertThat(change.newValue())
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(after);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("given_tenantGroupMemberAddedThenRemoved_should_logBothMemberChanges")
+    void given_tenantGroupMemberAddedThenRemoved_should_logBothMemberChanges() throws Exception {
+      // Arrange
+      String groupId =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("Audited tenant members"))
+              .persist()
+              .get()
+              .getId();
+      String userId = testUserHolder.get().getId();
+      String membersUri = tenantUri(TENANT_GROUP_URI) + "/" + groupId + "/users";
+      GroupUpdateUsersInput addInput = new GroupUpdateUsersInput();
+      addInput.setUserIds(List.of(userId));
+      GroupUpdateUsersInput removeInput = new GroupUpdateUsersInput();
+      removeInput.setUserIds(List.of());
+
+      // Act
+      ObjectDiffUtils.FieldChange added =
+          putMembersAndGetMemberChange(membersUri, addInput, groupId);
+      ObjectDiffUtils.FieldChange removed =
+          putMembersAndGetMemberChange(membersUri, removeInput, groupId);
+
+      // Assert
+      assertMemberChange(added, List.of(), List.of(userId));
+      assertMemberChange(removed, List.of(userId), List.of());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("given_platformGroupMemberAddedThenRemoved_should_logBothMemberChanges")
+    void given_platformGroupMemberAddedThenRemoved_should_logBothMemberChanges() throws Exception {
+      // Arrange
+      String groupId =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("Audited platform members"))
+              .persist()
+              .get()
+              .getId();
+      String userId = testUserHolder.get().getId();
+      String membersUri = PLATFORM_GROUPS_URI + "/" + groupId + "/users";
+
+      // Act
+      ObjectDiffUtils.FieldChange added =
+          putMembersAndGetMemberChange(
+              membersUri, new PlatformGroupUpdateUsersInput(List.of(userId)), groupId);
+      ObjectDiffUtils.FieldChange removed =
+          putMembersAndGetMemberChange(
+              membersUri, new PlatformGroupUpdateUsersInput(List.of()), groupId);
+
+      // Assert
+      assertMemberChange(added, List.of(), List.of(userId));
+      assertMemberChange(removed, List.of(userId), List.of());
     }
   }
 

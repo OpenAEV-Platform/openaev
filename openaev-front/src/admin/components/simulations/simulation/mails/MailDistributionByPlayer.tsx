@@ -13,6 +13,7 @@ import { type Communication, type Exercise, type User } from '../../../../../uti
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import { resolveUserName } from '../../../../../utils/String';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsByPlayer } from './mailsSampleData';
@@ -35,25 +36,18 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchPlayers());
   });
 
-  const communicationsUsers = R.uniq(
-    R.flatten(
-      R.map(
-        (n: Communication) => R.map((u: string) => usersMap[u], n.communication_users),
-        communications,
-      ),
+  // usersMap holds one object per user id, so the Set keeps each user once
+  const communicationsUsers = [...new Set(
+    communications.flatMap(
+      (n: Communication) => n.communication_users!.map((u: string) => usersMap[u]),
     ),
-  );
+  )];
   const sortedUsersByCommunicationNumber = R.pipe(
-    R.map((n: User) => R.assoc(
-      'user_communications_number',
-      R.filter(
-        (c: Communication) => n && R.includes(n.user_id, c.communication_users),
-        communications,
-      ).length,
-      n,
-    )),
-    R.sortWith([R.descend(R.prop('user_communications_number'))]),
-    R.take(10),
+    (usersList: User[]) => usersList.map((n: User) => ({
+      ...n,
+      user_communications_number: communications.filter((c: Communication) => n && c.communication_users!.includes(n.user_id!)).length,
+    })),
+    (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')).slice(0, 10),
   )(communicationsUsers);
   const totalMailsByUserData = [
     {

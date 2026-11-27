@@ -1,6 +1,7 @@
 package io.openaev.rest.inject;
 
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.utils.MarkingUtils.markingIds;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.utils.FilterUtilsJpa;
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(PER_CLASS)
 @DisplayName("Searching inject targets tests")
-public class InjectTargetSearchTest extends IntegrationTest {
+public class InjectTargetSearchTest extends ProductionTablesIntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectContractComposer;
   @Autowired private PayloadComposer payloadComposer;
@@ -96,6 +97,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
             endpoint.getId(),
             endpoint.getName(),
             endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+            markingIds(endpoint),
             endpoint.getPlatform().name());
     if (endpoint.getCategory() != null) {
       target.setTargetCategory(endpoint.getCategory().name());
@@ -179,7 +181,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("With agent search")
   public class WithAgentSearch {
     private final TargetType targetType = TargetType.AGENT;
@@ -1511,7 +1513,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("With endpoint search")
   public class WithEndpointSearch {
     private final TargetType targetType = TargetType.ASSETS;
@@ -2286,7 +2288,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("With asset groups search")
   public class WithAssetGroupsSearch {
     private final TargetType targetType = TargetType.ASSETS_GROUPS;
@@ -2670,7 +2672,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("With teams search")
   public class WithTeamsSearch {
 
@@ -3143,7 +3145,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("With players search")
   public class WithPlayersSearch {
 

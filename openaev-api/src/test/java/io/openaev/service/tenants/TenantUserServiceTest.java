@@ -12,6 +12,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -30,8 +31,11 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -45,6 +49,11 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser
 class TenantUserServiceTest extends IntegrationTest {
+
+  /** The write scope of a request addressed to the ambient tenant. */
+  private static TxCtx ctx() {
+    return TxCtx.forTenant(TenantContext.getCurrentTenant());
+  }
 
   @Autowired private TenantUserService tenantUserService;
   @Autowired private TenantRepository tenantRepository;
@@ -63,6 +72,9 @@ class TenantUserServiceTest extends IntegrationTest {
   void setUp() {
     tenant = tenantComposer.forTenant(getTenant()).persist().get();
     TenantContext.setCurrentTenant(tenant.getId());
+    // A request addressed to this tenant opens its transaction in the tenant's scope; the test
+    // transaction is already open, so its scope is set here.
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
   }
 
   // -- HELPERS --
@@ -91,7 +103,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("newuser@test.invalid", "Elliot", "Alderson");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -99,7 +111,7 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThat(result.email()).isEqualToIgnoringCase("newuser@test.invalid");
       assertThat(result.firstname()).isEqualTo("Elliot");
       // Verify the user is attached to the current tenant
-      UserOutput found = tenantUserService.user(result.id());
+      UserOutput found = tenantUserService.user(ctx(), result.id());
       assertThat(found.id()).isEqualTo(result.id());
     }
 
@@ -118,14 +130,14 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("existing@test.invalid", "Darlene", "Alderson");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
       assertThat(result.id()).isEqualTo(existingUserId);
       assertThat(result.email()).isEqualToIgnoringCase("existing@test.invalid");
       // Verify the user is attached to the current tenant
-      UserOutput found = tenantUserService.user(existingUserId);
+      UserOutput found = tenantUserService.user(ctx(), existingUserId);
       assertThat(found.id()).isEqualTo(existingUserId);
     }
   }
@@ -141,7 +153,7 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserInTenant("Tyrell", "Wellick", "charlie@test.invalid");
 
       // -- ACT --
-      UserOutput result = tenantUserService.user(user.getId());
+      UserOutput result = tenantUserService.user(ctx(), user.getId());
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -156,7 +168,7 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserNotInTenant("Angela", "Moss", "diana@test.invalid");
 
       // -- ACT & ASSERT --
-      assertThatThrownBy(() -> tenantUserService.user(user.getId()))
+      assertThatThrownBy(() -> tenantUserService.user(ctx(), user.getId()))
           .isInstanceOf(ElementNotFoundException.class)
           .hasMessageContaining(user.getId());
     }
@@ -171,7 +183,7 @@ class TenantUserServiceTest extends IntegrationTest {
 
       // -- ACT --
       List<UserOutput> result =
-          tenantUserService.find(List.of(user1.getId(), user2.getId(), outsideUser.getId()));
+          tenantUserService.find(ctx(), List.of(user1.getId(), user2.getId(), outsideUser.getId()));
 
       // -- ASSERT --
       assertThat(result).hasSize(2);
@@ -184,7 +196,7 @@ class TenantUserServiceTest extends IntegrationTest {
     @DisplayName("Given an empty IDs list should return empty list")
     void given_emptyIdsList_should_returnEmptyList() {
       // -- ACT --
-      List<UserOutput> result = tenantUserService.find(List.of());
+      List<UserOutput> result = tenantUserService.find(ctx(), List.of());
 
       // -- ASSERT --
       assertThat(result).isEmpty();
@@ -199,7 +211,7 @@ class TenantUserServiceTest extends IntegrationTest {
       persistedUserNotInTenant("Terry", "Colby", "ivan@test.invalid");
 
       // -- ACT --
-      List<RawUser> result = tenantUserService.users();
+      List<RawUser> result = tenantUserService.users(ctx());
 
       // -- ASSERT --
       assertThat(result).hasSizeGreaterThanOrEqualTo(2);
@@ -225,7 +237,7 @@ class TenantUserServiceTest extends IntegrationTest {
       SearchPaginationInput searchInput = PaginationFixture.getDefault().size(10).build();
 
       // -- ACT --
-      Page<UserOutput> result = tenantUserService.search(searchInput);
+      Page<UserOutput> result = tenantUserService.search(ctx(), searchInput);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -248,12 +260,12 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserInTenant("Edward", "Alderson", "max@test.invalid");
 
       // -- ACT --
-      tenantUserService.detach(user.getId());
+      tenantUserService.detach(ctx(), user.getId());
       entityManager.flush();
       entityManager.clear();
 
       // -- ASSERT --
-      assertThatThrownBy(() -> tenantUserService.user(user.getId()))
+      assertThatThrownBy(() -> tenantUserService.user(ctx(), user.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
 
@@ -267,7 +279,7 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.flush();
       UserOutput created =
           tenantUserService.createOrAttach(
-              getUserInput("tenant-detach@test.invalid", "Detach", "Tenant"));
+              ctx(), getUserInput("tenant-detach@test.invalid", "Detach", "Tenant"));
       entityManager.flush();
       entityManager.clear();
       assertThat(groupRepository.findById(autoGroup.getId()).orElseThrow().getUsers())
@@ -275,7 +287,7 @@ class TenantUserServiceTest extends IntegrationTest {
           .contains(created.id());
 
       // -- ACT --
-      tenantUserService.detach(created.id());
+      tenantUserService.detach(ctx(), created.id());
 
       // -- ASSERT --
       entityManager.flush();
@@ -299,8 +311,8 @@ class TenantUserServiceTest extends IntegrationTest {
               "shared-tenant@test.invalid", "Shared", "Tenant", "BrandNewP@ssword!", null);
 
       // -- ACT --
-      tenantUserService.detach(user.getId());
-      UserOutput reattached = tenantUserService.createOrAttach(reAttachInput);
+      tenantUserService.detach(ctx(), user.getId());
+      UserOutput reattached = tenantUserService.createOrAttach(ctx(), reAttachInput);
 
       // -- ASSERT --
       entityManager.flush();
@@ -313,6 +325,81 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThat(userService.isUserPasswordValid(reloaded, RAW_PASSWORD)).isTrue();
       assertThat(userService.isUserPasswordValid(reloaded, reAttachInput.plainPassword()))
           .isFalse();
+    }
+
+    @Test
+    @DisplayName("given_userSharingATenantGroup_should_detachLoadingOnlyThatUser")
+    void given_userSharingATenantGroup_should_detachLoadingOnlyThatUser() {
+      // -- ARRANGE --
+      // Group.users used to be EAGER like User.groups: loading the user to detach pulled every
+      // member of its groups, then their groups, and so on (the whole user base on a real
+      // platform).
+      Group sharedGroup =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup()).persist().get();
+      User target =
+          userComposer
+              .forUser(getUser("Detach", "Shared", "detach-shared@test.invalid"))
+              .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+              .persist()
+              .get();
+      tenantRepository.addUserToTenant(target.getId(), tenant.getId());
+      for (int i = 0; i < 5; i++) {
+        userComposer
+            .forUser(getUser("Peer", "Member", "detach-peer-" + i + "@test.invalid"))
+            .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+            .persist();
+      }
+      entityManager.flush();
+      entityManager.clear();
+      Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+      boolean statisticsWereEnabled = stats.isStatisticsEnabled();
+      stats.setStatisticsEnabled(true);
+      stats.clear();
+
+      // -- ACT --
+      long loadedUsers;
+      try {
+        tenantUserService.detach(ctx(), target.getId());
+        loadedUsers = stats.getEntityStatistics(User.class.getName()).getLoadCount();
+      } finally {
+        stats.setStatisticsEnabled(statisticsWereEnabled);
+      }
+
+      // -- ASSERT --
+      assertThat(loadedUsers).as("detaching a user must not load its group peers").isEqualTo(1);
+      assertThat(groupRepository.findUserIdsByGroupId(sharedGroup.getId()))
+          .hasSize(5)
+          .doesNotContain(target.getId());
+    }
+
+    @Test
+    @DisplayName("given_userInTwoTenants_should_keepTheGroupsOfTheOtherTenantOnDetach")
+    void given_userInTwoTenants_should_keepTheGroupsOfTheOtherTenantOnDetach() {
+      // -- ARRANGE --
+      Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
+      Group groupOfTenant =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Left tenant")).persist().get();
+      TenantContext.setCurrentTenant(otherTenant.getId());
+      Group groupOfOtherTenant =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Kept tenant")).persist().get();
+      TenantContext.setCurrentTenant(tenant.getId());
+      // Linked directly: re-persisting the groups through their composer would re-scope them.
+      User user = getUser("Two", "Tenants", "detach-two-tenants@test.invalid");
+      user.getUnscopedGroups().addAll(List.of(groupOfTenant, groupOfOtherTenant));
+      user = userComposer.forUser(user).persist().get();
+      tenantRepository.addUserToTenant(user.getId(), tenant.getId());
+      tenantRepository.addUserToTenant(user.getId(), otherTenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      tenantUserService.detach(ctx(), user.getId());
+
+      // -- ASSERT --
+      assertThat(groupRepository.findUserIdsByGroupId(groupOfTenant.getId()))
+          .doesNotContain(user.getId());
+      assertThat(groupRepository.findUserIdsByGroupId(groupOfOtherTenant.getId()))
+          .containsExactly(user.getId());
     }
   }
 
@@ -332,7 +419,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-auto@test.invalid", "TenantAuto", "Assign");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -353,7 +440,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-noauto@test.invalid", "NoAuto", "Tenant");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -380,7 +467,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("existing-auto@test.invalid", "Existing", "User");
 
       // -- ACT --
-      tenantUserService.createOrAttach(input);
+      tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -404,7 +491,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-scoped@test.invalid", "Tenant", "Scoped");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -437,7 +524,7 @@ class TenantUserServiceTest extends IntegrationTest {
               List.of(otherTenant.getId()));
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();

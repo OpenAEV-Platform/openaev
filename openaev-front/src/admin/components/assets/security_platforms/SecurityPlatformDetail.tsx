@@ -1,5 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ReceiptLongOutlined, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
@@ -287,9 +287,11 @@ const SecurityPlatformDetail: FunctionComponent = () => {
     const pillar = (key: string) => posture.breakdown.find(entry => entry.key === key);
     const detection = pillar('DETECTION');
     const prevention = pillar('PREVENTION');
+    const logging = pillar('LOGGING');
     return {
       detectionRate: rate(detection?.success ?? 0, detection?.failed ?? 0),
       preventionRate: rate(prevention?.success ?? 0, prevention?.failed ?? 0),
+      loggingRate: rate(logging?.success ?? 0, logging?.failed ?? 0),
       tested: posture.tested,
       missedCount: posture.failed,
     };
@@ -353,19 +355,32 @@ const SecurityPlatformDetail: FunctionComponent = () => {
           <>
             {/* Rates and counters stay neutral (primary/secondary): a green 0%
                 or an orange counter would carry a false verdict - the verdict
-                lives in the posture score, whose color follows the number. */}
-            <HeroStat
-              icon={ShieldOutlined}
-              label={t('Prevention rate')}
-              value={kpis.preventionRate === null ? '-' : `${kpis.preventionRate}%`}
-              color={theme.palette.primary.main}
-            />
-            <HeroStat
-              icon={GppMaybeOutlined}
-              label={t('Detection rate')}
-              value={kpis.detectionRate === null ? '-' : `${kpis.detectionRate}%`}
-              color={theme.palette.secondary.main}
-            />
+                lives in the posture score, whose color follows the number.
+                A rate is shown only when the platform has results of that type:
+                a SIEM, for instance, answers Detection and Logging, not Prevention. */}
+            {kpis.preventionRate !== null && (
+              <HeroStat
+                icon={ShieldOutlined}
+                label={t('Prevention rate')}
+                value={`${kpis.preventionRate}%`}
+                color={theme.palette.primary.main}
+              />
+            )}
+            {kpis.detectionRate !== null && (
+              <HeroStat
+                icon={GppMaybeOutlined}
+                label={t('Detection rate')}
+                value={`${kpis.detectionRate}%`}
+                color={theme.palette.secondary.main}
+              />
+            )}
+            {kpis.loggingRate !== null && (
+              <HeroStat
+                icon={ReceiptLongOutlined}
+                label={t('Logging rate')}
+                value={`${kpis.loggingRate}%`}
+              />
+            )}
             <HeroStat
               icon={TrackChangesOutlined}
               label={t('Expectations tested')}

@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -21,9 +23,11 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
@@ -35,6 +39,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,10 +60,12 @@ class ScenarioInjectApiTest extends IntegrationTest {
   static AssetGroup ALL_ASSETGROUP;
   static AssetGroup ALL_WINDOWS;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private InjectorFixture injectorFixture;
 
   @Autowired private MockMvc mvc;
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
@@ -67,6 +74,9 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private InjectAssistantService injectAssistantService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
   @Autowired private ScenarioService scenarioService;
@@ -84,11 +94,12 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));
     // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
     // class-wide fixture names the default tenant explicitly rather than relying on it.
@@ -122,6 +133,11 @@ class ScenarioInjectApiTest extends IntegrationTest {
             Tenant.DEFAULT_TENANT_UUID);
   }
 
+  /** Reads in the default tenant, where this class's fixtures live: injects is an active table. */
+  private <T> T inDefaultTenant(Supplier<T> read) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), read);
+  }
+
   @AfterAll
   void afterAll() {
     attackPatternRepository.delete(ATTACKPATTERN);
@@ -130,7 +146,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Add an inject for scenario")
   @Test
   @Order(1)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void addInjectForScenarioTest() throws Exception {
     // -- PREPARE --
     InjectInput input = new InjectInput();
@@ -169,7 +185,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve injects for scenario")
   @Test
   @Order(2)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void retrieveInjectsForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -190,7 +206,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Retrieve inject for scenario")
   @Test
   @Order(3)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void retrieveInjectForScenarioTest() throws Exception {
     // -- EXECUTE --
     String response =
@@ -211,10 +227,11 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Update inject for scenario")
   @Test
   @Order(4)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateInjectForScenarioTest() throws Exception {
     // -- PREPARE --
-    Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
+    Inject inject =
+        inDefaultTenant(() -> injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow());
     InjectInput input = new InjectInput();
     String injectTitle = "A new title";
     input.setTitle(injectTitle);
@@ -243,7 +260,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @DisplayName("Delete inject for scenario")
   @Test
   @Order(5)
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteInjectForScenarioTest() throws Exception {
     // -- EXECUTE 1 ASSERT --
     mvc.perform(
@@ -251,7 +268,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    assertFalse(injectRepository.existsById(SCENARIO_INJECT_ID));
+    assertFalse(inDefaultTenant(() -> injectRepository.existsById(SCENARIO_INJECT_ID)));
   }
 
   @Nested
@@ -291,6 +308,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Given unchanged assets, should not rewrite the inject assets")
     @Test
     @Transactional
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_unchangedAssets_should_notRewriteInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer endpointWrapper =
@@ -321,6 +339,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Given changed assets, should replace the inject assets")
     @Test
     @Transactional
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_changedAssets_should_replaceInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer removedEndpointWrapper =
@@ -382,8 +401,165 @@ class ScenarioInjectApiTest extends IntegrationTest {
       return newInjectorContractComposer.get();
     }
 
+    @DisplayName(
+        "Given a scenario in another tenant with no ambient tenant set, should create a technical"
+            + " inject rather than a manual placeholder")
+    @Test
+    void
+        given_noAmbientTenantAndScenarioInAnotherTenant_should_selectTechnicalContractInThatTenant()
+            throws Exception {
+      // Arrange: tenant B, with its own attack pattern, well-known injector and technical
+      // contract - none of it reachable through the caller's ambient (default) tenant. Calls
+      // InjectAssistantService directly rather than through the assistant HTTP endpoint: scenarios
+      // is still on v1 isolation (@Filter + TenantBaseListener), so a scenario outside the ambient
+      // tenant cannot be read back on the non-prefixed route at all yet (an unrelated, known gap,
+      // closed only when scenarios activates on v2) - calling the service directly reproduces the
+      // one thing this fix changes, the candidate-contract tenant, without that unrelated gap.
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("inject-assistant-header-b");
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantB.getId());
+
+      AttackPattern attackPatternB = AttackPatternFixture.createDefaultAttackPattern();
+      attackPatternB.setTenant(new Tenant(tenantB.getId()));
+      attackPatternB = attackPatternRepository.save(attackPatternB);
+
+      Scenario scenarioB = new Scenario();
+      scenarioB.setName("Header route scenario B");
+      scenarioB.setTenant(new Tenant(tenantB.getId()));
+      scenarioB = scenarioService.createScenario(scenarioB);
+
+      // The "all platform/arch combinations" search (buildInjectsForAllPlatformAndArchCombinations)
+      // requires every PLATFORM_TYPE, not just the three common ones: it is reached unconditionally
+      // first, even for an attack pattern with no assets or asset groups (both empty below).
+      Endpoint.PLATFORM_TYPE[] allPlatforms = Endpoint.PLATFORM_TYPE.values();
+
+      Payload payloadB =
+          PayloadFixture.createDefaultCommandWithPlatformsAndArchitecture(
+              allPlatforms, Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+      payloadB.setTenant(new Tenant(tenantB.getId()));
+
+      InjectorContract technicalContract =
+          InjectorContractFixture.createInjectorContractWithPlatforms(allPlatforms);
+      technicalContract.setTenant(new Tenant(tenantB.getId()));
+
+      String previousTenant = TenantContext.getCurrentTenant();
+      TenantContext.setCurrentTenant(tenantB.getId());
+      Injector injectorB;
+      try {
+        injectorB = injectorFixture.getWellKnownOaevImplantInjector();
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(technicalContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .withAttackPattern(attackPatternComposer.forAttackPattern(attackPatternB))
+              .withPayload(payloadComposer.forPayload(payloadB))
+              .persist();
+      injectorContractWrapperComposers.add(contractComposer);
+
+      InjectAssistantInput input = new InjectAssistantInput();
+      input.setAssetGroupIds(List.of());
+      input.setAssetIds(List.of());
+      input.setAttackPatternIds(List.of(attackPatternB.getId()));
+      input.setInjectByTTPNumber(1);
+
+      // Act: no ambient tenant set, exactly as on the non-prefixed route (TenantInterceptor only
+      // sets TenantContext on the tenant-prefixed path).
+      TenantContext.clearCurrentTenant();
+      List<Inject> generated;
+      try {
+        generated = injectAssistantService.generateInjectsForScenario(scenarioB, input);
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      // Assert: the technical contract in tenant B was selected, not the manual placeholder.
+      assertEquals(1, generated.size());
+      assertEquals(
+          technicalContract.getId(),
+          generated.getFirst().getInjectorContract().orElseThrow().getId());
+    }
+
+    @DisplayName(
+        "Given a scenario in another tenant with no ambient tenant set, should create the injects"
+            + " of a vulnerability from that tenant's contract")
+    @Test
+    void
+        given_noAmbientTenantAndScenarioInAnotherTenant_should_selectVulnerabilityContractInThatTenant()
+            throws Exception {
+      // Arrange: tenant B holds the vulnerability and the contract linked to it, nothing of it in
+      // the default tenant the ambient tenant falls back to. The service is called directly for the
+      // reason given by the sibling test above.
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("inject-assistant-vuln-b");
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantB.getId());
+
+      Vulnerability vulnerabilityB = new Vulnerability();
+      vulnerabilityB.setExternalId(VulnerabilityFixture.getRandomExternalVulnerabilityId());
+      vulnerabilityB.setCvssV31(VulnerabilityFixture.VULNERABILITY_CVSS_V31);
+      vulnerabilityB.setTenant(new Tenant(tenantB.getId()));
+
+      Scenario scenarioB = new Scenario();
+      scenarioB.setName("Header route vulnerability scenario B");
+      scenarioB.setTenant(new Tenant(tenantB.getId()));
+      scenarioB = scenarioService.createScenario(scenarioB);
+
+      InjectorContract technicalContract = InjectorContractFixture.createDefaultInjectorContract();
+      technicalContract.setTenant(new Tenant(tenantB.getId()));
+
+      String previousTenant = TenantContext.getCurrentTenant();
+      TenantContext.setCurrentTenant(tenantB.getId());
+      Injector injectorB;
+      try {
+        injectorB = injectorFixture.getWellKnownOaevImplantInjector();
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(technicalContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .withVulnerability(vulnerabilityComposer.forVulnerability(vulnerabilityB))
+              .persist();
+      injectorContractWrapperComposers.add(contractComposer);
+
+      // The contract a placeholder inject would carry: a different row, so the two outcomes differ.
+      InjectorContract placeholderContract =
+          InjectorContractFixture.createDefaultInjectorContract();
+      placeholderContract.setTenant(new Tenant(tenantB.getId()));
+      injectorContractWrapperComposers.add(
+          injectorContractComposer
+              .forInjectorContract(placeholderContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .persist());
+
+      // Act: no ambient tenant set, as on the non-prefixed route.
+      TenantContext.clearCurrentTenant();
+      List<Inject> generated;
+      try {
+        generated =
+            injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
+                scenarioB, Set.of(vulnerabilityB), Map.of(), 1, placeholderContract);
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      // Assert: the contract of tenant B linked to the vulnerability was selected, not the
+      // placeholder.
+      assertEquals(1, generated.size());
+      assertEquals(
+          technicalContract.getId(),
+          generated.getFirst().getInjectorContract().orElseThrow().getId());
+    }
+
     @DisplayName("Given number of inject by ttp more than 5, should throw an exception")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_injectByTTPNumberMoreThan5_should_throwAnException() {
       // --PREPARE--
       InjectAssistantInput input = new InjectAssistantInput();
@@ -414,6 +590,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName(
         "Given an injector contract matching all platforms, should create one inject with all assets and asset groups")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void
         given_InjectorContractMatchingAllPlatforms_should_createOneInjectWithAllAssetsAndAssetGroup()
             throws Exception {
@@ -465,6 +642,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName(
         "Given injectorContract matching all Windows, should create one inject with all windows assets and with all windows group")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_InjectorContractMatchingAllWindows_should_createOneInject() throws Exception {
       buildInjectorContract(
           ATTACKPATTERN,
@@ -508,6 +686,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName(
         "Given injectorContracts each matching Windows x86_64 and Windows arm64, should create two injects")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_TwoInjectorContractWindows_should_createTwoInjects() throws Exception {
       buildInjectorContract(
           ATTACKPATTERN,
@@ -544,6 +723,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Given injectorContracts that do not match Windows, should create manualInject")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_NoInjectorContractMatching_should_createManualInject() throws Exception {
       buildInjectorContract(
           ATTACKPATTERN,
@@ -592,6 +772,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     // Test inject number per TTP
     @DisplayName("Given injectByTTPNumber to 2, should create 2 injects")
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_TwoInjectByTTPNumber_should_createTwoInjects() throws Exception {
       buildInjectorContract(
           ATTACKPATTERN,
@@ -629,7 +810,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Retrieve injects simple list for scenario with asset")
     @Test
     @Transactional
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void retrieveInjectSimpleForScenarioTestWithAsset() throws Exception {
       // -- PREPARE --
       ScenarioComposer.Composer composer =
@@ -666,7 +847,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     @DisplayName("Retrieve injects simple list for scenario with asset group")
     @Test
     @Transactional
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Order(value = 13)
     void retrieveInjectSimpleForScenarioTestWithAssetGroup() throws Exception {
       // -- PREPARE --
@@ -712,7 +893,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "createInjectForScenario: should return InjectOutput with inject_id and inject_ready")
     @Test
     @Order(1)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void createInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- PREPARE --
       InjectInput input = new InjectInput();
@@ -746,7 +927,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "createInjectForScenario: inject_ready should reflect missing content when contract is set")
     @Test
     @Order(2)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void createInjectForScenario_shouldReturnChecksReflectingInjectState() throws Exception {
       // -- PREPARE --
       InjectInput input = new InjectInput();
@@ -777,10 +958,11 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "updateInjectForScenario: should return InjectOutput with updated title and inject_ready")
     @Test
     @Order(3)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void updateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- PREPARE --
-      Inject inject = injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow();
+      Inject inject =
+          inDefaultTenant(() -> injectRepository.findById(SCENARIO_INJECT_ID).orElseThrow());
       InjectInput input = new InjectInput();
       String newTitle = "Updated inject title";
       input.setTitle(newTitle);
@@ -822,7 +1004,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
         "duplicateInjectForScenario: should return InjectOutput with new inject_id and inject_ready")
     @Test
     @Order(4)
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void duplicateInjectForScenario_shouldReturnInjectOutputWithChecks() throws Exception {
       // -- EXECUTE --
       String response =
@@ -848,7 +1030,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
       assertTrue(
           response.contains("inject_ready"), "The duplication response must include inject_ready.");
 
-      assertTrue(injectRepository.existsById(duplicatedInjectId));
+      assertTrue(inDefaultTenant(() -> injectRepository.existsById(duplicatedInjectId)));
       String duplicatedTitle = JsonPath.read(response, "$.inject_title");
       assertTrue(
           duplicatedTitle.contains("duplicate"),

@@ -11,6 +11,7 @@ import { searchExerciseByIdAsOption } from '../../../../actions/exercises/exerci
 import { searchInjectorByIdAsOptions } from '../../../../actions/injectors/injector-action';
 import { searchInjectByIdAsOption, searchTargetOptionsById } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByIdAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { fetchAssignableMarkingDefinitions } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationByIdAsOptions } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
@@ -19,6 +20,8 @@ import { searchTeamByIdAsOption } from '../../../../actions/teams/team-actions';
 import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
+import { type MarkingDefinitionOutput } from '../../../../utils/api-types';
+import { markingOption } from '../../../../utils/markings';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -82,6 +85,7 @@ const useRetrieveOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'scenario_domains':
       case 'base_security_domains_side':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -178,9 +182,13 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_author_team':
-        searchTeamByIdAsOption(ids).then((response) => {
-          setOptions(response.data);
+      case 'asset_markings':
+        // A selected id above the user's clearance is not labeled: it could only match rows they
+        // cannot see.
+        fetchAssignableMarkingDefinitions().then((response: { data?: MarkingDefinitionOutput[] }) => {
+          setOptions((response?.data ?? [])
+            .filter(marking => ids.includes(marking.marking_definition_id))
+            .map(markingOption));
         });
         break;
       case 'payload_author_organization':
@@ -237,15 +245,15 @@ const useRetrieveOptions = () => {
           setOptions([...teams.data, ...assetGroups.data]);
         });
         break;
-      // Author filter: an id may belong to a person, a team or an organization -
-      // resolve across all three and merge (each id only matches its own type).
+      // Author filter: an id may belong to a person or an organization -
+      // resolve across both and merge (each id only matches its own type).
       case 'action_author':
+      case 'scenario_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
-          searchTeamByIdAsOption(ids),
           searchOrganizationByIdAsOptions(ids),
-        ]).then(([players, teams, organizations]) => {
-          setOptions([...players.data, ...teams.data, ...organizations.data]);
+        ]).then(([players, organizations]) => {
+          setOptions([...players.data, ...organizations.data]);
         });
         break;
       case CUSTOM_DASHBOARD:

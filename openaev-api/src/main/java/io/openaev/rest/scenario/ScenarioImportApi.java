@@ -14,6 +14,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.InjectsImportInput;
+import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.scenario.ScenarioService;
@@ -21,6 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,21 @@ public class ScenarioImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ScenarioService scenarioService;
 
+  @PostMapping(TENANT_SCENARIO_URI + "/{scenarioId}/xls/store")
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Store an xls file to import injects into a scenario")
+  public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @RequestPart("file") @NotNull MultipartFile file) {
+    scenarioService.existsInScope(ctx, scenarioId);
+    return injectImportService.storeXlsFileForImport(file);
+  }
+
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry",
     TENANT_SCENARIO_URI + "/{scenarioId}/xls/{importId}/dry"
@@ -54,7 +71,7 @@ public class ScenarioImportApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
 
     // Getting the mapper to use
     ImportMapper importMapper =
@@ -86,7 +103,7 @@ public class ScenarioImportApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
 
     if (input.getLaunchDate() != null) {
       scenario.setRecurrenceStart(input.getLaunchDate().toInstant());
@@ -129,9 +146,8 @@ public class ScenarioImportApi extends RestBehavior {
   public void injectsImport(
       // The TxCtx parameter makes the transaction aspect set the request's tenant scope, under
       // which the importer reads InjectorContract#getFirstInjector() to attach an injector to
-      // each imported inject and writes in the scenario's tenant, which must lie inside that
-      // scope. It does not scope the scenario lookup itself, which follows the ambient tenant
-      // until scenarios is tenant-active.
+      // each imported inject and writes in the scenario's tenant. The scenario itself is looked
+      // up in that same scope, so a scenario outside it is not found.
       TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String scenarioId,

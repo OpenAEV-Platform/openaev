@@ -85,13 +85,6 @@ public interface RawScenario {
   boolean getScenario_lessons_enabled();
 
   /**
-   * Returns the email address used as the sender for scenario communications.
-   *
-   * @return the "from" email address
-   */
-  String getScenario_mail_from();
-
-  /**
    * Returns the sender display name for scenario communications.
    *
    * @return the "from" display name
@@ -228,16 +221,24 @@ public interface RawScenario {
   Long getScenario_all_users_number();
 
   /**
-   * Returns the workflow ID associated with this scenario, if any.
-   *
-   * @return the workflow ID, or {@code null} if no workflow is linked
-   */
-  String getScenario_workflow_id();
-
-  /**
    * Returns whether this scenario is an autonomous (AI-driven) attack-path scenario.
    *
    * @return {@code true} if the scenario is autonomous
    */
   boolean getScenario_autonomous();
+
+  /**
+   * ID of the user who last configured this scenario's recurrence (see {@code
+   * Scenario.scheduledBy}), or {@code null} if never stamped; the sibling getters below project
+   * that same user's name/email.
+   */
+  String getScenario_scheduled_by();
+
+  String getScenario_scheduled_by_firstname();
+
+  String getScenario_scheduled_by_lastname();
+
+  String getScenario_scheduled_by_email();
+
+  String getScenario_catalog_version();
 }

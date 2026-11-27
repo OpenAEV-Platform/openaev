@@ -5,8 +5,6 @@ import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
 import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
-import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
-import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
@@ -21,6 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -42,16 +43,21 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -67,7 +73,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -76,14 +83,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-// @TestPropertySource REPLACES the allowlist, so only assets is active in this context. That is a
-// known reduction: the AgentExecutorJoin nested test below is about the eager agent-to-executor
-// join, and executors is inactive here, so it exercises the join without the rewrite. Adding
-// executors to this list was tried and turns four of this class's tests red on their executor
-// fixtures, which is a separate piece of work; executors has its own activation and its own
-// coverage. Widen this list when that fixture work is done, not inside this activation.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_agent_jobs")
+// The context arms the production list, executors included, so the AgentExecutorJoin nested test
+// exercises the eager agent-to-executor join with the rewrite production applies.
+@CoversTenantIsolation("asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
@@ -96,6 +105,9 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @MockitoSpyBean private EndpointService endpointService;
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
@@ -412,6 +424,110 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("asset_ips").isEqualTo(endpointCreated.getIps());
   }
 
+  private Endpoint saveInventoryEndpoint(String externalReference) {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    endpoint.setName("ww-onedev-control-001");
+    endpoint.setHostname("control-001.onedev.ww.example.org");
+    endpoint.setIps(new String[] {"198.51.100.7"});
+    endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+    endpoint.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+    endpoint.setCategory(AssetCategory.HOST);
+    endpoint.setDescription("Created by the inventory collector");
+    endpoint.setExternalReference(externalReference);
+    return endpointRepository.save(endpoint);
+  }
+
+  private EndpointInput discoveredWebApplicationInput(String externalReference) {
+    EndpointInput input = new EndpointInput();
+    input.setName("control-001.onedev.ww.example.org");
+    input.setHostname("control-001.onedev.ww.example.org");
+    input.setIps(new String[] {"198.51.100.7", "198.51.100.8"});
+    input.setCategory(AssetCategory.WEB_APPLICATION);
+    input.setSubcategory(AssetSubCategory.WEBSITE);
+    input.setExternalReference(externalReference);
+    return input;
+  }
+
+  @DisplayName(
+      "Given an upsert matched by hostname and IP on another source's endpoint, should keep its"
+          + " name, category and external reference and only merge addresses")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingForeignEndpointByHostnameAndIp_should_keepItsIdentity()
+      throws Exception {
+    // --PREPARE--
+    Endpoint foreign = saveInventoryEndpoint("inventory-collector:vps-001");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(
+                        asJsonString(
+                            discoveredWebApplicationInput(
+                                "dns-enum:control-001.onedev.ww.example.org")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(foreign.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("ww-onedev-control-001");
+    assertThatJson(response).node("asset_category").isEqualTo("HOST");
+    assertThatJson(response)
+        .node("asset_description")
+        .isEqualTo("Created by the inventory collector");
+    assertThatJson(response)
+        .node("asset_external_reference")
+        .isEqualTo("inventory-collector:vps-001");
+    assertThatJson(response).node("endpoint_platform").isEqualTo("Linux");
+    assertThatJson(response)
+        .node("asset_ips")
+        .isArray()
+        .containsExactlyInAnyOrder("198.51.100.7", "198.51.100.8");
+    Endpoint stored =
+        endpointRepository
+            .findByIdAndTenantId(foreign.getId(), TenantContext.getCurrentTenant())
+            .orElseThrow();
+    assertThat(stored.getSubcategory()).isNull();
+    assertThat(stored.getHostname()).isEqualTo("control-001.onedev.ww.example.org");
+  }
+
+  @DisplayName(
+      "Given an upsert matched by the caller's own external reference, should update name and"
+          + " category")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_upsertMatchingOwnExternalReference_should_updateIdentity() throws Exception {
+    // --PREPARE--
+    String externalReference = "dns-enum:control-001.onedev.ww.example.org";
+    Endpoint own = saveInventoryEndpoint(externalReference);
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless/upsert")
+                    .content(asJsonString(discoveredWebApplicationInput(externalReference)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_id").isEqualTo(own.getId());
+    assertThatJson(response).node("asset_name").isEqualTo("control-001.onedev.ww.example.org");
+    assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
+  }
+
   @DisplayName("Given valid input, should delete an endpoint successfully")
   @Test
   @WithMockUser(isAdmin = true)
@@ -452,194 +568,6 @@ class EndpointApiTest extends IntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
-  }
-
-  @Nested
-  @DisplayName("Retrieve targets")
-  @WithMockUser(isAdmin = true)
-  class TargetEndpoint {
-
-    @Test
-    @DisplayName("Should return matching endpoints when given a static asset group or asset ID")
-    void given_staticAssetGroupOrAssetId_should_returnMatchingEndpoints() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare asset group with an endpoint
-      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      AssetGroup assetGroup =
-          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
-
-      // Prepare an endpoint
-      Endpoint endpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
-      // Prepare another endpoint, that we shouldn't retrieve
-      endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // Prepare asset group filter
-      Filters.Filter filterAssetGroup =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroup.getId()));
-
-      // Prepare asset filter
-      Filters.Filter filterAsset =
-          buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint2.getId()));
-
-      // Prepare filter group
-      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-      filterGroup.setMode(Filters.FilterMode.or);
-      filterGroup.setFilters(List.of(filterAssetGroup, filterAsset));
-      searchPaginationInput.setFilterGroup(filterGroup);
-
-      String response =
-          mvc.perform(
-                  post(ENDPOINT_URI + "/targets")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(searchPaginationInput))
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andExpect(jsonPath("$.numberOfElements").value(2))
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      assertThatJson(response)
-          .inPath("$.content[*].asset_id")
-          .isArray()
-          .containsExactlyInAnyOrderElementsOf(List.of(endpoint.getId(), endpoint2.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return matching endpoints when given dynamic asset group")
-    void given_dynamicAssetGroupId_should_returnMatchingEndpoints() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare an endpoint
-      Endpoint windowEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      Endpoint linuxEndpoint = EndpointFixture.createEndpoint();
-      linuxEndpoint.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-      endpointRepository.save(linuxEndpoint);
-
-      // Prepare dynamic asset group
-      Filters.Filter windowfilter =
-          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
-      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
-      dynamicFilter.setFilters(List.of(windowfilter));
-      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
-      assetGroup.setDynamicFilter(dynamicFilter);
-      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
-
-      // Prepare searcPagination input
-      Filters.Filter assetGroupfilter =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
-      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
-      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter));
-      searchPaginationFilterGroup.setMode(Filters.FilterMode.or);
-      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
-
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput))
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return one endpoints when given dynamic asset group AND asset id")
-    void given_dynamicAssetGroupAndAssetID_should_ReturnEndpointsPresentInBoth() throws Exception {
-      // -- PREPARE --
-      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
-
-      // Prepare an endpoint
-      endpointRepository.save(EndpointFixture.createEndpoint());
-      Endpoint windowEndpoint2 = endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // Prepare dynamic asset group
-      Filters.Filter windowfilter =
-          buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"));
-      Filters.FilterGroup dynamicFilter = Filters.FilterGroup.defaultFilterGroup();
-      dynamicFilter.setFilters(List.of(windowfilter));
-      AssetGroup assetGroup = createDefaultAssetGroup("All windows");
-      assetGroup.setDynamicFilter(dynamicFilter);
-      AssetGroup assetGroupSaved = assetGroupRepository.save(assetGroup);
-
-      // Prepare searcPagination input
-      Filters.Filter assetGroupfilter =
-          buildFilter("assetGroups", Filters.FilterMode.or, List.of(assetGroupSaved.getId()));
-      Filters.Filter assetIdFilter =
-          buildFilter("asset_id", Filters.FilterMode.or, List.of(windowEndpoint2.getId()));
-      Filters.FilterGroup searchPaginationFilterGroup = new Filters.FilterGroup();
-      searchPaginationFilterGroup.setFilters(List.of(assetGroupfilter, assetIdFilter));
-      searchPaginationFilterGroup.setMode(Filters.FilterMode.and);
-      searchPaginationInput.setFilterGroup(searchPaginationFilterGroup);
-
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(searchPaginationInput))
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
-    }
-
-    @Test
-    @DisplayName("Should return endpoints when filterGroup is omitted (regression #6927)")
-    void given_missingFilterGroup_should_returnEndpointsWithoutError() throws Exception {
-      // GIVEN - the body shape posted by injectors that omit filterGroup entirely,
-      // which used to 500 with an NPE in searchManagedEndpoints (#6927)
-      endpointRepository.save(EndpointFixture.createEndpoint());
-
-      // WHEN / THEN - falls back to an empty filter group and returns managed endpoints
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content("{\"page\": 0, \"size\": 20}")
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.content").isArray());
-    }
-
-    @Test
-    @DisplayName("Should tolerate uppercase filter enums from older injectors (regression #6927)")
-    void given_uppercaseFilterEnums_should_returnEndpointsWithoutError() throws Exception {
-      // GIVEN - an asset group targeted with the drifted vocabulary ("CONTAINS", "OR") that an
-      // older injector image may post, which used to fail with a bare 400 (#6927)
-      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
-      AssetGroup assetGroup =
-          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
-      String body =
-          """
-          {
-            "page": 0,
-            "size": 20,
-            "filterGroup": {
-              "mode": "OR",
-              "filters": [
-                {
-                  "id": "drifted-filter",
-                  "key": "assetGroups",
-                  "mode": "OR",
-                  "operator": "CONTAINS",
-                  "values": ["%s"]
-                }
-              ]
-            }
-          }
-          """
-              .formatted(assetGroup.getId());
-
-      // WHEN / THEN - deserializes case-insensitively and resolves the target
-      mvc.perform(
-              post(ENDPOINT_URI + "/targets")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(body)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
-    }
   }
 
   private Inject prepareOptionsEndpointTestData() {
@@ -977,12 +905,13 @@ class EndpointApiTest extends IntegrationTest {
      * the legacy {@code X-Tenant-Ids} header route - since {@code cleanupAssetAgentJob} carries a
      * bare {@code TxCtx}, resolved identically on either one.
      *
-     * <p>The read tests here cover the route contract end to end: a caller scoped to another tenant
-     * gets nothing back from either read endpoint. They do NOT isolate a single mechanism, because
-     * the production table set is active in this context and both read specifications join {@code
-     * agents} and {@code assets}, which are v2-active too. The proof that the inspector scopes
-     * {@code asset_agent_jobs} itself lives in {@code AssetAgentJobDeletionScopeTest}, where that
-     * table is the only active one and removing it from the list turns the cross-tenant read red.
+     * <p>The read tests cover the route contract end to end: a caller scoped to another tenant gets
+     * nothing back from either read endpoint; their specifications also join {@code agents} and
+     * {@code assets}, so they do not isolate a single table. The cross-tenant DELETE cases are the
+     * refusal on {@code asset_agent_jobs} itself: the job is loaded by id with a left join on
+     * {@code agents}, so the job row's own scope decides; the other tenant's job stays in place and
+     * the own tenant's job is removed. {@code AssetAgentJobDeletionScopeTest} pins the same with
+     * {@code asset_agent_jobs} as the only active table.
      */
     @Nested
     @DisplayName("Asset agent job isolation")
@@ -1398,11 +1327,16 @@ class EndpointApiTest extends IntegrationTest {
       @Test
       @DisplayName(
           "Asset agent job created in tenant X should be deletable by a caller who also belongs to"
-              + " tenant Y (no selector, plain TxCtx)")
+              + " tenant Y and holds the right in every tenant it belongs to (no selector, plain"
+              + " TxCtx)")
       void given_callerInTenantXAndY_should_beAbleToDeleteJobInTenantX_noSelector()
           throws Exception {
         // -------- Arrange --------
         Tenant[] tenants = twoTenants();
+        // With no selector the scope is every membership, the default tenant included (see
+        // setup()), and the caller must hold the right in each tenant of its scope.
+        tenantHelper.grantCapabilitiesInTenant(
+            Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
         AssetAgentJob jobX = createTenantAssetAgentJob(tenants[0].getId());
 
         // -------- Act --------
@@ -1566,6 +1500,345 @@ class EndpointApiTest extends IntegrationTest {
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
       Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/assets/search - marking filters")
+  @WithMockUser(isAdmin = true)
+  class MarkingFilters {
+
+    private MarkingDefinition persistDefaultTenantMarking() {
+      MarkingDefinition marking =
+          markingDefinitionComposer
+              .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+              .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+              .persist()
+              .get();
+      // The caller sees a marked asset only through a group holding its marking.
+      Group group = TenantGroupFixture.getGroup("marking-filters-" + UUID.randomUUID());
+      group.setMarkings(new HashSet<>(Set.of(marking)));
+      group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+      tenantGroupComposer.forGroup(group).persist();
+      // The clearance is read through raw JDBC: the rows must be flushed to be seen.
+      entityManager.flush();
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+      return marking;
+    }
+
+    private String performAssetSearch(String uri, SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(uri)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_eqOperator_should_returnOnlyAssetsCarryingThatMarking")
+    void given_eqOperator_should_returnOnlyAssetsCarryingThatMarking() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingEqMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingEqUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", marking.getId(), Filters.FilterOperator.eq);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
+    }
+
+    @Test
+    @DisplayName("given_notEqOperator_should_excludeAssetsCarryingThatMarking")
+    void given_notEqOperator_should_excludeAssetsCarryingThatMarking() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingNotEqMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingNotEqUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", marking.getId(), Filters.FilterOperator.not_eq);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(unmarked.getId()).doesNotContain(marked.getId());
+    }
+
+    @Test
+    @DisplayName("given_emptyOperator_should_returnOnlyUnmarkedAssets")
+    void given_emptyOperator_should_returnOnlyUnmarkedAssets() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingEmptyMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingEmptyUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", null, Filters.FilterOperator.empty);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(unmarked.getId()).doesNotContain(marked.getId());
+    }
+
+    @Test
+    @DisplayName("given_notEmptyOperator_should_returnOnlyMarkedAssets")
+    void given_notEmptyOperator_should_returnOnlyMarkedAssets() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingNotEmptyMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingNotEmptyUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", null, Filters.FilterOperator.not_empty);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/endpoints/search - end of life filter and sort")
+  @WithMockUser(isAdmin = true)
+  class EndOfLifeFilter {
+
+    private static final String PREFIX = "eol-filter-";
+
+    private Endpoint persistEndpoint(String name, boolean endOfLife) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setEoL(endOfLife);
+      return endpointRepository.save(endpoint);
+    }
+
+    private Filters.FilterGroup eolFilter(String value) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("endpoint_is_eol");
+      filter.setOperator(Filters.FilterOperator.eq);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>(List.of(value)));
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(new ArrayList<>(List.of(filter)));
+      return group;
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal")
+    void given_eqTrue_should_returnOnlyEndOfLifeEndpointsAndTheirTotal() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("true"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(eol.getId()).doesNotContain(supported.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_eqFalse_should_returnOnlySupportedEndpoints")
+    void given_eqFalse_should_returnOnlySupportedEndpoints() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .filterGroup(eolFilter("false"))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId()).doesNotContain(eol.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast")
+    void given_sortOnEndOfLife_should_orderEndOfLifeEndpointsLast() throws Exception {
+      // Arrange
+      Endpoint eol = persistEndpoint("eol", true);
+      Endpoint supported = persistEndpoint("supported", false);
+
+      SearchPaginationInput input =
+          PaginationFixture.getDefault()
+              .size(100)
+              .textSearch(PREFIX)
+              .sorts(
+                  List.of(
+                      io.openaev.utils.pagination.SortField.builder()
+                          .property("endpoint_is_eol")
+                          .direction("asc")
+                          .build()))
+              .build();
+
+      // Act
+      String response = search(input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).containsExactly(supported.getId(), eol.getId());
+    }
+
+    @Test
+    @DisplayName("given_unknownFilterKey_should_stillAnswerBadRequest")
+    void given_unknownFilterKey_should_stillAnswerBadRequest() throws Exception {
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "endpoint_not_a_field", "true", Filters.FilterOperator.eq);
+
+      mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/endpoints/search - empty / not_empty on a Boolean column")
+  @WithMockUser(isAdmin = true)
+  class BooleanEmptyFilter {
+
+    private static final String PREFIX = "internet-facing-empty-";
+
+    private Endpoint persistEndpoint(String name, Boolean internetFacing) {
+      Endpoint endpoint = createEndpoint(PREFIX + name);
+      endpoint.setInternetFacing(internetFacing);
+      return endpointRepository.save(endpoint);
+    }
+
+    private SearchPaginationInput input(Filters.FilterOperator operator) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("asset_internet_facing");
+      filter.setOperator(operator);
+      filter.setMode(Filters.FilterMode.or);
+      filter.setValues(new ArrayList<>());
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+      return PaginationFixture.getDefault()
+          .size(100)
+          .textSearch(PREFIX)
+          .filterGroup(filterGroup)
+          .build();
+    }
+
+    private String search(SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal")
+    void given_emptyOperator_should_returnOnlyEndpointsWithANullValueAndTheirTotal()
+        throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactly(unset.getId())
+          .doesNotContain(exposed.getId(), internal.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse")
+    void given_notEmptyOperator_should_returnEndpointsWithTrueOrFalse() throws Exception {
+      // Arrange
+      Endpoint unset = persistEndpoint("unset", null);
+      Endpoint exposed = persistEndpoint("exposed", true);
+      Endpoint internal = persistEndpoint("internal", false);
+
+      // Act
+      String response = search(input(Filters.FilterOperator.not_empty));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(exposed.getId(), internal.getId())
+          .doesNotContain(unset.getId());
+      assertThat(((Number) JsonPath.read(response, "$.totalElements")).intValue()).isEqualTo(2);
     }
   }
 

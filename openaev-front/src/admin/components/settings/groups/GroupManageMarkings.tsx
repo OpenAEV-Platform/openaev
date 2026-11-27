@@ -1,29 +1,35 @@
+import { Switch } from '@filigran/design-system';
 import { LensOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
+import { type MarkingDefinitionHelper } from '../../../../actions/marking_definitions/marking-definition-helper';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store';
 import { type MarkingDefinitionOutput } from '../../../../utils/api-types';
-import { useMarkingDefinitionsWithLoading } from '../../../../utils/hooks/useMarkingDefinitions';
+import { sortMarkings } from '../../../../utils/markings';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
   initialState: string[];
+  initialAutoNewMarking?: boolean;
   open: boolean;
   onClose: () => void;
-  onSubmit: (markingIds: string[]) => void;
+  onSubmit: (markingIds: string[], autoNewMarking: boolean) => void;
   groupName?: string;
   title?: string;
 }
 
-// Markings are a small, effectively-static set (nine seeded TLP/PAP levels per tenant, see
-// useMarkingDefinitions), so unlike GroupManageRoles this picker has no server-side pagination:
-// the whole set is loaded once and filtered/sorted client-side by SelectListPicker.
+// Markings are a small set held in the store, so unlike GroupManageRoles this picker has no
+// server-side pagination.
 //
 // Checkboxes are independent, as in OpenCTI: the lower levels of a type are granted server-side
 // (MarkingScopeResolver).
 const GroupManageMarkings: FunctionComponent<Props> = ({
   initialState,
+  initialAutoNewMarking = false,
   open,
   onClose,
   onSubmit,
@@ -31,26 +37,20 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   title,
 }) => {
   const { t } = useFormatter();
-  const { definitions: markingDefinitions, loading } = useMarkingDefinitionsWithLoading({ skip: !open });
-  // Most restrictive first within a type (TLP:RED at the top), so the cumulative cutoff a user
-  // picks reads top-down as "this and everything below it".
-  const markingValues = useMemo(
-    () => Object.values(markingDefinitions).sort((a, b) => {
-      if (a.marking_definition_type !== b.marking_definition_type) {
-        return a.marking_definition_type.localeCompare(b.marking_definition_type);
-      }
-      return b.marking_definition_order - a.marking_definition_order;
-    }),
-    [markingDefinitions],
-  );
+  const { markingDefinitions } = useHelper((helper: MarkingDefinitionHelper) => ({ markingDefinitions: helper.getMarkingDefinitionsMap() }));
+  const markingValues = useMemo(() => sortMarkings(Object.values(markingDefinitions)), [markingDefinitions]);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [autoNewMarking, setAutoNewMarking] = useState(false);
+  const ability = useAbility();
+  const canAssignMarking = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
 
   useEffect(() => {
     if (open) {
       setSelectedIds(initialState);
+      setAutoNewMarking(initialAutoNewMarking);
     }
-  }, [open, initialState]);
+  }, [open, initialState, initialAutoNewMarking]);
 
   const toggleMarking = (markingId: string) => {
     setSelectedIds(prev => (prev.includes(markingId) ? prev.filter(id => id !== markingId) : [...prev, markingId]));
@@ -99,17 +99,23 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   };
 
   const handleSubmit = () => {
-    onSubmit(selectedIds);
+    onSubmit(selectedIds, autoNewMarking);
     handleClose();
   };
 
   return (
     <SelectListPicker<MarkingDefinitionOutput>
       open={open}
-      isLoading={loading}
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={title ?? t('Manage markings for group: {groupName}', { groupName })}
+      headerComponent={canAssignMarking ? (
+        <Switch
+          checked={autoNewMarking}
+          onCheckedChange={checked => setAutoNewMarking(checked === true)}
+          label={t('Auto assign new markings')}
+        />
+      ) : undefined}
       values={markingValues}
       elements={elements}
       selectedIds={selectedIds}

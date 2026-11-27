@@ -2,17 +2,18 @@ package io.openaev.service.notification;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.NotificationTrigger;
-import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
-import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.engine.NotificationTriggerCacheService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -22,8 +23,10 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @RequiredArgsConstructor
 @Service
@@ -38,6 +41,7 @@ public class NotificationTriggerService {
   private final NotificationTriggerRepository notificationTriggerRepository;
   private final NotificationTriggerCacheService triggerCacheService;
   private final UserService userService;
+  private final PermissionService permissionService;
 
   // readOnly transaction keeps the session open for the lazy owner access in canAccess
   @Transactional(readOnly = true)
@@ -68,6 +72,7 @@ public class NotificationTriggerService {
     trigger.setTenant(new Tenant(tenantId));
     enforceRecipientTargeting(trigger, currentUser);
     validate(trigger);
+    enforceWatchedTypeAccess(trigger, currentUser, tenantId);
     NotificationTrigger saved = notificationTriggerRepository.save(trigger);
     triggerCacheService.invalidateAfterCommit();
     return saved;
@@ -92,6 +97,7 @@ public class NotificationTriggerService {
     trigger.setRecipientGroups(input.getRecipientGroups());
     enforceRecipientTargeting(trigger, currentUser);
     validate(trigger);
+    enforceWatchedTypeAccess(trigger, currentUser, trigger.getTenant().getId());
     NotificationTrigger saved = notificationTriggerRepository.save(trigger);
     triggerCacheService.invalidateAfterCommit();
     return saved;
@@ -137,6 +143,41 @@ public class NotificationTriggerService {
     }
   }
 
+  /**
+   * A live trigger watches a resource type: its owner must be allowed to search that type in the
+   * trigger's tenant, as the list of that type in the interface requires. Without it a user with no
+   * access to findings (or assets, payloads...) could subscribe to every finding of the tenant. A
+   * grant-managed type (scenario, simulation) passes for any user, as its search does: what each
+   * recipient then receives is filtered per object by the engine (NotificationRecipientFilter).
+   */
+  private void enforceWatchedTypeAccess(
+      NotificationTrigger trigger, User currentUser, String tenantId) {
+    if (trigger.getType() != NotificationTriggerType.LIVE) {
+      return;
+    }
+    NotificationResourceCatalog entry =
+        NotificationResourceCatalog.fromResourceType(trigger.getWatchedResourceType())
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "Live notification triggers require a supported resource type"));
+    boolean allowed =
+        permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasPermissionInTenant(
+                    TxCtx.forTenant(tenantId),
+                    currentUser,
+                    null,
+                    entry.getAccessResourceType(),
+                    Action.SEARCH));
+    if (!allowed) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN,
+          "You are not allowed to watch " + trigger.getWatchedResourceType() + " resources");
+    }
+  }
+
   private void validate(NotificationTrigger trigger) {
     if (trigger.getType() == NotificationTriggerType.LIVE) {
       if (trigger.getWatchedResourceType() == null
@@ -149,12 +190,17 @@ public class NotificationTriggerService {
         throw new IllegalArgumentException(
             "Live notification triggers require at least one event type");
       }
-      // Score degradation is a scenario-only semantic event
-      if (trigger.getEventTypes().contains(NotificationTriggerEventType.SCORE_DEGRADATION)
-          && trigger.getWatchedResourceType() != ResourceType.SCENARIO) {
-        throw new IllegalArgumentException(
-            "The score degradation event type is only supported for scenarios");
-      }
+      trigger.getEventTypes().stream()
+          .filter(eventType -> !eventType.supports(trigger.getWatchedResourceType()))
+          .findFirst()
+          .ifPresent(
+              eventType -> {
+                throw new IllegalArgumentException(
+                    "The "
+                        + eventType
+                        + " event type is not supported for "
+                        + trigger.getWatchedResourceType());
+              });
     } else if (trigger.getType() == NotificationTriggerType.DIGEST) {
       if (trigger.getPeriod() == null) {
         throw new IllegalArgumentException("Digest notification triggers require a period");

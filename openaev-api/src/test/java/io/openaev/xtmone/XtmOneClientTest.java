@@ -300,6 +300,143 @@ class XtmOneClientTest {
       // -- ASSERT --
       assertFalse(bodyCaptor.getValue().containsKey("context"));
     }
+
+    @Test
+    @DisplayName("Given supports_artifacts should declare it upstream, and omit it otherwise")
+    void given_supportsArtifacts_should_declareItInBody() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", null, false, true, stream -> {});
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", null, false, stream -> {});
+
+      // -- ASSERT --
+      List<Map<String, Object>> bodies = bodyCaptor.getAllValues();
+      assertEquals(true, bodies.get(0).get("supports_artifacts"));
+      assertFalse(bodies.get(1).containsKey("supports_artifacts"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Decks, reports and videos an answer made")
+  class ChatArtifacts {
+
+    private static final String ARTIFACT_ID = "33333333-3333-4333-8333-333333333333";
+
+    @Test
+    @DisplayName("Given a session restore that renders artifacts should declare it upstream")
+    void given_restoreWithArtifacts_should_declareIt() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      mockExchange(200);
+
+      // -- ACT --
+      xtmOneClient.createChatSession("agent-1", "conv-1", true);
+
+      // -- ASSERT --
+      assertEquals(true, bodyCaptor.getValue().get("supports_artifacts"));
+    }
+
+    @Test
+    @DisplayName("Given a descriptor read should call the artifact route and return its JSON")
+    void given_descriptorRead_should_returnJson() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      JsonNode descriptor = JsonNodeFactory.instance.objectNode().put("kind", "video");
+      when(objectMapper.readTree(anyString())).thenReturn(descriptor);
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+
+      // -- ACT --
+      JsonNode result = xtmOneClient.getChatArtifact("video", ARTIFACT_ID);
+
+      // -- ASSERT --
+      assertEquals(descriptor, result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(
+          request.getRequestUri().endsWith("/api/v1/platform/chat/artifacts/video/" + ARTIFACT_ID));
+    }
+
+    @Test
+    @DisplayName("Given a download should hand the content headers and the body to the sink")
+    void given_download_should_streamToSink() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      when(objectMapper.writeValueAsString(any())).thenReturn("{\"format\":\"pdf\"}");
+      byte[] pdf = "%PDF-1.7".getBytes(StandardCharsets.UTF_8);
+      ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+      when(httpClient.execute(
+              (ClassicHttpRequest) requestCaptor.capture(), any(HttpClientResponseHandler.class)))
+          .thenAnswer(
+              invocation -> {
+                HttpClientResponseHandler<?> handler = invocation.getArgument(1);
+                ClassicHttpResponse httpResponse = mock(ClassicHttpResponse.class);
+                when(httpResponse.getCode()).thenReturn(200);
+                when(httpResponse.getFirstHeader("Content-Disposition"))
+                    .thenReturn(
+                        new org.apache.hc.core5.http.message.BasicHeader(
+                            "Content-Disposition", "attachment; filename=\"Q3.pdf\""));
+                HttpEntity entity = mock(HttpEntity.class);
+                when(entity.getContentType()).thenReturn("application/pdf");
+                when(entity.getContentLength()).thenReturn((long) pdf.length);
+                when(entity.getContent()).thenReturn(new ByteArrayInputStream(pdf));
+                when(httpResponse.getEntity()).thenReturn(entity);
+                return handler.handleResponse(httpResponse);
+              });
+      java.io.ByteArrayOutputStream copied = new java.io.ByteArrayOutputStream();
+      String[] headers = new String[2];
+      long[] length = new long[1];
+
+      // -- ACT --
+      xtmOneClient.downloadChatArtifact(
+          "report",
+          ARTIFACT_ID,
+          "pdf",
+          (contentType, contentDisposition, contentLength, body) -> {
+            headers[0] = contentType;
+            headers[1] = contentDisposition;
+            length[0] = contentLength;
+            body.transferTo(copied);
+          });
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertTrue(
+          request
+              .getRequestUri()
+              .endsWith("/api/v1/platform/chat/artifacts/report/" + ARTIFACT_ID + "/download"));
+      assertEquals("application/pdf", headers[0]);
+      assertEquals("attachment; filename=\"Q3.pdf\"", headers[1]);
+      assertEquals(pdf.length, length[0]);
+      assertArrayEquals(pdf, copied.toByteArray());
+    }
+
+    @Test
+    @DisplayName("Given an upstream 409 should propagate it and never call the sink")
+    void given_upstreamConflict_should_propagateStatus() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      when(objectMapper.writeValueAsString(any())).thenReturn("{\"format\":\"mp4\"}");
+      mockExchange(409);
+      boolean[] called = new boolean[1];
+
+      // -- ACT --
+      ResponseStatusException thrown =
+          assertThrows(
+              ResponseStatusException.class,
+              () ->
+                  xtmOneClient.downloadChatArtifact(
+                      "video", ARTIFACT_ID, "mp4", (ct, cd, len, body) -> called[0] = true));
+
+      // -- ASSERT --
+      assertEquals(409, thrown.getStatusCode().value());
+      assertFalse(called[0]);
+    }
   }
 
   private void configureClientCommon() {

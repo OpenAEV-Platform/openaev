@@ -20,7 +20,10 @@ import {
   type LessonsQuestionUpdateInput, type Pagination,
   type Scenario, type ScenarioAndInjectorContractsInputs, type ScenarioBulkProcessingInput, type ScenarioIdsAndInjectorContractsInputs,
   type ScenarioInput,
+  type ScenarioLaunchCheckOutput,
+  type ScenarioLaunchOutput,
   type ScenarioRecurrenceInput,
+  type ScenarioTargetsInput,
   type ScenarioTeamPlayersEnableInput,
   type SearchPaginationInput,
   type Team,
@@ -61,6 +64,8 @@ export const searchScenarios = (paginationInput: SearchPaginationInput) => {
   const uri = '/api/scenarios/search';
   return simplePostCall(uri, data);
 };
+
+export const fetchScenarioAuthorOptions = () => simpleCall('/api/scenarios/authors/options');
 
 export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/${scenarioId}`;
@@ -119,10 +124,11 @@ export const duplicateScenario = (scenarioId: string) => (dispatch: Dispatch) =>
 
 // -- SCENARIO TO EXERCISE
 
-export const createRunningExerciseFromScenario = (scenarioId: string) => {
-  const uri = `${SCENARIO_URI}/${scenarioId}/exercise/running`;
-  return simplePostCall(uri);
-};
+export const fetchScenarioLaunchCheck = (scenarioId: string): Promise<ScenarioLaunchCheckOutput> => simpleCall(`${SCENARIO_URI}/${scenarioId}/launch-check`)
+  .then(({ data }: { data: ScenarioLaunchCheckOutput }) => data);
+
+export const launchScenario = (scenarioId: string, targets?: ScenarioTargetsInput, notifyError = true): Promise<ScenarioLaunchOutput> => simplePostCall(`${SCENARIO_URI}/${scenarioId}/exercise/running`, targets, undefined, notifyError)
+  .then(({ data }: { data: ScenarioLaunchOutput }) => data);
 
 // -- TEAMS --
 
@@ -213,6 +219,13 @@ export const fetchScenarioStatistic = (scenarioId: Scenario['scenario_id']) => {
 };
 
 // -- IMPORT --
+
+export const storeXlsForScenario = (scenarioId: Scenario['scenario_id'], file: File) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/xls/store`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData);
+};
 
 export const importXlsForScenario = (scenarioId: Scenario['scenario_id'], importId: string, input: InjectsImportInput) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/xls/${importId}/import`;

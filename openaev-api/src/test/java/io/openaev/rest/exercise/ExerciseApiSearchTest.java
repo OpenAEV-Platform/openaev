@@ -16,7 +16,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.GrantRepository;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exercise.form.GetExercisesInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -24,6 +23,7 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -39,7 +39,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExerciseRepository exerciseRepository;
-  @Autowired private GroupRepository groupRepository;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
   @Autowired private GrantRepository grantRepository;
   @Autowired private UserRepository userRepository;
 
@@ -68,6 +68,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Retrieving first page of exercises by text search")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_working_search_input_should_return_a_page_of_exercises() throws Exception {
         SearchPaginationInput searchPaginationInput =
             PaginationFixture.getDefault().textSearch("Crisis").build();
@@ -103,6 +104,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of exercises by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_name_should_return_a_page_of_exercises_sort_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -122,6 +124,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Sorting page of exercises by start date")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_sorting_input_by_start_date_should_return_a_page_of_exercises_sort_by_start_date()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -151,6 +154,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of exercises by name")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_name_should_return_a_page_of_exercises_filter_by_name()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -167,6 +171,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Filtering page of exercises by status")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_filter_input_by_status_should_return_a_page_of_exercises_filter_by_status()
           throws Exception {
         SearchPaginationInput searchPaginationInput =
@@ -184,6 +189,7 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search exercises by ids as admin")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       void given_list_of_ids_select_exercises() throws Exception {
         GetExercisesInput getExercisesInput = new GetExercisesInput();
         getExercisesInput.setExerciseIds(EXERCISE_IDS);
@@ -200,7 +206,10 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search exercises by ids as user granted")
-      @WithMockUser(isAdmin = false, withCapabilities = Capability.ACCESS_ASSESSMENT)
+      @WithMockUser(
+          isAdmin = false,
+          withCapabilities = Capability.ACCESS_ASSESSMENT,
+          autoJoinDefaultTenant = true)
       void given_list_of_ids_select_exercises_with_capabilities() throws Exception {
         GetExercisesInput getExercisesInput = new GetExercisesInput();
         getExercisesInput.setExerciseIds(EXERCISE_IDS);
@@ -234,13 +243,13 @@ public class ExerciseApiSearchTest extends IntegrationTest {
 
       @Test
       @DisplayName("Search exercises by ids as user granted on some exercises")
-      @WithMockUser(isAdmin = false)
+      @WithMockUser(isAdmin = false, autoJoinDefaultTenant = true)
       void given_list_of_ids_select_exercises_without_capabilities_with_grants() throws Exception {
         Exercise exerciseGranted = ExerciseFixture.createDefaultExercise();
         User user = userRepository.findById(currentUser().getId()).get();
         Group group = new Group();
         group.setName("test");
-        group = groupRepository.save(group);
+        group = groupFixtureWriter.save(group);
         exerciseGranted.getGrants().addAll(group.getGrants());
         exerciseGranted = exerciseRepository.save(exerciseGranted);
 
@@ -255,9 +264,9 @@ public class ExerciseApiSearchTest extends IntegrationTest {
         grantPlanner.setGroup(group);
         grantPlanner.setName(Grant.GRANT_TYPE.PLANNER);
         grantRepository.saveAll(List.of(grantObserver, grantPlanner));
-        group.setGrants(new ArrayList<>(List.of(grantObserver, grantPlanner)));
+        group.getGrants().addAll(List.of(grantObserver, grantPlanner));
         group.setUsers(new ArrayList<>(List.of(user)));
-        groupRepository.save(group);
+        groupFixtureWriter.save(group);
         EXERCISE_IDS.add(exerciseGranted.getId());
 
         GetExercisesInput getExercisesInput = new GetExercisesInput();

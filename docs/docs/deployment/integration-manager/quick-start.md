@@ -7,7 +7,7 @@ This guide will help you get XTM Composer up and running quickly with OpenAEV.
 Before starting, ensure you have:   
 - XTM Composer installed (see [Installation guide](installation.md))   
 - Access to an OpenAEV instance    
-- OpenAEV API token   
+- OpenAEV API token of an administrator, or of a user that holds the platform settings write right (`MANAGE_PLATFORM_SETTINGS`): XTM Composer registers itself and refreshes its connectivity with it   
 - RSA (Rivest-Shamir-Adleman) private key (4096-bit)
 
 ## Step 1: generate RSA private key
@@ -51,6 +51,7 @@ Set configuration through environment variables:
 export COMPOSER_ENV=production
 export MANAGER__ID="my-manager-001"
 export MANAGER__CREDENTIALS_KEY_FILEPATH="/path/to/private_key_4096.pem"
+export OPENAEV__ENABLE=true
 export OPENAEV__URL="https://openaev.example.com"
 export OPENAEV__TOKEN="your-openaev-api-token"
 export OPENAEV__DAEMON__SELECTOR="kubernetes"

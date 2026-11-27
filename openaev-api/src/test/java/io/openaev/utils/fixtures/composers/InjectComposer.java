@@ -1,13 +1,17 @@
 package io.openaev.utils.fixtures.composers;
 
+import static io.openaev.utils.fixtures.FindingOccurrenceFixture.createOccurrence;
+
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class InjectComposer extends ComposerBase<Inject> {
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectDocumentRepository injectDocumentRepository;
+  @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
 
   public class Composer extends InnerComposerBase<Inject> {
     private final Inject inject;
@@ -30,6 +35,8 @@ public class InjectComposer extends ComposerBase<Inject> {
     private final List<AssetGroupComposer.Composer> assetGroupComposers = new ArrayList<>();
     private final List<InjectExpectationComposer.Composer> expectationComposers = new ArrayList<>();
     private final List<FindingComposer.Composer> findingComposers = new ArrayList<>();
+    private final List<FindingOccurrenceComposer.Composer> findingOccurrenceComposers =
+        new ArrayList<>();
 
     public Composer(Inject inject) {
       this.inject = inject;
@@ -130,10 +137,11 @@ public class InjectComposer extends ComposerBase<Inject> {
 
     public Composer withFinding(FindingComposer.Composer findingComposer) {
       findingComposers.add(findingComposer);
-      List<Finding> tmpFindings = this.inject.getFindings();
-      tmpFindings.add(findingComposer.get());
-      findingComposer.get().setInject(this.inject);
-      this.inject.setFindings(tmpFindings);
+      Finding finding = findingComposer.get();
+      finding.setInject(this.inject);
+      findingOccurrenceComposers.add(
+          findingOccurrenceComposer.forOccurrence(
+              createOccurrence(finding, this.inject, Instant.now(), finding.getField())));
       return this;
     }
 
@@ -157,10 +165,14 @@ public class InjectComposer extends ComposerBase<Inject> {
       if (inject.getTenant() == null) {
         inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
+      // A finding belongs to the tenant of the inject that produced it, and the inject save
+      // cascades to it
+      findingComposers.forEach(composer -> composer.get().setTenant(inject.getTenant()));
       injectRepository.save(inject);
       injectStatusComposers.ifPresent(InjectStatusComposer.Composer::persist);
       expectationComposers.forEach(InjectExpectationComposer.Composer::persist);
       findingComposers.forEach(FindingComposer.Composer::persist);
+      findingOccurrenceComposers.forEach(FindingOccurrenceComposer.Composer::persist);
       injectDocumentRepository.saveAll(inject.getDocuments());
       return this;
     }
@@ -176,6 +188,7 @@ public class InjectComposer extends ComposerBase<Inject> {
       teamComposers.forEach(TeamComposer.Composer::delete);
       exerciseComposers.forEach(ExerciseComposer.Composer::delete);
       injectorContractComposer.ifPresent(InjectorContractComposer.Composer::delete);
+      findingOccurrenceComposers.forEach(FindingOccurrenceComposer.Composer::delete);
       findingComposers.forEach(FindingComposer.Composer::delete);
       expectationComposers.forEach(InjectExpectationComposer.Composer::delete);
       return this;
@@ -188,6 +201,12 @@ public class InjectComposer extends ComposerBase<Inject> {
   }
 
   public Composer forInject(Inject inject) {
+    generatedItems.add(inject);
+    return new Composer(inject);
+  }
+
+  public Composer forInject(Supplier<Inject> supplier) {
+    Inject inject = supplier.get();
     generatedItems.add(inject);
     return new Composer(inject);
   }

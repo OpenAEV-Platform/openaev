@@ -1,7 +1,6 @@
 package io.openaev.executors.mde.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
@@ -23,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -89,22 +89,12 @@ public class MdeExecutorService implements Runnable {
 
   @Override
   public void run() {
-    try {
-      tenantTx.execute(
-          TxCtx.forTenant(executor.getTenantId()),
-          () -> {
-            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
-            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
-            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
-            // set here otherwise and falls back to the default tenant, silently scoping the v1
-            // Hibernate filter to the wrong tenant.
-            TenantContext.setCurrentTenant(executor.getTenantId());
-            doRun();
-            return null;
-          });
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
   }
 
   private void doRun() {
@@ -211,8 +201,6 @@ public class MdeExecutorService implements Runnable {
     return devices.stream()
         .map(
             device -> {
-              List<String> ips = new ArrayList<>();
-              if (device.getLastIpAddress() != null) ips.add(device.getLastIpAddress());
               AgentRegisterInput input = new AgentRegisterInput();
               input.setExecutor(executor);
               input.setExternalReference(device.getId());
@@ -221,8 +209,8 @@ public class MdeExecutorService implements Runnable {
               input.setName(device.getComputerDnsName());
               input.setHostname(device.getComputerDnsName());
               input.setSeenIp(device.getLastExternalIpAddress());
-              input.setIps(ips.toArray(new String[0]));
-              input.setMacAddresses(new String[0]);
+              input.setIps(ips(device));
+              input.setMacAddresses(macAddresses(device));
               Endpoint.PLATFORM_TYPE platform = toPlatform(device.getOsPlatform());
               input.setPlatform(platform);
               input.setArch(
@@ -239,6 +227,25 @@ public class MdeExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  private static String[] ips(MdeDevice device) {
+    return Stream.concat(
+            Stream.of(device.getLastIpAddress()),
+            networkAddresses(device).map(MdeDevice.MdeIpAddress::getIpAddress))
+        .filter(Objects::nonNull)
+        .toArray(String[]::new);
+  }
+
+  private static String[] macAddresses(MdeDevice device) {
+    return networkAddresses(device)
+        .map(MdeDevice.MdeIpAddress::getMacAddress)
+        .filter(Objects::nonNull)
+        .toArray(String[]::new);
+  }
+
+  private static Stream<MdeDevice.MdeIpAddress> networkAddresses(MdeDevice device) {
+    return device.getIpAddresses() == null ? Stream.empty() : device.getIpAddresses().stream();
   }
 
   /**

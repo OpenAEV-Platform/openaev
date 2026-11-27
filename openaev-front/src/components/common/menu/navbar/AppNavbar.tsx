@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../../public/components/systembanners/useBannerSettings';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { useFdsNavSurface, useFdsTheme } from '../../../../utils/hooks/useFdsThemeScope';
 import { useFormatter } from '../../../i18n';
@@ -28,8 +28,11 @@ import useNavbarState from './useNavbarState';
  * Highlight the exact page and any sub-route (e.g. /admin/integrations/deployed).
  * Home ('/admin') is a prefix of every route, so it stays exact-only.
  */
-const isItemCurrent = (pathname: string, path: string): boolean => pathname === path
+const isPathCurrent = (pathname: string, path: string): boolean => pathname === path
   || (path !== '/admin' && pathname.startsWith(`${path}/`));
+
+const isItemCurrent = (pathname: string, item: Pick<NavMenuItem, 'path' | 'matchPaths'>): boolean => [item.path, ...(item.matchPaths ?? [])]
+  .some(path => isPathCurrent(pathname, path));
 
 const isSubItemCurrent = (pathname: string, subItem: NavMenuSubItem): boolean => (subItem.exact
   ? pathname === subItem.link
@@ -48,7 +51,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
   const theme = useTheme();
   const location = useLocation();
   const { settings } = useAuth();
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const isWhitemarkEnabled = settings.platform_whitemark === 'true'
     && settings.platform_license?.license_is_validated === true;
   const { navOpen, toggleNav } = useNavbarState();
@@ -63,7 +66,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
       <Link
         to={item.path}
         aria-label={t(item.label)}
-        aria-current={isItemCurrent(location.pathname, item.path) ? 'page' : undefined}
+        aria-current={isItemCurrent(location.pathname, item) ? 'page' : undefined}
       >
         <NavbarItemContent icon={item.icon()} label={t(item.label)} collapsed={collapsed} />
       </Link>
@@ -161,7 +164,6 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         {visibleEntries.map((items, index) => (
         // Groups are positional, they carry no identity of their own; the rows
         // inside them are keyed by label.
-        // eslint-disable-next-line react/no-array-index-key
           <Fragment key={index}>
             {index !== 0 && <NavbarSeparator />}
             {items.map(renderItem)}

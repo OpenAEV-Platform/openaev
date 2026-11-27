@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,17 +49,31 @@ public class ThreatArsenalApi {
 
   // -- READ --
 
+  /**
+   * Retrieves a threat arsenal action by ID.
+   *
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
+   *
+   * @param actionId the action ID or external ID
+   * @return the action
+   */
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @Transactional
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
+  // ctx needs a single tenant: the lookup resolves the action's injector contract by id or
+  // external id, and a built-in contract id repeats across tenants (#8485), so a scope spanning
+  // several of them makes that lookup match more than one row and throw instead of resolving one.
   public ThreatArsenalActionFullOutput threatArsenal(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (injector_contract_injector_type is resolved through the injectors
-      // table, which is v2 tenant-scoped).
-      TxCtx ctx, @PathVariable String actionId) {
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return threatArsenalService.findById(actionId);
   }
 
@@ -252,8 +267,10 @@ public class ThreatArsenalApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
       // TxCtx is still declared so the resolver injects the request scope; there is no real
-      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
-      // each short read/chunk transaction in ThreatArsenalService#bulkDelete.
+      // transaction here to write the GUC into (SUPPORTS), so ThreatArsenalService#bulkDelete
+      // resolves the write tenant from this scope and carries it into its own read/chunk
+      // transactions. No @RequireTenantSelector: a scope that names several tenants must be
+      // refused rather than silently narrowed to the default one, since the request deletes.
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(ctx, input));
   }

@@ -1,13 +1,13 @@
 import { mergeTests } from '@playwright/test';
 
-import csrfFixture from './csrf.fixture';
+import authFixture from './auth.fixture';
+import credentialFixture from './credential.fixture';
 import scenarioFixture from './scenario.fixture';
 import teamFixture from './team.fixture';
 
 export const test = mergeTests(
-  csrfFixture,
+  authFixture,
   teamFixture,
   scenarioFixture,
+  credentialFixture,
 );
-
-export { expect } from '@playwright/test';

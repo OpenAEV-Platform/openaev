@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -20,6 +22,7 @@ import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.period.CronService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -33,7 +36,10 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,6 +53,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
@@ -85,10 +92,120 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
   @Mock private LessonsService lessonsService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private EntityManager entityManager;
+  @Mock private PauseExerciseService pauseExerciseService;
+  @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private FileService fileService;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
+
+  @AfterEach
+  void clearTransactionSynchronization() {
+    // Safety net: the reset-storage test below opens a TransactionSynchronizationManager scope
+    // manually (it's thread-bound state, not a mock), so a failure mid-test must not leak it into
+    // the next test's thread.
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Nested
+  @DisplayName("Resetting a closed simulation to scheduled")
+  class ResetToScheduled {
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts")
+    void
+        given_closedSimulationOfAnotherTenant_when_resetWithAmbientDefault_should_deleteDirectoryUnderBothStorageLayouts()
+            throws ChainingException {
+      // Arrange - the simulation lives in a tenant of its own, not the default one, and may carry
+      // attachments under the earlier storage layout (the default tenant's prefix)
+      String exerciseId = "9b1c2d3e-4f50-4617-8829-aabbccddeeff";
+      String owningTenantId = "4e5f6071-8293-4a5b-9c0d-1e2f30415263";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(owningTenantId));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      // @InjectMocks only wires the biggest constructor; the @PersistenceContext field is set
+      // separately, the same way EmailService's ImapService test sets its @Value fields.
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      // The non-prefixed route never sets the ambient TenantContext: it falls back to the default
+      // tenant, whatever tenant the request's TxCtx actually names.
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act - the request scope names the simulation's own tenant (e.g. via X-Tenant-Ids)
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(owningTenantId), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - the directory is removed from both the simulation's own tenant path and the
+      // default tenant's prefix, never the ambient (1-arg) method.
+      verify(fileService).deleteDirectory(eq(owningTenantId), eq(exerciseId));
+      verify(fileService).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+
+    @Test
+    @DisplayName(
+        "given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce")
+    void given_closedSimulationOfTheDefaultTenant_when_reset_should_deleteItsDirectoryOnlyOnce()
+        throws ChainingException {
+      // Arrange - the simulation already lives in the default tenant, so its own prefix and the
+      // earlier layout's prefix are the same path
+      String exerciseId = "1a2b3c4d-5e6f-4789-90ab-cdef01234567";
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setStatus(ExerciseStatus.CANCELED);
+      exercise.setStart(Instant.now());
+      exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+
+      when(exerciseRepository.findByIdAndTenantIdIn(eq(exerciseId), any()))
+          .thenReturn(Optional.of(exercise));
+      when(exerciseRepository.save(any(Exercise.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      when(workflowOwnerScope.call(any(Exercise.class), any()))
+          .thenAnswer(
+              invocation ->
+                  invocation
+                      .<io.openaev.context.TenantScopedTransaction.ScopedWork<?, ?>>getArgument(1)
+                      .get());
+      org.springframework.test.util.ReflectionTestUtils.setField(
+          mockedExerciseService, "entityManager", entityManager);
+
+      TenantContext.clearCurrentTenant();
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act
+      mockedExerciseService.changeExerciseStatus(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), ExerciseStatus.SCHEDULED, exerciseId);
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+
+      // Assert - a single delete, not a second one for the same path
+      verify(fileService, times(1)).deleteDirectory(eq(Tenant.DEFAULT_TENANT_UUID), eq(exerciseId));
+      verify(fileService, never()).deleteDirectory(anyString());
+    }
+  }
 
   @Test
   @DisplayName("Should get exercises global scores")
@@ -413,14 +530,15 @@ class ExerciseServiceUnitTest {
       exercise = mock(Exercise.class);
     }
 
-    @Test
-    void findAllById_shouldDelegate() {
-      List<String> ids = List.of("1", "2");
-      List<Exercise> list = List.of(exercise);
-
-      when(exerciseRepository.findAllById(ids)).thenReturn(list);
-
-      assertEquals(list, mockedExerciseService.findAllById(ids));
+    // The owner's tenant scope is the integration tests' concern; here the work just runs.
+    private void runScopedWorkInPlace() throws Exception {
+      doAnswer(
+              invocation -> {
+                invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+                return null;
+              })
+          .when(workflowOwnerScope)
+          .run(any(Exercise.class), any());
     }
 
     @Test
@@ -430,12 +548,15 @@ class ExerciseServiceUnitTest {
     }
 
     @Test
-    void deleteById_shouldCheckTenantAndDelegate() {
+    void deleteById_shouldCheckTenantAndDelegate() throws Exception {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class);
           MockedStatic<SessionHelper> sh = mockStatic(SessionHelper.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(true);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1"))
+            .thenReturn(Optional.of(exercise));
+        when(exercise.getId()).thenReturn("id");
+        runScopedWorkInPlace();
         OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
         when(principal.getId()).thenReturn("user-1");
         sh.when(SessionHelper::currentUser).thenReturn(principal);
@@ -444,7 +565,7 @@ class ExerciseServiceUnitTest {
         mockedExerciseService.deleteById("id");
 
         // Assert
-        verify(exerciseRepository).existsByIdAndTenantId("id", "tenant-1");
+        verify(exerciseRepository).findByIdAndTenantId("id", "tenant-1");
         verify(exerciseRepository).deleteById("id");
       }
     }
@@ -454,7 +575,7 @@ class ExerciseServiceUnitTest {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         // Arrange
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(false);
+        when(exerciseRepository.findByIdAndTenantId("id", "tenant-1")).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.deleteById("id"));
@@ -474,7 +595,10 @@ class ExerciseServiceUnitTest {
       String exerciseId = "exercise-123";
       List<String> teamIds = List.of("team-1", "team-2");
 
-      mockedExerciseService.removeTeams(exerciseId, teamIds);
+      when(exerciseRepository.existsByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
+          .thenReturn(true);
+
+      mockedExerciseService.removeTeams(TxCtx.forTenant("tenant-1"), exerciseId, teamIds);
 
       verify(exerciseRepository).removeTeams(exerciseId, teamIds);
       verify(exerciseTeamUserRepository).deleteByExerciseIdAndTeamIds(exerciseId, teamIds);
@@ -526,100 +650,99 @@ class ExerciseServiceUnitTest {
 
     @Test
     void shouldFullyRemoveDeselectedTeamAndEnableOnlyNewTeams() {
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        String exerciseId = "exercise-123";
+      String exerciseId = "exercise-123";
 
-        Team existingTeam1 = new Team();
-        existingTeam1.setId("team-1");
-        existingTeam1.setUsers(new ArrayList<>());
+      Team existingTeam1 = new Team();
+      existingTeam1.setId("team-1");
+      existingTeam1.setUsers(new ArrayList<>());
 
-        Team existingTeam2 = new Team();
-        existingTeam2.setId("team-2");
-        existingTeam2.setUsers(new ArrayList<>());
+      Team existingTeam2 = new Team();
+      existingTeam2.setId("team-2");
+      existingTeam2.setUsers(new ArrayList<>());
 
-        User newPlayer = new User();
-        newPlayer.setId("user-1");
+      User newPlayer = new User();
+      newPlayer.setId("user-1");
 
-        Team newTeam = new Team();
-        newTeam.setId("team-3");
-        newTeam.setUsers(List.of(newPlayer));
+      Team newTeam = new Team();
+      newTeam.setId("team-3");
+      newTeam.setUsers(List.of(newPlayer));
 
-        Exercise exercise = new Exercise();
-        exercise.setId(exerciseId);
-        exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setTenant(new Tenant("tenant-1"));
+      exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
-        when(exerciseRepository.findByIdAndTenantId(exerciseId, "tenant-1"))
-            .thenReturn(Optional.of(exercise));
-        when(teamRepository.findAllById(any()))
-            .thenAnswer(
-                invocation -> {
-                  Iterable<String> ids = invocation.getArgument(0);
-                  Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
-                  List<Team> result = new ArrayList<>();
-                  ids.forEach(
-                      id -> {
-                        Team team = teamsById.get(id);
-                        if (team != null) {
-                          result.add(team);
-                        }
-                      });
-                  return result;
-                });
-        when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
-        when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
-                exerciseId, "team-3", "user-1"))
-            .thenReturn(false);
-        when(teamService.find(any())).thenReturn(List.of());
+      when(exerciseRepository.findByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
+          .thenReturn(Optional.of(exercise));
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
+          .thenAnswer(
+              invocation -> {
+                Iterable<String> ids = invocation.getArgument(0);
+                Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
+                List<Team> result = new ArrayList<>();
+                ids.forEach(
+                    id -> {
+                      Team team = teamsById.get(id);
+                      if (team != null) {
+                        result.add(team);
+                      }
+                    });
+                return result;
+              });
+      when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
+      when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+              exerciseId, "team-3", "user-1"))
+          .thenReturn(false);
+      when(teamService.find(any())).thenReturn(List.of());
 
-        mockedExerciseService.replaceTeams(exerciseId, List.of("team-2", "team-3", "team-3"));
+      mockedExerciseService.replaceTeams(
+          TxCtx.forTenant("tenant-1"), exerciseId, List.of("team-2", "team-3", "team-3"));
 
-        verify(exerciseTeamUserRepository)
-            .deleteByExerciseIdAndTeamIds(
-                eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
-        verify(injectRepository)
-            .removeTeamsForExercise(
-                eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
-        verify(lessonsCategoryRepository)
-            .removeTeamsForExercise(
-                eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(exerciseTeamUserRepository)
+          .deleteByExerciseIdAndTeamIds(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(injectRepository)
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+      verify(lessonsCategoryRepository)
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
 
-        verify(exerciseTeamUserRepository)
-            .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-3", "user-1");
-        verify(exerciseTeamUserRepository, never())
-            .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-2", "user-1");
+      verify(exerciseTeamUserRepository)
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-3", "user-1");
+      verify(exerciseTeamUserRepository, never())
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-2", "user-1");
 
-        assertEquals(2, exercise.getTeams().size());
-        assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-2".equals(team.getId())));
-        assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-3".equals(team.getId())));
-      }
+      assertEquals(2, exercise.getTeams().size());
+      assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-2".equals(team.getId())));
+      assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-3".equals(team.getId())));
     }
 
     @Test
     void shouldNotCallCleanupWhenNoTeamIsRemoved() {
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        String exerciseId = "exercise-123";
+      String exerciseId = "exercise-123";
 
-        Team existingTeam = new Team();
-        existingTeam.setId("team-1");
-        existingTeam.setUsers(new ArrayList<>());
+      Team existingTeam = new Team();
+      existingTeam.setId("team-1");
+      existingTeam.setUsers(new ArrayList<>());
 
-        Exercise exercise = new Exercise();
-        exercise.setId(exerciseId);
-        exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
+      Exercise exercise = new Exercise();
+      exercise.setId(exerciseId);
+      exercise.setTenant(new Tenant("tenant-1"));
+      exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
 
-        when(exerciseRepository.findByIdAndTenantId(exerciseId, "tenant-1"))
-            .thenReturn(Optional.of(exercise));
-        when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
-        when(teamService.find(any())).thenReturn(List.of());
+      when(exerciseRepository.findByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
+          .thenReturn(Optional.of(exercise));
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
+          .thenReturn(List.of(existingTeam));
+      when(teamService.find(any())).thenReturn(List.of());
 
-        mockedExerciseService.replaceTeams(exerciseId, List.of("team-1"));
+      mockedExerciseService.replaceTeams(
+          TxCtx.forTenant("tenant-1"), exerciseId, List.of("team-1"));
 
-        verify(exerciseTeamUserRepository, never()).deleteByExerciseIdAndTeamIds(any(), any());
-        verify(injectRepository, never()).removeTeamsForExercise(any(), any());
-        verify(lessonsCategoryRepository, never()).removeTeamsForExercise(any(), any());
-      }
+      verify(exerciseTeamUserRepository, never()).deleteByExerciseIdAndTeamIds(any(), any());
+      verify(injectRepository, never()).removeTeamsForExercise(any(), any());
+      verify(lessonsCategoryRepository, never()).removeTeamsForExercise(any(), any());
     }
   }
 }

@@ -18,6 +18,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.search.FullTextSearchApi;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -25,6 +26,7 @@ import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -46,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FullTextSearchTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private AssetRepository assetRepository;
@@ -54,6 +57,7 @@ public class FullTextSearchTest extends IntegrationTest {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   private static final List<String> SCENARIO_IDS = new ArrayList<>();
   private static Scenario testScenarioCrisis;
@@ -89,9 +93,14 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteAllById(SCENARIO_IDS);
-    this.assetRepository.delete(assetForTest);
-    this.assetRepository.delete(securityPlatformForTest);
+    // The class's rows were committed in the default tenant: delete them in its scope.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+          this.assetRepository.delete(assetForTest);
+          this.assetRepository.delete(securityPlatformForTest);
+        });
   }
 
   @AfterEach
@@ -100,6 +109,34 @@ public class FullTextSearchTest extends IntegrationTest {
     tenantGroupComposer.reset();
     tenantRoleComposer.reset();
     grantComposer.reset();
+  }
+
+  /**
+   * Persists a caller holding {@code capability} through a role of the default tenant, and makes it
+   * a member of that tenant, as a real holder of that role is. The test transaction already runs in
+   * the default tenant's scope (see {@link io.openaev.utilstest.DefaultTenantScopeTestListener}),
+   * and the flush in {@code attachUserToTenant} writes the rows in it before the request, which
+   * starts from a cleared scope.
+   */
+  private User persistDefaultTenantMemberWith(Capability capability) {
+    TenantGroupComposer.Composer groupComposed =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
+            .withRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(
+                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
+    User user =
+        userComposer
+            .forUser(
+                UserFixture.getUser(
+                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
+            .withGroup(groupComposed)
+            .persist()
+            .get();
+    // Flushes the pending rows in the test transaction's scope, then adds the membership.
+    tenantIsolationTestHelper.attachUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    return user;
   }
 
   private static Stream<Arguments> countScenarioTestCases() {
@@ -112,7 +149,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{2}")
   @MethodSource("countScenarioTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_user_is_admin_search_input_should_return_count_for_all_scenarios(
       String searchTerm, int expectedCount, String testDisplayName) throws Exception {
     // -- PREPARE --
@@ -150,7 +187,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{3}")
   @MethodSource("searchScenarioTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_user_is_admin_search_input_should_return_all_scenarios(
       String searchTerm, int expectedCount, List<String> expectedIds, String testDisplayName)
       throws Exception {
@@ -217,7 +254,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{4}")
   @MethodSource("searchScenarioGrantsTestCases")
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   void given_user_with_grants_search_input_should_match_grants(
       String searchTerm,
       int expectedCount,
@@ -247,7 +284,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("securityPlatformClazzTestCases")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void search_results_should_expose_the_precise_asset_subclass(
       String testDisplayName, String searchTerm, String expectedClazz, String expectedId)
       throws Exception {
@@ -331,22 +368,7 @@ public class FullTextSearchTest extends IntegrationTest {
     SearchPaginationInput searchPaginationInput =
         PaginationFixture.getDefault().textSearch(searchTerm).build();
 
-    TenantGroupComposer.Composer groupComposed =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup())
-            .withRole(
-                tenantRoleComposer.forRole(
-                    TenantRoleFixture.getRole(
-                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
-
-    this.testUser =
-        userComposer
-            .forUser(
-                UserFixture.getUser(
-                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(groupComposed)
-            .persist()
-            .get();
+    this.testUser = persistDefaultTenantMemberWith(capability);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 
@@ -375,22 +397,7 @@ public class FullTextSearchTest extends IntegrationTest {
     FullTextSearchApi.SearchTerm term = new FullTextSearchApi.SearchTerm();
     term.setSearchTerm(searchTerm);
 
-    TenantGroupComposer.Composer groupComposed =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup())
-            .withRole(
-                tenantRoleComposer.forRole(
-                    TenantRoleFixture.getRole(
-                        capability == null ? new HashSet<>() : new HashSet<>(Set.of(capability)))));
-
-    this.testUser =
-        userComposer
-            .forUser(
-                UserFixture.getUser(
-                    "Firstname", "Lastname", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(groupComposed)
-            .persist()
-            .get();
+    this.testUser = persistDefaultTenantMemberWith(capability);
 
     Authentication auth = buildAuthenticationToken(this.testUser);
 

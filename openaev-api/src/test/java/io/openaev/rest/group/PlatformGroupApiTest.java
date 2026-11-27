@@ -16,16 +16,20 @@ import io.openaev.api.groups.dto.PlatformGroupInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.RoleRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
-import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.utilstest.GroupFixtureWriter;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +47,9 @@ public class PlatformGroupApiTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private PlatformRoleComposer platformRoleComposer;
-  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private GroupFixtureWriter groupFixtureWriter;
+  @Autowired private RoleRepository roleRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @Nested
@@ -325,21 +331,19 @@ public class PlatformGroupApiTest extends IntegrationTest {
     void given_managePlatform_should_allowRenamingAlreadyDefaultGroup() throws Exception {
       // -------- Arrange --------
       // Only the transition to default is an escalation; an already-flagged group stays editable.
+      // The group is written whole, under the platform-write marker, as it was committed before
+      // the request that renames it.
+      Group alreadyDefault = PlatformGroupFixture.getPlatformGroup("AlreadyDefault");
+      alreadyDefault.setDefaultUserAssignation(true);
       Group group =
           platformGroupComposer
-              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("AlreadyDefault"))
+              .forPlatformGroup(alreadyDefault)
+              .withRole(
+                  platformRoleComposer.forPlatformRole(
+                      PlatformRoleFixture.getPlatformRole(
+                          "RoleForAlreadyDefault", Set.of(Capability.ACCESS_PLATFORM_SETTINGS))))
               .persist()
               .get();
-      Role role =
-          platformRoleComposer
-              .forPlatformRole(
-                  PlatformRoleFixture.getPlatformRole(
-                      "RoleForAlreadyDefault", Set.of(Capability.ACCESS_PLATFORM_SETTINGS)))
-              .persist()
-              .get();
-      group.setRoles(new ArrayList<>(List.of(role)));
-      group.setDefaultUserAssignation(true);
-      groupRepository.save(group);
 
       PlatformGroupInput input = new PlatformGroupInput("AlreadyDefaultRenamed", "desc", true);
 
@@ -622,6 +626,117 @@ public class PlatformGroupApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Roles a platform group can hold")
+  class PlatformRolesOnly {
+
+    private Role tenantRoleOfAnotherTenant(Set<Capability> capabilities) throws Exception {
+      Tenant otherTenant = tenantIsolationHelper.createTenant("platform-group-roles-other");
+      Role role = TenantRoleFixture.getRole("RoleOfAnotherTenant", capabilities);
+      role.setTenant(entityManager.getReference(Tenant.class, otherTenant.getId()));
+      roleRepository.saveAndFlush(role);
+      return role;
+    }
+
+    private long linksOf(String groupId) {
+      entityManager.flush();
+      return ((Number)
+              entityManager
+                  .createNativeQuery("SELECT count(*) FROM groups_roles WHERE group_id = :id")
+                  .setParameter("id", groupId)
+                  .getSingleResult())
+          .longValue();
+    }
+
+    private void assertRolesRefused(String groupId, String... roleIds) throws Exception {
+      int status =
+          mvc.perform(
+                  put(PLATFORM_GROUPS_URI + "/" + groupId + "/platform-roles")
+                      .content(asJsonString(new PlatformGroupUpdateRolesInput(List.of(roleIds))))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+      assertEquals(0, linksOf(groupId), "groups_roles holds a link for the platform group");
+      assertEquals(404, status);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Given an administrator and a role of another tenant, should answer not found")
+    void given_administratorAndRoleOfAnotherTenant_should_answerNotFound() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("GroupWithTenantRole"))
+              .persist()
+              .get();
+      Role role = tenantRoleOfAnotherTenant(Set.of(Capability.ACCESS_ASSETS));
+
+      // -------- Act & Assert --------
+      assertRolesRefused(group.getId(), role.getId());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given the management capability and a role of another tenant, should answer not found")
+    void given_managePlatformAndRoleOfAnotherTenant_should_answerNotFound() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("GroupWithEmptyTenantRole"))
+              .persist()
+              .get();
+      // No capability: the capability check has nothing to refuse, only the scope of the role does
+      Role role = tenantRoleOfAnotherTenant(Set.of());
+
+      // -------- Act & Assert --------
+      assertRolesRefused(group.getId(), role.getId());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "Given a platform role next to a role of another tenant, should link neither of them")
+    void given_platformRoleNextToRoleOfAnotherTenant_should_linkNeither() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("GroupWithMixedRoles"))
+              .persist()
+              .get();
+      Role platformRole =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "MixedPlatformRole", Set.of(Capability.ACCESS_PLATFORM_SETTINGS)))
+              .persist()
+              .get();
+      Role role = tenantRoleOfAnotherTenant(Set.of(Capability.ACCESS_ASSETS));
+
+      // -------- Act & Assert --------
+      assertRolesRefused(group.getId(), platformRole.getId(), role.getId());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Given an unknown role id, should answer not found")
+    void given_unknownRoleId_should_answerNotFound() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("GroupWithUnknownRole"))
+              .persist()
+              .get();
+
+      // -------- Act & Assert --------
+      assertRolesRefused(group.getId(), UUID.randomUUID().toString());
+    }
+  }
+
+  @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
   class Isolation {
@@ -630,7 +745,9 @@ public class PlatformGroupApiTest extends IntegrationTest {
     @DisplayName("Tenant groups should not appear in platform group search")
     void given_tenantGroupExists_should_notAppearInPlatformSearch() throws Exception {
       // -------- Arrange --------
-      tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("TenantOnlyGroup")).persist();
+      Group tenantGroup = TenantGroupFixture.getGroup("TenantOnlyGroup");
+      tenantGroup.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      groupFixtureWriter.save(tenantGroup);
 
       SearchPaginationInput input = new SearchPaginationInput();
       input.setSize(100);

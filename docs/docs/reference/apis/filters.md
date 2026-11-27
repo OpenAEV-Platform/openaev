@@ -74,6 +74,8 @@ Search endpoints accept a `filterGroup` object in the request body:
 | `not_contains` | Does not contain |
 | `starts_with` | Starts with |
 | `not_starts_with` | Does not start with |
+| `ends_with` | Ends with |
+| `not_ends_with` | Does not end with |
 | `gt` | Greater than |
 | `gte` | Greater than or equal |
 | `lt` | Lower than |
@@ -93,8 +95,9 @@ By default, the UI offers these operators depending on the attribute type. Some 
 
 !!! note
 
-    - Negative operators (`not_eq`, `not_contains`, `not_starts_with`) always combine values with AND, whatever the filter `mode`: the result excludes all the values.
-    - Text comparisons (`eq`, `not_eq`, `contains`, `starts_with` and their negations) are case-insensitive.
+    - Negative operators (`not_eq`, `not_contains`, `not_starts_with`, `not_ends_with`) always combine values with AND, whatever the filter `mode`: the result excludes all the values.
+    - Text comparisons (`eq`, `not_eq`, `contains`, `starts_with`, `ends_with` and their negations) are case-insensitive.
+    - `ends_with` and `not_ends_with` are API operators: the UI does not offer them yet. For example, `{"key": "asset_hostname", "operator": "ends_with", "values": [".corp.example"]}` keeps the hosts of one domain.
     - Date values use the ISO 8601 format, for example `2026-01-31T00:00:00Z`.
     - An unknown `operator` falls back to `eq`, and an unknown `mode` falls back to `and`.
 

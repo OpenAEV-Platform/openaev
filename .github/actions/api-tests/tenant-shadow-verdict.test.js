@@ -107,13 +107,13 @@ test('the shadow run does not ignore test failures', () => {
   // The whole point: with maven.test.failure.ignore the Maven step is green whatever happened,
   // which is the state nobody can read. continue_on_error on the matrix entry is what keeps a red
   // shard out of the run conclusion.
-  const action = fs.readFileSync(ACTION, 'utf8');
-  const argsLine = action
-    .split('\n')
-    .find((line) => line.includes('echo "args=-Dopenaev.tenant.active-tables='));
-  assert.ok(argsLine, 'the shadow argument line is gone from action.yml');
+  const script = stepScript('Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})');
   assert.ok(
-    !argsLine.includes('maven.test.failure.ignore'),
+    script.includes('-Dopenaev.tenant.active-tables='),
+    'the shadow arguments are gone from the Run API tests step',
+  );
+  assert.ok(
+    !script.includes('maven.test.failure.ignore'),
     'the shadow run must not ignore test failures',
   );
 });

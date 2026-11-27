@@ -1,6 +1,7 @@
 package io.openaev.rest.mapper;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -16,7 +17,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawPaginationImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.FileTooBigException;
 import io.openaev.rest.exception.ImportException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.mapper.form.ExportMapperInput;
@@ -44,14 +44,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RestController
 @RequiredArgsConstructor
@@ -66,10 +64,6 @@ public class MapperApi extends RestBehavior {
   private final MapperService mapperService;
   private final InjectImportService injectImportService;
   private final TenantWriteScopeResolver writeScopeResolver;
-
-  // 25mb in byte
-  private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
-  private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
   @PostMapping("/search")
   @Transactional
@@ -213,7 +207,6 @@ public class MapperApi extends RestBehavior {
   @Operation(summary = "Import injects into an xls file")
   public ImportPostSummary importXLSFile(
       TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) {
-    validateUploadedFile(file);
     return injectImportService.storeXlsFileForImport(file);
   }
 
@@ -225,13 +218,14 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (importInjectIntoScenarioFromXLS reads InjectorContract#
-      // getFirstInjector() to attach an injector to each previewed inject).
+      // The TxCtx parameter sets the tenant scope of this read (importInjectIntoScenarioFromXLS
+      // reads InjectorContract#getFirstInjector() to attach an injector to each previewed inject)
+      // and names the tenant the transient mapper resolves its injector contracts in.
       @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
-    ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());
+    ImportMapper importMapper =
+        mapperService.createImportMapper(input.getImportMapper(), requireOneTenantOfScope(ctx));
     importMapper
         .getInjectImporters()
         .forEach(
@@ -260,24 +254,5 @@ public class MapperApi extends RestBehavior {
       @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     mapperService.importMappersCsv(ctx, file, csvType);
-  }
-
-  private void validateUploadedFile(MultipartFile file) {
-    validateExtension(file);
-    validateFileSize(file);
-  }
-
-  private void validateExtension(MultipartFile file) {
-    String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    if (!ACCEPTED_FILE_TYPES.contains(extension)) {
-      throw new UnsupportedMediaTypeException(
-          "Only the following file types are accepted : " + String.join(", ", ACCEPTED_FILE_TYPES));
-    }
-  }
-
-  private void validateFileSize(MultipartFile file) {
-    if (file.getSize() >= MAXIMUM_FILE_SIZE_ALLOWED) {
-      throw new FileTooBigException("File size cannot be greater than 25 Mb");
-    }
   }
 }

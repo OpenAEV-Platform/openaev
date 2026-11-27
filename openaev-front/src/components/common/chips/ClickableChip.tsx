@@ -7,12 +7,15 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../i18n';
 import convertOperatorToIcon from './ChipUtils';
 import ClickableChipPopover from './ClickableChipPopover';
+import { neutralChipSx, STANDARD_CHIP_EDGE, STANDARD_CHIP_FILL } from './standardChip';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   mode: {
     display: 'inline-block',
     height: '100%',
-    backgroundColor: theme.palette.action?.selected,
+    border: STANDARD_CHIP_EDGE,
+    borderRadius: 4,
+    backgroundColor: STANDARD_CHIP_FILL,
     margin: '0 4px',
     padding: '0 4px',
   },
@@ -172,17 +175,19 @@ const ClickableChip: FunctionComponent<Props> = ({
     );
   };
 
-  const chipVariant = 'filled';
-
   return (
     <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Chip
-            variant={chipVariant}
+            variant="outlined"
             label={filterValues(false)}
             onDelete={onDelete ? handleRemoveFilter : undefined}
-            sx={{ borderRadius: 1 }}
+            // The design-system 1.13 chip look: neutral fill and a 30% hairline.
+            sx={{
+              borderRadius: 1,
+              ...neutralChipSx(),
+            }}
             ref={chipRef}
           />
         </TooltipTrigger>

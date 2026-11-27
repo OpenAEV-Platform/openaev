@@ -4,6 +4,7 @@ import static io.openaev.database.specification.CommunicationSpecification.fromI
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -13,7 +14,9 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.TeamService;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,7 @@ public class SimulationInjectService {
   private final InjectRepository injectRepository;
   private final CommunicationRepository communicationRepository;
   private final TeamRepository teamRepository;
+  private final TeamService teamService;
 
   // -- READ --
 
@@ -47,11 +51,33 @@ public class SimulationInjectService {
                     "Inject not found with id: " + injectId + " in simulation: " + simulationId));
   }
 
-  /** Returns the teams assigned to an inject that belongs to the given simulation. */
+  /**
+   * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
+   * simulation, or answers not found.
+   */
+  @Transactional(readOnly = true)
+  public void requireInjectInSimulation(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (inject.getExercise() == null || !simulationId.equals(inject.getExercise().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in simulation: " + simulationId);
+    }
+  }
+
+  /**
+   * Returns the teams assigned to an inject that belongs to the given simulation, with the
+   * collections their raw response serializes initialized, see {@link
+   * TeamService#withResponseCollections}.
+   */
   @Transactional(readOnly = true)
   public List<Team> findInjectTeamsForSimulation(
       @NotBlank final String simulationId, @NotBlank final String injectId) {
-    return findInjectForSimulation(simulationId, injectId).getTeams();
+    List<Team> teams = findInjectForSimulation(simulationId, injectId).getTeams();
+    teams.forEach(teamService::withResponseCollections);
+    return teams;
   }
 
   /**
@@ -96,13 +122,17 @@ public class SimulationInjectService {
     return injectStatusService.updateInjectStatus(injectId, input);
   }
 
-  /** Replaces the teams assigned to an inject that belongs to the given simulation. */
+  /**
+   * Replaces the teams assigned to an inject that belongs to the given simulation. The teams are
+   * read in the tenant of the inject: a team id outside it is skipped, as an unknown id is.
+   */
   public Inject updateInjectTeamsForSimulation(
       @NotBlank final String simulationId,
       @NotBlank final String injectId,
       InjectTeamsInput input) {
     Inject inject = findInjectForSimulation(simulationId, injectId);
-    Iterable<Team> injectTeams = teamRepository.findAllById(input.getTeamIds());
+    Iterable<Team> injectTeams =
+        teamRepository.findAllByIdInTenant(input.getTeamIds(), inject.getTenant().getId());
     inject.setTeams(fromIterable(injectTeams));
     return injectRepository.save(inject);
   }
@@ -110,9 +140,12 @@ public class SimulationInjectService {
   // -- DELETE --
 
   /** Deletes an inject that belongs to the given simulation. */
-  public void deleteInject(@NotBlank final String simulationId, @NotBlank final String injectId) {
+  public void deleteInject(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
     checkInjectForSimulation(simulationId, injectId);
-    Exercise exercise = this.exerciseService.exercise(simulationId);
+    Exercise exercise = this.exerciseService.exercise(ctx, simulationId);
     injectService.delete(injectId);
     this.exerciseService.updateExercise(exercise);
   }

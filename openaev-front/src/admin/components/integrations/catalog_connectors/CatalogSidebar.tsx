@@ -1,22 +1,19 @@
-import { Button, Paper } from '@filigran/design-system';
+import { Button } from '@filigran/design-system';
 import {
-  CheckOutlined,
   CloudOutlined,
   GroupsOutlined,
   Inventory2Outlined,
   Key,
   OnlinePredictionOutlined,
   SmartButtonOutlined,
+  type SvgIconComponent,
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Box, ButtonBase, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type ComponentType, useMemo } from 'react';
+import { useMemo } from 'react';
 
+import { type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
 import { useFormatter } from '../../../../components/i18n';
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
-import useAuth from '../../../../utils/hooks/useAuth';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import {
   type CatalogFacetFilters,
@@ -33,115 +30,16 @@ import {
 } from './catalog-facets';
 import useCaseIcon from './use-case-icons';
 
-interface FacetRow {
-  value: string;
-  label: string;
-  count: number;
-  icon?: ComponentType<{ sx?: object }>;
-  capitalize?: boolean;
-}
-
 interface FacetGroup {
   id: FacetGroupId;
   label: string;
-  rows: FacetRow[];
+  rows: {
+    value: string;
+    label: string;
+    count: number;
+    icon?: SvgIconComponent;
+  }[];
 }
-
-interface FacetRowItemProps {
-  row: FacetRow;
-  checked: boolean;
-  onToggle: () => void;
-}
-
-const FacetRowItem = ({ row, checked, onToggle }: FacetRowItemProps) => {
-  const theme = useTheme();
-  const disabled = row.count === 0 && !checked;
-  const RowIcon = row.icon;
-  return (
-    <ButtonBase
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={row.label}
-      disabled={disabled}
-      onClick={onToggle}
-      sx={{
-        'display': 'flex',
-        'alignItems': 'center',
-        'gap': 1,
-        'width': '100%',
-        'justifyContent': 'flex-start',
-        'padding': theme.spacing(0.5, 1),
-        'borderRadius': 1,
-        'textAlign': 'left',
-        'opacity': disabled ? 0.4 : 1,
-        'transition': 'background-color 0.15s ease',
-        '&:hover': { backgroundColor: theme.palette.action.hover },
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 16,
-          height: 16,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 2,
-          border: `1px solid ${checked ? theme.palette.primary.main : theme.palette.divider}`,
-          backgroundColor: checked ? theme.palette.primary.main : 'transparent',
-          boxShadow: checked ? `0 0 6px ${alpha(theme.palette.primary.main, 0.5)}` : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {checked && (
-          <CheckOutlined sx={{
-            fontSize: 12,
-            color: theme.palette.primary.contrastText,
-          }}
-          />
-        )}
-      </span>
-      {RowIcon && (
-        <RowIcon sx={{
-          fontSize: 16,
-          color: 'text.secondary',
-          flexShrink: 0,
-        }}
-        />
-      )}
-      <Typography
-        variant="body2"
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          textTransform: row.capitalize ? 'capitalize' : 'none',
-        }}
-      >
-        {row.label}
-      </Typography>
-      <span
-        style={{
-          fontSize: 11,
-          lineHeight: '18px',
-          minWidth: 24,
-          textAlign: 'center',
-          padding: theme.spacing(0, 0.5),
-          borderRadius: 2,
-          backgroundColor: checked
-            ? alpha(theme.palette.primary.main, 0.16)
-            : theme.palette.action.hover,
-          color: checked ? theme.palette.primary.main : theme.palette.text.secondary,
-        }}
-      >
-        {row.count}
-      </span>
-    </ButtonBase>
-  );
-};
 
 interface Props {
   connectors: ConnectorItem[];
@@ -152,18 +50,8 @@ interface Props {
 }
 
 const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAll }: Props) => {
-  const theme = useTheme();
   const { t } = useFormatter();
-  const { settings } = useAuth();
-  const anyActive = hasActiveFacetFilters(filters);
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
-
-  // The page scrolls the document, so `position: sticky` resolves against the
-  // viewport. Clear the fixed app bar (68px) plus any active top banner, then
-  // add a small gap, so the panel's "Filters" title never slides under the
-  // header instead of sticking below it.
-  const { bannerHeightNumber } = computeBannerSettings(settings);
-  const stickyTop = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px + ${theme.spacing(2)})`;
 
   const groups: FacetGroup[] = useMemo(() => {
     // Faceted-search count semantics: each group is counted against items
@@ -216,7 +104,6 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
         rows: allUseCases.map(useCase => ({
           value: useCase,
           label: prettifyUseCase(useCase),
-          capitalize: true,
           icon: useCaseIcon(useCase),
           count: countByPredicate(useCasesBase, c => c.useCases.includes(useCase)),
         })),
@@ -261,108 +148,24 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
     ].filter(group => group.rows.length > 0);
   }, [connectors, filters, keyword, t]);
 
+  const sections: FacetSection[] = groups.map(group => ({
+    id: group.id,
+    label: group.label,
+    rows: group.rows.map(({ icon: RowIcon, ...row }) => ({
+      ...row,
+      icon: RowIcon && (() => <RowIcon fontSize="small" />),
+      checked: filters[group.id].includes(row.value),
+      onToggle: () => onToggleFacet(group.id, row.value),
+    })),
+  }));
+
   return (
-    // Fixed sticky column on md+; below md the marketplace stacks it
-    // full-width above the cards (sticky + max-height would then trap the
-    // whole page behind the filters, so both are disabled).
-    <Box
-      component="aside"
-      sx={{
-        width: {
-          xs: '100%',
-          md: 250,
-        },
-        flexShrink: 0,
-        position: {
-          xs: 'static',
-          md: 'sticky',
-        },
-        top: stickyTop,
-        alignSelf: {
-          xs: 'stretch',
-          md: 'flex-start',
-        },
-        maxHeight: {
-          xs: 'none',
-          md: `calc(100vh - var(--fds-header-height, 68px) - ${bannerHeightNumber}px - ${theme.spacing(4)})`,
-        },
-        overflowY: {
-          xs: 'visible',
-          md: 'auto',
-        },
-      }}
-    >
-      <Paper
-        padding={16}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-        >
-          <Typography
-            sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            {t('Filters')}
-          </Typography>
-          {anyActive && (
-            <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
-              {t('Clear all')}
-            </Button>
-          )}
-        </header>
-        {groups.map((group, groupIndex) => (
-          <section
-            key={group.id}
-            aria-label={group.label}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing(0.25),
-              ...(groupIndex > 0
-                ? {
-                    borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}`,
-                    paddingTop: theme.spacing(2),
-                  }
-                : {}),
-            }}
-          >
-            <Typography
-              component="h3"
-              sx={{
-                fontFamily: theme.typography.h1.fontFamily,
-                fontWeight: 600,
-                fontSize: 12,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: 'text.secondary',
-                paddingInline: 1,
-              }}
-            >
-              {group.label}
-            </Typography>
-            {group.rows.map(row => (
-              <FacetRowItem
-                key={row.value}
-                row={row}
-                checked={filters[group.id].includes(row.value)}
-                onToggle={() => onToggleFacet(group.id, row.value)}
-              />
-            ))}
-          </section>
-        ))}
-      </Paper>
-    </Box>
+    <FacetSidebar
+      action={hasActiveFacetFilters(filters) && (
+        <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>{t('Clear all')}</Button>
+      )}
+      sections={sections}
+    />
   );
 };
 

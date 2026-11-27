@@ -20,15 +20,19 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
@@ -51,6 +55,8 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private MockMvc mvc;
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
@@ -61,6 +67,26 @@ public class XtmComposerApiTest extends IntegrationTest {
   @BeforeAll
   void setUp() {
     openAEVConfig.setVersion("test-version");
+  }
+
+  /**
+   * Writes the composer's platform settings directly (not through the register endpoint, whose
+   * {@code @PlatformWrite} would otherwise mark the transaction), then reads each one back, so a
+   * refused write fails the calling test instead of leaving the composer unregistered.
+   */
+  private void persistComposerSettings(Map<String, String> settings) {
+    tenantScopedTransaction.setScopeOnCurrentTransaction(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+    tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+    platformSettingsService.saveSettings(settings);
+    entityManager.flush();
+    entityManager.clear();
+    settings.forEach(
+        (key, value) ->
+            assertEquals(
+                value,
+                platformSettingsService.setting(key).map(Setting::getValue).orElse(null),
+                "persisted value of " + key));
   }
 
   @Nested
@@ -103,12 +129,84 @@ public class XtmComposerApiTest extends IntegrationTest {
                     XTM_COMPOSER_PUBLIC_KEY.key(),
                     XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()));
         assertEquals(responseToken, id);
+        // The response keeps the platform version the composer registered against: released
+        // composers register again when it differs from GET /api/settings/version.
         assertEquals(responseVersion, openAEVversion);
         assertEquals(settingsMap.get(XTM_COMPOSER_ID.key()).getValue(), id);
         assertEquals(settingsMap.get(XTM_COMPOSER_NAME.key()).getValue(), name);
-        assertEquals(settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue(), openAEVversion);
         assertEquals(settingsMap.get(XTM_COMPOSER_PUBLIC_KEY.key()).getValue(), publicKey);
         assertNotNull(settingsMap.get(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key()).getValue());
+      }
+
+      @Test
+      @DisplayName("Should record the version and image the composer reports at registration")
+      void givenComposerReportsVersionAndImage_should_recordThem() throws Exception {
+        XtmComposerRegisterInput input = new XtmComposerRegisterInput();
+        input.setName("Xtm composer test");
+        input.setId("test-xtm-composer-versioned");
+        input.setPublicKey("public-key-test");
+        input.setVersion(" 3.261121.0 ");
+        input.setImage("filigran/xtm-composer:3.261121.0");
+
+        String response =
+            mvc.perform(
+                    post(XTMCOMPOSER_URI + "/register")
+                        .content(asJsonString(input))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("3.261121.0", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0", JsonPath.read(response, "$.xtm_composer_image"));
+        assertEquals("test-version", JsonPath.read(response, "$.xtm_composer_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(
+                    XTM_COMPOSER_VERSION.key(),
+                    XTM_COMPOSER_IMAGE.key(),
+                    XTM_COMPOSER_PLATFORM_VERSION.key()));
+        assertEquals("3.261121.0", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0",
+            settingsMap.get(XTM_COMPOSER_IMAGE.key()).getValue());
+        assertEquals(
+            "test-version", settingsMap.get(XTM_COMPOSER_PLATFORM_VERSION.key()).getValue());
+      }
+
+      @Test
+      @DisplayName(
+          "Should record unknown, never the platform version, for a composer reporting none")
+      void givenComposerReportsNoVersion_should_recordUnknown() throws Exception {
+        XtmComposerRegisterInput input = new XtmComposerRegisterInput();
+        input.setName("Xtm composer test");
+        input.setId("test-xtm-composer-legacy");
+        input.setPublicKey("public-key-test");
+
+        String response =
+            mvc.perform(
+                    post(XTMCOMPOSER_URI + "/register")
+                        .content(asJsonString(input))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("unknown", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(XTM_COMPOSER_VERSION.key(), XTM_COMPOSER_IMAGE.key()));
+        assertEquals("unknown", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertNotEquals(
+            platformSettingsService.getPlatformVersion(),
+            settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
       }
 
       @Test
@@ -171,7 +269,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         Instant timeBeforeRequest = Instant.now();
 
         mvc.perform(
@@ -189,6 +287,47 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertTrue(lastConnectivitySetting.isPresent());
         assertTrue(
             timeBeforeRequest.isBefore(Instant.parse(lastConnectivitySetting.get().getValue())));
+        // A refresh without a report (an older composer) keeps the recorded version
+        assertEquals(
+            "composer-version-test",
+            platformSettingsService
+                .setting(XTM_COMPOSER_VERSION.key())
+                .map(Setting::getValue)
+                .orElse(null));
+      }
+
+      @Test
+      @DisplayName("Should record the version and image the composer reports on refresh")
+      void givenComposerReport_should_updateVersionAndImageOnRefresh() throws Exception {
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "3.261120.0");
+        composerSettings.put(XTM_COMPOSER_PLATFORM_VERSION.key(), "test-version");
+        persistComposerSettings(composerSettings);
+
+        String response =
+            mvc.perform(
+                    put(XTMCOMPOSER_URI + "/composer-id-test/refresh-connectivity")
+                        .content(
+                            "{\"version\":\"3.261121.0\","
+                                + "\"image\":\"filigran/xtm-composer:3.261121.0\"}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals("3.261121.0", JsonPath.read(response, "$.xtm_composer_reported_version"));
+        assertEquals("test-version", JsonPath.read(response, "$.xtm_composer_version"));
+        Map<String, Setting> settingsMap =
+            platformSettingsService.findSettingsByKeys(
+                List.of(XTM_COMPOSER_VERSION.key(), XTM_COMPOSER_IMAGE.key()));
+        assertEquals("3.261121.0", settingsMap.get(XTM_COMPOSER_VERSION.key()).getValue());
+        assertEquals(
+            "filigran/xtm-composer:3.261121.0",
+            settingsMap.get(XTM_COMPOSER_IMAGE.key()).getValue());
       }
 
       @Test
@@ -197,7 +336,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         mvc.perform(
                 put(XTMCOMPOSER_URI + "/fake-composer-id/refresh-connectivity")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -218,7 +357,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(
             XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(),
             Instant.now().minus(3, ChronoUnit.HOURS).toString());
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
@@ -240,7 +379,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
         composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), now.toString());
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
@@ -259,6 +398,18 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Instances management from xtmComposer endpoints")
   class XtmComposerInstance {
+    /**
+     * Makes the caller a member of the default tenant, as every user of a deployment is, so the
+     * connector instances these tests create, which are tenant rows of the default tenant, are
+     * inside the caller's scope. The composer registration does not need it: it is a platform row,
+     * readable with no scope ({@code XtmComposerRegistrationNoMembershipTest}). This class does not
+     * arm any table, and the tests pass without the membership too.
+     */
+    @BeforeEach
+    void attachCallerToTheDefaultTenant() {
+      tenantIsolationTestHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    }
+
     private ConnectorInstancePersisted getConnectorInstance(String connectorName)
         throws JsonProcessingException {
       return connectorInstanceComposer
@@ -281,7 +432,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         mvc.perform(
                 get(XTMCOMPOSER_URI + "/fake-composer-id/connector-instances")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -305,7 +456,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/composer-id-test/connector-instances")
@@ -361,7 +512,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         XtmComposerUpdateStatusInput input = new XtmComposerUpdateStatusInput();
         input.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
         mvc.perform(
@@ -386,7 +537,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         XtmComposerUpdateStatusInput input = new XtmComposerUpdateStatusInput();
         input.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -425,7 +576,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         XtmComposerUpdateStatusInput input2 = new XtmComposerUpdateStatusInput();
         input2.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -459,7 +610,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
         input.setLogs(new ArrayList<>());
         mvc.perform(
@@ -485,7 +636,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
         input.setLogs(List.of("New logs", "New logs 2"));
@@ -564,7 +715,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
       }
 
       private void pushLogs(ConnectorInstance instance, List<String> lines) throws Exception {
@@ -599,7 +750,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceHealthInput input = new ConnectorInstanceHealthInput();
         input.setStartedAt(Instant.now());
         input.setRestartCount(1);
@@ -627,7 +778,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceHealthInput input = new ConnectorInstanceHealthInput();
         Instant startTime = Instant.now();
         input.setStartedAt(startTime);
@@ -654,6 +805,54 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertEquals(instanceDb.get().getRestartCount(), 16);
         assertEquals(instanceDb.get().getStartedAt(), startTime);
         assertFalse(instanceDb.get().isInRebootLoop());
+      }
+
+      @Test
+      @DisplayName(
+          "Given a health check with the image digest should store it, one without should keep it")
+      void givenHealthCheckWithImageDigest_should_storeItAndKeepItWhenAbsent() throws Exception {
+        ConnectorInstance instance = getConnectorInstance("Microsoft defender collector");
+
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        persistComposerSettings(composerSettings);
+        String digest = "sha256:" + "a".repeat(64);
+
+        // A composer >= 3.261125.0 reports the digest of the image the workload runs
+        ConnectorInstanceHealthInput withDigest = new ConnectorInstanceHealthInput();
+        withDigest.setStartedAt(Instant.now());
+        withDigest.setRestartCount(1);
+        withDigest.setInRebootLoop(false);
+        withDigest.setImageDigest(digest);
+        putHealthCheck(instance.getId(), withDigest);
+        assertEquals(
+            digest, connectorInstanceRepository.findById(instance.getId()).get().getImageDigest());
+
+        // An older composer omits the field: the stored digest is kept
+        ConnectorInstanceHealthInput withoutDigest = new ConnectorInstanceHealthInput();
+        withoutDigest.setStartedAt(Instant.now());
+        withoutDigest.setRestartCount(2);
+        withoutDigest.setInRebootLoop(false);
+        putHealthCheck(instance.getId(), withoutDigest);
+        ConnectorInstancePersisted instanceDb =
+            connectorInstanceRepository.findById(instance.getId()).get();
+        assertEquals(digest, instanceDb.getImageDigest());
+        assertEquals(2, instanceDb.getRestartCount());
+      }
+
+      private void putHealthCheck(String instanceId, ConnectorInstanceHealthInput input)
+          throws Exception {
+        mvc.perform(
+                put(XTMCOMPOSER_URI
+                        + "/composer-id-test/connector-instances/"
+                        + instanceId
+                        + "/health-check")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
       }
     }
   }

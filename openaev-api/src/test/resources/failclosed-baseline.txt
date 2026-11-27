@@ -6,12 +6,19 @@
 # A production fail-closed read NOT listed here fails the gate: scope the path, or add it here with
 # a reason. Test-caller and fixture reads are auto-waived (not listed).
 #
+# A line may end with " tables=<t1>,<t2>": it then waives a read at its site only when every active
+# table the read names is listed, so a read of another table at the same site fails the gate.
+#
 # Lines starting with # and blank lines are ignored.
+
+# SCOPED-OK - SecurityCoverageJob reads the pending send jobs under TxCtx.allTenants() and loads,
+# bundles and consumes each one under TxCtx.forTenant of its simulation's tenant; a test that calls
+# these methods directly reads with no scope.
+io.openaev.service.SecurityCoverageSendJobService.getPendingSecurityCoverageSendJobs
+io.openaev.service.SecurityCoverageSendJobService.consumeJobs
 
 # BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
 # tenant is taken from the simulation, coverage is re-read under scope where it matters).
-io.openaev.service.SecurityCoverageSendJobService.getPendingSecurityCoverageSendJobs
-io.openaev.service.SecurityCoverageSendJobService.consumeJobs
 io.openaev.database.model.Exercise.getInjects
 
 # SCOPED-OK - production path wraps the read in a scope; the test invokes the method directly.
@@ -39,10 +46,14 @@ io.openaev.service.AssetGroupService.assetGroup
 # the same method through the tenant-prefixed route with a scope.
 io.openaev.service.ChallengeService.playerChallenges
 
-# SCOPED-OK - kill_chain_phases activation. Production callers (AttackPatternApi) carry a TxCtx
-# scope; the waived read is KillChainPhaseQueryCorrelationTest.unscopedReadReturnsNothing calling
-# the service directly under an empty scope on purpose, asserting the fail-closed result. Same
-# shape as AssetGroupService.assetGroup above.
+# SCOPED-OK - kill_chain_phases activation. Both production callers are AttackPatternApi read
+# endpoints (the by-id read and the search), each @Transactional with a TxCtx parameter, so the
+# transaction aspect sets the scope before the service runs; a controller cannot drop that parameter,
+# the default-secure compile-time rule (#7726) refuses it. The waived read is
+# KillChainPhaseQueryCorrelationTest.unscopedReadReturnsNothing calling the service directly under an
+# empty scope on purpose, asserting the fail-closed result. Same shape as AssetGroupService.assetGroup
+# above. The scoped, non-empty outcome of both routes is pinned by
+# AttackPatternKillChainPhaseRouteScopeTest.
 io.openaev.rest.kill_chain_phase.service.KillChainPhaseService.phaseIdsByAttackPatternId
 
 # TEST-ARTIFACT / latent - tags is not active in production; this JSON serializer would fail closed
@@ -57,15 +68,124 @@ io.openaev.helper.MultiIdSetSerializer.serialize
 io.openaev.rest.document.DocumentApi.document
 io.openaev.rest.document.DocumentApi.documentTags
 
-# SCOPED-OK - the read half of the already-documented lazy per-tenant manager creation (see the
-# matching write-side group in writeattr-baseline.txt: ManagerCreator.createManager registers every
-# builtin component for a newly onboarded tenant). InjectorContractService.createDependencyForTenant
-# and InjectorService.createNewBuiltinInjector look up (or upsert) the shared builtin injector
-# catalog during that onboarding, reached by every test that creates a tenant through
-# TenantIsolationTestHelper regardless of what the test itself is about (DomainApiTest,
-# ChallengeDocumentsBulkLoadTest, ...); both were already known signatures behind this
-# gate. Newly visible for the same reason as the pair above: the helper no longer hides the
-# real caller. Retired with the activation of collector_types (#7933) and the phishing tables
-# (#7901), which decide the attribution of that catalog.
+# BENIGN - tenant onboarding copies the platform's default injector contracts into the new tenant,
+# and the source rows live in the default tenant. The contract table is not active, so the row is
+# found; its eagerly fetched domains collection is the gated read, and it comes back empty under the
+# empty scope a test creating a tenant leaves behind. Nothing is attributed from it: the copy writes
+# no domain join row for the new tenant either way, and the built-in injector registration that runs
+# later in the same onboarding transaction re-resolves every contract's domains inside the new
+# tenant's own scope. Measured under both scopes the copy step can see (none, and the default tenant
+# as an operator's request holds it) by InjectorContractTenantProvisioningDomainTest, which pins the
+# end state: the provisioned contracts carry domains, and all of them belong to the new tenant.
 io.openaev.rest.injector_contract.InjectorContractService.createDependencyForTenant
+
+# SCOPED-OK - the read half of the lazy per-tenant manager creation (see the matching write-side
+# group in writeattr-baseline.txt: ManagerCreator.createManager registers every builtin component for
+# a newly onboarded tenant, under the new tenant's scope). The waived read is the one reached before
+# that scope is set, by every test that creates a tenant through TenantIsolationTestHelper whatever
+# the test itself is about (DomainApiTest, ChallengeDocumentsBulkLoadTest, ...).
 io.openaev.service.InjectorService.createNewBuiltinInjector
+
+# BENIGN - roles activation (#9147). The token and login loads read the user with no scope: a token
+# request before any transaction (PlainTokenExtractor), and the admin session the tests open
+# (createAdminSession has no production caller). The roles of the user's groups come back without
+# its tenant roles, and the principal these loads build holds the id, the admin flag and the
+# language only: no capability is evaluated from them. The capabilities are read later, by the
+# request's own user load in its scope. Waived for roles only.
+io.openaev.service.UserService.findByToken tables=roles,groups
+io.openaev.service.UserService.createAdminSession tables=roles,groups
+
+# BENIGN - roles and marking_definitions activation. The user load of the access check
+# (UserService.findWithRoles, from currentUser, currentUserOrNull and userWithRoles) reads the roles
+# and the markings of the caller's groups with the request's scope, which is empty for a caller who
+# belongs to no tenant (a platform operator, a user a test builds with no membership); a member has
+# its tenants in scope. Such a caller holds platform groups only, and a platform group links platform
+# roles only (the database refuses a tenant role on it), so the roles it needs are read whatever the
+# scope: its capability check passes (ScopedCurrentUserLoadTest, NoMembership and OutsideATransaction,
+# the two branches of the load). The markings of its groups are tenant rows and come back empty, but
+# nothing reads them from this load: the clearance of a request is read by JDBC from the link table
+# (MarkingClearanceCacheManager.findClearance) and neither branch of the load writes the link table
+# (CurrentUserLoadUnscopedMarkingsTest). Waived for these two tables only.
+io.openaev.service.UserService.findWithRoles tables=roles
+io.openaev.service.UserService.findWithRoles tables=marking_definitions
+
+# BENIGN - roles activation (#9147). The platform role and platform group endpoints run in the scope
+# of their caller, empty for a platform operator who belongs to no tenant. They read platform roles
+# only: the platform role service reads the rows with no tenant, and the eager roles of a platform
+# group are platform roles (the database refuses a link of a tenant role to a platform group). A
+# platform role is readable with no scope (DualScopeRolesBootTest, PinsUnscopedPlatformRead), so
+# these reads return every row they look for. Pinned by PlatformRoleApiTest and by
+# GroupPrivilegeCheckHiddenRolesTest (ReadablePlatformRoles). Waived for roles only.
+io.openaev.service.platform.groups.PlatformGroupService.findById tables=roles,groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=roles,groups
+io.openaev.service.platform.roles.PlatformRoleService.findById tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.findByIds tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.lambda$search$2 tables=roles
+io.openaev.service.platform.roles.PlatformRoleService.delete tables=roles
+
+# BENIGN - groups activation. These reads run with an empty scope and return the platform groups
+# of the caller and none of its tenant groups, which is all they need. groups is dual-scope: a row
+# with no tenant is readable under any scope, a tenant group needs its tenant in scope. The scope is
+# empty for a caller who belongs to no tenant (a platform operator, a user a test builds with no
+# membership), who holds no tenant group: leaving a tenant revokes its groups (UserTenantGroupScopeTest),
+# and for the pre-auth password reset, which runs before a tenant is chosen. A caller who belongs to
+# a tenant has it in its scope, so the same reads return its tenant groups (the control of each
+# pin below).
+# - findWithRoles, the user load of the access check: the capabilities of an operator of no tenant
+#   come from its platform groups (ScopedCurrentUserLoadTest, no-membership case).
+# - replaceTags: the reload after the tag replacement is read again under the scope of the user's
+#   tenants (UserService.applyUpdate), and the groups it leaves are checked by
+#   UserLoadUnscopedGroupsTest (WhatTheCallersWrite) and UserTenantGroupScopeTest.
+# - resetPassword and sendPasswordResetEmail: pre-auth, the load saves the user without touching its
+#   groups (the link rows are unchanged, UserLoadUnscopedGroupsTest), and the mail reads a name and
+#   an address.
+# - PlatformGroupService.search: the platform group search lists the groups with no tenant by
+#   construction; a tenant group never appears and a platform group does
+#   (PlatformGroupApiTest, Isolation). The group output carries no role and no marking.
+# - ScenarioService.scenarios and ExerciseService.exercises by id: the granted half of the read joins
+#   groups through the grants of the caller. A caller of no tenant holds none, so it reads nothing,
+#   and a member reads its grants (ExerciseApiSearchTest and ScenarioApiSearchTest, the
+#   no_grants and with_grants tests of the by-id search). Waived for the tables each read names.
+io.openaev.service.UserService.findWithRoles tables=groups
+io.openaev.service.UserService.replaceTags tables=groups
+io.openaev.service.UserService.resetPassword tables=groups
+io.openaev.service.UserService.sendPasswordResetEmail tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups
+io.openaev.service.platform.groups.PlatformGroupService.lambda$search$1 tables=groups,marking_definitions
+io.openaev.service.scenario.ScenarioService.lambda$scenarios$4 tables=groups,scenarios
+io.openaev.rest.exercise.service.ExerciseService.lambda$exercises$5 tables=assets,exercises,groups,injects
+
+# BENIGN - roles activation (#9147). These production paths load a user with no scope, so the roles
+# of its groups come back without its tenant roles, and none of them evaluates a right from that
+# load. The password login and the password reset run before any tenant is chosen (no tenant scope,
+# no access check) and rebuild their response through PermissionService.withRolesInAmbientTenant,
+# pinned by UserApiLoginAmbientRolesTest and MeApiAmbientRolesTest (PasswordReset); the session
+# principal they leave holds the id, the admin flag and the language only. The password setup email
+# runs asynchronously after the request commits and reads the user for its name and email. The by-id
+# user read serves the platform user read and update, the player delete, the audit log and the
+# tenant detach, none of which returns or decides on a field derived from the user's roles. The
+# caller's own rights are read by the access check, inside the request's scope
+# (TenantRoleRightsAtEntryPointsTest). Waived for roles only.
+io.openaev.rest.user.UserApi.login tables=roles
+io.openaev.service.UserService.resetPassword tables=roles
+io.openaev.service.UserService.sendPasswordResetEmail tables=roles
+io.openaev.service.UserService.user tables=roles
+
+# BENIGN - marking_definitions activation. The same unscoped loads of a user as the roles block
+# above also read the markings of the user's groups (the eager Group.markings collection), and with
+# no scope that collection comes back empty. Nothing at these sites returns, writes or decides from
+# it: no response carries the markings of a group (the user serializes its groups as ids), the
+# groups_markings links are never rewritten from the loaded collection (the password reset saves
+# the user and leaves the links in place), and the clearance of a request is read by JDBC from the
+# link table, not from the entity (MarkingClearanceCacheManager.findClearance). The setup email
+# reads the name and the email only. The by-id user read serves the platform user read, the player
+# delete, the audit log and the tenant detach, which drops the user's group links and evicts its
+# clearance. Both flows are pinned end to end by UserLoadUnscopedMarkingsTest: the setup email
+# through the public reset request and the mailing boundary, and the tenant detach with the
+# clearance cached first (the revocation runs in the scope of the tenant and evicts the clearance
+# itself). Waived for marking_definitions only.
+io.openaev.rest.user.UserApi.login tables=marking_definitions
+io.openaev.service.UserService.findByToken tables=marking_definitions
+io.openaev.service.UserService.resetPassword tables=marking_definitions
+io.openaev.service.UserService.sendPasswordResetEmail tables=marking_definitions
+io.openaev.service.UserService.user tables=marking_definitions

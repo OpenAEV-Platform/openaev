@@ -31,8 +31,9 @@ In the **Password** section, enter the new password twice. Once it is changed, a
 ### Changing the account email address
 
 In the **Email** section, enter your current password and the new email address. The change is not applied right away:
-OpenAEV sends a confirmation link to your current email address. Once you open the link, the new address is applied and
-all your other OpenAEV sessions are disconnected.
+OpenAEV sends a confirmation link to the new email address, and a notice without the link to your current address.
+Once you open the link, the new address is applied and all your other OpenAEV sessions are disconnected. If you did not
+ask for the change, the notice lets you react.
 
 <figure markdown="span">
   ![Email change form](assets/email_change_form.png)

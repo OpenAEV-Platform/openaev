@@ -37,6 +37,10 @@ public class MarkingDefinition implements TenantBase, Auditable {
   public static final String TYPE_TLP = "TLP";
   public static final String TYPE_PAP = "PAP";
 
+  // The width of the type and definition columns.
+  public static final int TYPE_MAX_LENGTH = 255;
+  public static final int DEFINITION_MAX_LENGTH = 255;
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "marking_definition_id")
@@ -45,13 +49,13 @@ public class MarkingDefinition implements TenantBase, Auditable {
   private String id;
 
   @Queryable(filterable = true, searchable = true, sortable = true)
-  @Column(name = "marking_definition_type", nullable = false)
+  @Column(name = "marking_definition_type", nullable = false, length = TYPE_MAX_LENGTH)
   @JsonProperty("marking_definition_type")
   @NotBlank
   private String type;
 
   @Queryable(filterable = true, searchable = true, sortable = true)
-  @Column(name = "marking_definition_definition", nullable = false)
+  @Column(name = "marking_definition_definition", nullable = false, length = DEFINITION_MAX_LENGTH)
   @JsonProperty("marking_definition_definition")
   @NotBlank
   private String definition;
@@ -68,6 +72,18 @@ public class MarkingDefinition implements TenantBase, Auditable {
   @NotNull
   @Min(0)
   private Integer order = 0;
+
+  /**
+   * The STIX {@code standard_id} OpenCTI gives this marking, the name every product of the platform
+   * shares for it ({@link MarkingDefinitionStixIds}). Derived from type and definition when the row
+   * is created, kept as given when the marking is imported from OpenCTI; null when another
+   * definition of the tenant already carries it. Rows keep their local id: {@code marking_ids} and
+   * every clearance check still read {@link #id}.
+   */
+  @Queryable(filterable = true, searchable = true)
+  @Column(name = "marking_definition_stix_id")
+  @JsonProperty("marking_definition_stix_id")
+  private String stixId;
 
   @Column(name = "marking_definition_protected", nullable = false)
   @JsonProperty("marking_definition_protected")

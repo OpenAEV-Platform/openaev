@@ -1,6 +1,7 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
 import type { ContractElement, ContractType } from '../../../../../utils/api-types-custom';
 import type { ExpectationInput } from '../../../common/injects/expectations/Expectation';
+import { enabledExpectations } from '../../../common/injects/expectations/ExpectationUtils';
 import type { ActionDetailData } from '../types';
 import type { FieldLink } from './FieldOutputLink';
 
@@ -118,6 +119,15 @@ export const getAutoLinkedFieldKeys = (contractFields: ContractElement[]): Set<s
   );
 };
 
+/** The contract fields, their expectations limited to the ones the platform can create (see enabledExpectations). */
+export const withEnabledExpectations = (fields: ContractElement[], isLoggingEnabled: boolean): ContractElement[] =>
+  fields.map(field => (field.type === EXPECTATION_FIELD_TYPE && field.availableExpectations
+    ? {
+        ...field,
+        availableExpectations: enabledExpectations(field.availableExpectations, isLoggingEnabled),
+      }
+    : field));
+
 /** Type guard returns true if value is a valid ExpectationInput object. */
 export const isExpectationInput = (value: unknown): value is ExpectationInput =>
   typeof value === 'object'
@@ -152,10 +162,10 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   return undefined;
 };
 
-const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number']);
+const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number', 'document']);
 
 /**
- * Contract default of a text/number field, to display as a faded placeholder instead of writing it
+ * Contract default of a text/number/document field, to display as a faded placeholder instead of writing it
  * into the action content: the content must only hold defined values, so a default can never be
  * mistaken for one. The backend applies it as a last resort, when the field has neither a defined
  * value nor a pool value. Undefined when the field has no usable default.

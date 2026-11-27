@@ -1,13 +1,15 @@
 package io.openaev.rest.team;
 
 import static io.openaev.rest.team.TeamApi.TENANT_TEAM_URI;
-import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.PlayerApi.TENANT_PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
+import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.OrganizationFixture.createDefaultOrganisation;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static io.openaev.utils.fixtures.TagFixture.getTagWithText;
 import static io.openaev.utils.fixtures.TeamFixture.createTeamWithName;
+import static io.openaev.utils.fixtures.TenantGroupFixture.getGroup;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -15,46 +17,56 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Communication;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.TeamUpdateInput;
+import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.rest.user.form.player.PlayerInput;
+import io.openaev.service.TeamService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -78,8 +90,10 @@ import org.springframework.test.web.servlet.ResultActions;
  *
  * <p>The tests cover every lazy association these responses serialize that can be seeded without an
  * inject: team tags, users, organization, simulations, scenarios and simulation players; player
- * tags, teams, organization and simulation players. They run with the production list of isolated
- * tables, read from {@code application.properties}: activating another table that one of these
+ * tags, teams, organization and simulation players. Every {@code TeamApi} endpoint returning a raw
+ * team is covered except create: read, edit, players update and upsert. They run with the
+ * production list of isolated tables plus {@code exercises} and {@code scenarios}, which a team
+ * reaches through its simulations and scenarios: activating another table that one of these
  * associations reaches makes them fail until the association is loaded inside the scope too.
  *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
@@ -92,15 +106,11 @@ import org.springframework.test.web.servlet.ResultActions;
 class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
   @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    Properties props = new Properties();
-    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
-      props.load(in);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    String activeTables = props.getProperty("openaev.tenant.active-tables", "");
-    registry.add("openaev.tenant.active-tables", () -> activeTables);
+  static void productionActiveTablesWithExercisesAndScenarios(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("exercises");
+    tables.add("scenarios");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
   }
 
   @Autowired private MockMvc mvc;
@@ -110,6 +120,9 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
   @Autowired private OrganizationComposer organizationComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private TeamComposer teamComposer;
+  @Autowired private TenantGroupComposer groupComposer;
+  @Autowired private TeamService teamService;
+  @Autowired private GroupRepository groupRepository;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private TagRepository tagRepository;
   @Autowired private OrganizationRepository organizationRepository;
@@ -117,6 +130,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private InjectRepository injectRepository;
+  @Autowired private CommunicationRepository communicationRepository;
 
   private String tenant;
   private final List<String> seededScenarios = new ArrayList<>();
@@ -127,6 +142,7 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
     organizationComposer.reset();
     userComposer.reset();
     teamComposer.reset();
+    groupComposer.reset();
     exerciseComposer.reset();
     seededScenarios.clear();
     // A tenant the current user is a member of, so the request scope covers the seeded rows.
@@ -147,6 +163,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
               teamComposer.generatedItems.stream().map(Team::getId).toList());
           userRepository.deleteAllById(
               userComposer.generatedItems.stream().map(User::getId).toList());
+          groupRepository.deleteAllById(
+              groupComposer.generatedItems.stream().map(Group::getId).toList());
           organizationRepository.deleteAllById(
               organizationComposer.generatedItems.stream().map(Organization::getId).toList());
           tagRepository.deleteAllById(tagComposer.generatedItems.stream().map(Tag::getId).toList());
@@ -173,6 +191,69 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // Without the in-scope load the lazy team_tags serializes as [] here: the post-commit
       // open-in-view load runs with app.current_tenants cleared and fails closed.
       expectEveryTeamLazyAssociation(getTeam(seeded.team()), seeded);
+    }
+  }
+
+  @Nested
+  @DisplayName("Get a team targeted by injects")
+  class GetTeamTargetedByInjects {
+
+    @Test
+    @DisplayName(
+        "given a team targeted by an inject of its simulation and of its scenario when it is read"
+            + " by id then the injects, their counts and the communication are serialized")
+    void
+        given_a_team_targeted_by_an_inject_of_its_simulation_and_scenario_when_it_is_read_by_id_then_injects_counts_and_communication_are_serialized()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      TargetingInjects injects = targetTeamWithInjects(seeded);
+
+      // -- Act & Assert --
+      // Each inject's eager teams reads the isolated teams table: loaded after the commit it comes
+      // back empty, the team is then not among its targets and every derived field is empty.
+      getTeam(seeded.team())
+          .andExpect(jsonPath("$.team_exercise_injects", contains(injects.exerciseInjectId())))
+          .andExpect(jsonPath("$.team_exercise_injects_number").value(1))
+          .andExpect(jsonPath("$.team_scenario_injects", contains(injects.scenarioInjectId())))
+          .andExpect(jsonPath("$.team_scenario_injects_number").value(1))
+          .andExpect(
+              jsonPath("$.team_communications[*].communication_id")
+                  .value(contains(injects.communicationId())));
+    }
+  }
+
+  @Nested
+  @DisplayName("Read a team in the scope of the request")
+  class ReadTeamInScope {
+
+    @Test
+    @DisplayName(
+        "given a player in a tenant group when the team is read in scope then its players and their"
+            + " groups are loaded in that scope")
+    void
+        given_a_player_in_a_tenant_group_when_the_team_is_read_in_scope_then_the_players_and_their_groups_are_loaded_in_that_scope() {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      String groupId = putPlayerInATenantGroup(seeded.player());
+      TxCtx scope = TxCtx.forTenant(tenant);
+
+      // -- Act --
+      Team team =
+          tenantTx.execute(
+              scope, () -> teamService.teamInScopeWithCollections(scope, seeded.team().getId()));
+
+      // -- Assert --
+      // The response is serialized after the transaction, with no scope: a collection left lazy
+      // at that point, or the eager groups of a player loaded then, read nothing.
+      assertThat(Hibernate.isInitialized(team.getUsers())).isTrue();
+      assertThat(team.getUsers())
+          .singleElement()
+          .satisfies(
+              player ->
+                  assertThat(player.getUnscopedGroups())
+                      .extracting(Group::getId)
+                      .contains(groupId));
     }
   }
 
@@ -220,14 +301,17 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // added. The response must therefore show every existing link: an empty tag list here is
       // what erased the tags before the fix.
       expectEveryTeamLazyAssociation(getTeam(team), seeded);
-      mvc.perform(
-              put(TENANT_TEAM_URI + "/{teamId}", tenant, team.getId())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(teamEditInput(team, editedTags)))
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      ResultActions response =
+          mvc.perform(
+                  put(TENANT_TEAM_URI + "/{teamId}", tenant, team.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(teamEditInput(team, editedTags)))
+                      .with(csrf()))
+              .andExpect(status().isOk());
 
       // -- Assert --
+      // The response replaces the team in the client store, so it must carry every link too.
+      expectEveryTeamLazyAssociation(response, seeded, editedTags);
       inTenantScope(
           () -> {
             Team saved = teamRepository.findById(team.getId()).orElseThrow();
@@ -244,6 +328,72 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       input.setOrganizationId(team.getOrganization().getId());
       input.setTagIds(tagIds);
       return input;
+    }
+  }
+
+  @Nested
+  @DisplayName("Edit the players of a team")
+  class EditTeamPlayers {
+
+    @Test
+    @DisplayName(
+        "given a team carrying every lazy association when its players are updated then the"
+            + " response serializes all of them")
+    void
+        given_a_team_carrying_every_lazy_association_when_its_players_are_updated_then_the_response_serializes_all_of_them()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      UpdateUsersTeamInput input = new UpdateUsersTeamInput();
+      input.setUserIds(List.of(seeded.player().getId()));
+
+      // -- Act --
+      ResultActions response =
+          mvc.perform(
+                  put(TENANT_TEAM_URI + "/{teamId}/players", tenant, seeded.team().getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+      // -- Assert --
+      // The team detail page stores this response in place of the team it shows.
+      expectEveryTeamLazyAssociation(response, seeded);
+    }
+  }
+
+  @Nested
+  @DisplayName("Upsert a team")
+  class UpsertTeam {
+
+    @Test
+    @DisplayName(
+        "given an existing team carrying every lazy association when it is upserted by name then"
+            + " the response serializes all of them")
+    void
+        given_an_existing_team_carrying_every_lazy_association_when_it_is_upserted_by_name_then_the_response_serializes_all_of_them()
+            throws Exception {
+      // -- Arrange --
+      SeededTeam seeded = seedTeamWithEveryLazyAssociation();
+      Team team = seeded.team();
+      TeamCreateInput input = new TeamCreateInput();
+      input.setName(team.getName());
+      input.setDescription(team.getDescription());
+      input.setOrganizationId(seeded.organizationId());
+      input.setTagIds(tagIds(team.getTags()));
+
+      // -- Act --
+      ResultActions response =
+          mvc.perform(
+                  post(TENANT_TEAM_URI + "/upsert", tenant)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk());
+
+      // -- Assert --
+      response.andExpect(jsonPath("$.team_id").value(team.getId()));
+      expectEveryTeamLazyAssociation(response, seeded);
     }
   }
 
@@ -270,9 +420,10 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // response, then the new tag is added.
       expectEveryPlayerLazyAssociation(getTeamPlayers(seeded.team()), seeded);
       mvc.perform(
-              put(PLAYER_URI + "/{userId}", player.getId())
+              put(TENANT_PLAYER_URI + "/{userId}", tenant, player.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(playerEditInput(player, editedTags)))
+                  .content(
+                      asJsonString(playerEditInput(player, seeded.organizationId(), editedTags)))
                   .with(csrf()))
           .andExpect(status().isOk());
 
@@ -286,12 +437,12 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           });
     }
 
-    private PlayerInput playerEditInput(User player, List<String> tagIds) {
+    private PlayerInput playerEditInput(User player, String organizationId, List<String> tagIds) {
       PlayerInput input = new PlayerInput();
       input.setEmail(player.getEmail());
       input.setFirstname(player.getFirstname());
       input.setLastname(player.getLastname());
-      input.setOrganizationId(player.getOrganization().getId());
+      input.setOrganizationId(organizationId);
       input.setTagIds(tagIds);
       return input;
     }
@@ -335,6 +486,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           Exercise exercise = createDefaultExercise();
           exercise.setTenant(new Tenant(tenant));
           exerciseComposer.forExercise(exercise).withTeam(teamWrapper).withTeamUsers().persist();
+          // A player is updated in the tenant of the request, which it belongs to.
+          tenantHelper.attachUserToTenant(playerWrapper.get().getId(), tenant);
 
           Scenario scenario = createDefaultCrisisScenario();
           scenario.setTenant(new Tenant(tenant));
@@ -344,6 +497,58 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
           return new SeededTeam(
               team, playerWrapper.get(), organization.getId(), exercise.getId(), scenarioId);
+        });
+  }
+
+  /**
+   * Targets the seeded team with one inject of its simulation and one of its scenario, neither of
+   * them aimed at all teams, and gives the simulation inject a communication.
+   */
+  private record TargetingInjects(
+      String exerciseInjectId, String scenarioInjectId, String communicationId) {}
+
+  private TargetingInjects targetTeamWithInjects(SeededTeam seeded) {
+    return inTenantScope(
+        () -> {
+          Team team = teamRepository.findById(seeded.team().getId()).orElseThrow();
+          Inject exerciseInject = getDefaultInject();
+          exerciseInject.setTenant(new Tenant(tenant));
+          exerciseInject.setExercise(
+              exerciseRepository.findById(seeded.exerciseId()).orElseThrow());
+          exerciseInject.setTeams(new ArrayList<>(List.of(team)));
+          exerciseInject = injectRepository.save(exerciseInject);
+
+          Communication communication = new Communication();
+          communication.setInject(exerciseInject);
+          communication.setIdentifier("message-" + UUID.randomUUID());
+          communication.setFrom("sender@example.com");
+          communication.setTo("player@example.com");
+          communication.setSentAt(Instant.now());
+          communication.setReceivedAt(Instant.now());
+          communication = communicationRepository.save(communication);
+
+          Inject scenarioInject = getDefaultInject();
+          scenarioInject.setTenant(new Tenant(tenant));
+          scenarioInject.setScenario(
+              scenarioRepository.findById(seeded.scenarioId()).orElseThrow());
+          scenarioInject.setTeams(new ArrayList<>(List.of(team)));
+          scenarioInject = injectRepository.save(scenarioInject);
+
+          return new TargetingInjects(
+              exerciseInject.getId(), scenarioInject.getId(), communication.getId());
+        });
+  }
+
+  /** Adds the player to a group of the test tenant and returns the group id. */
+  private String putPlayerInATenantGroup(User player) {
+    return inTenantScope(
+        () -> {
+          TenantGroupComposer.Composer group =
+              groupComposer.forGroup(getGroup("team-group-" + UUID.randomUUID())).persist();
+          User managed = userRepository.findById(player.getId()).orElseThrow();
+          managed.getUnscopedGroups().add(group.get());
+          userRepository.save(managed);
+          return group.get().getId();
         });
   }
 
@@ -388,9 +593,13 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
 
   private static void expectEveryTeamLazyAssociation(ResultActions response, SeededTeam seeded)
       throws Exception {
+    expectEveryTeamLazyAssociation(response, seeded, tagIds(seeded.team().getTags()));
+  }
+
+  private static void expectEveryTeamLazyAssociation(
+      ResultActions response, SeededTeam seeded, List<String> expectedTagIds) throws Exception {
     response
-        .andExpect(
-            jsonPath("$.team_tags", containsInAnyOrder(tagIds(seeded.team().getTags()).toArray())))
+        .andExpect(jsonPath("$.team_tags", containsInAnyOrder(expectedTagIds.toArray())))
         .andExpect(jsonPath("$.team_users", contains(seeded.player().getId())))
         .andExpect(jsonPath("$.team_organization").value(seeded.organizationId()))
         .andExpect(jsonPath("$.team_exercises", contains(seeded.exerciseId())))

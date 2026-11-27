@@ -108,13 +108,6 @@ public interface RawSimulationIndexing extends RawTenant {
   String getExercise_message_footer();
 
   /**
-   * Returns the email address used as sender for exercise communications.
-   *
-   * @return the "from" email address
-   */
-  String getExercise_mail_from();
-
-  /**
    * Returns the sender display name for exercise communications.
    *
    * @return the "from" display name
@@ -169,6 +162,19 @@ public interface RawSimulationIndexing extends RawTenant {
    * @return the scenario ID, or {@code null} if created independently
    */
   String getScenario_id();
+
+  /**
+   * ID of the user whose marking clearance this exercise's dispatch is filtered against (see {@code
+   * Exercise.launchedBy}), or {@code null} if never stamped; the sibling getters below project that
+   * same user's name/email.
+   */
+  String getExercise_launched_by();
+
+  String getExercise_launched_by_firstname();
+
+  String getExercise_launched_by_lastname();
+
+  String getExercise_launched_by_email();
 
   /**
    * Returns the ID of the custom dashboard for this exercise.

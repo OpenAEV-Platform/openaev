@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../../fixtures';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
 import { tenantUrl } from '../../utils/url';
@@ -16,8 +17,10 @@ import { tenantUrl } from '../../utils/url';
  * covered by threatArsenal-list-header.spec.ts.
  *
  * The assertion below is deliberately arrangement-agnostic: no horizontal
- * overflow, and the pagination reachable — in BOTH views, the card view being
- * the tight one since it carries the sort select the list view does not.
+ * overflow, and the last control of the row (the view toggle, since the list
+ * loads more on scroll instead of paginating) reachable — in BOTH views, the
+ * card view being the tight one since it carries the sort select the list
+ * view does not.
  */
 test.describe('Threat Arsenal list toolbar', () => {
   let leftMenu: LeftMenuComponent;
@@ -46,9 +49,7 @@ test.describe('Threat Arsenal list toolbar', () => {
       });
       expect(overflow).toBe(0);
 
-      // The pagination controls are the ones that used to fall off the edge.
-      const nextPage = page.getByRole('button', { name: 'Go to next page' });
-      await expect(nextPage).toBeInViewport();
+      await expect(list.listViewButton).toBeInViewport();
     });
   }
 

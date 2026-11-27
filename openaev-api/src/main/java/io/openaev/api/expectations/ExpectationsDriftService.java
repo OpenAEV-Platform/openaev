@@ -53,7 +53,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>Realignment overwrites the drifted injects' stored expectations with the contract's current
  * predefined expectations, chunk by chunk in short independent transactions, tracked as a massive
- * operation (header progress indicator, per-entity stream events suppressed).
+ * operation (header progress indicator, per-entity stream events suppressed). Only the content
+ * column is written: the injects are not re-saved as whole entities, so their associations (asset
+ * groups, teams, tags) are never merged and a dangling association cannot fail the realignment.
  */
 @Service
 @RequiredArgsConstructor
@@ -240,6 +242,7 @@ public class ExpectationsDriftService {
   public ExpectationsRealignOutput realignScenario(TxCtx ctx, String scenarioId) {
     ExpectationsRealignOutput output =
         realign(
+            ctx,
             chunkRunner.call(
                 ctx, () -> List.copyOf(injectRepository.findByScenarioId(scenarioId))));
     // Realignment closes the drift episode: a future drift is a new event and must surface the
@@ -257,7 +260,7 @@ public class ExpectationsDriftService {
   /** Realigns all drifted injects of a simulation onto their contract templates. */
   public ExpectationsRealignOutput realignExercise(TxCtx ctx, String exerciseId) {
     ExpectationsRealignOutput output =
-        realign(chunkRunner.call(ctx, () -> injectRepository.findByExerciseId(exerciseId)));
+        realign(ctx, chunkRunner.call(ctx, () -> injectRepository.findByExerciseId(exerciseId)));
     chunkRunner.call(
         ctx,
         () -> {
@@ -271,7 +274,7 @@ public class ExpectationsDriftService {
   /** Realigns a single inject (atomic testing) onto its contract template. */
   public ExpectationsRealignOutput realignInject(TxCtx ctx, String injectId) {
     ExpectationsRealignOutput output =
-        realign(chunkRunner.call(ctx, () -> List.of(resolveInject(injectId))));
+        realign(ctx, chunkRunner.call(ctx, () -> List.of(resolveInject(injectId))));
     chunkRunner.call(
         ctx,
         () -> {
@@ -288,7 +291,7 @@ public class ExpectationsDriftService {
    * transaction (through {@link BulkDeleteChunkRunner}, which also enables the tenant filter),
    * while the whole operation is tracked as a massive operation with aggregated progress events.
    */
-  private ExpectationsRealignOutput realign(List<Inject> injects) {
+  private ExpectationsRealignOutput realign(TxCtx ctx, List<Inject> injects) {
     Map<String, List<String>> contractSignatureCache = new HashMap<>();
     List<Inject> drifted =
         injects.stream().filter(inject -> hasDrift(inject, contractSignatureCache)).toList();
@@ -296,7 +299,7 @@ public class ExpectationsDriftService {
       return new ExpectationsRealignOutput(0);
     }
     String operationId =
-        bulkOperationMonitor.start("realign", "inject expectations", drifted.size());
+        bulkOperationMonitor.start(ctx, "realign", "inject expectations", drifted.size());
     try {
       for (int start = 0; start < drifted.size(); start += CHUNK_SIZE) {
         List<Inject> chunk = drifted.subList(start, Math.min(start + CHUNK_SIZE, drifted.size()));
@@ -305,9 +308,17 @@ public class ExpectationsDriftService {
         BulkOperationContext.runSuppressed(
             () ->
                 chunkRunner.call(
+                    ctx,
                     () -> {
                       chunk.forEach(this::applyContractExpectations);
-                      return injectRepository.saveAll(chunk);
+                      // Content-only update: a saveAll would merge the detached injects with
+                      // their associations, and one asset group row that can no longer be loaded
+                      // failed the whole realignment with a 500 (#8645).
+                      chunk.forEach(
+                          inject ->
+                              injectRepository.updateContent(
+                                  inject.getId(), inject.getContent(), inject.getUpdatedAt()));
+                      return chunk.size();
                     }));
         bulkOperationMonitor.progress(operationId, chunk.size());
       }

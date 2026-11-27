@@ -9,13 +9,14 @@ XTM One is the AI platform of the Filigran eXtended Threat Management (XTM) suit
 ## What it enables
 
 - **Enterprise Edition**: an XTM license on XTM One can grant Enterprise Edition to OpenAEV. See [Enterprise Edition](../../administration/enterprise.md).
-- **Ask Ariane**: the AI assistant in the top bar, and the **CTEM Command Center** link.
+- **Ask Ariane**: the AI assistant in the top bar, and the **CTEM Command Center** link. Ask Ariane also turns your OpenAEV data into a report, a presentation or a video (a validation readout, a deck for a review meeting, an attack path explained). Each one shows as a card in the conversation, which opens it in XTM One and downloads it through OpenAEV as PDF, PowerPoint or MP4.
 - **Ask AI**: generate or improve text in some form fields.
 - **Scenario assistant**: generate TTPs from a threat report or a file. See [Scenario assistant](../../usage/build/scenario/scenario.md#scenario-assistant).
 - **Detection rules**: generate detection rules from an executed Inject. See [Inject result](../../usage/run-and-evaluate/injects/inject-result.md).
 - **Phishing**: generate email templates with AI. See [Email templates](../../usage/build/components/phishing/email-templates.md).
 - **Autonomous attack**: the orchestrator of autonomous attack chaining runs in XTM One. See [Autonomous attack](../../usage/attack-chaining/autonomous/overview.md).
 - **MCP server**: use OpenAEV from MCP clients. See [MCP server](../mcp-server/mcp-server.md).
+- **Inventory pivot**: an Asset that XTM One's CTEM inventory also holds (matched on its hostname, FQDN, IP or MAC address) carries the XTM One emblem first in its header; **Open in XTM One** opens the asset in the inventory. The lookup runs as the signed-in user, so it shows only what that user may read in XTM One. It does not depend on the exploration graph preview feature.
 
 ## Connect OpenAEV to XTM One
 

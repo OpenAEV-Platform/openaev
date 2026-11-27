@@ -5,6 +5,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.Arrays;
@@ -25,6 +26,22 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @Schema(description = "Payload attached")
   @JsonProperty("action_payload")
   private PayloadSimple payload;
+
+  @Schema(description = "Version of the attached payload")
+  @JsonProperty("action_payload_version")
+  private String payloadVersion;
+
+  @Schema(description = "The attached payload comes from the Filigran catalogue")
+  @JsonProperty("action_payload_managed")
+  private Boolean payloadManaged;
+
+  @Schema(description = "The attached payload version is revoked in the tenant")
+  @JsonProperty("action_payload_revoked")
+  private Boolean payloadRevoked;
+
+  @Schema(description = "The attached payload is a customized copy of a Filigran payload")
+  @JsonProperty("action_payload_customized")
+  private Boolean payloadCustomized;
 
   @Schema(description = "Injector type")
   @JsonProperty("action_injector_type")
@@ -64,6 +81,11 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
   @JsonProperty("action_author_type")
   private String authorType;
 
+  @NotBlank
+  @Schema(description = "Id the action's grants target: its payload identity, else the contract")
+  @JsonProperty("action_grant_resource_id")
+  private String grantResourceId;
+
   public ThreatArsenalAction(
       String id,
       String externalId,
@@ -74,10 +96,15 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
       Endpoint.PLATFORM_TYPE[] platforms,
       String[] tags,
       @Nullable PayloadSimple payloadSimple,
+      String payloadVersion,
+      Boolean payloadManaged,
+      Boolean payloadRevoked,
+      Boolean payloadCustomized,
       String[] attackPatterns,
       String authorId,
       String authorName,
-      String authorType) {
+      String authorType,
+      String grantResourceId) {
     super(id, externalId, updatedAt);
     this.setLabels(labels);
     this.setInjectorType(injectorType);
@@ -85,10 +112,15 @@ public class ThreatArsenalAction extends InjectorContractBaseOutput {
     this.setPlatforms(platforms);
     this.setTags(tags != null ? new HashSet<>(Arrays.asList(tags)) : new HashSet<>());
     this.setPayload(payloadSimple);
+    this.setPayloadVersion(payloadVersion);
+    this.setPayloadManaged(payloadManaged);
+    this.setPayloadRevoked(payloadRevoked);
+    this.setPayloadCustomized(payloadCustomized);
     this.setAttackPatterns(
         attackPatterns != null ? new HashSet<>(Arrays.asList(attackPatterns)) : new HashSet<>());
     this.setAuthorId(authorId);
     this.setAuthorName(authorName);
     this.setAuthorType(authorType);
+    this.setGrantResourceId(grantResourceId);
   }
 }

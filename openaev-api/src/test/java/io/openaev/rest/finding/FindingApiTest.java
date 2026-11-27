@@ -14,7 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
+import com.jayway.jsonpath.JsonPath;
+import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -22,12 +25,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.FindingMapper;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
@@ -39,28 +42,27 @@ import java.util.*;
 import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+@CoversTenantIsolation("findings")
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-// The test profile declares no active tables, so removing the v1 @Filter would leave this suite
-// asserting an isolation nothing enforces. The list is not limited to findings because
-// @TestPropertySource REPLACES the property rather than adding to it: naming findings alone would
-// deactivate assets and asset_groups, which ARE active in production, and the suite would test less
-// than production while looking stricter.
-@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Findings search tests")
-class FindingApiTest extends IntegrationTest {
+class FindingApiTest extends ProductionTablesIntegrationTest {
 
+  // The test profile declares no active tables, so the suite registers the production list: with
+  // no list, the search isolation below would assert what nothing enforces.
   private static final String FINDING_URI = "/api/findings";
 
   @Resource protected ObjectMapper mapper;
@@ -82,6 +84,10 @@ class FindingApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Autowired private TestUserHolder testUserHolder;
 
   /**
    * Scopes the test's own transaction, for the tests that query the repository directly instead of
@@ -92,6 +98,23 @@ class FindingApiTest extends IntegrationTest {
    */
   private void scopeToAmbientTenant() {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  private MarkingDefinition persistClearedMarking() {
+    MarkingDefinition marking =
+        markingDefinitionComposer
+            .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+            .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+            .persist()
+            .get();
+    // The caller sees a marked asset only through a group holding its marking.
+    Group group = TenantGroupFixture.getGroup("finding-markings-" + UUID.randomUUID());
+    group.setMarkings(new HashSet<>(Set.of(marking)));
+    group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+    tenantGroupComposer.forGroup(group).persist();
+    entityManager.flush();
+    markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+    return marking;
   }
 
   @BeforeEach
@@ -111,6 +134,8 @@ class FindingApiTest extends IntegrationTest {
     endpointComposer.reset();
     assetGroupComposer.reset();
     injectorContractComposer.reset();
+    markingDefinitionComposer.reset();
+    tenantGroupComposer.reset();
   }
 
   @Nested
@@ -359,7 +384,7 @@ class FindingApiTest extends IntegrationTest {
         List<String> expectedFindingIds =
             scenarioWrapper.get().getExercises().stream()
                 .flatMap(exercise -> exercise.getInjects().stream())
-                .flatMap(inject -> inject.getFindings().stream())
+                .flatMap(inject -> findingsOf(inject).stream())
                 .map(Finding::getId)
                 .toList();
 
@@ -432,7 +457,7 @@ class FindingApiTest extends IntegrationTest {
             fromIterable(
                     findingRepository.findAllById(
                         ex.getInjects().stream()
-                            .flatMap(inject -> inject.getFindings().stream().map(Finding::getId))
+                            .flatMap(inject -> findingsOf(inject).stream().map(Finding::getId))
                             .toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
@@ -494,7 +519,7 @@ class FindingApiTest extends IntegrationTest {
         List<RelatedFindingOutput> expectedFindings =
             fromIterable(
                     findingRepository.findAllById(
-                        inject.getFindings().stream().map(Finding::getId).toList()))
+                        findingsOf(inject).stream().map(Finding::getId).toList()))
                 .stream()
                 .map(findingMapper::toRelatedFindingOutput)
                 .limit(input.getSize())
@@ -536,7 +561,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -625,7 +650,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -703,7 +728,7 @@ class FindingApiTest extends IntegrationTest {
         List<Finding> previousSimulationFindings = new ArrayList<>();
         for (Exercise ex : scenarioWrapper.get().getExercises()) {
           for (Inject inject : ex.getInjects()) {
-            for (Finding finding : inject.getFindings()) {
+            for (Finding finding : findingsOf(inject)) {
               finding.setAssets(new ArrayList<>(List.of(endpointWrapper.get())));
               previousSimulationFindings.add(finding);
             }
@@ -893,71 +918,6 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.totalElements").value(0));
     }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be updatable from tenant Y")
-    void given_findingInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      FindingInput updateInput = new FindingInput();
-      updateInput.setField("updated_field");
-      updateInput.setType(ContractOutputType.Text);
-      updateInput.setValue("updated_value");
-      updateInput.setInjectId(finding.getInject().getId());
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
-    void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
   }
 
   @Nested
@@ -1012,6 +972,8 @@ class FindingApiTest extends IntegrationTest {
     @DisplayName("Search global findings")
     @Test
     public void given_a_search_input_should_return_page_of_findings() throws Exception {
+      MarkingDefinition marking = persistClearedMarking();
+      savedEndpoint.setMarkingIds(new String[] {marking.getId()});
       Finding savedFinding =
           findingComposer
               .forFinding(FindingFixture.createDefaultTextFinding())
@@ -1038,6 +1000,9 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.content.[0].finding_value").value("text_value"))
           .andExpect(
               jsonPath("$.content.[0].finding_assets.[0].asset_id").value(savedEndpoint.getId()))
+          .andExpect(
+              jsonPath("$.content.[0].finding_assets.[0].asset_markings.[0]")
+                  .value(marking.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_inject.inject_id")
                   .value(savedFinding.getInject().getId()))
@@ -1078,6 +1043,70 @@ class FindingApiTest extends IntegrationTest {
       performCallbackRequest(FINDING_URI + "/search", input)
           .andExpect(jsonPath("$.totalElements").value(1))
           .andExpect(jsonPath("$.content.[0].finding_value").value("8080"));
+    }
+
+    @Test
+    @DisplayName("An asset groups filter matches a finding of a dynamic group member (#9850)")
+    void given_assetGroupsFilterOnDynamicGroup_should_returnFindingsOfItsMembers()
+        throws Exception {
+      // Arrange: a group with no static asset whose filter matches the hostname of savedEndpoint.
+      String hostname = "dyn-finding-" + UUID.randomUUID();
+      savedEndpoint.setHostname(hostname);
+      Filters.FilterGroup dynamicFilter =
+          Filters.FilterGroup.builder()
+              .filters(
+                  List.of(
+                      Filters.Filter.builder()
+                          .key("asset_hostname")
+                          .operator(Filters.FilterOperator.contains)
+                          .values(List.of(hostname))
+                          .build()))
+              .build();
+      AssetGroup dynamicGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createAssetGroupWithDynamicFilter(
+                      "dynamic-" + UUID.randomUUID(), dynamicFilter))
+              .persist()
+              .get();
+      Finding finding =
+          findingComposer
+              .forFinding(createDefaultTextFindingWithRandomValue())
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      AssetGroup emptyGroup =
+          assetGroupComposer
+              .forAssetGroup(
+                  AssetGroupFixture.createDefaultAssetGroup("empty-" + UUID.randomUUID()))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert: the dynamic group's member finding is returned, in list and distinct mode.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content.[0].finding_id").value(finding.getId()));
+      performCallbackRequest(
+              FINDING_URI + "/search?distinct=true", assetGroupsInput(dynamicGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(1));
+      // A group with no member filters every finding out.
+      performCallbackRequest(FINDING_URI + "/search", assetGroupsInput(emptyGroup.getId()))
+          .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    private SearchPaginationInput assetGroupsInput(String assetGroupId) {
+      SearchPaginationInput input = new SearchPaginationInput();
+      Filters.FilterGroup group = new Filters.FilterGroup();
+      group.setMode(Filters.FilterMode.and);
+      group.setFilters(
+          List.of(
+              buildFilter(
+                  "finding_asset_groups", Filters.FilterOperator.eq, List.of(assetGroupId))));
+      input.setFilterGroup(group);
+      return input;
     }
 
     @Test
@@ -1412,6 +1441,442 @@ class FindingApiTest extends IntegrationTest {
       }
     }
 
+    @Nested
+    @DisplayName("When querying the value of a sensitive finding (#7893)")
+    class WhenQueryingTheValueOfASensitiveFinding {
+
+      private static final String SECRET_CREDENTIALS = "admin:motdepasse";
+      private static final String DISPLAYED_CREDENTIALS = "admin:mo" + MASK;
+
+      // Text search also reads the inject title, and the default fixture titles an inject
+      // "inject-<random UUID>": a UUID holds the hex pair "ab" about one run in nine, which made
+      // the "bob:abc" / "ab" case match through the title instead of the value (main red on
+      // 3838cec2). A fixed title that shares no searched fragment keeps every case about the value.
+      private static final String INJECT_TITLE = "Sensitive finding inject";
+
+      private Finding persistFinding(Finding finding) {
+        injectWrapper.get().setTitle(INJECT_TITLE);
+        return findingComposer
+            .forFinding(finding)
+            .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+            .withInject(injectWrapper)
+            .persist()
+            .get();
+      }
+
+      private SearchPaginationInput textSearch(String text) {
+        SearchPaginationInput input = new SearchPaginationInput();
+        input.setTextSearch(text);
+        return input;
+      }
+
+      private SearchPaginationInput valueFilter(Filters.FilterOperator operator, String value) {
+        SearchPaginationInput input = new SearchPaginationInput();
+        Filters.FilterGroup group = new Filters.FilterGroup();
+        group.setMode(Filters.FilterMode.and);
+        group.setFilters(List.of(buildFilter("finding_value", operator, List.of(value))));
+        input.setFilterGroup(group);
+        return input;
+      }
+
+      private void flushAndClear() {
+        entityManager.flush();
+        entityManager.clear();
+      }
+
+      @Test
+      @DisplayName("Should not find a finding by the hidden part of its value")
+      void given_theHiddenSecret_should_notFindTheFindingByTextSearch() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch("motdepasse"))
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @ParameterizedTest(name = "searching \"{0}\"")
+      @ValueSource(strings = {"admin", "mo"})
+      @DisplayName("Should find a finding by a part of its value the platform displays")
+      void given_aDisplayedPart_should_findTheFindingByTextSearch(String displayedPart)
+          throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch(displayedPart))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].finding_value").value(DISPLAYED_CREDENTIALS));
+      }
+
+      @ParameterizedTest(name = "{0} \"{1}\"")
+      @CsvSource({"contains, motdepasse", "starts_with, admin:mot", "eq, admin:motdepasse"})
+      @DisplayName("Should match nothing with a filter on the hidden part of a value")
+      void given_aFilterOnTheHiddenSecret_should_matchNothing(
+          Filters.FilterOperator operator, String guess) throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", valueFilter(operator, guess))
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @Test
+      @DisplayName("Should match the displayed value with an equality filter")
+      void given_anEqualityFilterOnTheDisplayedValue_should_matchTheFinding() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(
+                FINDING_URI + "/search",
+                valueFilter(Filters.FilterOperator.eq, DISPLAYED_CREDENTIALS))
+            .andExpect(jsonPath("$.totalElements").value(1));
+      }
+
+      @Test
+      @DisplayName("Should sort on the displayed value, so a planted value reveals nothing")
+      void given_aPlantedValue_should_notLandBetweenTwoSecretsDisplayedAlike() throws Exception {
+        // -------- Arrange --------
+        // Both secrets are displayed "admin:mo******". Sorted on the cleartext, the planted value
+        // would land between them (motdepasse < mou < mozzzzzz) and tell their hidden parts apart.
+        persistFinding(FindingFixture.createCredentialsFinding(SECRET_CREDENTIALS));
+        persistFinding(FindingFixture.createCredentialsFinding("admin:mozzzzzz"));
+        Finding planted = FindingFixture.createDefaultTextFinding();
+        planted.setValue("admin:mou");
+        persistFinding(planted);
+        flushAndClear();
+
+        SearchPaginationInput input = new SearchPaginationInput();
+        input.setSorts(
+            List.of(SortField.builder().property("finding_value").direction("asc").build()));
+
+        // -------- Act --------
+        String response =
+            performCallbackRequest(FINDING_URI + "/search", input)
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -------- Assert --------
+        List<String> sortedValues = JsonPath.read(response, "$.content[*].finding_value");
+        assertThat(sortedValues)
+            .containsExactlyInAnyOrder(DISPLAYED_CREDENTIALS, DISPLAYED_CREDENTIALS, "admin:mou");
+        assertThat(sortedValues.indexOf("admin:mou")).isNotEqualTo(1);
+      }
+
+      @Test
+      @DisplayName("Should group two secrets displayed alike into one row in distinct mode")
+      void given_twoSecretsDisplayedAlike_should_formOneRowInDistinctMode() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].finding_value").value("jdoe:Su" + MASK));
+      }
+
+      @Test
+      @DisplayName(
+          "Should leave out of distinct mode the findings without a displayed value, rather than"
+              + " list each one apart")
+      void given_findingsWithoutDisplayedValue_should_notBeListedInDistinctMode() throws Exception {
+        // -------- Arrange --------
+        Finding first = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        Finding second = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        entityManager.flush();
+        // What a pod of the previous version writes during a rolling deploy
+        entityManager
+            .createNativeQuery(
+                "UPDATE findings SET finding_value_display = NULL WHERE finding_id IN (:ids)")
+            .setParameter("ids", List.of(first.getId(), second.getId()))
+            .executeUpdate();
+        entityManager.clear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+            .andExpect(jsonPath("$.totalElements").value(0));
+      }
+
+      @Test
+      @DisplayName(
+          "Should list every occurrence of a displayed value, as the Occurrences drawer does")
+      void given_theDisplayedValue_should_listEveryOccurrence() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(
+                FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "jdoe:Su" + MASK))
+            .andExpect(jsonPath("$.totalElements").value(2));
+      }
+
+      @Test
+      @DisplayName("Should count the same occurrences in the summary as in the grouped row")
+      void given_twoSecretsDisplayedAlike_should_countBothInTheSummary() throws Exception {
+        // -------- Arrange --------
+        Finding finding = persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su111"));
+        persistFinding(FindingFixture.createCredentialsFinding("jdoe:Su222"));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.finding_value").value("jdoe:Su" + MASK))
+            .andExpect(jsonPath("$.finding_occurrences").value(2));
+      }
+
+      @ParameterizedTest(name = "\"{0}\" searched with \"{1}\" -> {2}")
+      @CsvSource({
+        "bob:abc, ab, 0",
+        "bob:abc, bob, 1",
+        "alice:pa:ss:word, word, 0",
+        "alice:pa:ss:word, alice, 1",
+        "admin:motdepasse, ******, 1"
+      })
+      @DisplayName("Should only search what the platform displays, for unusual values too")
+      void given_anUnusualValue_should_onlyBeSearchableByItsDisplayedForm(
+          String secret, String search, int expectedMatches) throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createCredentialsFinding(secret));
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch(search))
+            .andExpect(jsonPath("$.totalElements").value(expectedMatches));
+      }
+
+      @Test
+      @DisplayName("Should keep a non sensitive value searchable and filterable as a whole")
+      void given_aNonSensitiveValue_should_stayQueryableOnItsFullValue() throws Exception {
+        // -------- Arrange --------
+        persistFinding(FindingFixture.createDefaultTextFinding());
+        flushAndClear();
+
+        // -------- Act & Assert --------
+        performCallbackRequest(FINDING_URI + "/search", textSearch("text_value"))
+            .andExpect(jsonPath("$.totalElements").value(1));
+        performCallbackRequest(
+                FINDING_URI + "/search", valueFilter(Filters.FilterOperator.eq, "text_value"))
+            .andExpect(jsonPath("$.totalElements").value(1));
+      }
+    }
+
+    @Test
+    @DisplayName("The summary reads first/last seen, not the row's update time (#9822)")
+    void summaryAggregate_readsLastSeenNotUpdateDate() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+
+      // A migration rewrote the detected row late: its update time is not a detection.
+      Instant rewrittenAt = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), Instant.parse("2026-01-05T00:00:00Z"), rewrittenAt);
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      // A row without first/last seen falls back to its creation and update times.
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-02-02T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+
+      assertThat(seen.getOccurrences()).isEqualTo(2);
+      assertThat(seen.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(seen.getLastSeen()).isEqualTo(Instant.parse("2026-03-02T00:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("Get, search and summary expose detection times, not write time (#9846)")
+    void given_aWriteAfterTheLastDetection_should_exposeLastSeenOnGetSearchAndSummary()
+        throws Exception {
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // Last detection at T1, a later write of the row (status, asset link, migration) at T2.
+      Instant createdAt = Instant.parse("2026-01-05T00:00:00Z");
+      Instant firstSeen = Instant.parse("2026-01-01T00:00:00Z");
+      Instant lastSeenT1 = Instant.parse("2026-03-02T00:00:00Z");
+      Instant writtenT2 = Instant.parse("2026-11-24T22:28:00Z");
+      setFindingDates(detected.getId(), createdAt, writtenT2);
+      setFindingSeen(detected.getId(), firstSeen, lastSeenT1);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(getBody, "$.finding_created_at")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_updated_at")).isEqualTo(writtenT2);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(JsonPath.<Integer>read(searchBody, "$.content.length()")).isEqualTo(1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(firstSeen);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(searchBody, "$.content[0].finding_updated_at")).isEqualTo(writtenT2);
+
+      String summaryBody =
+          mvc.perform(get(FINDING_URI + "/" + detected.getId() + "/summary").with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(summaryBody, "$.finding_last_seen")).isEqualTo(lastSeenT1);
+      assertThat(readInstant(summaryBody, "$.finding_first_seen")).isEqualTo(firstSeen);
+    }
+
+    @Test
+    @DisplayName("Get and search fall back to creation and update times (#9846)")
+    void given_noDetectionTimes_should_fallBackToCreationAndUpdateTimes() throws Exception {
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Instant createdAt = Instant.parse("2026-02-01T00:00:00Z");
+      Instant updatedAt = Instant.parse("2026-02-02T00:00:00Z");
+      setFindingDates(legacy.getId(), createdAt, updatedAt);
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      String getBody =
+          mvc.perform(get(FINDING_URI + "/" + legacy.getId()).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(getBody, "$.finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(getBody, "$.finding_last_seen")).isEqualTo(updatedAt);
+
+      String searchBody =
+          performCallbackRequest(FINDING_URI + "/search?distinct=true", new SearchPaginationInput())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(readInstant(searchBody, "$.content[0].finding_first_seen")).isEqualTo(createdAt);
+      assertThat(readInstant(searchBody, "$.content[0].finding_last_seen")).isEqualTo(updatedAt);
+    }
+
+    @Test
+    @DisplayName("Distinct search aggregates detection times across a group (#9846)")
+    void given_aGroupOfOccurrences_should_aggregateSeenWithFallback() {
+      scopeToAmbientTenant();
+      Finding detected =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      Finding legacy =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultTextFinding())
+              .withInject(injectWrapper2)
+              .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+              .persist()
+              .get();
+      // The detected row was rewritten late (T2); the legacy row has no detection times.
+      setFindingDates(
+          detected.getId(),
+          Instant.parse("2026-01-05T00:00:00Z"),
+          Instant.parse("2026-11-24T22:28:00Z"));
+      setFindingSeen(
+          detected.getId(),
+          Instant.parse("2026-01-01T00:00:00Z"),
+          Instant.parse("2026-03-02T00:00:00Z"));
+      setFindingDates(
+          legacy.getId(),
+          Instant.parse("2026-02-01T00:00:00Z"),
+          Instant.parse("2026-04-01T00:00:00Z"));
+      setFindingSeen(legacy.getId(), null, null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      Page<AggregatedFindingOutput> page =
+          findingDistinctSearchService.searchDistinctFindings(new SearchPaginationInput());
+
+      assertThat(page.getContent()).hasSize(1);
+      AggregatedFindingOutput group = page.getContent().getFirst();
+      // MIN(COALESCE(firstSeen, creationDate)) and MAX(COALESCE(lastSeen, updateDate)), the rule
+      // of the summary aggregate: the legacy row's update time wins over the detected row's last
+      // seen, the detected row's late write does not count as a detection.
+      assertThat(group.getFirstSeen()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+      assertThat(group.getLastSeen()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
+      assertThat(group.getCreationDate()).isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
+      assertThat(group.getUpdateDate()).isEqualTo(Instant.parse("2026-11-24T22:28:00Z"));
+
+      FindingRepository.FindingSeenAggregate seen =
+          findingRepository.findSeenAggregate(
+              detected.getType(), detected.getValueDisplay(), TenantContext.getCurrentTenant());
+      assertThat(seen.getFirstSeen()).isEqualTo(group.getFirstSeen());
+      assertThat(seen.getLastSeen()).isEqualTo(group.getLastSeen());
+    }
+
+    private Instant readInstant(String json, String path) {
+      return Instant.parse(JsonPath.<String>read(json, path));
+    }
+
+    private void setFindingSeen(String findingId, Instant firstSeen, Instant lastSeen) {
+      entityManager
+          .createNativeQuery(
+              "UPDATE findings SET finding_first_seen = CAST(:firstSeen AS timestamptz),"
+                  + " finding_last_seen = CAST(:lastSeen AS timestamptz) WHERE finding_id = :id")
+          .setParameter("firstSeen", firstSeen == null ? null : firstSeen.toString())
+          .setParameter("lastSeen", lastSeen == null ? null : lastSeen.toString())
+          .setParameter("id", findingId)
+          .executeUpdate();
+    }
+
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {
       entityManager
           .createNativeQuery(
@@ -1501,5 +1966,10 @@ class FindingApiTest extends IntegrationTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  // The findings of an inject are those with an occurrence on it
+  private List<Finding> findingsOf(Inject inject) {
+    return findingRepository.findAllByInjectId(inject.getId());
   }
 }

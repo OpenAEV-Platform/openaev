@@ -6,7 +6,6 @@ import static io.openaev.utils.time.TimeUtils.toInstant;
 import static java.time.Instant.now;
 
 import com.cronutils.utils.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -40,6 +39,14 @@ public class CalderaExecutorService implements Runnable {
   private final PlatformSettingsService platformSettingsService;
   private final AgentService agentService;
   private final TenantScopedTransaction tenantTx;
+
+  /**
+   * Runs the banner writes. {@link #run()} holds a connection for its whole transaction, so the
+   * banner is written on another thread, in its own transaction, and the run never waits for a
+   * second connection.
+   */
+  private final java.util.concurrent.Executor bannerExecutor;
+
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -68,7 +75,8 @@ public class CalderaExecutorService implements Runnable {
       InjectorService injectorService,
       PlatformSettingsService platformSettingsService,
       AgentService agentService,
-      TenantScopedTransaction tenantTx) {
+      TenantScopedTransaction tenantTx,
+      java.util.concurrent.Executor bannerExecutor) {
     this.client = client;
     this.endpointService = endpointService;
     this.calderaExecutorContextService = calderaExecutorContextService;
@@ -77,29 +85,21 @@ public class CalderaExecutorService implements Runnable {
     this.agentService = agentService;
     this.executor = executor;
     this.tenantTx = tenantTx;
+    this.bannerExecutor = bannerExecutor;
   }
 
   @Override
   public void run() {
-    try {
-      tenantTx.execute(
-          TxCtx.forTenant(executor.getTenantId()),
-          () -> {
-            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
-            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
-            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
-            // set here otherwise and falls back to the default tenant, silently scoping the v1
-            // Hibernate filter to the wrong tenant.
-            TenantContext.setCurrentTenant(executor.getTenantId());
-            doRun();
-            return null;
-          });
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    tenantTx.execute(
+        TxCtx.forTenant(executor.getTenantId()),
+        () -> {
+          doRun();
+          return null;
+        });
   }
 
   private void doRun() {
+    boolean available;
     try {
       log.info("Running Caldera executor endpoints gathering...");
       // The executor only retrieve "main" agents (without the keyword "executor")
@@ -116,9 +116,53 @@ public class CalderaExecutorService implements Runnable {
       for (AgentRegisterInput input : endpointRegisterList) {
         registerAgentEndpoint(input);
       }
-      this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      available = true;
     } catch (Exception e) {
-      this.platformSettingsService.errorMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      available = false;
+    }
+    // Outside the try: only Caldera's own answer decides the banner, never the banner write.
+    requestBanner(available);
+  }
+
+  /**
+   * The Caldera-unavailable banner is a platform-wide operational status, not tenant data, stored
+   * as a platform row of the dual-scope {@code parameters} table ({@code tenant_id IS NULL}). The
+   * write is handed to {@link #bannerExecutor} and runs in its own platform-write transaction
+   * there: {@code doRun()} runs inside the tenant transaction of {@link #run()}, which holds a
+   * connection, so a nested transaction would need a second one. A failed write, or an executor
+   * that refuses it, is logged and never fails the run: the banner is written again by the next
+   * run, a minute later.
+   *
+   * <p>Every Caldera executor of every tenant runs this each minute. Each reports its own answer to
+   * {@link PlatformSettingsService#reportMessageSource}, which persists it and writes the banner
+   * from the reports of all of them, whichever node they run on: the banner shows while one
+   * executor reported that its Caldera does not answer within the last minutes, and clears when
+   * none did, so it does not flip with the executor that ran last nor with a node that restarted.
+   */
+  private void requestBanner(boolean available) {
+    try {
+      bannerExecutor.execute(() -> writeBanner(available));
+    } catch (RuntimeException e) {
+      log.warn("Could not schedule the Caldera unavailable banner write: {}", e.getMessage(), e);
+    }
+  }
+
+  /** The source under which an executor reports to the Caldera unavailable banner. */
+  public static String bannerSource(Executor executor) {
+    return executor.getTenantId() + "." + executor.getId();
+  }
+
+  private void writeBanner(boolean available) {
+    try {
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenant(executor.getTenantId()),
+          () ->
+              this.platformSettingsService.reportMessageSource(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE,
+                  bannerSource(executor),
+                  !available));
+    } catch (Exception e) {
+      log.warn("Failed to write the Caldera unavailable banner: {}", e.getMessage(), e);
     }
   }
 

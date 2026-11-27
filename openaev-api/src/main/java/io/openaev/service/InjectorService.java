@@ -4,7 +4,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -47,6 +46,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -183,7 +184,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Tear the deployment down with the injector, and only delete the row ourselves when the
     // injector was not deployed through the Integration Manager.
     if (!deleteOwningConnectorInstance(injectorId)) {
-      injectorRepository.deleteByInjectorId(injectorId);
+      deleteInjectorAndQueue(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
     // Chaining steps reference contracts only through a JSON snapshot in step_data (no FK to
@@ -191,6 +192,25 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // inject de-index above.
     chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
         orphanedContractIds, tenantId);
+  }
+
+  /**
+   * Deletes the injector row, then its queue once the deletion commits, so injects left in it never
+   * run later.
+   */
+  public void deleteInjectorAndQueue(@NotBlank final String injectorId) {
+    injectorRepository.deleteByInjectorId(injectorId);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+            }
+          });
+    } else {
+      rabbitmqService.deleteInjectorQueueIfUnused(injectorId);
+    }
   }
 
   public Injector injector(String id) {
@@ -223,12 +243,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Checks whether at least one injector of the given type exists for the current tenant. Multiple
+   * Checks whether at least one injector of the given type exists in the given tenant. Multiple
    * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
-  public boolean injectorTypeExists(@NotBlank final String injectorType) {
-    return injectorRepository.existsByTypeAndTenantId(
-        injectorType, TenantContext.getCurrentTenant());
+  public boolean injectorTypeExists(
+      @NotBlank final String injectorType, @NotBlank final String tenantId) {
+    return injectorRepository.existsByTypeAndTenantId(injectorType, tenantId);
   }
 
   /**
@@ -263,6 +283,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       if (injector != null) {
         // Capture significant state before mutation
         Map<String, Object> before = injector.significantState(mapper);
+        injector.setCommit(input.getCommit());
         updateExistingExternalInjector(
             injector,
             input.getType(),
@@ -288,6 +309,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
+        newInjector.setCommit(input.getCommit());
         newInjector.setTenantId(tenantId);
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts

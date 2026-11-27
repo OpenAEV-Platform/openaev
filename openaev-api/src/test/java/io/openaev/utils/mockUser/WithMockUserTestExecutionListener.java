@@ -3,6 +3,8 @@ package io.openaev.utils.mockUser;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.database.model.Tenant;
@@ -23,6 +25,7 @@ import jakarta.persistence.EntityManager;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -105,7 +108,7 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
                           "mock-" + UUID.randomUUID(), platformOnly))));
     }
 
-    User testUser = composer.persist().get();
+    User testUser = persistInScope(ctx, composer);
     userComposer.reset(); // reset to avoid side effects in following tests
 
     // Mirror production membership: every real user belongs to at least one tenant via
@@ -143,6 +146,44 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
 
     Authentication authentication = buildAuthenticationToken(testUser);
     SecurityContextHolder.getContext().setAuthentication(authentication);
+  }
+
+  /**
+   * Persists the fixtures of the mock user. A tenant role is a row of an active table: it needs the
+   * default tenant in the scope of the transaction, and the group that references it must be
+   * persisted in the same transaction, or Hibernate's check that the role exists runs unscoped and
+   * finds nothing. A test transaction carries the default scope already (see {@code
+   * DefaultTenantScopeTestListener}), unless the class opted out with {@code @WithoutTenantScope},
+   * in which case only the fixture write is scoped; a test class with no transaction gets one of
+   * its own here.
+   */
+  private static User persistInScope(ApplicationContext ctx, UserComposer.Composer composer) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      if (!hasNoScope(ctx.getBean(EntityManager.class))) {
+        return composer.persist().get();
+      }
+      // A class opted out of the default scope (WithoutTenantScope): scope the fixture write only,
+      // and leave the transaction unscoped for the test, which is its premise.
+      return ctx.getBean(TenantScopedTransaction.class)
+          .executeOnCurrentTransaction(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> composer.persist().get());
+    }
+    TenantScopedTransaction tenantScopedTransaction = ctx.getBean(TenantScopedTransaction.class);
+    return new TransactionTemplate(ctx.getBean(PlatformTransactionManager.class))
+        .execute(
+            status -> {
+              tenantScopedTransaction.setScopeOnCurrentTransaction(
+                  TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+              return composer.persist().get();
+            });
+  }
+
+  private static boolean hasNoScope(EntityManager entityManager) {
+    Object scope =
+        entityManager
+            .createNativeQuery("SELECT current_setting('app.current_tenants', true)")
+            .getSingleResult();
+    return scope == null || scope.toString().isEmpty();
   }
 
   @Override

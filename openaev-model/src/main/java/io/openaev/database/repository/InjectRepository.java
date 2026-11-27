@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
@@ -61,6 +62,29 @@ public interface InjectRepository
   @Query("select i.id as id, i.tenant.id as tenantId from Inject i where i.id = :id")
   Optional<InjectTenantRef> findTenantRefById(@Param("id") @NotNull String id);
 
+  /**
+   * The id of the user whose launch gates this inject's dispatch: the simulation's launcher for a
+   * simulation inject, the inject's own launcher otherwise (atomic testing). Read from the database
+   * by ids, so a caller holding an inject loaded by an earlier transaction never has to initialise
+   * its lazy simulation or launcher. Empty when there is no launcher.
+   */
+  @Query(
+      "select case when e.id is not null then el.id else il.id end from Inject i"
+          + " left join i.exercise e left join e.launchedBy el left join i.launchedBy il"
+          + " where i.id = :injectId")
+  Optional<String> findLauncherId(@Param("injectId") @NotNull String injectId);
+
+  /** Projection of {@link #findContentsByIds(Collection)}. */
+  interface InjectContent {
+    String getId();
+
+    ObjectNode getContent();
+  }
+
+  /** The content of the given injects, without loading their associations. */
+  @Query("SELECT i.id AS id, i.content AS content FROM Inject i WHERE i.id IN :ids")
+  List<InjectContent> findContentsByIds(@Param("ids") Collection<String> ids);
+
   /** Projection of {@link #findTenantRefById(String)}. */
   interface InjectTenantRef {
     String getId();
@@ -79,11 +103,26 @@ public interface InjectRepository
   int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
 
   /**
-   * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
-   * background consumers that group a cross-tenant batch by tenant without an ambient {@code
-   * TenantContext} (mirrors {@code StepRepository.findTenantIdByStepId}, #6904). A native query is
-   * not rewritten by the Hibernate tenant {@code @Filter}, so the result is context-free. Each row
-   * is {@code [inject_id, tenant_id]}; an unknown inject is simply absent from the result.
+   * Updates only an inject's content and {@code updated_at}, through Hibernate like {@link
+   * #updateUpdatedAt} so the tenant statement inspector covers it. Unlike a save of the detached
+   * entity, it never merges the inject's associations (asset groups, teams, tags...): a dangling
+   * association row cannot fail a content-only change such as an expectations realignment (#8645).
+   * Returns the number of rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.content = :content, i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateContent(
+      @Param("id") @NotNull String id,
+      @Param("content") ObjectNode content,
+      @Param("updatedAt") Instant updatedAt);
+
+  /**
+   * Resolves the owning tenant of each given inject in one query. {@code injects} is an active
+   * table, so the read is narrowed to the current tenant scope like any other: an inject outside it
+   * is absent from the result, exactly like an unknown one. A caller that must resolve owners
+   * across tenants, such as a background consumer grouping a mixed batch, runs it under {@code
+   * TxCtx.allTenants()}. Each row is {@code [inject_id, tenant_id]}.
    */
   @Query(
       value = "SELECT i.inject_id, i.tenant_id FROM injects i WHERE i.inject_id IN :injectIds",
@@ -231,13 +270,21 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  /**
+   * Contract id of the challenge publication inject (ChallengeContract.CHALLENGE_PUBLISH in
+   * openaev-api). inject_injector_contract holds a contract id, never an injector id: filtering on
+   * the challenge injector id matched no inject at all (#8060).
+   */
+  String CHALLENGE_PUBLISH_CONTRACT_ID = "f8e70b27-a69c-4b9f-a2df-e217c36b3981";
+
   // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
   // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId"
-              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
+          "select i.inject_id from injects i where i.inject_injector_contract = '"
+              + CHALLENGE_PUBLISH_CONTRACT_ID
+              + "'"
+              + " and i.inject_content like :challengeId",
       nativeQuery = true)
   List<String> findAllIdsForChallengeId(@Param("challengeId") String challengeId);
 
@@ -265,7 +312,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_exercise, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForExercise(
       @Param("id") String id,
@@ -278,7 +325,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("exercise") String exerciseId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -286,7 +334,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_scenario, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForScenario(
       @Param("id") String id,
@@ -299,7 +347,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("scenario") String scenarioId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -307,7 +356,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveStandAlone(
       @Param("id") String id,
@@ -319,7 +368,8 @@ public interface InjectRepository
       @Param("allTeams") boolean allTeams,
       @Param("enabled") boolean enabled,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -406,9 +456,9 @@ public interface InjectRepository
           """
     SELECT DISTINCT i.inject_id AS id, i.inject_title AS label, i.inject_created_at
     FROM injects i
-    INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+    INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+    INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
     WHERE (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -419,12 +469,12 @@ public interface InjectRepository
           """
     SELECT DISTINCT i.inject_id AS id, i.inject_title AS label, i.inject_created_at
     FROM injects i
-    INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+    INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+    INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
     LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
     LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
     WHERE (i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
       AND (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -449,8 +499,7 @@ public interface InjectRepository
           "SELECT i.inject_exercise, i.inject_content FROM injects i "
               + "WHERE i.inject_exercise IN :exerciseIds "
               + "AND (i.inject_content LIKE '%\"ai_target\"%' "
-              + "OR i.inject_content LIKE '%\"target_selector\"%') "
-              + "AND i.tenant_id = :#{#tenantContext.currentTenant}",
+              + "OR i.inject_content LIKE '%\"target_selector\"%')",
       nativeQuery = true)
   List<Object[]> findContentTargetContentsByExerciseIds(Set<String> exerciseIds);
 
@@ -638,4 +687,15 @@ public interface InjectRepository
 
   @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
   List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
+
+  // -- PAYLOAD --
+
+  /** Scenario injects and atomic testings: a simulation keeps the version it ran. */
+  String OUTSIDE_SIMULATIONS = "i.inject_exercise IS NULL";
+
+  @Query(
+      "SELECT i FROM Inject i WHERE i.tenant.id = :tenantId"
+          + " AND i.injectorContract.compositeId.id = :injectorContractId AND i.exercise IS NULL")
+  List<Inject> findAllOutsideSimulationsByTenantIdAndInjectorContractId(
+      @Param("tenantId") String tenantId, @Param("injectorContractId") String injectorContractId);
 }

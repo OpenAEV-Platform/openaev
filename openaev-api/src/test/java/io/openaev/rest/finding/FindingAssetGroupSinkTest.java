@@ -9,16 +9,17 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +54,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class FindingAssetGroupSinkTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
-  @Autowired private FindingService findingService;
+  @Autowired private FindingOccurrenceService findingOccurrenceService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager entityManager;
 
@@ -132,10 +133,15 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setType(ContractOutputType.Text);
               finding.setField("hostname");
               finding.setName("sink probe");
-              findingId =
-                  findingService
-                      .createFinding(TxCtx.forTenant(tenantId), finding, inject.getId())
-                      .getId();
+              finding.setInject(inject);
+              finding.setTenant(new Tenant(tenantId));
+              entityManager.persist(finding);
+              findingOccurrenceService.recordOccurrences(
+                  inject,
+                  FindingOccurrenceService.occurrenceDate(inject),
+                  List.of(finding),
+                  Map.of(finding.getId(), finding.getField()));
+              findingId = finding.getId();
               entityManager.flush();
 
               // A linked asset too: finding_assets is a lazy @ManyToMany on the assets table, the

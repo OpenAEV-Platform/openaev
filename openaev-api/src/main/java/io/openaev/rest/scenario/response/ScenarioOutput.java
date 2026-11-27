@@ -1,6 +1,7 @@
 package io.openaev.rest.scenario.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.api.users.dto.UserSimple;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -55,6 +56,10 @@ public class ScenarioOutput {
   @Schema(description = "Type affinity of the scenario")
   private String typeAffinity;
 
+  @JsonProperty("scenario_version")
+  @Schema(description = "Catalogue version installed, empty for a scenario of the tenant")
+  private String catalogVersion;
+
   @JsonProperty("scenario_external_url")
   @Schema(description = "External URL of the scenario")
   private String externalUrl;
@@ -78,11 +83,6 @@ public class ScenarioOutput {
   @JsonProperty("scenario_message_footer")
   @Schema(description = "Footer of the scenario")
   private String footer;
-
-  @JsonProperty("scenario_mail_from")
-  @NotBlank
-  @Schema(description = "From value of the scenario")
-  private String from;
 
   @JsonProperty("scenario_mail_from_name")
   @Schema(description = "Sender display name of the scenario")
@@ -153,4 +153,10 @@ public class ScenarioOutput {
   @JsonProperty("scenario_autonomous")
   @Schema(description = "Whether the scenario is an autonomous (AI-driven) attack-path scenario")
   private boolean autonomous;
+
+  // Not "scenario_scheduled_by": the Scenario entity sends the bare user id under that key, and
+  // both shapes merge into the same frontend store entry.
+  @JsonProperty("scenario_scheduled_by_user")
+  @Schema(description = "User who last configured the scenario's recurrence")
+  private UserSimple scheduledBy;
 }

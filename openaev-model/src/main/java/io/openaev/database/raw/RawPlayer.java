@@ -75,8 +75,8 @@ public interface RawPlayer {
   String getUser_country();
 
   /**
-   * Returns whether the player is a platform administrator. Only populated by queries that select
-   * the column (e.g. the all-players listing); other projections serialize it as null.
+   * Returns whether the player is a platform administrator. Every player query must select it: the
+   * front merges players into the logged user, and a null here drops the user's admin rights.
    *
    * @return the admin flag
    */

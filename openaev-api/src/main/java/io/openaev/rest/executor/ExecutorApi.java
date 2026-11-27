@@ -22,7 +22,7 @@ import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connectors.PlatformConnectors;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
@@ -85,7 +85,7 @@ public class ExecutorApi extends RestBehavior {
   private final EndpointService endpointService;
   private final FileService fileService;
   private final ExecutorService executorService;
-  private final ServiceAccountPrivilegeService privilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
   @Resource protected ObjectMapper mapper;
@@ -446,7 +446,9 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(
             responseCode = "200",
             description = "Successfully generated the install command."),
-        @ApiResponse(responseCode = "400", description = "Invalid platform specified."),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid platform, installation directory or service name specified."),
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
   @GetMapping(
@@ -476,9 +478,18 @@ public class ExecutorApi extends RestBehavior {
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
 
+    // Answered here with a plain status rather than through the generic IllegalArgumentException
+    // handler: this endpoint produces text/plain, which that JSON handler cannot write.
+    if (!AgentUtils.areSafeAgentScriptInputs(resolvedPlatform, installationDir, serviceName)) {
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.BAD_REQUEST,
+          "Invalid installation directory or service name");
+    }
+
     // FIND TOKEN BY TENANT
     String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+        agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+            TenantContext.getCurrentTenant());
 
     String installCommand =
         this.endpointService.generateInstallCommand(
@@ -511,7 +522,8 @@ public class ExecutorApi extends RestBehavior {
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
     try {
       String token =
-          privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+              TenantContext.getCurrentTenant());
       return ResponseEntity.ok()
           .contentType(MediaType.TEXT_PLAIN)
           .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
@@ -542,7 +554,7 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<Void> rotateOpenAevAgentInstallerToken(@RequireTenantSelector TxCtx ctx) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    privilegeService.rotateTokenForTenant(tenantId);
+    agentServiceAccountPrivilegeService.rotateTokenForTenant(tenantId);
     return ResponseEntity.noContent().build();
   }
 }

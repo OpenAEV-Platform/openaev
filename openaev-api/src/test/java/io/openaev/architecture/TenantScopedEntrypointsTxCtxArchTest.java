@@ -194,11 +194,14 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.attackpath.AttackPathApi#simulations",
           "io.openaev.api.attackpath.AttackPathApi#expandEndpointFindings",
           // marking_definitions (v2)
-          "io.openaev.api.marking_definition.MarkingDefinitionApi#list",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#search",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#assignable",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
+          "io.openaev.api.marking_definition.MarkingDefinitionExporterApi#exportMarkingDefinitionsCsv",
+          "io.openaev.api.marking_definition.MarkingDefinitionImporterApi#importMarkingDefinitionsCsv",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -274,7 +277,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#assets",
-          "io.openaev.rest.asset.endpoint.EndpointApi#targetEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#findEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#deleteEndpoint",
@@ -289,6 +291,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateConnectorInstanceConfigurations",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#searchConnectorInstanceLogs",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateRequestedStatus",
+          // connector_instances: the token rotation rewrites the OPENAEV_TOKEN configuration of
+          // every instance of the tenant, through a join on connector_instances
+          "io.openaev.rest.catalog_connector.CatalogConnectorApi#rotateCatalogConnectorToken",
           // connector_instances (v2 activation, Phase 3b two-hop finding): CatalogConnectorApi
           // reads connector_instances indirectly (CatalogConnectorService ->
           // ConnectorInstanceService#connectorInstances/#findAllByCatalogConnectorId) to compute
@@ -338,6 +343,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.xtmhub.XtmHubApi#refreshConnectivity",
           "io.openaev.api.xtmhub.XtmHubApi#autoRegister",
           "io.openaev.api.xtmhub.XtmHubApi#contactUs",
+          // news feed: the unread count and read-all read the registration of the tenants in
+          // scope to tell whether the news feed is served
+          "io.openaev.api.news_feed.NewsFeedItemApi#countMyUnreadNewsFeedItems",
+          "io.openaev.api.news_feed.NewsFeedItemApi#markAllMyNewsFeedItemsRead",
           // threat arsenal: create/update/duplicate go through PayloadCreationService/
           // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
@@ -451,7 +460,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
           // inject execution callback (legacy, non-queued path): the vulnerability-verdict
           // propagation chain (matchesVulnerabilityExpectations -> ... ->
-          // propagateTechnicalExpectation)
+          // updateLeavesThenRecomputeParents)
           // reads security_coverages via
           // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
           // Both overloads (with/without agentId) are covered by the single name entry.
@@ -561,6 +570,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#updateCustomDashboard",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#deleteCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboardUsage",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#restoreStarterPackDashboards",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByName",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsById",
           "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByResourceId",
@@ -658,7 +669,85 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // tenant-active tables (findings, assets); without the TxCtx scope it reads zero rows
           // and reports a ready snapshot while rows are still pending.
           "io.openaev.api.snapshot.SnapshotObservationApi#searchAttackObservations",
-          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations");
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations",
+          // tenant roles: every endpoint resolves its tenant from the request scope
+          "io.openaev.rest.role.TenantRoleApi#create",
+          "io.openaev.rest.role.TenantRoleApi#delete",
+          "io.openaev.rest.role.TenantRoleApi#findRole",
+          "io.openaev.rest.role.TenantRoleApi#roles",
+          "io.openaev.rest.role.TenantRoleApi#search",
+          "io.openaev.rest.role.TenantRoleApi#update",
+          // groups (v2, dual-scope): the tenant group endpoints read and write the groups of the
+          // tenants of the request scope, the platform group endpoints the platform rows, and the
+          // others reach a group through a membership, a recipient or a delete
+          "io.openaev.api.groups.TenantGroupApi#createGroup",
+          "io.openaev.api.groups.TenantGroupApi#group",
+          "io.openaev.api.groups.TenantGroupApi#groups",
+          "io.openaev.api.groups.TenantGroupApi#groupGrant",
+          "io.openaev.api.groups.TenantGroupApi#deleteGrant",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupInformation",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupMarkings",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupRoles",
+          "io.openaev.api.groups.TenantGroupApi#updateGroupUsers",
+          "io.openaev.api.groups.TenantGroupApi#delete",
+          "io.openaev.api.groups.PlatformGroupApi#create",
+          "io.openaev.api.groups.PlatformGroupApi#delete",
+          "io.openaev.api.groups.PlatformGroupApi#findById",
+          "io.openaev.api.groups.PlatformGroupApi#findPlatformRoles",
+          "io.openaev.api.groups.PlatformGroupApi#findUsers",
+          "io.openaev.api.groups.PlatformGroupApi#search",
+          "io.openaev.api.groups.PlatformGroupApi#update",
+          "io.openaev.api.groups.PlatformGroupApi#updatePlatformRoles",
+          "io.openaev.api.groups.PlatformGroupApi#updateUsers",
+          "io.openaev.api.platform.users.PlatformUserApi#create",
+          "io.openaev.api.platform.users.PlatformUserApi#update",
+          "io.openaev.api.platform.roles.PlatformRoleApi#delete",
+          "io.openaev.rest.user.PlayerApi#deletePlayer",
+          "io.openaev.rest.user.PlayerApi#bulkDeletePlayers",
+          "io.openaev.rest.user.TenantUserApi#create",
+          "io.openaev.rest.user.TenantUserApi#delete",
+          // payloads, payload_identities, catalog_items, content_changes: catalogue installs.
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
+          // catalog_items, payload_identities, injectors: the Available tab of the Threat Arsenal.
+          "io.openaev.api.catalog.action.CatalogActionApi#searchActions",
+          "io.openaev.api.catalog.action.CatalogActionApi#actionFacetCounts",
+          "io.openaev.api.catalog.payload.CatalogPayloadApi#payloadVersions",
+          "io.openaev.api.catalog.payload.CatalogPayloadApi#payloadVersionContent",
+          // catalog_items, scenario_identities: the Available tab of the Scenarios page.
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#searchScenarios",
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioFacetCounts",
+          "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioVersions",
+          // exercises, injects: a scenario launched with targets for its simulation only.
+          "io.openaev.api.scenario.ScenarioLaunchApi#launch",
+          // injects, payload_revocations, catalog_items: what a scenario launch meets.
+          "io.openaev.api.scenario.ScenarioLaunchCheckApi#launchCheck",
+          // payload_revocations: a tenant admin revokes a payload version.
+          "io.openaev.api.payload.PayloadRevocationApi#revoke",
+          "io.openaev.api.payload.PayloadRevocationApi#lift",
+          // injects, steps: moving the usages of a payload version to another version.
+          "io.openaev.api.threat_arsenal.move.PayloadUsageMoveApi#moveUsages",
+          // content_changes: the History tabs of an action and of a scenario.
+          "io.openaev.api.catalog.ContentHistoryApi#payloadHistory",
+          "io.openaev.api.catalog.ContentHistoryApi#scenarioHistory",
+          // payloads, payload_identities: customized copies of Filigran payloads.
+          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#customize",
+          "io.openaev.api.threat_arsenal.customization.ThreatArsenalCustomizationApi#update",
+          // payload_identities, injects, steps: the injects left on an older version.
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#olderVersionsInUse",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#changes",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#keepOlderVersions",
+          "io.openaev.api.threat_arsenal.ThreatArsenalVersionApi#showOlderVersions",
+          // scenario_revisions, scenarios, catalog_items, payloads: a catalogue scenario updated
+          // to a version or rolled back to a revision.
+          "io.openaev.api.scenario.ScenarioUpdateApi#revisions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#versions",
+          "io.openaev.api.scenario.ScenarioUpdateApi#catalogStates",
+          "io.openaev.api.scenario.ScenarioUpdateApi#previewUpdate",
+          "io.openaev.api.scenario.ScenarioUpdateApi#previewRollback",
+          "io.openaev.api.scenario.ScenarioUpdateApi#update",
+          "io.openaev.api.scenario.ScenarioUpdateApi#rollback");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

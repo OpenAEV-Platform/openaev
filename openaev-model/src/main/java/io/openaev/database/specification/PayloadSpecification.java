@@ -23,7 +23,7 @@ public class PayloadSpecification {
   public static Specification<Payload> withCollectorType() {
     return (root, query, cb) -> {
       if (query.getResultType() != Long.class && query.getResultType() != long.class) {
-        root.fetch("collectorType", JoinType.LEFT);
+        root.fetch("identity", JoinType.LEFT).fetch("collectorType", JoinType.LEFT);
       }
       return null;
     };

@@ -9,7 +9,6 @@ const getComponentName = <P,>(component: ComponentType<P>): string => {
   return fc.displayName || fc.name || 'Component';
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const errorWrapper = <P extends object = Record<string, never>>(
   WrappedComponent: ComponentType<P>,
 ): ((props?: P) => ReactElement) => {

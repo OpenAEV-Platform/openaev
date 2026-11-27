@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -162,11 +161,16 @@ public class ScopeService {
    * denylisted TEAM rules. Mirrors {@link #getValidAssets(String)} for the audience axis.
    */
   public List<Team> getValidTeams(String workflowId) {
-    List<String> keptTeamIds =
-        resolveAllowedMinusDeniedIds(
-            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
-            ScopeRuleValueType.TEAM_ID);
-    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
+    List<WorkflowScopeRule> rules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+    List<String> keptTeamIds = resolveAllowedMinusDeniedIds(rules, ScopeRuleValueType.TEAM_ID);
+    if (keptTeamIds.isEmpty()) {
+      return List.of();
+    }
+    // A rule stores the team id its request names. Every rule carries the tenant of its workflow
+    // (WorkflowScopeRule#attributeTenantFromWorkflow), so a team of another tenant is an unknown
+    // id.
+    String workflowTenantId = rules.getFirst().getTenant().getId();
+    return teamRepository.findAllByIdInTenant(keptTeamIds, workflowTenantId);
   }
 
   /**
@@ -176,16 +180,17 @@ public class ScopeService {
    *
    * <p>Users are platform-level entities whose tenant membership lives in {@code users_tenants}, so
    * unlike teams (tenant-filtered entities) the lookup must be explicitly tenant-scoped: a stale or
-   * crafted PLAYER rule must never resolve a user outside the workflow's tenant.
+   * crafted PLAYER rule must never resolve a user outside the workflow's tenant. Every rule carries
+   * the tenant of its workflow, the one the users are looked up in.
    */
   public List<User> getValidPlayers(String workflowId) {
-    List<String> keptPlayerIds =
-        resolveAllowedMinusDeniedIds(
-            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
-            ScopeRuleValueType.PLAYER_ID);
-    return keptPlayerIds.isEmpty()
-        ? List.of()
-        : userRepository.findAllByIdInAndTenantId(keptPlayerIds, TenantContext.getCurrentTenant());
+    List<WorkflowScopeRule> rules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+    List<String> keptPlayerIds = resolveAllowedMinusDeniedIds(rules, ScopeRuleValueType.PLAYER_ID);
+    if (keptPlayerIds.isEmpty()) {
+      return List.of();
+    }
+    String workflowTenantId = rules.getFirst().getTenant().getId();
+    return userRepository.findAllByIdInAndTenantId(keptPlayerIds, workflowTenantId);
   }
 
   /**
@@ -228,13 +233,26 @@ public class ScopeService {
             .map(WorkflowScopeRule::getRuleValue)
             .toList();
 
-    return assetIds.isEmpty() ? Set.of() : new LinkedHashSet<>(assetService.assets(assetIds));
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    // A rule stores the asset id its request names. Every rule carries the tenant of its workflow
+    // (WorkflowScopeRule#attributeTenantFromWorkflow), so an asset of another tenant is an unknown
+    // id.
+    String workflowTenantId = allowlistRules.getFirst().getTenant().getId();
+    return new LinkedHashSet<>(assetService.assets(assetIds, workflowTenantId));
   }
 
   private Set<Asset> getAssetsAllowedByAssetGroup(List<WorkflowScopeRule> allowlistRules) {
+    // A rule stores the group id its request names and carries the tenant of its workflow, so a
+    // group of another tenant is an unknown id.
     return allowlistRules.stream()
         .filter(rule -> ScopeRuleValueType.ASSET_GROUP_ID.equals(rule.getValueType()))
-        .flatMap(rule -> assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream())
+        .flatMap(
+            rule ->
+                assetGroupService
+                    .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                    .stream())
         .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
@@ -251,7 +269,9 @@ public class ScopeService {
 
         case ASSET_GROUP_ID -> {
           Set<String> groupAssetIds =
-              assetGroupService.assetsFromAssetGroup(rule.getRuleValue()).stream()
+              assetGroupService
+                  .assetsFromAssetGroup(rule.getRuleValue(), rule.getTenant().getId())
+                  .stream()
                   .map(Asset::getId)
                   .collect(Collectors.toSet());
           candidates.stream()

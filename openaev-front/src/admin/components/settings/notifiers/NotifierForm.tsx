@@ -171,7 +171,6 @@ const NotifierForm: FunctionComponent<Props> = ({
           </div>
           <Typography variant="h5" style={{ marginTop: 20 }}>{t('Headers')}</Typography>
           {headers.map((header, index) => (
-            // eslint-disable-next-line react/no-array-index-key
             <div
               key={index}
               style={{

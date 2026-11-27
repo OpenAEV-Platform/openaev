@@ -1,24 +1,30 @@
 package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,25 +36,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Regression coverage for {@link AtomicTestingService#findById(String)}: a GET-triggered read must
- * never mutate the managed {@code inject.assetGroups} {@code @ManyToMany} collection. Doing so (the
- * previous {@code clear()}/{@code addAll()} implementation) churns the {@code injects_asset_groups}
- * join table on every single read, and under concurrent requests for the same inject the resulting
- * delete-then-reinsert races and can violate the join table's primary key ({@code
- * ConstraintViolationException} on {@code injects_asset_groups}).
+ * Regression coverage for {@link AtomicTestingService#findById(io.openaev.context.TxCtx, String)}:
+ * a GET-triggered read must never mutate the managed {@code inject.assetGroups} {@code @ManyToMany}
+ * collection. Doing so (the previous {@code clear()}/{@code addAll()} implementation) churns the
+ * {@code injects_asset_groups} join table on every single read, and under concurrent requests for
+ * the same inject the resulting delete-then-reinsert races and can violate the join table's primary
+ * key ({@code ConstraintViolationException} on {@code injects_asset_groups}).
  */
 @ExtendWith(MockitoExtension.class)
 class AtomicTestingServiceTest {
 
   @Mock private InjectMapper injectMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
+  @Mock private CredentialMetricCollector credentialMetricCollector;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectRepository injectRepository;
 
-  @Mock
-  private io.openaev.database.repository.InjectorContractRepository injectorContractRepository;
+  @Mock private io.openaev.rest.injector_contract.InjectorContractService injectorContractService;
 
   @Mock private io.openaev.database.repository.UserRepository userRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
@@ -64,6 +70,7 @@ class AtomicTestingServiceTest {
   @Mock private InjectUtils injectUtils;
   @Mock private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private BulkDeleteExecutor bulkDeleteExecutor;
+  @Mock private HealthCheckUtils healthCheckUtils;
 
   @InjectMocks private AtomicTestingService atomicTestingService;
 
@@ -96,14 +103,14 @@ class AtomicTestingServiceTest {
       Inject inject = new Inject();
       inject.setAssetGroups(assetGroups);
 
-      when(injectRepository.findByIdAndTenantId(INJECT_ID, TENANT_ID))
-          .thenReturn(Optional.of(inject));
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
       when(injectMapper.toInjectResultOverviewOutput(inject))
           .thenReturn(mock(InjectResultOverviewOutput.class));
       when(assetGroupService.computeDynamicAssets(assetGroup)).thenReturn(assetGroup);
 
       // -------- Act --------
-      atomicTestingService.findById(INJECT_ID);
+      atomicTestingService.findById(ctx, INJECT_ID);
 
       // -------- Assert --------
       verify(assetGroupService).computeDynamicAssets(assetGroup);
@@ -123,16 +130,76 @@ class AtomicTestingServiceTest {
       // -------- Arrange --------
       Inject inject = new Inject();
 
-      when(injectRepository.findByIdAndTenantId(INJECT_ID, TENANT_ID))
-          .thenReturn(Optional.of(inject));
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
       when(injectMapper.toInjectResultOverviewOutput(inject))
           .thenReturn(mock(InjectResultOverviewOutput.class));
 
       // -------- Act --------
-      atomicTestingService.findById(INJECT_ID);
+      atomicTestingService.findById(ctx, INJECT_ID);
 
       // -------- Assert --------
       verifyNoInteractions(assetGroupService);
+    }
+  }
+
+  @Nested
+  @DisplayName("launch - refuses an atomic testing whose mandatory fields are empty")
+  class LaunchMandatoryFields {
+
+    @Test
+    @DisplayName(
+        "Given mandatory fields left empty, launch should refuse with a 400 naming each field")
+    void given_missingMandatoryFields_should_refuseLaunchNamingThem() {
+      // -------- Arrange --------
+      Inject inject = new Inject();
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
+      when(healthCheckUtils.runContentChecks(inject))
+          .thenReturn(
+              List.of(
+                  HealthCheck.missingMandatoryField("teams", Instant.now()),
+                  HealthCheck.missingMandatoryField("emailTemplate", Instant.now())));
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> atomicTestingService.launch(ctx, INJECT_ID))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessageContaining("emailTemplate, teams");
+      verify(injectService, never()).launch(any());
+    }
+
+    @Test
+    @DisplayName("Given every mandatory field set, launch should go on as before")
+    void given_noMissingMandatoryField_should_launch() {
+      // -------- Arrange --------
+      Inject inject = new Inject();
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
+      when(healthCheckUtils.runContentChecks(inject)).thenReturn(List.of());
+
+      // -------- Act --------
+      atomicTestingService.launch(ctx, INJECT_ID);
+
+      // -------- Assert --------
+      verify(injectService).launch(INJECT_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "Given mandatory fields left empty, the relaunch gate should refuse before the executor check")
+    void given_missingMandatoryFields_should_refuseRelaunch() {
+      // -------- Arrange --------
+      Inject inject = new Inject();
+      TxCtx ctx = TxCtx.forTenant(TENANT_ID);
+      when(injectService.inject(ctx, INJECT_ID)).thenReturn(inject);
+      when(healthCheckUtils.runContentChecks(inject))
+          .thenReturn(List.of(HealthCheck.missingMandatoryField("teams", Instant.now())));
+
+      // -------- Act / Assert --------
+      assertThatThrownBy(() -> atomicTestingService.throwIfNotLaunchable(ctx, INJECT_ID))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessageContaining("teams");
+      verify(injectService, never()).throwIfInjectNotLaunchable(any());
     }
   }
 }

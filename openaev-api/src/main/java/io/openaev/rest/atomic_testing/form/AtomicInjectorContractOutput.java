@@ -2,6 +2,7 @@ package io.openaev.rest.atomic_testing.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.database.model.Endpoint;
 import io.openaev.rest.payload.output.PayloadSimple;
@@ -23,10 +24,12 @@ public class AtomicInjectorContractOutput {
 
   @JsonProperty("injector_contract_content")
   @NotBlank
+  @AuditLogIgnore
   private String content;
 
   @JsonProperty("convertedContent")
   @Convert(converter = ContentConverter.class)
+  @AuditLogIgnore
   private ObjectNode convertedContent;
 
   @JsonProperty("injector_contract_platforms")

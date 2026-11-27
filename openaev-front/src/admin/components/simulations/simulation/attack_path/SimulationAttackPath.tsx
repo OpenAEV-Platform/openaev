@@ -23,7 +23,7 @@ import {
   fetchFindingsByCategory,
   fetchSimulationsMetaById,
 } from '../../../../../actions/attack-path/attack-path-actions';
-import { createRunningExerciseFromScenario } from '../../../../../actions/scenarios/scenario-actions';
+import { launchScenario } from '../../../../../actions/scenarios/scenario-actions';
 import EmptyPlaceholder from '../../../../../components/common/EmptyPlaceholder';
 import { criticalityColor } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
@@ -41,11 +41,14 @@ import type {
 } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
-import { download } from '../../../../../utils/utils';
+import { download, isFeatureEnabled } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
+import useOpenLaunchedSimulation from '../../../scenarios/launch/useOpenLaunchedSimulation';
+import { SCENARIO_TYPE_CHAINED } from '../../../scenarios/scenario/ScenarioType';
 import attackPathStatusColor from './attack-path-colors';
 import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayFindingValue, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
+import AttackPathLoggingContext from './attack-path-logging-context';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
 import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
@@ -126,16 +129,18 @@ const COVERED_FINDING_TYPES = new Set(['share', 'file', 'credentials', 'username
 // Finding categories fetched (with per-finding executionIds) to attribute findings to an injector.
 const INJECTOR_FINDING_CATEGORIES = ['credentials', 'users', 'cves', 'shares', 'files'];
 
-// Backend prevention/detection status -> a human label (also used for accessibility, so status is
-// never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
-const statusLabelKey = (status?: string): string => {
+// Backend execution status -> a human label (also used for accessibility, so status is never conveyed
+// by colour alone). GREEN = prevented, ORANGE = detected, YELLOW = only logged, RED = none of them.
+const statusLabelKey = (status: string | undefined, showsLogging: boolean): string => {
   switch (status) {
     case 'GREEN':
       return 'Prevented';
     case 'ORANGE':
       return 'Detected';
+    case 'YELLOW':
+      return 'Logged';
     case 'RED':
-      return 'Undetected';
+      return showsLogging ? 'Not Logged' : 'Undetected';
     default:
       return 'Unknown';
   }
@@ -220,6 +225,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
   const theme = useTheme();
   const { t, fldt, cnsdt } = useFormatter();
   const navigate = useNavigate();
+  const openLaunchedSimulation = useOpenLaunchedSimulation();
 
   // The view sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [rootRef, viewHeight] = useRemainingViewportHeight();
@@ -271,6 +277,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     fullEligible,
     terminal: runTerminal,
   });
+  // Logging verdicts are in play when the preview feature is on, or when the graph already holds a
+  // logged-only verdict recorded while it was on: a yellow node then keeps its legend entry.
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
+  const showsLogging = useMemo(
+    () => isLoggingEnabled
+      || (dto?.attackPathNodes ?? []).some(n => n.status === 'YELLOW')
+      || (fullDto?.attackPathExecutions ?? []).some(e => e.status === 'YELLOW'),
+    [isLoggingEnabled, dto?.attackPathNodes, fullDto?.attackPathExecutions],
+  );
     // Render the causal execution-chain layout whenever the size-gated full graph is available and carries
     // executions (small runs). Large runs never fetch it (fullDto stays null) and keep the aggregated view.
     // Declared early (not next to its other consumers below) because click handlers defined above those
@@ -2181,13 +2196,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         ref: e.ref as string,
         contract: toContractLabel(e) ?? e.payloadName ?? e.label ?? t('Action'),
         statusColor: attackPathStatusColor(theme, e.status),
-        statusLabel: t(statusLabelKey(e.status)),
+        statusLabel: t(statusLabelKey(e.status, showsLogging)),
         subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
         injectId: e.injectId,
         payloadId: e.payloadId,
         executionStatus: e.executionStatus,
       }));
-  }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t]);
+  }, [findingDetail, highlightedExecutionIds, executions, fullDto?.attackPathExecutions, theme, t, showsLogging]);
 
   // Prevention / detection / vulnerability verdicts shown at the top of the finding panel, read from the
   // finding node's real verdicts (#6912 now persists per-execution expectation statuses; the backend
@@ -2216,6 +2231,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return {
       prevention: norm(v?.prevention),
       detection: norm(v?.detection),
+      logging: norm(v?.logging),
       vulnerability: norm(v?.vulnerability),
     };
   }, [findingDetail, selectedFindingId, fullDto?.attackPathNodes, dto?.staticAttackPathFindings, dto?.attackPathNodes]);
@@ -2667,16 +2683,15 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       return;
     }
     setLaunching(true);
-    createRunningExerciseFromScenario(scenarioId)
-      .then((res) => {
-        MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-        navigate(`${SIMULATION_BASE_URL}/${res.data.exercise_id}`);
+    launchScenario(scenarioId)
+      .then(({ simulation_id }) => {
+        openLaunchedSimulation(simulation_id, SCENARIO_TYPE_CHAINED);
       })
       .catch(() => {
         MESSAGING$.notifyError(t('Error while launching the simulation'));
         setLaunching(false);
       });
-  }, [scenarioId, navigate, t]);
+  }, [scenarioId, openLaunchedSimulation, t]);
 
   return (
     <Box
@@ -2732,6 +2747,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onToggleFullscreen={() => setFullscreen(f => !f)}
         onExportPng={graphHasContent ? requestPngExport : undefined}
         exportingPng={exportingPng}
+        graphSimulationId={simulationId ?? undefined}
         searchOptions={searchOptions}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
@@ -2831,9 +2847,9 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Alert>
             )}
             {!loading && !chainLoading && !forbidden && !error && !graphHasContent && (
-            // The graph Paper already draws the outline, so the placeholder fills it WITHOUT its own
-            // dashed frame (bordered={false}) - otherwise the two concentric borders read as a
-            // "double border" in the zero-state.
+              // The graph Paper already draws the outline, so the placeholder fills it WITHOUT its own
+              // dashed frame (bordered={false}) - otherwise the two concentric borders read as a
+              // "double border" in the zero-state.
               <Box sx={{
                 position: 'absolute',
                 inset: 0,
@@ -2855,27 +2871,29 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               </Box>
             )}
             {!loading && !chainLoading && !forbidden && !error && graphHasContent && (
-              <AttackPathCanvas
-                nodes={nodes}
-                edges={graphEdges}
-                enterNodeIds={enterNodeIds}
-                onEndpointClick={onEndpointClick}
-                onClusterClick={onClusterClick}
-                onEndpointClusterClick={onEndpointClusterClick}
-                onFindingClusterClick={onFindingClusterClick}
-                onFindingSelect={onFindingSelect}
-                onInjectorSelect={onInjectorSelect}
-                onBackgroundClick={onCanvasBackgroundClick}
-                focusRequest={focusRequest}
-                fitRequest={fitNonce}
-                anchorRequest={anchorRequest}
-                pursuitRequest={pathFinding ? null : pursuitRequest}
-                pursuitActive={pursuitActive && !pathFinding}
-                showMiniMap={!pathFinding && nodes.length > 40}
-                legend={<AttackPathLegend collapseSignal={legendCollapseNonce} />}
-                exportRequest={exportNonce}
-                onExportDone={onPngExported}
-              />
+              <AttackPathLoggingContext value={showsLogging}>
+                <AttackPathCanvas
+                  nodes={nodes}
+                  edges={graphEdges}
+                  enterNodeIds={enterNodeIds}
+                  onEndpointClick={onEndpointClick}
+                  onClusterClick={onClusterClick}
+                  onEndpointClusterClick={onEndpointClusterClick}
+                  onFindingClusterClick={onFindingClusterClick}
+                  onFindingSelect={onFindingSelect}
+                  onInjectorSelect={onInjectorSelect}
+                  onBackgroundClick={onCanvasBackgroundClick}
+                  focusRequest={focusRequest}
+                  fitRequest={fitNonce}
+                  anchorRequest={anchorRequest}
+                  pursuitRequest={pathFinding ? null : pursuitRequest}
+                  pursuitActive={pursuitActive && !pathFinding}
+                  showMiniMap={!pathFinding && nodes.length > 40}
+                  legend={<AttackPathLegend collapseSignal={legendCollapseNonce} />}
+                  exportRequest={exportNonce}
+                  onExportDone={onPngExported}
+                />
+              </AttackPathLoggingContext>
             )}
           </Paper>
         )}
@@ -2917,27 +2935,29 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
               {/* Master→detail in a single drawer: while an execution detail is open it REPLACES the
                 endpoint/finding master panel (below), and its back arrow returns here. */}
               {findingDetail && !detailExecutionId && (
-                <FindingDetailPanel
-                  value={displayFindingValue(findingDetail.type, findingDetail.value)}
-                  type={findingDetail.type}
-                  simulationId={simulationId}
-                  endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
-                  endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
-                  endpointName={findingEndpoint?.hostname}
-                  expectations={findingExpectations}
-                  isFinding={findingDetailIsFinding}
-                  actions={producingActions}
-                  activeRef={detailExecutionId}
-                  onSelect={openExecutionDetail}
-                  onClose={() => {
+                <AttackPathLoggingContext value={showsLogging}>
+                  <FindingDetailPanel
+                    value={displayFindingValue(findingDetail.type, findingDetail.value)}
+                    type={findingDetail.type}
+                    simulationId={simulationId}
+                    endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}
+                    endpointSub={[findingEndpoint?.ip, findingEndpoint?.platform].filter(Boolean).join(' · ')}
+                    endpointName={findingEndpoint?.hostname}
+                    expectations={findingExpectations}
+                    isFinding={findingDetailIsFinding}
+                    actions={producingActions}
+                    activeRef={detailExecutionId}
+                    onSelect={openExecutionDetail}
+                    onClose={() => {
                     // Clicking a finding in the clustered view also selects its endpoint (to load the
                     // feed), so clear both here — otherwise closing the finding panel would just reveal
                     // the endpoint panel and look like it never closed.
-                    setFindingDetail(null);
-                    setSelectedNodeId(null);
-                    setDetailExecutionId(null);
-                  }}
-                />
+                      setFindingDetail(null);
+                      setSelectedNodeId(null);
+                      setDetailExecutionId(null);
+                    }}
+                  />
+                </AttackPathLoggingContext>
               )}
 
               {!findingDetail && selectedNodeId && !detailExecutionId && (
@@ -2961,7 +2981,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                     }
                   }}
                   onSelectExecution={openExecutionDetail}
-                  execStatusLabel={status => t(statusLabelKey(status))}
+                  execStatusLabel={status => t(statusLabelKey(status, showsLogging))}
                   onClose={() => {
                     setSelectedNodeId(null);
                     setDetailExecutionId(null);
@@ -2986,7 +3006,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   registerRow={() => {
                   }}
                   onSelectExecution={openExecutionDetail}
-                  execStatusLabel={status => t(statusLabelKey(status))}
+                  execStatusLabel={status => t(statusLabelKey(status, showsLogging))}
                   onClose={() => {
                     setSelectedInjectorId(null);
                     setInjectorExecutions([]);
@@ -3040,10 +3060,10 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                     setFindingDetail(null);
                   }}
                   onOpenInject={(detail as { injectId?: string } | null)?.injectId
-                  // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
-                  // at the scenario in scenario context (which has no such inject → 404). Always target the
-                  // selected simulation. A payload-backed inject opens on its Overview; a network injector
-                  // (no payload) opens straight on its Execution details, where its traces live.
+                    // The inject belongs to the run, not the scenario: a relative `../injects/…` would point
+                    // at the scenario in scenario context (which has no such inject → 404). Always target the
+                    // selected simulation. A payload-backed inject opens on its Overview; a network injector
+                    // (no payload) opens straight on its Execution details, where its traces live.
                     ? () => {
                         const d = detail as {
                           injectId?: string;

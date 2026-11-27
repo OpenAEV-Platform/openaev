@@ -32,6 +32,10 @@ public interface WorkflowScopeRuleRepository extends JpaRepository<WorkflowScope
    * RUN rules carry the immutable execution snapshots and must survive the referenced entity's
    * deletion so the DELETED_* change statuses can be derived (see ADR-006).
    *
+   * <p>The workflow status is matched through a sub-select on the foreign key, not the implicit
+   * join {@code rule.workflow.status}: Hibernate renders that join in a bulk delete as {@code
+   * exists(select 1 from (values(0)) ...)}, a shape the tenant statement inspector refuses.
+   *
    * @param ruleValue the deleted entity id
    * @param valueType the value type identifying which kind of entity the id refers to
    * @param workflowStatus the workflow lifecycle stage whose rules may be removed (TEMPLATE)
@@ -40,7 +44,8 @@ public interface WorkflowScopeRuleRepository extends JpaRepository<WorkflowScope
   @Modifying
   @Query(
       "delete from WorkflowScopeRule rule where rule.ruleValue = :ruleValue and rule.valueType = :valueType"
-          + " and rule.workflow.status = :workflowStatus")
+          + " and rule.workflow.id in"
+          + " (select workflow.id from Workflow workflow where workflow.status = :workflowStatus)")
   int deleteByRuleValueAndValueTypeAndWorkflowStatus(
       @Param("ruleValue") String ruleValue,
       @Param("valueType") ScopeRuleValueType valueType,

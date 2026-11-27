@@ -12,12 +12,14 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +58,7 @@ class InjectCallbackContractTest {
   @Mock private InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   private InjectExecutionService injectExecutionService;
   private BatchingInjectStatusService batchingService;
@@ -68,6 +71,9 @@ class InjectCallbackContractTest {
   @BeforeEach
   void setUp() throws Exception {
     lenient().when(injectService.getValueTargetedAssetMap(any())).thenReturn(Map.of());
+    lenient()
+        .when(injectStatusService.updateInjectStatus(any(), any(), any(), any()))
+        .thenReturn(ExecutionTrace.getNewInfoTrace("trace", ExecutionTraceAction.EXECUTION));
     lenient()
         .doReturn(Optional.empty())
         .when(agentExecutionProcessingHandler)
@@ -92,7 +98,11 @@ class InjectCallbackContractTest {
     // Can't use @InjectMocks: batchingService needs the spy, not a plain mock
     batchingService =
         new BatchingInjectStatusService(
-            injectRepository, agentRepository, injectExecutionService, tenantTx);
+            injectRepository,
+            agentRepository,
+            injectExecutionService,
+            workflowUpdateEventPublisher,
+            tenantTx);
     batchingService.setInjectTraceQueueService(injectTraceQueueService);
 
     // The batch path now scopes each callback under its inject's tenant. Resolve every inject to a
@@ -112,6 +122,11 @@ class InjectCallbackContractTest {
             })
         .when(tenantTx)
         .execute(any(), any(Runnable.class));
+    // The owners of the batch's injects are read through the primitive's returning overload.
+    lenient()
+        .doAnswer(invocation -> invocation.getArgument(1, Supplier.class).get())
+        .when(tenantTx)
+        .execute(any(), any(Supplier.class));
   }
 
   private CallbackInvoker syncInvoker() {

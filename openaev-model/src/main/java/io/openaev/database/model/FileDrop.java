@@ -3,7 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.Hashed;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -16,14 +16,15 @@ import lombok.EqualsAndHashCode;
 @Data
 @Entity
 @DiscriminatorValue(FileDrop.FILE_DROP_TYPE)
-@EntityListeners(ModelBaseListener.class)
 public class FileDrop extends Payload {
 
   public static final String FILE_DROP_TYPE = "FileDrop";
 
+  @Hashed
   @JsonProperty("payload_type")
   private String type = FILE_DROP_TYPE;
 
+  @Hashed(change = Hashed.Change.MINOR)
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "file_drop_file")
   @JsonSerialize(using = MonoIdSerializer.class)

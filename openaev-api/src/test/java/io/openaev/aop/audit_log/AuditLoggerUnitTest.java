@@ -121,7 +121,6 @@ class AuditLoggerUnitTest {
                       "team-1",
                       null,
                       null,
-                      null,
                       null))
           .isInstanceOf(AuditLogFailureException.class);
       verify(shutdownService).initiateShutdown();
@@ -144,7 +143,6 @@ class AuditLoggerUnitTest {
                       "team-2",
                       null,
                       null,
-                      null,
                       null))
           .isInstanceOf(AuditLogFailureException.class);
       verify(shutdownService).initiateShutdown();
@@ -164,7 +162,6 @@ class AuditLoggerUnitTest {
               EventStatus.SUCCESS,
               ResourceType.TEAM,
               "team-3",
-              null,
               null,
               null,
               null);
@@ -195,7 +192,6 @@ class AuditLoggerUnitTest {
               EventStatus.ERROR,
               ResourceType.TEAM,
               "team-4",
-              null,
               null,
               null,
               null);

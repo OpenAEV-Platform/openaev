@@ -25,6 +25,7 @@ import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.service.LogService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -59,6 +60,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
 
   private static final String PAYLOAD_URI = "/api/payloads";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -99,9 +101,10 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // Arrange
       // Register built-in injector under the active mock user context for deterministic tenant
       // scope.
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(
-          TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
@@ -137,6 +140,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // 2) Create atomic testing linked to the previously created payload.
       AtomicTestingInput atomicCreateInput = InjectFixture.createAtomicTesting(injectTitle, null);
       atomicCreateInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(atomicCreateInput);
 
       String atomicCreateResponse =
           mvc.perform(
@@ -155,6 +159,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       AtomicTestingInput addAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       addAssetsInput.setAssets(List.of(assetId));
       addAssetsInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(addAssetsInput);
 
       mvc.perform(
               put(AtomicTestingApi.ATOMIC_TESTING_URI + "/" + atomicTestingId)
@@ -167,6 +172,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       AtomicTestingInput removeAssetsInput = InjectFixture.createAtomicTesting(injectTitle, null);
       removeAssetsInput.setAssets(List.of());
       removeAssetsInput.getContent().put("payload_id", payloadId);
+      fillMandatoryEmailFields(removeAssetsInput);
 
       mvc.perform(
               put(AtomicTestingApi.ATOMIC_TESTING_URI + "/" + atomicTestingId)
@@ -269,6 +275,13 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       assertThat(resolveParentLink(addAssetEvent)).isEqualTo(atomicTestingId);
       assertThat(resolveParentLink(removeAssetEvent)).isEqualTo(atomicTestingId);
     }
+  }
+
+  // The launch gate refuses an atomic testing whose mandatory contract fields are empty: the
+  // email contract of the fixture requires a subject and a body.
+  private static void fillMandatoryEmailFields(AtomicTestingInput input) {
+    input.getContent().put("subject", "audit lifecycle subject");
+    input.getContent().put("body", "audit lifecycle body");
   }
 
   // Returns the first event matching the predicate, or fails with a clear missing-event message.

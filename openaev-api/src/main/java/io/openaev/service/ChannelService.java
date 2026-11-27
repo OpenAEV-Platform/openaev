@@ -2,19 +2,22 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildMediaPressureUpdateInput;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildMediaPressureVerdict;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasNoResults;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
-import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.rest.channel.model.VirtualArticle;
 import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,7 +33,7 @@ import org.springframework.stereotype.Service;
 public class ChannelService {
 
   private final InjectExpectationService injectExpectationService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioService scenarioService;
   private final ArticleRepository articleRepository;
   private final ChannelRepository channelRepository;
@@ -58,22 +61,22 @@ public class ChannelService {
   }
 
   /**
-   * @param tenantId resolved by the caller (API layer), not read from TenantContext here.
+   * @param ctx the request's tenant scope, in which the simulation or scenario is looked up
    */
   public ChannelReader validateArticles(
-      String exerciseId, String channelId, User user, @NotBlank final String tenantId) {
+      @NotNull final TxCtx ctx, String exerciseId, String channelId, User user) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
-    Optional<Exercise> exerciseOpt = exerciseRepository.findByIdAndTenantId(exerciseId, tenantId);
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
       injects = exercise.getInjects();
     } else {
-      Scenario scenario = this.scenarioService.scenario(exerciseId);
+      Scenario scenario = this.scenarioService.scenario(ctx, exerciseId);
       channelReader = new ChannelReader(channel, scenario);
       injects = scenario.getInjects();
     }
@@ -129,26 +132,39 @@ public class ChannelService {
               expectation ->
                   injectExpectationService.updateInjectExpectation(
                       expectation.getId(),
-                      buildMediaPressureUpdateInput(expectation.getExpectedScore())));
+                      buildMediaPressureVerdict(expectation.getExpectedScore())));
     }
-    return withDocumentLinksInitialized(channelReader);
+    return withLinksInitialized(channelReader);
   }
 
   /**
-   * Initializes the lazy document links the reader serializes ({@code article_documents} on every
-   * article, {@code exercise_documents} or {@code scenario_documents} on the parent) inside the
-   * caller's tenant-scoped transaction. The reader holds raw entities, so those collections are
-   * otherwise loaded open-in-view after the transaction commits, where the tenant scope is gone:
-   * with {@code documents} tenant-active the loads fail closed to empty arrays and the channel
-   * pages lose their media with no error. One statement per article, bounded by the articles of one
-   * channel in one simulation or scenario.
+   * Initializes the lazy links the reader serializes inside the caller's tenant-scoped transaction:
+   * the associations of the simulation or scenario ({@link ExerciseResponseHydrator}, {@link
+   * ScenarioResponseHydrator}), the players of its teams and the {@code article_documents} of every
+   * article. The reader holds raw entities, so those collections are otherwise loaded open-in-view
+   * after the transaction commits, where the tenant scope is gone: every one of them reads a tenant
+   * table and serializes as an empty array with no error.
+   *
+   * <p>The player list is the distinct users of the {@code teamUsers} rows. Each user is a lazy
+   * proxy, and the serializer's distinct reads its hash code, which loads the user and its eager
+   * {@code groups}, a tenant table. Initializing every player proxy here runs that load in the
+   * scope. The articles cost one statement each, bounded by the articles of one channel in one
+   * simulation or scenario.
    */
-  public ChannelReader withDocumentLinksInitialized(ChannelReader channelReader) {
+  public ChannelReader withLinksInitialized(ChannelReader channelReader) {
     if (channelReader.getExercise() != null) {
-      Hibernate.initialize(channelReader.getExercise().getDocuments());
+      ExerciseResponseHydrator.hydrateForResponse(channelReader.getExercise());
+      channelReader
+          .getExercise()
+          .getTeamUsers()
+          .forEach(teamUser -> Hibernate.initialize(teamUser.getUser()));
     }
     if (channelReader.getScenario() != null) {
-      Hibernate.initialize(channelReader.getScenario().getDocuments());
+      ScenarioResponseHydrator.hydrateForResponse(channelReader.getScenario());
+      channelReader
+          .getScenario()
+          .getTeamUsers()
+          .forEach(teamUser -> Hibernate.initialize(teamUser.getUser()));
     }
     channelReader
         .getChannelArticles()

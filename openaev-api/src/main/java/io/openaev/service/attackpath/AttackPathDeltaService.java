@@ -231,7 +231,8 @@ public class AttackPathDeltaService {
         executionRepository.findEndpointGroupsByTargetKeys(simulationId, affectedEndpoints)) {
       AttackPathNodeDTO node = nodesById.get(AttackPathIds.endpointNode(row.targetKey()));
       if (node != null) {
-        node.setStatus(graphService.collapsedColour(row.redCount(), row.orangeCount()));
+        node.setStatus(
+            graphService.collapsedColour(row.redCount(), row.yellowCount(), row.orangeCount()));
       }
     }
 

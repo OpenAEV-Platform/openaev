@@ -11,13 +11,14 @@ import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../ut
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/TargetUtils';
-import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
 import TargetResultsHeader from './TargetResultsHeader';
+import { compareTargetResultTypes } from './targetResultsSteps';
 import TargetResultsTimeline from './TargetResultsTimeline';
 
 interface Props {
@@ -68,7 +69,7 @@ const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onS
 
     const sortedGroupedResults: Record<string, InjectExpectationsStore[]> = {};
     Object.keys(groupedByType)
-      .toSorted((a, b) => Object.keys(ExpectationType).indexOf(a as ExpectationResultType) - Object.keys(ExpectationType).indexOf(b as ExpectationResultType))
+      .toSorted(compareTargetResultTypes)
       .forEach((key) => {
         sortedGroupedResults[key] = groupedByType[key].toSorted((a, b) => {
           // Contract-declared order first (e.g. phishing: email -> link -> submission);

@@ -16,6 +16,7 @@ import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.document.DocumentService;
@@ -28,12 +29,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -308,15 +307,19 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     // makes: TokenAuthenticationFilter accepts "Bearer <plain token>" statelessly, and since the
     // fresh context carries no cookies these requests are also CSRF-exempt. The token therefore
     // never appears in the URL (and thus never in access logs).
+    // It is NOT set as a context-wide extra HTTP header: that would replay it to every host the
+    // page loads a resource from (e.g. a tenant-controlled logo url). The egress guard attaches it
+    // to requests to the platform's own origin only.
+    String trustedAuthorization = "Bearer " + job.tokenValue();
     Browser.NewContextOptions contextOptions =
         new Browser.NewContextOptions()
-            .setExtraHTTPHeaders(Map.of("Authorization", "Bearer " + job.tokenValue()))
             .setViewportSize(1280, 900)
             // Loopback TLS uses the bundled self-signed certificate
             .setIgnoreHTTPSErrors(this.sslEnabled);
     String url = buildRenderUrl(job);
     return this.browserPoolService.withContext(
         contextOptions,
+        trustedAuthorization,
         context -> {
           context.setDefaultTimeout(this.renderTimeoutMs);
           Page page = context.newPage();
@@ -478,7 +481,8 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
             + "."
             + output.extension();
     // Same content-addressed target scheme as DocumentService.upsert
-    String target = DigestUtils.md5Hex(output.bytes()) + "." + output.extension();
+    FileFingerprint fingerprint = FileFingerprint.of(output.bytes(), output.extension());
+    String target = fingerprint.storageName();
     String tenantId = job.tenantId();
     // Attribute the row and store the object under the generation's tenant, captured on the request
     // thread before dispatch. A persisted generation always carries a tenant
@@ -493,7 +497,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     Document document = new Document();
     document.setTenant(new Tenant(tenantId));
     document.setName(fileName);
-    document.setTarget(target);
+    document.describeFile(fingerprint);
     document.setType(output.contentType());
     document.setDescription("Generated report of reporting template: " + job.reportingName());
     // documents is v2-active: the write goes through the statement inspector, which TenantContext

@@ -15,7 +15,7 @@ import lombok.Data;
  * Group-wide summary of a finding, deduplicated across every occurrence sharing the same (type,
  * value) in the tenant. Unlike a single {@code Finding} row (one occurrence per inject), the dates
  * and counts here span the whole group, so the finding overview hero shows the true first/last seen
- * and the real impact spread (assets, teams, persons, asset groups).
+ * and the real impact spread (assets, teams, persons).
  */
 @Data
 @Builder
@@ -58,8 +58,4 @@ public class FindingSummaryOutput {
   @Schema(description = "Number of distinct impacted persons across all occurrences")
   @JsonProperty("finding_users_count")
   private long usersCount;
-
-  @Schema(description = "Number of distinct impacted asset groups across all occurrences")
-  @JsonProperty("finding_asset_groups_count")
-  private long assetGroupsCount;
 }

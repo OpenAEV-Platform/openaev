@@ -399,15 +399,15 @@ classDiagram
     MarkingScopeResolver --> MarkingCtx
 
     note for ScopeStatementInspector "This is the class responsible for all SQL rewrite. \nHanding both dimention Tenant and Marking filtering at READ"
-    style ScopeStatementInspector fill:#fff59d,stroke:#b28900
-    style ScopeDimension fill:#fff59d,stroke:#b28900
-    style TenantDimension fill:#fff59d,stroke:#b28900
-    style MarkingDimension fill:#fff59d,stroke:#b28900
-    style TenantScopeTransactionAspect fill:#fff59d,stroke:#b28900
-    style ScopeCtx fill:#fff59d,stroke:#b28900
-    style MarkingCtx fill:#fff59d,stroke:#b28900
-    style MarkingClearanceCache fill:#fff59d,stroke:#b28900
-    style MarkingScopeResolver fill:#fff59d,stroke:#b28900
+    style ScopeStatementInspector fill:#fff59d,stroke:#b28900,color:#000
+    style ScopeDimension fill:#fff59d,stroke:#b28900,color:#000
+    style TenantDimension fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingDimension fill:#fff59d,stroke:#b28900,color:#000
+    style TenantScopeTransactionAspect fill:#fff59d,stroke:#b28900,color:#000
+    style ScopeCtx fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingCtx fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingClearanceCache fill:#fff59d,stroke:#b28900,color:#000
+    style MarkingScopeResolver fill:#fff59d,stroke:#b28900,color:#000
 ```
 
 The `ScopeDimension` interface is the whole generalization: the inspector stops knowing *what* a tenant or
@@ -567,7 +567,7 @@ looks wrong at first glance but is actually the mechanism behaving exactly as de
 
 ### ❓ 6.1 The service account (agent/implant) has no marking clearance of its own
 
-`ServiceAccountPrivilegeService` provisions one well-known account per tenant
+`AgentServiceAccountPrivilegeService` provisions one well-known account per tenant
 (`service-{tenantId}@openaev.invalid`), carrying only the `Service integration` role
 (`Capability.AGENT_RUNTIME_ACCESS`, `Capability.ACCESS_DOCUMENTS`). It is not admin, has no
 `BYPASS`, and — critically — its group has no `groups_markings` grant. Under

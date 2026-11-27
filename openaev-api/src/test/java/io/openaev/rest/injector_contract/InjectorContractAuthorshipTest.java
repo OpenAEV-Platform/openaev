@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -11,7 +12,9 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Organization;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.model.author.Authored;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -22,6 +25,7 @@ import io.openaev.rest.inject.service.InjectIndexCleanupService;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.organization.OrganizationService;
@@ -60,6 +64,7 @@ class InjectorContractAuthorshipTest {
   @Mock private DomainService domainService;
   @Mock private InjectorRepository injectorRepository;
   @Mock private UserService userService;
+  @Mock private AuthorService authorService;
   @Mock private AttackPatternRepository attackPatternRepository;
   @Mock private TagRepository tagRepository;
   @Mock private InjectorService injectorService;
@@ -96,7 +101,13 @@ class InjectorContractAuthorshipTest {
     lenient()
         .when(organizationService.findOrCreateByName(PUBLISHER, TENANT_ID))
         .thenReturn(publisherOrganization);
-    lenient().when(userService.currentUser()).thenReturn(sessionUser);
+    lenient()
+        .when(authorService.authorByCurrentUser(any()))
+        .thenAnswer(
+            invocation -> {
+              invocation.<Authored>getArgument(0).setAuthorUser(sessionUser);
+              return true;
+            });
   }
 
   @AfterEach
@@ -178,6 +189,7 @@ class InjectorContractAuthorshipTest {
     private InjectorContract existingContract(String externalId, User authorUser) {
       InjectorContract contract = new InjectorContract();
       contract.setId("contract-1");
+      contract.setTenant(new Tenant(TENANT_ID));
       contract.setExternalId(externalId);
       contract.setAuthorUser(authorUser);
       contract.addInjector(injector);
@@ -185,7 +197,7 @@ class InjectorContractAuthorshipTest {
           .when(injectorContractRepository.findByIdOrExternalId(anyString(), anyString()))
           .thenReturn(Optional.of(contract));
       lenient()
-          .when(attackPatternService.findAllByInternalIdsThrowIfMissing(any()))
+          .when(attackPatternService.findAllByInternalIdsThrowIfMissing(any(), eq(TENANT_ID)))
           .thenReturn(new ArrayList<>());
       return contract;
     }

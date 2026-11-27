@@ -9,6 +9,7 @@ import { type Team } from '../../../../../utils/api-types';
 import { truncate } from '../../../../../utils/String';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import InjectIcon from '../../../common/injects/InjectIcon';
+import { injectIconType } from '../../../common/injects/injectIconType';
 import { formatOffset } from './executionTime';
 
 const AXIS_HEIGHT = 26;
@@ -283,12 +284,7 @@ const AttackTimeline: FunctionComponent<Props> = ({
                     <InjectIcon
                       key={inject.inject_id}
                       isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
-                      type={
-                        inject.inject_injector_contract?.injector_contract_payload
-                          ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
-                          || inject.inject_injector_contract.injector_contract_payload?.payload_type
-                          : inject.inject_type
-                      }
+                      type={injectIconType(inject)}
                       onClick={() => onSelectInject(inject.inject_id)}
                       done={inject.inject_status !== null}
                       disabled={!inject.inject_enabled}

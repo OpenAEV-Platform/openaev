@@ -71,6 +71,18 @@ public enum ContractFieldType {
   @JsonProperty("asset-group")
   AssetGroup("asset-group"),
 
+  /**
+   * Asset group reference field: a searchable asset group picker whose selected id(s) are stored in
+   * the inject content under the field key. Unlike {@link #AssetGroup} it does not target the
+   * inject.
+   */
+  @JsonProperty("asset-group-reference")
+  AssetGroupReference("asset-group-reference"),
+
+  /** Tag selector field, storing the selected tag ids in the inject content. */
+  @JsonProperty("tags")
+  Tags("tags"),
+
   /** AI target selector field (LLM endpoint / AI agent under adversarial test). */
   @JsonProperty("ai-target")
   AiTarget("ai-target"),
@@ -81,7 +93,15 @@ public enum ContractFieldType {
 
   /** Targeted asset selector with property selection. */
   @JsonProperty("targeted-asset")
-  TargetedAsset("targeted-asset");
+  TargetedAsset("targeted-asset"),
+
+  /** Document selector field (a payload argument of type document), storing the document id. */
+  @JsonProperty("document")
+  Document("document"),
+
+  /** Credential reference field. */
+  @JsonProperty("credential-reference")
+  CredentialReference("credential-reference");
 
   /** The JSON/UI label for this field type. */
   public final String label;

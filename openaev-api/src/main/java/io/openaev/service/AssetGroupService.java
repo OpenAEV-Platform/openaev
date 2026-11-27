@@ -20,6 +20,10 @@ import io.openaev.schema.SchemaUtils;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
@@ -36,7 +40,10 @@ import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
-public class AssetGroupService {
+public class AssetGroupService implements AssetGroupMembershipResolver {
+
+  /** Asset ids per membership query, under the bind parameter limit of the driver. */
+  private static final int MEMBERSHIP_CHUNK = 1000;
 
   private final AssetGroupRepository assetGroupRepository;
   private final AssetService assetService;
@@ -44,6 +51,8 @@ public class AssetGroupService {
   private final TagRuleService tagRuleService;
   private final AssetGroupMapper assetGroupMapper;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  @PersistenceContext private EntityManager entityManager;
 
   /**
    * Builds the owning tenant reference, refusing a blank one loudly.
@@ -87,6 +96,14 @@ public class AssetGroupService {
   public List<AssetGroup> assetGroups(@NotNull final List<String> assetGroupIds) {
     List<AssetGroup> assetGroups =
         fromIterable(this.assetGroupRepository.findAllById(assetGroupIds));
+    return computeDynamicAssets(assetGroups);
+  }
+
+  /** The asset groups among the given ids that belong to the given tenant. */
+  public List<AssetGroup> assetGroups(
+      @NotNull final List<String> assetGroupIds, @NotBlank final String tenantId) {
+    List<AssetGroup> assetGroups =
+        this.assetGroupRepository.findAllByIdInTenant(assetGroupIds, tenantId);
     return computeDynamicAssets(assetGroups);
   }
 
@@ -164,6 +181,17 @@ public class AssetGroupService {
         .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
   }
 
+  /** The asset groups of the given tenants, by name. Dynamic members are not computed. */
+  public List<AssetGroup> assetGroupsOfTenants(@NotNull final Collection<String> tenantIds) {
+    return this.assetGroupRepository.findAllByTenantIdInOrderByNameAsc(tenantIds);
+  }
+
+  /** One asset group of the given tenants. Dynamic members are not computed. */
+  public Optional<AssetGroup> assetGroupOfTenants(
+      @NotBlank final String assetGroupId, @NotNull final Collection<String> tenantIds) {
+    return this.assetGroupRepository.findByIdAndTenantIdIn(assetGroupId, tenantIds);
+  }
+
   public Optional<AssetGroup> findByExternalReference(String externalReference, String tenantId) {
     return this.assetGroupRepository.findByExternalReferenceAndTenantId(
         externalReference, tenantId);
@@ -177,7 +205,8 @@ public class AssetGroupService {
 
   public AssetGroup updateAssetsOnAssetGroup(
       @NotNull final AssetGroup assetGroup, @NotNull final List<String> assetIds) {
-    Iterable<Asset> assets = this.assetService.assetFromIds(assetIds);
+    Iterable<Asset> assets =
+        this.assetService.assetFromIds(assetIds, assetGroup.getTenant().getId());
     assetGroup.setAssets(fromIterable(assets));
     assetGroup.setUpdatedAt(now());
     AssetGroup assetGroupUpdated = this.assetGroupRepository.save(assetGroup);
@@ -259,6 +288,20 @@ public class AssetGroupService {
   }
 
   /**
+   * Same as {@link #assetsFromAssetGroup(String)} for a group of the given tenant: a group of
+   * another tenant is an unknown id.
+   */
+  @Transactional(readOnly = true)
+  public List<Asset> assetsFromAssetGroup(
+      @NotBlank final String assetGroupId, @NotBlank final String tenantId) {
+    return this.assetGroupRepository.findAllByIdInTenant(List.of(assetGroupId), tenantId).stream()
+        .findFirst()
+        .map(this::computeDynamicAssets)
+        .map(this::assetsFromAssetGroup)
+        .orElseThrow(() -> new ElementNotFoundException("Asset group not found: " + assetGroupId));
+  }
+
+  /**
    * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
    * resolved - avoids re-running the (potentially expensive) dynamic resolution.
    */
@@ -295,6 +338,108 @@ public class AssetGroupService {
     return new ArrayList<>(assetGroupsById.values());
   }
 
+  /**
+   * The asset groups that contain at least one of the given assets, static and dynamic: the asset
+   * groups of a finding are those of its assets (see {@link AssetGroupMembershipResolver}).
+   */
+  @Transactional(readOnly = true)
+  public List<AssetGroup> assetGroupsOfAssets(@NotNull final Collection<String> assetIds) {
+    Set<String> groupIds =
+        membershipsOfAssets(assetIds).values().stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    if (groupIds.isEmpty()) {
+      return List.of();
+    }
+    return fromIterable(this.assetGroupRepository.findAllById(groupIds));
+  }
+
+  /**
+   * Static membership from {@code asset_groups_assets}, dynamic membership from each dynamic
+   * group's filter, constrained to the given ids and to the group's tenant. One query per dynamic
+   * group and chunk of ids, whatever the number of assets, so an indexing batch never resolves the
+   * full member list of a group.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> assetGroupIdsByAssetId(final Collection<String> assetIds) {
+    return membershipsOfAssets(assetIds);
+  }
+
+  /**
+   * The body of {@link #assetGroupIdsByAssetId(Collection)}, run inside the caller's transaction so
+   * a method of this class never calls a {@code @Transactional} method of its own.
+   */
+  private Map<String, Set<String>> membershipsOfAssets(final Collection<String> assetIds) {
+    Map<String, Set<String>> groupsByAsset = new HashMap<>();
+    if (assetIds == null || assetIds.isEmpty()) {
+      return groupsByAsset;
+    }
+    List<List<String>> chunks = chunks(new ArrayList<>(new LinkedHashSet<>(assetIds)));
+    chunks.forEach(
+        chunk ->
+            this.assetGroupRepository
+                .findStaticMembershipsOfAssets(chunk)
+                .forEach(row -> addMembership(groupsByAsset, (String) row[0], (String) row[1])));
+    List<AssetGroup> dynamicGroups =
+        fromIterable(this.assetGroupRepository.findAll()).stream()
+            .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
+            .toList();
+    for (AssetGroup group : dynamicGroups) {
+      for (List<String> chunk : chunks) {
+        dynamicMembersAmong(group, chunk)
+            .forEach(assetId -> addMembership(groupsByAsset, assetId, group.getId()));
+      }
+    }
+    return groupsByAsset;
+  }
+
+  private static void addMembership(
+      Map<String, Set<String>> groupsByAsset, String assetId, String groupId) {
+    groupsByAsset.computeIfAbsent(assetId, id -> new HashSet<>()).add(groupId);
+  }
+
+  private static List<List<String>> chunks(List<String> ids) {
+    List<List<String>> chunks = new ArrayList<>();
+    for (int start = 0; start < ids.size(); start += MEMBERSHIP_CHUNK) {
+      chunks.add(ids.subList(start, Math.min(ids.size(), start + MEMBERSHIP_CHUNK)));
+    }
+    return chunks;
+  }
+
+  /**
+   * The ids among {@code assetIds} that the group's dynamic filter matches: the same rules as
+   * {@link #computeDynamicAssets(AssetGroup)} (injectable or agentless endpoints, and non-endpoint
+   * assets when the filter keys apply to them), within the group's tenant.
+   */
+  private Set<String> dynamicMembersAmong(
+      final AssetGroup group, final Collection<String> assetIds) {
+    Set<String> members = new HashSet<>();
+    Specification<Endpoint> endpointFilter = computeFilterGroupJpa(group.getDynamicFilter());
+    Specification<Endpoint> endpointIdIn = (root, query, cb) -> root.get("id").in(assetIds);
+    this.endpointService
+        .endpoints(
+            endpointFilter
+                .and(endpointsOfTenantOf(group))
+                .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+                .and(endpointIdIn))
+        .forEach(endpoint -> members.add(endpoint.getId()));
+    if (isFilterResolvableForBaseAssets(group.getDynamicFilter())) {
+      String tenantId = group.getTenant().getId();
+      Specification<Asset> assetFilter = computeFilterGroupJpa(group.getDynamicFilter());
+      Specification<Asset> nonEndpointOfTenant =
+          (root, query, cb) ->
+              cb.and(
+                  cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE),
+                  cb.equal(root.get("tenant").get("id"), tenantId),
+                  root.get("id").in(assetIds));
+      this.assetService
+          .assets(assetFilter.and(nonEndpointOfTenant))
+          .forEach(asset -> members.add(asset.getId()));
+    }
+    return members;
+  }
+
   /** True when the group's dynamic filter matches the given asset (id-constrained query). */
   public boolean isAssetInDynamicGroup(
       @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
@@ -303,6 +448,7 @@ public class AssetGroupService {
           computeFilterGroupJpa(assetGroup.getDynamicFilter());
       Specification<Endpoint> specification =
           filterSpecification
+              .and(endpointsOfTenantOf(assetGroup))
               .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
               .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
       return !this.endpointService.endpoints(specification).isEmpty();
@@ -318,6 +464,15 @@ public class AssetGroupService {
     return !this.assetService.assets(specification).isEmpty();
   }
 
+  /**
+   * Restricts a dynamic filter to the endpoints of the tenant that owns the group. The request or
+   * job scope can span several tenants, and a filter alone matches the endpoints of all of them.
+   */
+  private static Specification<Endpoint> endpointsOfTenantOf(final AssetGroup assetGroup) {
+    String tenantId = assetGroup.getTenant().getId();
+    return (root, query, cb) -> cb.equal(root.get("tenant").get("id"), tenantId);
+  }
+
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
     if (assetGroups.stream()
         .allMatch(assetGroup -> isEmptyFilterGroup(assetGroup.getDynamicFilter()))) {
@@ -327,8 +482,10 @@ public class AssetGroupService {
     assetGroups.forEach(
         assetGroup -> {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-            Specification<Endpoint> specification =
+            Specification<Endpoint> filterSpecification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
+            Specification<Endpoint> specification =
+                filterSpecification.and(endpointsOfTenantOf(assetGroup));
             List<Asset> assets = new ArrayList<>();
             this.endpointService.endpoints(specification).stream()
                 .map(Asset.class::cast)
@@ -340,11 +497,85 @@ public class AssetGroupService {
     return assetGroups;
   }
 
+  /**
+   * The ids of the assets a group's dynamic filter matches, selected as ids only: no asset entity,
+   * endpoint agent or relation is loaded. Same rules as {@link #computeDynamicAssets(AssetGroup)}
+   * (injectable or agentless endpoints, and non-endpoint assets when the filter keys apply to
+   * them), within the group's tenant. Empty for a group without a dynamic filter.
+   */
+  @Transactional(readOnly = true)
+  public Set<String> dynamicAssetIds(@NotNull final AssetGroup assetGroup) {
+    return dynamicAssetIdsOf(assetGroup);
+  }
+
+  /**
+   * Body of {@link #dynamicAssetIds(AssetGroup)}, callable from another method of this class
+   * without self-invoking a {@code @Transactional} method (the caller's transaction applies).
+   */
+  private Set<String> dynamicAssetIdsOf(final AssetGroup assetGroup) {
+    if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
+      return Set.of();
+    }
+    Specification<Endpoint> endpointFilter = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Set<String> ids =
+        new LinkedHashSet<>(
+            idsOf(
+                Endpoint.class,
+                endpointFilter
+                    .and(endpointsOfTenantOf(assetGroup))
+                    .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())));
+    if (isFilterResolvableForBaseAssets(assetGroup.getDynamicFilter())) {
+      String tenantId = assetGroup.getTenant().getId();
+      Specification<Asset> assetFilter = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+      Specification<Asset> nonEndpointOfTenant =
+          (root, query, cb) ->
+              cb.and(
+                  cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE),
+                  cb.equal(root.get("tenant").get("id"), tenantId));
+      ids.addAll(idsOf(Asset.class, assetFilter.and(nonEndpointOfTenant)));
+    }
+    return ids;
+  }
+
+  /**
+   * The ids of every member of the given groups, static (listed in the group) and dynamic (matched
+   * by the group's filter, same rules as {@link #dynamicAssetIds(AssetGroup)}). An unknown or
+   * out-of-scope group id contributes nothing.
+   */
+  @Transactional(readOnly = true)
+  public Set<String> memberAssetIds(@NotNull final Collection<String> assetGroupIds) {
+    Set<String> ids = new LinkedHashSet<>();
+    if (assetGroupIds.isEmpty()) {
+      return ids;
+    }
+    for (AssetGroup group : this.assetGroupRepository.findAllById(assetGroupIds)) {
+      group.getAssets().forEach(asset -> ids.add(asset.getId()));
+      ids.addAll(dynamicAssetIdsOf(group));
+    }
+    return ids;
+  }
+
+  /** The ids of the rows of {@code type} the specification selects, without loading the rows. */
+  private <T> List<String> idsOf(final Class<T> type, final Specification<T> specification) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<String> query = cb.createQuery(String.class);
+    jakarta.persistence.criteria.Root<T> root = query.from(type);
+    jakarta.persistence.criteria.Predicate predicate = specification.toPredicate(root, query, cb);
+    query.select(root.<String>get("id"));
+    if (predicate != null) {
+      query.where(predicate);
+    }
+    return entityManager.createQuery(query).getResultList();
+  }
+
   public AssetGroup computeDynamicAssets(@NotNull final AssetGroup assetGroup) {
     if (isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
       return assetGroup;
     }
-    Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> filterSpecification =
+        computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Endpoint> specification =
+        filterSpecification.and(endpointsOfTenantOf(assetGroup));
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
     List<Asset> assets = new ArrayList<>();

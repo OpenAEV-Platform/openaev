@@ -82,7 +82,7 @@ class CatalogConnectorApiTenantIsolationTest extends IntegrationTest {
     try {
       ConnectorInstancePersisted instance =
           connectorInstanceComposer
-              .forConnectorInstance(createDefaultConnectorInstance())
+              .forConnectorInstance(createDefaultConnectorInstance(tenantId))
               .withCatalogConnector(catalogConnectorComposer.forCatalogConnector(catalogConnector))
               .withConnectorInstanceConfiguration(
                   connectorInstanceConfigurationComposer.forConnectorInstanceConfiguration(

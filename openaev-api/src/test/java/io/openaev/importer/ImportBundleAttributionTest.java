@@ -626,6 +626,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
       byte[] zip =
           declareTenantOnEveryResource(export, domainName, attackPattern.getExternalId(), tenantC);
       Map<String, Long> before = rowsOutsideTenant(tenantB);
+      onlyTenantKeepsPayloadInjectors(tenantB);
 
       // Act
       mvc.perform(
@@ -944,10 +945,12 @@ class ImportBundleAttributionTest extends IntegrationTest {
 
     private String seedCommandRow(String tenantId) {
       String id = UUID.randomUUID().toString();
+      seedIdentityRow(id, tenantId);
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-                  + " VALUES (:id, 'Command', :name, :tenant)")
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id,"
+                  + " payload_identity, payload_version)"
+                  + " VALUES (:id, 'Command', :name, :tenant, :id, '1.0.0')")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-command-" + id)
           .setParameter("tenant", tenantId)
@@ -969,12 +972,24 @@ class ImportBundleAttributionTest extends IntegrationTest {
       return id;
     }
 
+    private void seedIdentityRow(String id, String tenantId) {
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+                  + " VALUES (:id, :tenant, 'MANUAL')")
+          .setParameter("id", id)
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+    }
+
     private String seedFileDropRow(String tenantId, String documentId) {
       String id = UUID.randomUUID().toString();
+      seedIdentityRow(id, tenantId);
       entityManager
           .createNativeQuery(
               "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file,"
-                  + " tenant_id) VALUES (:id, 'FileDrop', :name, :document, :tenant)")
+                  + " tenant_id, payload_identity, payload_version)"
+                  + " VALUES (:id, 'FileDrop', :name, :document, :tenant, :id, '1.0.0')")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-payload-" + id)
           .setParameter("document", documentId)
@@ -1094,6 +1109,32 @@ class ImportBundleAttributionTest extends IntegrationTest {
       }
       return false;
     }
+  }
+
+  /**
+   * {@code injectors} is not armed in this class, so the import's lookup of payload-capable
+   * injectors reads the built-in implant of every tenant the database holds (each earlier test of
+   * the class leaves its own tenant), in heap order. The built-in injectors share their ids across
+   * tenants, so linking skips every row after the first and a foreign tenant's row in first
+   * position fails the import. Production reads that lookup under the write tenant's scope; this
+   * reproduces it by leaving only {@code tenantId}'s injectors payload-capable, inside the test
+   * transaction.
+   */
+  private void onlyTenantKeepsPayloadInjectors(String tenantId) {
+    entityManager.flush();
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "UPDATE injectors SET injector_payloads = false"
+                          + " WHERE injector_payloads AND tenant_id::text <> ?")) {
+                statement.setString(1, tenantId);
+                statement.executeUpdate();
+              }
+            });
+    entityManager.clear();
   }
 
   /**

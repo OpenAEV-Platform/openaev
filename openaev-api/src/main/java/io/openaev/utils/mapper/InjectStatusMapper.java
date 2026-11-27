@@ -5,6 +5,7 @@ import static io.openaev.utils.mapper.AgentMapper.toAgentOutput;
 import io.openaev.database.model.*;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
+import io.openaev.service.InjectVisibleStatusService;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class InjectStatusMapper {
 
   private final AgentMapper agentMapper;
+  private final InjectVisibleStatusService injectVisibleStatusService;
 
   public InjectStatusOutput toInjectStatusOutput(Optional<InjectStatus> injectStatus) {
     return injectStatus
@@ -22,10 +24,8 @@ public class InjectStatusMapper {
                 this.<InjectStatusOutput>buildInjectStatusOutput(
                     InjectStatusOutput.builder().build(),
                     status,
-                    status.getTraces().stream()
-                        .filter(
-                            trace -> trace.getAgent() == null && trace.getIdentifiers().isEmpty())
-                        .toList()))
+                    injectVisibleStatusService.visibleStatus(status),
+                    status.getTraces().stream().filter(ExecutionTrace::isGlobal).toList()))
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
 
@@ -40,7 +40,7 @@ public class InjectStatusMapper {
             status -> {
               InjectStatusOutput output = InjectStatusOutput.builder().build();
               output.setId(status.getId());
-              output.setName(status.getName().name());
+              output.setName(injectVisibleStatusService.visibleStatus(status).name());
               output.setTraces(toExecutionTracesOutput(status.getTraces()));
               output.setTrackingSentDate(status.getTrackingSentDate());
               output.setTrackingEndDate(status.getTrackingEndDate());
@@ -59,6 +59,7 @@ public class InjectStatusMapper {
     buildInjectStatusOutput(
         output,
         injectTestStatus,
+        injectTestStatus.getName(),
         injectTestStatus.getTraces().stream().filter(trace -> trace.getAgent() == null).toList());
 
     output.setInjectId(injectTestStatus.getInject().getId());
@@ -69,9 +70,9 @@ public class InjectStatusMapper {
   }
 
   private <T extends InjectStatusOutput> T buildInjectStatusOutput(
-      T output, BaseInjectStatus status, List<ExecutionTrace> mainTraces) {
+      T output, BaseInjectStatus status, ExecutionStatus name, List<ExecutionTrace> mainTraces) {
     output.setId(status.getId());
-    output.setName(status.getName().name());
+    output.setName(name.name());
     output.setTraces(toExecutionTracesOutput(mainTraces));
     output.setTrackingSentDate(status.getTrackingSentDate());
     output.setTrackingEndDate(status.getTrackingEndDate());
@@ -84,7 +85,7 @@ public class InjectStatusMapper {
             status ->
                 InjectStatusSimple.builder()
                     .id(status.getId())
-                    .name(status.getName().name())
+                    .name(injectVisibleStatusService.visibleStatus(status).name())
                     .trackingSentDate(status.getTrackingSentDate())
                     .trackingEndDate(status.getTrackingEndDate())
                     .build())

@@ -1,10 +1,10 @@
 package io.openaev.service.chaining;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ScopeServiceTest {
 
   private static final String WORKFLOW_ID = "workflow-1";
+  private static final String WORKFLOW_TENANT_ID = "workflow-tenant";
 
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private AssetService assetService;
@@ -69,6 +70,7 @@ class ScopeServiceTest {
 
   private WorkflowScopeRule allowlistRule(ScopeRuleValueType type, String value) {
     return WorkflowScopeRule.builder()
+        .tenant(new Tenant(Tenant.DEFAULT_TENANT_UUID))
         .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
         .valueType(type)
         .ruleValue(value)
@@ -77,6 +79,7 @@ class ScopeServiceTest {
 
   private WorkflowScopeRule denylistRule(ScopeRuleValueType type, String value) {
     return WorkflowScopeRule.builder()
+        .tenant(new Tenant(Tenant.DEFAULT_TENANT_UUID))
         .selectedMode(ScopeRuleSelectedMode.DENYLIST)
         .valueType(type)
         .ruleValue(value)
@@ -94,7 +97,8 @@ class ScopeServiceTest {
 
     when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
         .thenReturn(List.of(allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1")));
-    when(assetService.assets(List.of("asset-1"))).thenReturn(List.of(endpoint));
+    when(assetService.assets(List.of("asset-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(endpoint));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
 
@@ -126,7 +130,8 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-1"),
                 denylistRule(ScopeRuleValueType.IP, "192.168.1.1"),
                 denylistRule(ScopeRuleValueType.IP, "172.16.0.1")));
-    when(assetService.assets(List.of("asset-1"))).thenReturn(List.of(endpoint));
+    when(assetService.assets(List.of("asset-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(endpoint));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
 
@@ -148,7 +153,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP, "10.0.0.1")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -173,7 +178,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP, "10.0.0.99")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -198,7 +203,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.1.0/24")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -223,7 +228,7 @@ class ScopeServiceTest {
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-2"),
                 allowlistRule(ScopeRuleValueType.ASSET_ID, "asset-3"),
                 denylistRule(ScopeRuleValueType.IP_SUBNET, "192.168.1.0/24")));
-    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3")))
+    when(assetService.assets(List.of("asset-1", "asset-2", "asset-3"), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(List.of(targeted, other1, other2));
 
     List<Asset> result = scopeService.getValidAssets(WORKFLOW_ID);
@@ -401,13 +406,16 @@ class ScopeServiceTest {
     Team kept = new Team();
     kept.setId("team-1");
 
-    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-        .thenReturn(
-            List.of(
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
-                denylistRule(ScopeRuleValueType.TEAM_ID, "team-2")));
-    when(teamRepository.findAllById(List.of("team-1"))).thenReturn(List.of(kept));
+    List<WorkflowScopeRule> rules =
+        List.of(
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
+            denylistRule(ScopeRuleValueType.TEAM_ID, "team-2"));
+    // Every rule carries the tenant of its workflow.
+    rules.forEach(rule -> rule.setTenant(new Tenant(WORKFLOW_TENANT_ID)));
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID)).thenReturn(rules);
+    when(teamRepository.findAllByIdInTenant(List.of("team-1"), WORKFLOW_TENANT_ID))
+        .thenReturn(List.of(kept));
 
     List<Team> result = scopeService.getValidTeams(WORKFLOW_ID);
 
@@ -420,41 +428,34 @@ class ScopeServiceTest {
     User kept = new User();
     kept.setId("player-1");
 
-    TenantContext.setCurrentTenant("tenant-1");
-    try {
-      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-          .thenReturn(
-              List.of(
-                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
-                  allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
-                  denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2")));
-      when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), "tenant-1"))
-          .thenReturn(List.of(kept));
+    List<WorkflowScopeRule> rules =
+        List.of(
+            allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-1"),
+            allowlistRule(ScopeRuleValueType.PLAYER_ID, "player-2"),
+            denylistRule(ScopeRuleValueType.PLAYER_ID, "player-2"));
+    rules.forEach(rule -> rule.setTenant(new Tenant(WORKFLOW_TENANT_ID)));
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID)).thenReturn(rules);
+    when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), WORKFLOW_TENANT_ID))
+        .thenReturn(List.of(kept));
 
-      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
 
-      assertThat(result).containsExactly(kept);
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    assertThat(result).containsExactly(kept);
   }
 
   @Test
   @DisplayName("Valid players - lookup is tenant-scoped so out-of-tenant users never resolve")
   void givenPlayerRuleOutsideTenant_whenGettingValidPlayers_thenUserIsNotResolved() {
-    TenantContext.setCurrentTenant("tenant-1");
-    try {
-      when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-          .thenReturn(List.of(allowlistRule(ScopeRuleValueType.PLAYER_ID, "ghost-player")));
-      when(userRepository.findAllByIdInAndTenantId(List.of("ghost-player"), "tenant-1"))
-          .thenReturn(List.of());
+    WorkflowScopeRule rule = allowlistRule(ScopeRuleValueType.PLAYER_ID, "ghost-player");
+    rule.setTenant(new Tenant(WORKFLOW_TENANT_ID));
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID)).thenReturn(List.of(rule));
+    when(userRepository.findAllByIdInAndTenantId(List.of("ghost-player"), WORKFLOW_TENANT_ID))
+        .thenReturn(List.of());
 
-      List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
+    List<User> result = scopeService.getValidPlayers(WORKFLOW_ID);
 
-      assertThat(result).isEmpty();
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    assertThat(result).isEmpty();
+    verify(userRepository).findAllByIdInAndTenantId(List.of("ghost-player"), WORKFLOW_TENANT_ID);
   }
 
   @Test

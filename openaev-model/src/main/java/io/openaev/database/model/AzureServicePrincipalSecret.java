@@ -4,11 +4,9 @@ import static io.openaev.database.model.Secret.SECRET_TYPE.AZURE_SERVICE_PRINCIP
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -19,7 +17,6 @@ import lombok.ToString;
 @Setter
 @Entity
 @DiscriminatorValue(AZURE_SERVICE_PRINCIPAL_VALUE)
-@EntityListeners(ModelBaseListener.class)
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true, onlyExplicitlyIncluded = true)
 public class AzureServicePrincipalSecret extends Secret {
@@ -47,4 +44,17 @@ public class AzureServicePrincipalSecret extends Secret {
   @JsonProperty("secret_azure_environment")
   @NotNull
   private String azureEnvironment;
+
+  @Column(name = "secret_azure_authority_host_uri")
+  @JsonProperty("secret_azure_authority_host_uri")
+  private String azureAuthorityHostUri;
+
+  @Column(name = "secret_azure_scope")
+  @JsonProperty("secret_azure_scope")
+  private String azureScope;
+
+  /** Encrypted content of the uploaded certificate file, handed to the injectors only. */
+  @Column(name = "secret_azure_requests_certificate")
+  @JsonIgnore
+  private byte[] azureRequestsCertificate;
 }

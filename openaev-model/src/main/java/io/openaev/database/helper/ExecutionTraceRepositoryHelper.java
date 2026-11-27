@@ -28,7 +28,11 @@ import org.springframework.stereotype.Repository;
  *
  * @see ExecutionTrace
  */
-@AllowRawJdbc(reason = "writes execution_traces and injects_statuses, both non-tenant tables")
+@AllowRawJdbc(
+    reason =
+        "insert-only write of execution_traces, which binds the tenant of the trace's inject through"
+            + " ExecutionTrace#attributeTenant and refuses a trace with no parent tenant, and write"
+            + " of injects_statuses, a non-tenant table; no tenant row is read")
 @Repository
 @RequiredArgsConstructor
 public class ExecutionTraceRepositoryHelper {
@@ -50,8 +54,9 @@ public class ExecutionTraceRepositoryHelper {
             execution_time,
             execution_context_identifiers,
             execution_created_at,
-            execution_updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
+            execution_updated_at,
+            tenant_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
 
   /**
    * Saves an execution trace using a direct JDBC call for improved performance.
@@ -61,9 +66,11 @@ public class ExecutionTraceRepositoryHelper {
    *
    * @param executionTrace the execution trace to save
    * @return the generated UUID of the newly created trace
+   * @throws IllegalStateException if the trace has no parent tenant to take, or two different ones
    * @throws org.springframework.dao.DataAccessException if the database insert fails
    */
   public String saveExecutionTrace(ExecutionTrace executionTrace) {
+    String tenantId = executionTrace.attributeTenant().getId();
     String injectStatusId =
         executionTrace.getInjectStatus() != null ? executionTrace.getInjectStatus().getId() : null;
     String injectTestStatusId =
@@ -96,6 +103,7 @@ public class ExecutionTraceRepositoryHelper {
               11, OffsetDateTime.ofInstant(executionTrace.getCreationDate(), ZoneOffset.UTC));
           ps.setObject(
               12, OffsetDateTime.ofInstant(executionTrace.getUpdateDate(), ZoneOffset.UTC));
+          ps.setString(13, tenantId);
           return ps.executeUpdate();
         });
 
@@ -111,16 +119,21 @@ public class ExecutionTraceRepositoryHelper {
    * @param injectStatusId the ID of the inject status to update
    * @param name the new status name (e.g., "SUCCESS", "ERROR", "PENDING")
    * @param endDate the end timestamp for the inject execution, or {@code null} if not yet completed
+   * @param expectedAgentCount the number of agents the inject was expected on, or {@code null} if
+   *     unknown
    * @throws org.springframework.dao.DataAccessException if the database update fails
    */
-  public void updateInjectStatus(String injectStatusId, String name, Instant endDate) {
+  public void updateInjectStatus(
+      String injectStatusId, String name, Instant endDate, Integer expectedAgentCount) {
     String sql =
-        "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ? WHERE status_id = ?";
+        "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ?,"
+            + " status_expected_agent_count = ? WHERE status_id = ?";
 
     jdbcTemplate.update(
         sql,
         name,
         endDate != null ? OffsetDateTime.ofInstant(endDate, ZoneOffset.UTC) : null,
+        expectedAgentCount,
         injectStatusId);
   }
 }

@@ -281,12 +281,15 @@ public class AttackPathExecutionIngestionService {
             String vulnerabilityStatus =
                 resolveHighestPriorityResult(
                     expectation.vulnerability(), ExpectationType.VULNERABILITY);
+            String loggingStatus =
+                resolveHighestPriorityResult(expectation.logging(), ExpectationType.LOGGING);
             changed +=
                 executionRepository.updateExpectationStatusByExecutionId(
                     entry.getKey(),
                     preventionStatus,
                     detectionStatus,
                     vulnerabilityStatus,
+                    loggingStatus,
                     tenantId,
                     version);
           }
@@ -820,11 +823,12 @@ public class AttackPathExecutionIngestionService {
   public record ExecutionExpectationResults(
       List<InjectExpectationResult> prevention,
       List<InjectExpectationResult> detection,
-      List<InjectExpectationResult> vulnerability) {
+      List<InjectExpectationResult> vulnerability,
+      List<InjectExpectationResult> logging) {
 
     private static ExecutionExpectationResults empty() {
       return new ExecutionExpectationResults(
-          new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+          new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
     }
   }
 
@@ -859,6 +863,10 @@ public class AttackPathExecutionIngestionService {
           }
           if (expectation instanceof VulnerabilityInjectExpectation) {
             groupedResults.vulnerability().addAll(expectationResultsForStatus(expectation));
+            return;
+          }
+          if (expectation instanceof LoggingInjectExpectation) {
+            groupedResults.logging().addAll(expectationResultsForStatus(expectation));
           }
         });
 
@@ -912,10 +920,10 @@ public class AttackPathExecutionIngestionService {
               row.setSourceName(result.getSourceName());
               row.setSourceAssetId(result.getSourceAssetId());
               row.setResultStatusLabel(statusLabel);
-              row.setDetectionTime(result.getDate());
+              row.setDetectionTime(result.getDate().toString());
               row.setAlerts(buildAlertsNode(expectation.getId(), result));
               row.setResultScore(result.getScore());
-              row.setResultDate(result.getDate());
+              row.setResultDate(result.getDate().toString());
               rows.add(row);
             }
           }
@@ -982,6 +990,9 @@ public class AttackPathExecutionIngestionService {
     }
     if (expectation instanceof VulnerabilityInjectExpectation) {
       return ExpectationType.VULNERABILITY;
+    }
+    if (expectation instanceof LoggingInjectExpectation) {
+      return ExpectationType.LOGGING;
     }
     return null;
   }

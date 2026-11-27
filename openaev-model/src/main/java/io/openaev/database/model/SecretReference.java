@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -19,9 +18,8 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -30,7 +28,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "secret_references")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "secret_reference_type", discriminatorType = DiscriminatorType.STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners(ModelBaseListener.class)
 // secret_references is fully on v2 (inspector + can_access_tenant); no v1 @Filter
 public class SecretReference implements TenantBase {
 
@@ -116,6 +114,9 @@ public class SecretReference implements TenantBase {
   @Queryable(filterable = true, sortable = true)
   private Instant lastVerifiedAt;
 
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // BaseInjectExpectation.results, with SecretReference (a SINGLE_TABLE inheritance root) as the
+  // collection owner.
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "secret_reference_tags",
@@ -123,7 +124,7 @@ public class SecretReference implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonProperty("secret_reference_tags")
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne

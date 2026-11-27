@@ -40,6 +40,8 @@ class SignatureOutputProcessorTest {
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
 
+  private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
+
   private final InjectExpectationService injectExpectationService =
       new InjectExpectationService(
           injectExpectationRepository,
@@ -50,8 +52,8 @@ class SignatureOutputProcessorTest {
           injectService,
           injectorContractContentUtils,
           Optional.empty(),
-          expectationBehaviorResolver);
-  private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
+          expectationBehaviorResolver,
+          previewFeatureService);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService);
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -101,8 +103,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     DetectionInjectExpectation firstCallExpectation = new DetectionInjectExpectation();
     firstCallExpectation.setId("exp-1");
@@ -179,8 +180,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("exp-agent");
@@ -229,8 +229,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     PreventionInjectExpectation expectation = new PreventionInjectExpectation();
     expectation.setId("exp-asset");
@@ -279,8 +278,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-missing"))
         .thenReturn(List.of());
@@ -324,12 +322,7 @@ class SignatureOutputProcessorTest {
 
   private ContractOutputContext buildContractCtx() {
     return new ContractOutputContext(
-        "signatures",
-        "signatures",
-        ContractOutputType.ExpectationSignature,
-        false,
-        new String[0],
-        new String[] {"SIGNATURES_PROCESSING"});
+        "signatures", "signatures", ContractOutputType.ExpectationSignature, false, new String[0]);
   }
 
   // -------------------------------------------------------------------------
@@ -649,95 +642,6 @@ class SignatureOutputProcessorTest {
   }
 
   // -------------------------------------------------------------------------
-  // Branch coverage — assetGroupId target resolution
-  // -------------------------------------------------------------------------
-
-  @Nested
-  @DisplayName("process() — assetGroupId target resolution")
-  class AssetGroupTargetResolution {
-
-    @Test
-    @DisplayName(
-        "given asset_group_id in signature_target should resolve via findAllByInjectAndAssetGroup")
-    void given_assetGroupId_should_resolveViaAssetGroup() throws Exception {
-      // -- Arrange --
-      ExecutionProcessingContext ctx = buildCtx("inject-1");
-
-      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
-      expectation.setId("exp-group");
-      expectation.setSignaturesInitialized(false);
-
-      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-1", "group-1"))
-          .thenReturn(List.of(expectation));
-      when(injectExpectationRepository.findById("exp-group")).thenReturn(Optional.of(expectation));
-
-      String payload =
-          """
-          {
-            "targets": [
-              {
-                "signature_target": {"asset_group_id": "group-1"},
-                "signature_values": [
-                  {
-                    "expectation_type": "DETECTION",
-                    "values": [{"signature_type": "rule_name", "signature_value": "Sigma rule"}]
-                  }
-                ]
-              }
-            ]
-          }
-          """;
-
-      // -- Act --
-      processor.process(ctx, buildContractCtx(), objectMapper.readTree(payload));
-
-      // -- Assert --
-      verify(injectExpectationRepository).findAllByInjectAndAssetGroup("inject-1", "group-1");
-      verify(injectExpectationRepository).save(expectation);
-    }
-
-    @Test
-    @DisplayName(
-        "given fallback 'asset_group' key in signature_target should resolve via findAllByInjectAndAssetGroup")
-    void given_assetGroupFallbackKey_should_resolveViaAssetGroup() throws Exception {
-      // -- Arrange --
-      ExecutionProcessingContext ctx = buildCtx("inject-1");
-
-      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
-      expectation.setId("exp-group-fallback");
-      expectation.setSignaturesInitialized(false);
-
-      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-1", "group-2"))
-          .thenReturn(List.of(expectation));
-      when(injectExpectationRepository.findById("exp-group-fallback"))
-          .thenReturn(Optional.of(expectation));
-
-      String payload =
-          """
-          {
-            "targets": [
-              {
-                "signature_target": {"asset_group": "group-2"},
-                "signature_values": [
-                  {
-                    "expectation_type": "DETECTION",
-                    "values": [{"signature_type": "rule_name", "signature_value": "Sigma rule"}]
-                  }
-                ]
-              }
-            ]
-          }
-          """;
-
-      // -- Act --
-      processor.process(ctx, buildContractCtx(), objectMapper.readTree(payload));
-
-      // -- Assert --
-      verify(injectExpectationRepository).findAllByInjectAndAssetGroup("inject-1", "group-2");
-    }
-  }
-
-  // -------------------------------------------------------------------------
   // Branch coverage — readText() fallback keys for agent/asset
   // -------------------------------------------------------------------------
 
@@ -850,11 +754,9 @@ class SignatureOutputProcessorTest {
       // -- Act --
       processor.process(ctx, buildContractCtx(), objectMapper.readTree(payload));
 
-      // -- Assert -- (no agent/asset/assetGroup id → appendExpectationSignatures receives
-      // all null)
+      // -- Assert -- (no agent/asset id → appendExpectationSignatures receives all null)
       verify(injectExpectationRepository, never()).findAllByInjectAndAgent(any(), any());
       verify(injectExpectationRepository, never()).findAllByInjectAndAsset(any(), any());
-      verify(injectExpectationRepository, never()).findAllByInjectAndAssetGroup(any(), any());
     }
   }
 }

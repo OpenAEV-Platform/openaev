@@ -1,6 +1,8 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TENANT_EXEMPT_PREFIXES } from '../../utils/url-helper';
+
 // -- MOCKS --
 
 let mockAppBasePath = '';
@@ -522,6 +524,52 @@ describe('url-helper', () => {
       expect(result).toBe('/api/settings');
     });
 
+    describe.each(TENANT_EXEMPT_PREFIXES)('given exempt prefix %s', (prefix) => {
+      it.each([
+        prefix,
+        `${prefix}/child`,
+        `${prefix}?query=value`,
+      ])('should return %s unchanged', async (uri) => {
+        // Arrange
+        setPathname(`/${VALID_UUID}/admin`);
+        const { buildTenantApiPath } = await importHelper();
+
+        // Act
+        const result = buildTenantApiPath(uri);
+
+        // Assert
+        expect(result).toBe(uri);
+      });
+
+      it('should scope a path that only shares its first characters', async () => {
+        // Arrange
+        setPathname(`/${VALID_UUID}/admin`);
+        const { buildTenantApiPath } = await importHelper();
+
+        // Act
+        const result = buildTenantApiPath(`${prefix}_other`);
+
+        // Assert
+        expect(result).toBe(`/api/tenants/${VALID_UUID}${prefix.slice('/api'.length)}_other`);
+      });
+    });
+
+    it.each([
+      '/api/ai_targets',
+      '/api/ai_targets/search',
+      '/api/ai_targets/options',
+    ])('given AI target path %s should build a tenant scoped API URI', async (uri) => {
+      // Arrange
+      setPathname(`/${VALID_UUID}/admin`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(uri);
+
+      // Assert
+      expect(result).toBe(`/api/tenants/${VALID_UUID}${uri.slice('/api'.length)}`);
+    });
+
     it('given a public player page carrying the tenant should build a tenant scoped player API URI', async () => {
       // Arrange: the link the platform mails carries the simulation tenant as the first segment
       const simulationId = faker.string.uuid();
@@ -546,6 +594,19 @@ describe('url-helper', () => {
 
       // Assert
       expect(result).toBe(`/api/tenants/${DEFAULT_TENANT_UUID}/player/simulations/${simulationId}/documents`);
+    });
+
+    it('given the public comcheck page should call the comcheck route with no tenant', async () => {
+      // Arrange: the comcheck mail link carries no tenant, the status id names the comcheck
+      const statusId = faker.string.uuid();
+      setPathname(`/comcheck/${statusId}`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(`/api/comcheck/${statusId}`);
+
+      // Assert
+      expect(result).toBe(`/api/comcheck/${statusId}`);
     });
 
     it('given xtmComposer API path should build scoped API URI', async () => {

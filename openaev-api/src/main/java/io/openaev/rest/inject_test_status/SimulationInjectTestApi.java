@@ -1,6 +1,7 @@
 package io.openaev.rest.inject_test_status;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.specification.InjectSpecification.fromSimulation;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
@@ -91,7 +92,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       @PathVariable @NotBlank String simulationId,
       @PathVariable @NotBlank String injectId)
       throws Exception {
-    return injectTestStatusService.testInject(injectId);
+    return injectTestStatusService.testInjectOfSimulation(simulationId, injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -119,7 +120,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public void deleteInjectTest(
       TxCtx ctx, @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
-    injectTestStatusService.deleteInjectTest(testId);
+    injectTestStatusService.deleteInjectTestOfSimulation(simulationId, testId);
   }
 
   @Operation(
@@ -136,8 +137,8 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope (bulkTestInjects reads Inject#getInjector()/getFirstInjector() per inject).
+      // The TxCtx parameter sets the tenant scope (bulkTestInjects reads Inject#getInjector()/
+      // getFirstInjector() per inject) and the tenant of the bulk operation it reports.
       TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
@@ -155,10 +156,13 @@ public class SimulationInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
+        this.injectService
+            .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
+            .and(fromSimulation(simulationId))
+            .and(testable());
 
     // Services calls
     // Bulk test
-    return injectTestStatusService.bulkTestInjects(filterSpecifications);
+    return injectTestStatusService.bulkTestInjects(ctx, filterSpecifications);
   }
 }

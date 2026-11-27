@@ -24,13 +24,6 @@ import NotifierPopover from './NotifierPopover';
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   // Design system list chip (same pattern as ItemSeverity / the triggers list)
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 120,
-  },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {

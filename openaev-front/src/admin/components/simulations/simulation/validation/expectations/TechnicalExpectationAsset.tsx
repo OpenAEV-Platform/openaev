@@ -1,7 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { KeyboardArrowRightOutlined } from '@mui/icons-material';
 import { Alert, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -9,6 +8,7 @@ import { type Contract } from '../../../../../../actions/contract/contract';
 import Drawer from '../../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type InjectExpectationResult } from '../../../../../../utils/api-types';
+import { isEmpty } from '../../../../../../utils/object';
 import { truncate } from '../../../../../../utils/String';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import { getSourceLabel, typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
@@ -81,7 +81,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
             {selected == null
               && (
                 <>
-                  {!R.isEmpty(expectation.inject_expectation_results)
+                  {!isEmpty(expectation.inject_expectation_results)
                     && (
                       <>
                         <ListItem divider>
@@ -111,13 +111,13 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
                         </List>
                       </>
                     )}
-                  {R.isEmpty(expectation.inject_expectation_results) && t('Pending result')}
+                  {isEmpty(expectation.inject_expectation_results) && t('Pending result')}
                 </>
               )}
             {selected !== null
               && (
                 <pre>
-                  {toJsonFormat(selected.result)}
+                  {toJsonFormat(selected.result || '')}
                 </pre>
               )}
           </Alert>

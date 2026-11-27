@@ -23,6 +23,13 @@ public enum ExecutionStatus {
   QUEUING,
   EXECUTING,
   PENDING,
+
+  // -- Shown, never stored --
+  // A reader whose clearance hides every agent of a closed inject sees this instead of the stored
+  // verdict, which tells the outcome on those agents. Never stored, so never matched by a filter:
+  // @Hidden keeps it out of the filter value pickers.
+  @Hidden
+  NOT_VISIBLE,
   ;
 
   /** Inject statuses considered successful at aggregate level. */
@@ -49,5 +56,10 @@ public enum ExecutionStatus {
 
   public boolean isSuccess() {
     return SUCCESS_STATUSES.contains(this);
+  }
+
+  /** The inject is finished: it ended with a success or an error (not draft nor in progress). */
+  public boolean isClosed() {
+    return isSuccess() || isError();
   }
 }

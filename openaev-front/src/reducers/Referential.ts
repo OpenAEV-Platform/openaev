@@ -1,7 +1,7 @@
 import { fromJS, List, Map, OrderedMap } from 'immutable';
-import * as R from 'ramda';
 
 import * as Constants from '../constants/ActionTypes';
+import { omit } from '../utils/object';
 
 export const entitiesInitializer = Map({
   entities: Map({
@@ -30,6 +30,7 @@ export const entitiesInitializer = Map({
     logs: Map({}),
     tags: Map({}),
     documents: Map({}),
+    credentials: Map({}),
     platformParameters: Map({}),
     publicPlatformParameters: Map({}),
     channels: Map({}),
@@ -164,7 +165,7 @@ const referential = (state: any = Map({}), action: any = {}) => {
           firstValue['setting_value'],
         );
       } else {
-        const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
+        const merged = mergeDeepOverwriteLists(state, fromJS(omit(action.payload, ['result'])));
         return applyLruEviction(merged, action);
       }
     }

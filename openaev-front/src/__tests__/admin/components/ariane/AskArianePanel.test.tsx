@@ -107,6 +107,15 @@ describe('AskArianePanel', () => {
     expect(props.apiEndpoints?.feedback).toBe('/conversations');
   });
 
+  it('given_theChatPanel_should_nameTheArtifactRoutesOfTheProxy', async () => {
+    // Act
+    const props = await renderPanel();
+
+    // Assert: the cards append '/{kind}/{id}' and '/{kind}/{id}/download',
+    // which are the proxy's GET and POST routes under /api/xtmone/chat.
+    expect(props.apiEndpoints?.artifacts).toBe('/artifacts');
+  });
+
   it('given_aFrenchUser_should_passTheLocaleToTheChatPanel', async () => {
     // Act
     const props = await renderPanel({ locale: 'fr' });

@@ -2,9 +2,9 @@ package io.openaev.service.marking;
 
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.exception.MarkingAboveClearanceException;
 import java.util.Collection;
-import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -20,8 +20,8 @@ import java.util.Set;
  * granting it discloses nothing they could not have disclosed by other means. Checking raw grants
  * instead would forbid that and be merely annoying, not safer.
  *
- * <p>A bypassing caller resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so
- * they pass this check without needing a special case here.
+ * <p>The first admin resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so they
+ * pass this check without needing a special case here.
  *
  * <p>Mirrors {@code PrivilegeEscalationValidator}, which does the same job for capabilities.
  */
@@ -32,27 +32,59 @@ public final class MarkingEscalationValidator {
   /**
    * @param clearance the caller's own clearance in the tenant being written to
    * @param requested the markings they are trying to grant
-   * @throws ForbiddenException naming the markings they do not hold
+   * @throws MarkingAboveClearanceException when one of the markings is not in their clearance
    */
   public static void assertCanAssignMarkings(
       MarkingCtx clearance, Collection<MarkingDefinition> requested) {
-    Set<String> held =
-        clearance instanceof MarkingCtx.Restricted restricted
-            ? Set.copyOf(restricted.markingIds())
-            : Set.of();
+    Set<String> held = heldIds(clearance);
 
-    List<String> unheld =
-        requested.stream()
-            .filter(marking -> !held.contains(marking.getId()))
-            .map(MarkingDefinition::getDefinition)
-            .sorted()
-            .toList();
-
-    if (!unheld.isEmpty()) {
-      // Names rather than ids: the caller chose these in a UI that shows names, and an id would
-      // make a legitimate mistake unreadable.
-      throw new ForbiddenException(
-          "Cannot assign markings you do not hold: " + String.join(", ", unheld));
+    if (requested.stream().anyMatch(marking -> !held.contains(marking.getId()))) {
+      throw new MarkingAboveClearanceException();
     }
+  }
+
+  public static boolean holdsAll(MarkingCtx clearance, Collection<String> markingIds) {
+    return heldIds(clearance).containsAll(markingIds);
+  }
+
+  private static Set<String> heldIds(MarkingCtx clearance) {
+    return clearance instanceof MarkingCtx.Restricted restricted
+        ? Set.copyOf(restricted.markingIds())
+        : Set.of();
+  }
+
+  /**
+   * Guards a definition's place on its scale: you may not define or update a marking above your own
+   * clearance.
+   *
+   * @param held the definitions the caller's clearance covers in the tenant being written to
+   * @param type the type of the definition being placed
+   * @param order the order it is being placed at
+   * @throws MarkingAboveClearanceException when the order is above the caller's clearance on the
+   *     type
+   */
+  public static void assertCanDefineMarking(
+      Collection<MarkingDefinition> held, String type, int order) {
+    if (!isWithinClearance(held, type, order)) {
+      throw new MarkingAboveClearanceException();
+    }
+  }
+
+  /**
+   * The rule of {@link #assertCanDefineMarking} without the exception, for a caller that reports a
+   * refusal instead of failing: the order is at or below the highest order the caller holds on the
+   * type, and a caller holding none of the type is above it.
+   */
+  public static boolean isWithinClearance(
+      Collection<MarkingDefinition> held, String type, int order) {
+    return highestHeldOrder(held, type).stream().anyMatch(highest -> order <= highest);
+  }
+
+  /** The highest order held on the type, empty when none of it is held. */
+  public static OptionalInt highestHeldOrder(Collection<MarkingDefinition> held, String type) {
+    return held.stream()
+        .filter(definition -> type.equals(definition.getType()))
+        .mapToInt(MarkingDefinition::getOrder)
+        .max();
   }
 }

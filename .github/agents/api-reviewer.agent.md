@@ -28,20 +28,20 @@ Escalate to **Opus 4.6** if the PR introduces breaking changes or significant AP
 
 ## Severity Rubric
 
-| Severity | Criteria | Action |
+| Severity | Rule | Action |
 |---|---|---|
-| 🔴 **CRITICAL** | Breaking change on public API without versioning or migration plan | `issue (blocking):` — PR must not merge |
-| 🔴 **CRITICAL** | JPA entity returned directly from controller (no DTO) | `issue (blocking):` — data exposure risk |
-| 🔴 **CRITICAL** | Missing `@AccessControl` on new endpoint | `issue (blocking):` — unauthenticated access |
-| 🟠 **HIGH** | Input DTO missing validation annotations (`@NotNull`, `@NotBlank`, `@Size`) | `issue (blocking):` — invalid data reaches service |
-| 🟠 **HIGH** | Output DTO exposes `tenant_id` or internal IDs that should be hidden | `issue (blocking):` — data leakage |
-| 🟠 **HIGH** | New controller added to `io.openaev.rest` (legacy package) | `issue (blocking):` — must be in `io.openaev.api` |
-| 🟠 **HIGH** | Missing Swagger `@Operation` / `@ApiResponse` on new public endpoint | `issue (blocking):` — undocumented API |
-| 🟡 **MEDIUM** | Inconsistent HTTP status codes (e.g. `200` instead of `201` on create) | `suggestion (non-blocking):` — API contract inconsistency |
-| 🟡 **MEDIUM** | Field removed or renamed in Output DTO (soft breaking change) | `suggestion (non-blocking):` — flag for consumer impact |
-| 🟡 **MEDIUM** | Missing `@JsonProperty` on DTO field with non-obvious name | `suggestion (non-blocking):` — contract ambiguity |
-| 🟢 **LOW** | Swagger description missing or too terse | `note:` — documentation quality |
-| 🟢 **LOW** | Endpoint naming inconsistency vs existing conventions | `note:` — informational |
+| 🔴 **CRITICAL** | Breaking change without migration plan: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `issue (blocking):` — PR must not merge |
+| 🔴 **CRITICAL** | JPA entity returned from a controller: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `issue (blocking):` — data exposure risk |
+| 🔴 **CRITICAL** | Missing `@AccessControl` on a new endpoint: [security › @AccessControl](../instructions/security.instructions.md#accesscontrol-aop-aspect) | `issue (blocking):` — unauthenticated access |
+| 🟠 **HIGH** | Input validation: [api › Validation](../instructions/api.instructions.md#validation) | `issue (blocking):` — invalid data reaches service |
+| 🟠 **HIGH** | `tenant_id` or internal ids in an output: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `issue (blocking):` — data leakage |
+| 🟠 **HIGH** | New controller in `io.openaev.rest`: [backend › Package Rule](../instructions/backend.instructions.md) | `issue (blocking):` — must be in `io.openaev.api` |
+| 🟠 **HIGH** | Missing `@Operation` / `@ApiResponse`: [api › OpenAPI](../instructions/api.instructions.md#openapi) | `issue (blocking):` — undocumented API |
+| 🟡 **MEDIUM** | HTTP status codes: [backend › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi) | `suggestion (non-blocking):` — API contract inconsistency |
+| 🟡 **MEDIUM** | Missing `@JsonProperty`: [backend › API DTOs](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources) | `suggestion (non-blocking):` — contract ambiguity |
+| 🟡 **MEDIUM** | Outputs not minimal or shared by kinds, JSON names: [api › DTO Rules](../instructions/api.instructions.md#dto-rules) | `suggestion (non-blocking):` |
+| 🟢 **LOW** | Summary or description too long: [api › OpenAPI](../instructions/api.instructions.md#openapi) | `note:` — documentation quality |
+| 🟢 **LOW** | Endpoint naming: [backend › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi) | `note:` — informational |
 
 ## Review Procedure
 
@@ -59,11 +59,7 @@ For each changed file, classify:
 
 ### Step 2 — Check breaking changes
 
-A **breaking change** is any modification that removes, renames, or changes the type of:
-- A public endpoint URL or HTTP method
-- A required Input DTO field
-- An Output DTO field (removal or type change)
-- An HTTP status code for an existing response
+What counts as a breaking change: [api › DTO Rules](../instructions/api.instructions.md#dto-rules).
 
 ```bash
 # Compare with base branch for removed/renamed fields in DTOs
@@ -75,30 +71,16 @@ Flag every breaking change as 🔴 CRITICAL with explicit impact description.
 ### Step 3 — Check controller conventions
 
 For every new or modified controller method:
-- ☐ Annotated with `@AccessControl(resourceType = ..., actionPerformed = ...)`
-- ☐ Located in `io.openaev.api` (never `io.openaev.rest`)
-- ☐ Returns Output DTO (never JPA entity)
-- ☐ Uses `ResponseEntity<T>` with explicit status code
-- ☐ `POST` → `201 Created`, `GET` → `200 OK`, `PUT/PATCH` → `200 OK`, `DELETE` → `204 No Content`
-- ☐ Error cases use `ElementNotFoundException` (→ 404) or `@Valid` (→ 400)
+- ☐ [backend › Layering](../instructions/backend.instructions.md#layering), [backend › New Controllers](../instructions/backend.instructions.md#new-controllers-package-ioopenaevapi), [security › @AccessControl](../instructions/security.instructions.md#accesscontrol-aop-aspect)
+- ☐ [api › Responses](../instructions/api.instructions.md#responses)
 
 ### Step 4 — Check Input DTOs
 
-For every new or modified Input DTO:
-- ☐ Declared as a `record` (immutable)
-- ☐ Required fields annotated with `@NotNull` or `@NotBlank`
-- ☐ String fields with `@Size(max = ...)` where appropriate
-- ☐ No JPA entity fields — only primitive types, UUIDs, and IDs
-- ☐ `@Valid` present on the controller method parameter
+For every new or modified Input DTO: [api › DTO Rules](../instructions/api.instructions.md#dto-rules), [api › Validation](../instructions/api.instructions.md#validation), [backend › API DTOs](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources).
 
 ### Step 5 — Check Output DTOs
 
-For every new or modified Output DTO:
-- ☐ Declared as a `record` (immutable)
-- ☐ No `tenant_id` exposed
-- ☐ No internal audit fields (`created_at`, `updated_at`) unless explicitly required
-- ☐ LAZY relations serialized as ID lists (not full objects) — annotated with `@ArraySchema(schema = @Schema(type = "string"))`
-- ☐ Mapper covers all fields (no silent nulls)
+For every new or modified Output DTO: [api › DTO Rules](../instructions/api.instructions.md#dto-rules), [backend › API DTOs](../instructions/backend.instructions.md#api-dtos-mappers--sub-resources).
 
 ### Step 6 — Check Swagger documentation
 
@@ -106,10 +88,7 @@ For every new or modified Output DTO:
 grep -rn "@Operation\|@ApiResponse\|@Parameter\|@Schema" openaev-api/src/main/java/io/openaev/api/ --include="*.java" | head -20
 ```
 
-For every new public endpoint:
-- ☐ `@Operation(summary = "...", description = "...")` present
-- ☐ `@ApiResponse` for each HTTP status code the endpoint can return
-- ☐ Complex fields documented with `@Schema`
+For every new public endpoint: [api › OpenAPI](../instructions/api.instructions.md#openapi).
 
 ### Step 7 — Frontend type sync check
 
@@ -126,7 +105,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 - Legacy controllers in `io.openaev.rest` that are NOT modified in this PR → migration is incremental
 - Output DTOs including `id` field → standard, required for client-side referencing
-- `@Transactional` on controller methods that coordinate multiple service calls → acceptable pattern
+- `@Transactional` on controller methods → acceptable pattern (mapping to the Output reads lazy associations); a new or modified endpoint still calls one service method (see `backend.instructions.md` → Layering)
 - Swagger annotations on `private` or `package-private` methods → not exposed in API docs
 
 ## Output Format

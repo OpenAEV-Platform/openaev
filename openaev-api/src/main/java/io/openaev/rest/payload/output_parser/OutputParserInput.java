@@ -9,12 +9,19 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.With;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class OutputParserInput {
 
   @JsonProperty("output_parser_id")
+  @With
   private String id;
 
   @JsonProperty("output_parser_mode")
@@ -31,5 +38,14 @@ public class OutputParserInput {
   @Schema(description = "List of Contract output elements")
   @NotNull
   @Valid
+  @With
   private Set<ContractOutputElementInput> contractOutputElements = new HashSet<>();
+
+  public OutputParserInput withoutIds() {
+    return withId(null)
+        .withContractOutputElements(
+            contractOutputElements.stream()
+                .map(ContractOutputElementInput::withoutIds)
+                .collect(Collectors.toSet()));
+  }
 }

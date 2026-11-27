@@ -33,8 +33,6 @@ extra_css:
 
 # Extra
 extra:
-  feature_flags:
-    enabled: !ENV [DOCS_FEATURE_FLAGS] # enabled: !ENV [DOCS_FEATURE_FLAGS, "audit-log,multi-tenancy"]
   version:
     provider: mike
   analytics:
@@ -54,6 +52,10 @@ extra:
       link: https://twitter.com/FiligranHQ
     - icon: fontawesome/brands/facebook
       link: https://facebook.com/FiligranHQ
+
+# Hides the pages of preview features from the navigation (see preview_features.py)
+hooks:
+  - preview_features.py
 
 # Plugins
 plugins:
@@ -182,7 +184,10 @@ nav:
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
-        - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
+        - Elasticsearch 9 and engine auto-detection: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
+        - Windows agent token encrypted with DPAPI: deployment/breaking-changes/MigrationVersion-windows-agent-token-dpapi.md
+        - Windows agents running under a named service account: deployment/breaking-changes/3.261016.0-windows-agent-config-permissions.md
+        - Tenant of the non-prefixed API routes: deployment/breaking-changes/MigrationVersion-non-prefixed-route-tenant.md
     - Integration Manager:
       - Overview: deployment/integration-manager/overview.md
       - Quick start: deployment/integration-manager/quick-start.md
@@ -203,6 +208,7 @@ nav:
       - Scenario generation from OpenCTI security coverage: usage/build/scenario/security-coverage.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
+      - Credentials: usage/build/credentials.md
       - People: usage/build/people.md
       - Components:
         - Documents: usage/build/components/documents.md
@@ -234,6 +240,7 @@ nav:
         - Inject result: usage/run-and-evaluate/injects/inject-result.md
       - Expectations: usage/run-and-evaluate/expectations/expectations.md
       - Findings: usage/run-and-evaluate/findings/findings.md
+      - Exploration graph: usage/run-and-evaluate/exploration-graph.md
       - Dashboards:
         - Custom Dashboards: usage/run-and-evaluate/dashboards/custom-dashboards.md
         - Widgets: usage/run-and-evaluate/dashboards/widgets.md

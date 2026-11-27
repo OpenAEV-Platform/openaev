@@ -30,6 +30,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * in a single place: single delete, bulk chunked delete, and cascade deletes triggered by removing
  * a parent (scenario, exercise, tenant, ...). Cleanup runs {@code BEFORE_COMMIT}, i.e. inside the
  * same transaction as the deletion, so the scope rules disappear atomically with their entity.
+ *
+ * <p>A failure of the cleanup is not caught: it fails the deletion, which leaves nothing behind and
+ * can be retried. A database error already dooms the deleter's transaction, so catching it only
+ * replaced the real cause with an opaque rollback-only error, and hid the bulk delete's lock
+ * conflict from its retry. Any other failure, caught, would commit the deletion and leave the ghost
+ * rule this listener exists to remove.
  */
 @Component
 @Slf4j
@@ -53,26 +59,17 @@ public class WorkflowScopeRuleCascadeListener {
       return;
     }
 
-    try {
-      // Only TEMPLATE rules: RUN rules carry the immutable execution snapshots and must survive
-      // the referenced entity's deletion so the DELETED_* statuses can be derived (ADR-006).
-      int removed =
-          workflowScopeRuleRepository.deleteByRuleValueAndValueTypeAndWorkflowStatus(
-              instance.getId(), valueType, WorkflowStatus.TEMPLATE);
-      if (removed > 0) {
-        log.debug(
-            "Removed {} workflow scope rule(s) referencing deleted {} {}",
-            removed,
-            valueType,
-            instance.getId());
-      }
-    } catch (Exception e) {
-      // Best-effort cascade: never block the entity deletion because of scope-rule cleanup.
-      log.error(
-          "Failed to clean up workflow scope rules for deleted {} {}: {}",
+    // Only TEMPLATE rules: RUN rules carry the immutable execution snapshots and must survive
+    // the referenced entity's deletion so the DELETED_* statuses can be derived (ADR-006).
+    int removed =
+        workflowScopeRuleRepository.deleteByRuleValueAndValueTypeAndWorkflowStatus(
+            instance.getId(), valueType, WorkflowStatus.TEMPLATE);
+    if (removed > 0) {
+      log.debug(
+          "Removed {} workflow scope rule(s) referencing deleted {} {}",
+          removed,
           valueType,
-          instance.getId(),
-          e.getMessage());
+          instance.getId());
     }
   }
 

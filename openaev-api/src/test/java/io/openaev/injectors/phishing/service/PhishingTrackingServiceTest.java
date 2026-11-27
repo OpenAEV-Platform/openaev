@@ -16,12 +16,15 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -29,7 +32,11 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.finding.FindingService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,14 +59,29 @@ class PhishingTrackingServiceTest {
   @Mock private TeamRepository teamRepository;
   @Mock private StepRepository stepRepository;
   @Mock private FindingService findingService;
+  @Mock private FindingOccurrenceService findingOccurrenceService;
+  @Mock private AttackPathFindingIngestionService attackPathFindingIngestion;
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
+
+  private DetectedFinding recordedDetection(PhishingResult result) {
+    ArgumentCaptor<List<DetectedFinding>> captor = ArgumentCaptor.forClass(List.class);
+    verify(findingService).recordFindingsByInject(any(), eq(result.getInject()), captor.capture());
+    return captor.getValue().getFirst();
+  }
+
+  private static Finding finding(String id) {
+    Finding finding = new Finding();
+    finding.setId(id);
+    return finding;
+  }
 
   private PhishingResult resultWith(final boolean capture, final boolean capturePasswords) {
     User user = new User();
     user.setId("user-1");
     Inject inject = new Inject();
     inject.setId("inject-1");
+    inject.setTenant(new Tenant("tenant-1"));
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setName("Login page");
     landingPage.setCaptureSubmittedData(capture);
@@ -211,34 +233,35 @@ class PhishingTrackingServiceTest {
   }
 
   @Test
-  @DisplayName("markOpened should still score a genuine open after a suppressed scanner probe")
-  void markOpened_should_scoreGenuineOpenAfterSuppressedProbe() {
+  @DisplayName(
+      "markOpened should not score a browser image load, only annotate it as an unconfirmed open")
+  void markOpened_should_onlyAnnotateBrowserImageLoad() {
     // -- ARRANGE --
     PhishingResult result = resultWith(false, false);
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
-    when(phishingResultRepository.save(any(PhishingResult.class)))
-        .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
     when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
 
-    // -- ACT -- the scanner probes first (suppressed annotation), the recipient opens later.
-    phishingTrackingService.markOpened(
-        "token-1", "40.94.2.10", "Mozilla/5.0 (compatible; BingPreview/1.0b)");
+    // -- ACT -- a human-looking agent, well after delivery: still not proof a person read it.
     Optional<PhishingResult> updated =
         phishingTrackingService.markOpened(
             "token-1", "203.0.113.7", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120");
 
-    // -- ASSERT -- the annotation never poisons the step: the genuine open still flips it RED
-    // with the recipient's own forensic origin, not the scanner's.
+    // -- ASSERT --
     assertTrue(updated.isPresent());
-    assertNotNull(updated.get().getOpenedAt(), "the genuine open must win the first-open slot");
-    assertEquals(0.0, opened.getScore(), "the genuine open must still flip the step to RED");
-    Map<String, String> metadata = opened.getResults().get(0).getMetadata();
-    assertNotNull(metadata);
+    assertNull(updated.get().getOpenedAt(), "an image load must not set the open timestamp");
+    assertEquals(100.0, opened.getScore(), "an image load must never flip the step to RED");
+    assertEquals(
+        PhishingTrackingService.UNCONFIRMED_OPEN_MESSAGE, opened.getResults().get(0).getResult());
     assertEquals(
         "203.0.113.7",
-        metadata.get(PhishingTrackingService.SOURCE_IP_METADATA_KEY),
-        "the flip must carry the recipient's origin, not the earlier probe's");
+        opened
+            .getResults()
+            .get(0)
+            .getMetadata()
+            .get(PhishingTrackingService.SOURCE_IP_METADATA_KEY),
+        "the annotation must carry the image load's origin");
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
   }
 
   @Test
@@ -251,7 +274,7 @@ class PhishingTrackingServiceTest {
         .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
     when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
-    phishingTrackingService.markOpened(
+    phishingTrackingService.markClicked(
         "token-1", "203.0.113.7", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120");
     List<InjectExpectationResult> flippedResults = opened.getResults();
 
@@ -273,6 +296,119 @@ class PhishingTrackingServiceTest {
             .getMetadata()
             .get(PhishingTrackingService.SOURCE_IP_METADATA_KEY),
         "the recipient's own origin must survive the later probe");
+  }
+
+  private static final String SCANNER_UA = "Mozilla/5.0 (compatible; BingPreview/1.0b)";
+  private static final String HUMAN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120";
+
+  @Test
+  @DisplayName("markOpened should not score a scanner pixel hit as an open")
+  void markOpened_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markOpened("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getOpenedAt(), "the recipient's own open slot must stay free");
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markClicked should not score a scanner click as a click")
+  void markClicked_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markClicked("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getOpenedAt());
+    assertNull(updated.get().getClickedAt(), "the recipient's own click slot must stay free");
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markPageFetched should change nothing for a browser-like fetch")
+  void markPageFetched_should_changeNothingForHumanLookingFetch() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markPageFetched("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT -- loading the page is not a click: only the interaction confirmation is.
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+    assertNull(updated.get().getOpenedAt());
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markPageFetched should not score a scanner fetch")
+  void markPageFetched_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markPageFetched("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+  }
+
+  @Test
+  @DisplayName("markBotClicked should not score a client-flagged bot with a browser user agent")
+  void markBotClicked_should_notScoreClientFlaggedBot() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT -- e.g. a headless Chrome reporting navigator.webdriver.
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markBotClicked("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+    assertEquals(100.0, clicked.getScore(), "a bot click must never flip the step to RED");
+  }
+
+  @Test
+  @DisplayName("a bot click followed by a genuine click should still score the genuine one")
+  void markClicked_should_scoreGenuineClickAfterBotClick() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT --
+    phishingTrackingService.markClicked("token-1", "40.94.2.10", SCANNER_UA);
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markClicked("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNotNull(updated.get().getClickedAt(), "the genuine click must still be recorded");
+    assertEquals(0.0, clicked.getScore());
   }
 
   @Test
@@ -329,28 +465,28 @@ class PhishingTrackingServiceTest {
 
   @Test
   @DisplayName(
-      "markOpened should still score a dual-use image proxy agent, with an advisory hint only")
-  void markOpened_should_scoreImageProxyWithAdvisoryHint() {
+      "markOpened should annotate a dual-use image proxy load as unconfirmed, with its hint")
+  void markOpened_should_annotateImageProxyWithAdvisoryHint() {
     // -- ARRANGE -- no sentAt on the row: the delay signal is unavailable, like a legacy row.
     PhishingResult result = resultWith(false, false);
     when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
-    when(phishingResultRepository.save(any(PhishingResult.class)))
-        .thenAnswer(i -> i.getArgument(0));
     ManualInjectExpectation opened = resistedStep(PhishingTrackingService.STEP_OPENED);
     when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
 
-    // -- ACT -- Gmail image proxy: genuine recipient opens ride through it too, so it must
-    // score (suppressing it would hide every real Gmail open) but carry the advisory hint.
+    // -- ACT -- Gmail image proxy: genuine recipient opens ride through it too, so it is not
+    // labelled a scanner, but like any image load it does not score.
     phishingTrackingService.markOpened(
         "token-1", "66.102.8.1", "Mozilla/5.0 (Windows NT 5.1; de) via ggpht.com GoogleImageProxy");
 
     // -- ASSERT --
-    assertEquals(0.0, opened.getScore(), "a dual-use proxy open must still score the step");
+    assertEquals(100.0, opened.getScore(), "an image load must never flip the step to RED");
+    assertEquals(
+        PhishingTrackingService.UNCONFIRMED_OPEN_MESSAGE, opened.getResults().get(0).getResult());
     Map<String, String> metadata = opened.getResults().get(0).getMetadata();
     assertNotNull(metadata);
     assertNotNull(
         metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_METADATA_KEY),
-        "a dual-use proxy open must carry the advisory automation hint");
+        "a dual-use proxy load must carry the advisory automation hint");
     assertEquals(
         PhishingTrackingService.AUTOMATION_LEVEL_POSSIBLE,
         metadata.get(PhishingTrackingService.SOURCE_AUTOMATION_LEVEL_METADATA_KEY),
@@ -509,12 +645,35 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    ArgumentCaptor<List<Finding>> captor = ArgumentCaptor.forClass(List.class);
-    verify(findingService).createFindings(captor.capture(), eq("inject-1"));
-    Finding finding = captor.getValue().get(0);
-    assertEquals(ContractOutputType.Credentials, finding.getType());
-    assertTrue(finding.getValue().contains("victim@corp.test"));
-    assertTrue(finding.getValue().contains("hunter2"), "password should be captured when enabled");
+    DetectedFinding detection = recordedDetection(result);
+    assertEquals(ContractOutputType.Credentials, detection.type());
+    assertEquals(new UserLocation("user-1"), detection.location());
+    assertTrue(detection.value().contains("victim@corp.test"));
+    assertTrue(detection.value().contains("hunter2"), "password should be captured when enabled");
+  }
+
+  @Test
+  @DisplayName("markSubmitted should link the result to the occurrence of the captured finding")
+  void markSubmitted_should_linkTheResultToTheFindingOccurrence() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(true, true);
+    FindingOccurrence occurrence = new FindingOccurrence();
+    occurrence.setId("occurrence-1");
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+    when(findingService.recordFindingsByInject(any(), any(), anyList()))
+        .thenReturn(List.of(finding("finding-1")));
+    when(findingOccurrenceService.occurrence("finding-1", "inject-1"))
+        .thenReturn(Optional.of(occurrence));
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT --
+    assertEquals(occurrence, result.getFindingOccurrence());
   }
 
   @Test
@@ -533,7 +692,7 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    verify(findingService, never()).createFindings(anyList(), anyString());
+    verify(findingService, never()).recordFindingsByInject(any(), any(), anyList());
   }
 
   @Test
@@ -551,10 +710,7 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    ArgumentCaptor<List<Finding>> captor = ArgumentCaptor.forClass(List.class);
-    verify(findingService).createFindings(captor.capture(), eq("inject-1"));
-    Finding finding = captor.getValue().get(0);
-    assertEquals("victim@corp.test", finding.getValue());
+    assertEquals("victim@corp.test", recordedDetection(result).value());
   }
 
   @Test
@@ -573,7 +729,52 @@ class PhishingTrackingServiceTest {
     phishingTrackingService.markSubmitted("token-1", fields, "1.2.3.4", "ua");
 
     // -- ASSERT --
-    verify(findingService, org.mockito.Mockito.times(1)).createFindings(anyList(), anyString());
+    verify(findingService, org.mockito.Mockito.times(1))
+        .recordFindingsByInject(any(), any(), anyList());
+  }
+
+  @Test
+  @DisplayName(
+      "markSubmitted should copy the credentials finding onto the attack path of a chained run")
+  void given_chainedResult_markSubmitted_should_copyFindingOntoAttackPath() {
+    // -- ARRANGE -- a chained execution: the tracking row carries the step that produced it.
+    PhishingResult result = resultWith(true, true);
+    Step step = new Step();
+    step.setId("step-1");
+    result.setStep(step);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+    when(findingService.recordFindingsByInject(any(), any(), anyList()))
+        .thenReturn(List.of(finding("finding-1")));
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT -- only the submitted finding is copied, by its id.
+    verify(attackPathFindingIngestion)
+        .copyFindingAfterCommit(result.getInject(), step, "finding-1");
+  }
+
+  @Test
+  @DisplayName("markSubmitted should not touch the attack path outside a chained run")
+  void given_unchainedResult_markSubmitted_should_notCopyFindingOntoAttackPath() {
+    // -- ARRANGE -- no step: a regular (non-chained) phishing execution.
+    PhishingResult result = resultWith(true, true);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT --
+    verify(findingService).recordFindingsByInject(any(), eq(result.getInject()), anyList());
+    verifyNoInteractions(attackPathFindingIngestion);
   }
 
   @Test

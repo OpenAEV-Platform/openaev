@@ -10,7 +10,7 @@ public interface Injection {
 
   Scenario getScenario();
 
-  Optional<Instant> getDate();
+  Optional<Instant> getDate(Instant stableNowReference);
 
   Inject getInject();
 }

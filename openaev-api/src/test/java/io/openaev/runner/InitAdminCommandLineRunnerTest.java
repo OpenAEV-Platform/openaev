@@ -5,22 +5,28 @@ import static io.openaev.database.model.Token.ADMIN_TOKEN_UUID;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.service.AbstractPrivilegeService;
+import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -48,6 +54,8 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
 
   @Autowired private UserService userService;
 
+  @Autowired private TenantScopedTransaction tenantTx;
+
   @PersistenceContext private EntityManager entityManager;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
@@ -73,22 +81,35 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // Arrange
     String adminGroupId =
         AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
+            AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
     // Act
-    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
-    List<Group> adminGroups =
-        adminUser.getUnscopedGroups().stream()
-            .filter(group -> adminGroupId.equals(group.getId()))
-            .toList();
+    // The group's roles are rows of the default tenant: they are read under its scope, and what
+    // the assertions need is extracted before that transaction ends.
+    List<GroupRights> adminGroups =
+        tenantTx.execute(
+            TxCtx.forTenant(DEFAULT_TENANT_UUID),
+            () ->
+                this.userRepository.findById(ADMIN_UUID).orElseThrow().getUnscopedGroups().stream()
+                    .filter(group -> adminGroupId.equals(group.getId()))
+                    .map(GroupRights::of)
+                    .toList());
 
     // Assert
     assertThat(adminGroups).hasSize(1);
-    Group adminGroup = adminGroups.getFirst();
-    assertThat(adminGroup.getTenant()).isNotNull();
-    assertThat(adminGroup.getTenant().getId()).isEqualTo(DEFAULT_TENANT_UUID);
-    assertThat(adminGroup.getRoles())
-        .anyMatch(role -> role.getCapabilities().contains(Capability.BYPASS));
+    GroupRights adminGroup = adminGroups.getFirst();
+    assertThat(adminGroup.tenant()).isNotNull();
+    assertThat(adminGroup.tenant().getId()).isEqualTo(DEFAULT_TENANT_UUID);
+    assertThat(adminGroup.roleCapabilities())
+        .anyMatch(capabilities -> capabilities.contains(Capability.BYPASS));
+  }
+
+  private record GroupRights(Tenant tenant, List<Set<Capability>> roleCapabilities) {
+    static GroupRights of(Group group) {
+      return new GroupRights(
+          group.getTenant(),
+          group.getRoles().stream().map(role -> Set.copyOf(role.getCapabilities())).toList());
+    }
   }
 
   @DisplayName("Ensuring the admin group twice keeps a single membership")
@@ -97,22 +118,47 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // Arrange
     String adminGroupId =
         AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
+            AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
+
+    // The runner loads the admin and ensures its group under the default tenant's scope; the user
+    // is read the same way here, since its groups bag is empty under no scope once groups is
+    // active.
+    TxCtx ctx = TxCtx.forTenant(DEFAULT_TENANT_UUID);
 
     // Act
     this.adminPrivilegeService.ensureAdminGroup(
-        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx,
+        DEFAULT_TENANT_UUID,
+        tenantTx.execute(ctx, () -> this.userRepository.findById(ADMIN_UUID).orElseThrow()));
     this.adminPrivilegeService.ensureAdminGroup(
-        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx,
+        DEFAULT_TENANT_UUID,
+        tenantTx.execute(ctx, () -> this.userRepository.findById(ADMIN_UUID).orElseThrow()));
 
     // Assert
-    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     long adminGroupCount =
-        adminUser.getUnscopedGroups().stream()
-            .filter(group -> adminGroupId.equals(group.getId()))
-            .count();
+        tenantTx.execute(
+            ctx,
+            () ->
+                this.userRepository.findById(ADMIN_UUID).orElseThrow().getUnscopedGroups().stream()
+                    .filter(group -> adminGroupId.equals(group.getId()))
+                    .count());
 
     assertThat(adminGroupCount).isEqualTo(1);
+  }
+
+  @DisplayName("Ensuring the admin group with no scope is refused")
+  @Test
+  void given_noScope_should_refuseToEnsureAdminGroup() {
+    // Arrange
+    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
+
+    // Act / Assert
+    assertThatThrownBy(
+            () ->
+                this.adminPrivilegeService.ensureAdminGroup(
+                    TxCtx.missing(), DEFAULT_TENANT_UUID, adminUser))
+        .isInstanceOf(TenantWriteScopeException.class);
   }
 
   @DisplayName("Admin user is enrolled in the platform admin group at bootstrap")
@@ -122,7 +168,9 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     List<Group> platformAdminGroups =
         adminUser.getUnscopedGroups().stream()
-            .filter(group -> AdminPrivilegeService.PLATFORM_ADMIN_GROUP_ID.equals(group.getId()))
+            .filter(
+                group ->
+                    AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupId().equals(group.getId()))
             .toList();
 
     // Assert

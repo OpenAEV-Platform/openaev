@@ -4,6 +4,7 @@ import static io.openaev.service.chaining.WorkflowEndService.WORKFLOW_END_CAUSE_
 
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -12,7 +13,10 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +50,7 @@ public class ScopeSnapshotService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final TenantScopedTransaction tenantTx;
+  private final ScopeService scopeService;
 
   /**
    * Freezes the launch snapshot on a RUN workflow's rules and appends the connected security
@@ -58,8 +63,11 @@ public class ScopeSnapshotService {
   @Transactional
   public void freezeLaunch(Workflow workflowRun, String tenantId) {
     workflowRun.getWorkflowScopeRules().addAll(buildSecurityPlatformRules(workflowRun, tenantId));
-    for (WorkflowScopeRule rule : workflowRun.getWorkflowScopeRules()) {
-      rule.setSnapshotStart(buildSnapshot(rule));
+    List<WorkflowScopeRule> rules = new ArrayList<>(workflowRun.getWorkflowScopeRules());
+    List<ScopeRuleSnapshot> photos =
+        atSystemClearance(tenantId, () -> rules.stream().map(this::buildSnapshot).toList());
+    for (int i = 0; i < rules.size(); i++) {
+      rules.get(i).setSnapshotStart(photos.get(i));
     }
   }
 
@@ -75,9 +83,35 @@ public class ScopeSnapshotService {
   @Transactional(readOnly = true)
   public void freezeEnd(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     if (WORKFLOW_END_CAUSE_BY_DELETION.contains(cause)) return;
-    for (WorkflowScopeRule rule : workflowRun.getWorkflowScopeRules()) {
-      rule.setSnapshotEnd(buildEndSnapshot(rule));
+    List<WorkflowScopeRule> rules = new ArrayList<>(workflowRun.getWorkflowScopeRules());
+    List<ScopeRuleSnapshot> photos =
+        atSystemClearance(
+            tenantIdOf(workflowRun), () -> rules.stream().map(this::buildEndSnapshot).toList());
+    for (int i = 0; i < rules.size(); i++) {
+      rules.get(i).setSnapshotEnd(photos.get(i));
     }
+  }
+
+  /**
+   * Resolves the photos with every marking of the run's tenant, whoever triggers the freeze (the
+   * launching user, the timeout job, the queue consumer or the user who stops the run). Under each
+   * caller's own clearance the launch and end photos would differ, and the diff would read {@code
+   * MODIFIED_DURING_EXECUTION} for everyone. Only plain photos leave the new transaction; what a
+   * reader may see of them is decided when they are read. Without a tenant, the work runs in the
+   * caller's own scope.
+   */
+  private <T> T atSystemClearance(String tenantId, Supplier<T> work) {
+    if (tenantId == null || tenantId.isBlank()) {
+      return work.get();
+    }
+    return tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
+  }
+
+  private static String tenantIdOf(Workflow workflowRun) {
+    Exercise simulation = workflowRun.getSimulation();
+    return simulation == null || simulation.getTenant() == null
+        ? null
+        : simulation.getTenant().getId();
   }
 
   // -- READ / DIFF --
@@ -94,7 +128,21 @@ public class ScopeSnapshotService {
    * RUNNING (no end snapshot) the current state is the in-progress end reference.
    */
   public ScopeRuleSnapshotStatus computeStatus(WorkflowScopeRule rule) {
-    ScopeRuleSnapshot launch = rule.getSnapshotStart();
+    return computeStatus(rule, null);
+  }
+
+  /**
+   * Same as {@link #computeStatus(WorkflowScopeRule)} for a reader who may not see every asset: the
+   * frozen photos hold every member of a group (they are taken at the system clearance), while the
+   * live state is read under the reader's own clearance, so the assets the reader cannot see are
+   * taken out of the photos before they are compared. Without it, a group with a hidden member
+   * would read {@code MODIFIED_DURING_EXECUTION} for that reader only.
+   *
+   * @param hiddenAssetIds the ids of the assets that exist but the reader cannot see (see {@link
+   *     #hiddenAssetIds}), or {@code null} / empty for a reader who sees them all
+   */
+  public ScopeRuleSnapshotStatus computeStatus(WorkflowScopeRule rule, Set<String> hiddenAssetIds) {
+    ScopeRuleSnapshot launch = withoutHidden(rule.getSnapshotStart(), hiddenAssetIds);
     if (launch == null) {
       return null;
     }
@@ -104,13 +152,83 @@ public class ScopeSnapshotService {
     if (isDegradedAudiencePhoto(rule, launch)) {
       return null;
     }
-    ScopeRuleSnapshot end = rule.getSnapshotEnd();
+    ScopeRuleSnapshot end = withoutHidden(rule.getSnapshotEnd(), hiddenAssetIds);
     // Lifecycle (the run has ended) is carried by the photo's existence; a deletion at end time is
     // carried by its explicit `deleted` flag, which derives to a null end signature below.
     boolean ended = end != null;
     ScopeRuleSnapshot current = buildCurrentSnapshot(rule);
     return statusFrom(
         signature(launch), endSignature(end), current != null ? signature(current) : null, ended);
+  }
+
+  /**
+   * The photo without the assets the reader cannot see. A copy: the frozen photo itself is never
+   * touched. A {@code null} photo, nothing hidden or no asset in the photo: returned as is.
+   *
+   * @param hiddenAssetIds the ids of the assets that exist but the reader cannot see
+   */
+  public static ScopeRuleSnapshot withoutHidden(
+      ScopeRuleSnapshot photo, Set<String> hiddenAssetIds) {
+    if (photo == null
+        || hiddenAssetIds == null
+        || hiddenAssetIds.isEmpty()
+        || photo.getAssets() == null) {
+      return photo;
+    }
+    return ScopeRuleSnapshot.builder()
+        .label(photo.getLabel())
+        .assets(
+            photo.getAssets().stream()
+                .filter(asset -> !hiddenAssetIds.contains(asset.getId()))
+                .toList())
+        .securityPlatform(photo.getSecurityPlatform())
+        .deleted(photo.getDeleted())
+        .build();
+  }
+
+  /**
+   * Among {@code assetIds}, the assets that exist but the reader cannot see. An asset that does not
+   * exist at all is not one of them: its rule must keep showing as deleted, which is not a
+   * restriction. The reader's own scope answers "visible"; only what that leaves out is looked up
+   * again at the system clearance, so most reads open no extra transaction.
+   *
+   * @param tenantId the tenant of the workflow whose rules are read
+   */
+  public Set<String> hiddenAssetIds(String tenantId, Collection<String> assetIds) {
+    Set<String> visible = assetService.visibleAssetIds(assetIds);
+    Set<String> notVisible =
+        assetIds.stream()
+            .filter(java.util.Objects::nonNull)
+            .filter(id -> !visible.contains(id))
+            .collect(Collectors.toSet());
+    if (notVisible.isEmpty()) {
+      return Set.of();
+    }
+    // Refilter at system clearance to know whether the asset is not visible because of clearance or
+    // has been deleted, return only the filtered assets because of user's clearance
+    return atSystemClearance(tenantId, () -> assetService.visibleAssetIds(notVisible));
+  }
+
+  /**
+   * Among {@code assetIds}, those the workflow scope (allowlist minus denylist) still resolves to.
+   * The scope is resolved at the system clearance: under the caller's own, an asset it is not
+   * cleared for is never in it.
+   *
+   * @param tenantId the tenant of the workflow
+   */
+  public Set<String> assetIdsInScope(
+      String tenantId, String workflowId, Collection<String> assetIds) {
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> candidates = Set.copyOf(assetIds);
+    return atSystemClearance(
+        tenantId,
+        () ->
+            scopeService.getValidAssets(workflowId).stream()
+                .map(Asset::getId)
+                .filter(candidates::contains)
+                .collect(Collectors.toSet()));
   }
 
   /**
@@ -352,12 +470,16 @@ public class ScopeSnapshotService {
 
   /**
    * One {@code SECURITY_PLATFORM} rule per connected tenant security platform (a collector with a
-   * non-null security platform FK), each carrying its launch snapshot. {@code selectedMode} is left
-   * null (informative, not an allow/deny target - see ADR-006).
+   * non-null security platform FK, its connector instance not paused), each carrying its launch
+   * snapshot. {@code selectedMode} is left null (informative, not an allow/deny target - see
+   * ADR-006).
    */
   private List<WorkflowScopeRule> buildSecurityPlatformRules(
       Workflow workflowRun, String tenantId) {
-    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId).stream()
+    return collectorRepository
+        .findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+            tenantId, ConnectorType.COLLECTOR.getIdKeyName())
+        .stream()
         .map(Collector::getSecurityPlatform)
         .filter(java.util.Objects::nonNull)
         .distinct()

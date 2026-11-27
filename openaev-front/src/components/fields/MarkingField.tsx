@@ -1,13 +1,25 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { Lens } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
+import { type MarkingDefinitionHelper } from '../../actions/marking_definitions/marking-definition-helper';
+import { useHelper } from '../../store';
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
-import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
-import { collapseToHighestPerType, markingLabel } from '../../utils/markings';
-import MarkingChip from '../common/MarkingChip';
+import { collapseToHighestPerType, markingLabel, sortMarkings } from '../../utils/markings';
 import { useFormatter } from '../i18n';
 
 interface Props {
@@ -19,16 +31,6 @@ interface Props {
   disabled?: boolean;
   required?: boolean;
 }
-
-// Most restrictive first within a type (TLP:RED before TLP:AMBER before ...) - same ordering as
-// GroupManageMarkings and ItemMarkings, so a marking reads the same way in every picker/display.
-const sortMarkings = (definitions: MarkingDefinitionOutput[]): MarkingDefinitionOutput[] =>
-  [...definitions].sort((a, b) => {
-    if (a.marking_definition_type !== b.marking_definition_type) {
-      return a.marking_definition_type.localeCompare(b.marking_definition_type);
-    }
-    return b.marking_definition_order - a.marking_definition_order;
-  });
 
 // This never creates a marking definition inline: definitions are managed from Settings > Marking
 // definitions, and are few enough (nine seeded TLP/PAP levels per tenant) that there is no product
@@ -44,13 +46,14 @@ const MarkingField: FunctionComponent<Props> = ({
   required = false,
 }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   // Only the markings the current user is cleared to assign - offering one they don't hold would
   // just fail server-side at submit time (see MarkingEscalationValidator). Whatever is already
   // assigned is guaranteed to already be within their clearance too: a row is only visible at all
   // when its markings are a subset of the viewer's own, so there is no case here where the current
   // value would fall outside this same filtered set.
-  const definitions = useMarkingDefinitions({ assignableOnly: true });
+  const { definitions } = useHelper((helper: MarkingDefinitionHelper) => ({ definitions: helper.getMarkingDefinitionsMap() }));
 
   const options = useMemo(() => sortMarkings(Object.values(definitions)), [definitions]);
 
@@ -74,7 +77,7 @@ const MarkingField: FunctionComponent<Props> = ({
   // stronger level is an unsurprising upgrade) or, if it is the weaker one, is rejected outright
   // with an explanation - a type can only ever be covered by one level at a time, so there is
   // nothing to add otherwise.
-  const handleChange = (_: unknown, newValue: MarkingDefinitionOutput[]) => {
+  const handleChange = (newValue: MarkingDefinitionOutput[]) => {
     const removed = value.filter(
       current => !newValue.some(n => n.marking_definition_id === current.marking_definition_id),
     );
@@ -114,52 +117,43 @@ const MarkingField: FunctionComponent<Props> = ({
       ...style,
     }}
     >
-      <MuiAutocomplete
+      <Combobox<MarkingDefinitionOutput>
+        required={required}
         multiple
-        size="small"
-        selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
-        disabled={disabled}
-        options={options}
         value={value}
-        onChange={handleChange}
+        options={options}
+        disabled={disabled}
+        selectOnFocus
+        keepInputOnBlur
+        onValueChange={newValue => handleChange(newValue as MarkingDefinitionOutput[])}
+        getOptionLabel={markingLabel}
         isOptionEqualToValue={(option, val) => option.marking_definition_id === val.marking_definition_id}
-        getOptionLabel={option => markingLabel(option)}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.marking_definition_id}>
-            <Lens sx={{
-              color: option.marking_definition_color,
-              marginRight: 1,
-              fontSize: 'small',
-            }}
-            />
-            <span>{markingLabel(option)}</span>
-          </Box>
+        getChipColor={option => option.marking_definition_color}
+        error={!!error}
+        renderOption={option => (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+          }}
+          >
+            <Lens fontSize="small" style={{ color: option.marking_definition_color }} />
+            {markingLabel(option)}
+          </span>
         )}
-        renderValue={(markingValue, getMarkingProps) => markingValue.map((option, index) => {
-          const { key, ...markingProps } = getMarkingProps({ index });
-          return (
-            <MarkingChip
-              key={key}
-              {...markingProps}
-              size="small"
-              marking={option}
-            />
-          );
-        })}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            error={!!error}
-            required={required}
-          />
-        )}
-      />
+      >
+        <ComboboxLabel required={required}>{label}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+        {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+      </Combobox>
     </div>
   );
 };

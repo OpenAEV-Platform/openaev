@@ -4,6 +4,10 @@ import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,10 +19,13 @@ import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
+import java.util.Objects;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -28,6 +35,7 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,12 +51,42 @@ public class XtmHubClient {
   private String graphqlEndpoint;
   private static final String XTMHUB_PLATFORM_TOKEN_HEADER = "XTM-Hub-Platform-Token";
   private static final String XTMHUB_PLATFORM_ID_HEADER = "XTM-Hub-Platform-Id";
-  private static final String PLATFORM_CONTRACT_FIELD = "platformContract";
-  private static final String PLATFORM_CONTRACT_UNKNOWN_FIELD_ERROR =
-      "Field \"" + PLATFORM_CONTRACT_FIELD + "\" is not defined by type";
-  private final AtomicBoolean isPlatformContractFallbackLogged = new AtomicBoolean(false);
+  private static final String COMMERCIAL_MODEL_FIELD = "commercialModel";
+  private static final String CONSUME_NEWS_FEED_ITEMS_MUTATION =
+      "mutation ConsumeProvisionedNewsFeedItems { consumeProvisionedNewsFeedItems {"
+          + " news_feed_items { id title type tags metadata { key value } creation_date is_deleted }"
+          + " available_news_feed_types } }";
+  private static final ObjectMapper NEWS_FEED_MAPPER = new ObjectMapper();
+  private static final String URL_PATH_METADATA_KEY = "url_path";
+  // Bounds a Hub that never answers: the collector runs on a shared scheduler thread.
+  static final Timeout NEWS_FEED_TIMEOUT = Timeout.ofSeconds(30);
+  // What the Hub answers when the platform id and token headers do not match a registration: the
+  // error code when it sends one, else (older Hubs) a message containing one of these values.
+  private static final List<String> TOKEN_REJECTED_CODES =
+      List.of("PLATFORM_NOT_REGISTERED", "INVALID_PLATFORM_ID");
+  private static final List<String> TOKEN_REJECTED_MESSAGES =
+      List.of(
+          "Invalid token provided",
+          "Invalid platform token provided",
+          "PLATFORM_NOT_REGISTERED",
+          "INVALID_PLATFORM_ID");
 
   private record HubResponse(int code, String body) {}
+
+  // What the Hub sends for a news feed item. The fields are not validated by Jackson: a missing
+  // or malformed one only skips this item, see parseNewsFeedResponse.
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record HubNewsFeedItem(
+      String id,
+      String title,
+      String type,
+      List<String> tags,
+      List<HubNewsFeedMetadata> metadata,
+      @JsonProperty("creation_date") String creationDate,
+      @JsonProperty("is_deleted") boolean deleted) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record HubNewsFeedMetadata(String key, String value) {}
 
   @PostConstruct
   void init() {
@@ -71,7 +109,39 @@ public class XtmHubClient {
     }
   }
 
-  public XtmHubConnectivityStatus refreshRegistrationStatusSingleTenant(
+  /**
+   * Consumes the news feed items the Hub provisioned for this platform, which removes them. The
+   * request is never sent again by the client: a replay could lose items the Hub already removed,
+   * and a {@code Retry-After} honored by a retry would hold the scheduler thread for as long as the
+   * Hub asks.
+   */
+  public NewsFeedFetchResult consumeProvisionedNewsFeedItems(String token, String platformId) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(NEWS_FEED_TIMEOUT)) {
+      HttpPost httpPost = new HttpPost(this.graphqlEndpoint);
+      httpPost.addHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(ACCEPT, APPLICATION_JSON_VALUE);
+      httpPost.addHeader(XTMHUB_PLATFORM_TOKEN_HEADER, token);
+      httpPost.addHeader(XTMHUB_PLATFORM_ID_HEADER, platformId);
+      JsonObject body = new JsonObject();
+      body.addProperty("query", CONSUME_NEWS_FEED_ITEMS_MUTATION);
+      httpPost.setEntity(new StringEntity(body.toString()));
+      HubResponse response =
+          httpClient.execute(
+              httpPost,
+              httpResponse ->
+                  new HubResponse(
+                      httpResponse.getCode(),
+                      httpResponse.getEntity() == null
+                          ? ""
+                          : EntityUtils.toString(httpResponse.getEntity(), "UTF-8")));
+      return parseNewsFeedResponse(response);
+    } catch (Exception e) {
+      log.warn("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage());
+      return new NewsFeedFetchResult.Failed();
+    }
+  }
+
+  public XtmHubConnectivityResult refreshRegistrationStatusSingleTenant(
       String platformId,
       String platformVersion,
       String platformContract,
@@ -81,52 +151,33 @@ public class XtmHubClient {
       String tenantName) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HubResponse response =
-          postRefreshWithPlatformContract(
+          postRefresh(
               httpClient,
-              platformContract,
-              contract ->
-                  buildRefreshStatusSingleTenantBody(
-                      platformId, platformVersion, contract, token, url, tenantId, tenantName));
-      return parseResponseAsConnectivityStatus(response);
+              buildRefreshStatusSingleTenantBody(
+                  platformId, platformVersion, platformContract, token, url, tenantId, tenantName));
+      return parseResponseAsConnectivityResult(response);
     } catch (Exception e) {
       log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
-      return XtmHubConnectivityStatus.INACTIVE;
+      return XtmHubConnectivityResult.INACTIVE;
     }
   }
 
-  public Map<String, XtmHubConnectivityStatus> refreshRegistrationStatusAllTenants(
+  public Map<String, XtmHubConnectivityResult> refreshRegistrationStatusAllTenants(
       String platformId,
       String platformVersion,
       String platformContract,
       Map<String, TenantRegistrationDetails> tenants) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HubResponse response =
-          postRefreshWithPlatformContract(
+          postRefresh(
               httpClient,
-              platformContract,
-              contract ->
-                  buildRefreshStatusAllTenantsBody(platformId, platformVersion, contract, tenants));
-      return parseAllTenantsResponseAsConnectivityStatus(response);
+              buildRefreshStatusAllTenantsBody(
+                  platformId, platformVersion, platformContract, tenants));
+      return parseAllTenantsResponseAsConnectivityResults(response);
     } catch (Exception e) {
       log.error("XTM Hub is unreachable on {}: {}", config.getApiUrl(), e.getMessage(), e);
       return Map.of();
     }
-  }
-
-  private HubResponse postRefreshWithPlatformContract(
-      CloseableHttpClient httpClient,
-      String platformContract,
-      Function<String, StringEntity> bodyBuilder)
-      throws IOException {
-    HubResponse response = postRefresh(httpClient, bodyBuilder.apply(platformContract));
-    if (platformContract == null || !isPlatformContractRejected(response)) {
-      return response;
-    }
-    if (isPlatformContractFallbackLogged.compareAndSet(false, true)) {
-      log.warn(
-          "XTM Hub does not accept the platform edition yet, refreshing the connectivity without it");
-    }
-    return postRefresh(httpClient, bodyBuilder.apply(null));
   }
 
   private HubResponse postRefresh(CloseableHttpClient httpClient, StringEntity httpBody)
@@ -143,29 +194,6 @@ public class XtmHubClient {
                 response.getEntity() == null
                     ? ""
                     : EntityUtils.toString(response.getEntity(), "UTF-8")));
-  }
-
-  // A hub older than the edition refresh rejects the field as unknown, in graphql-js's wording.
-  // Any other error naming the field, an invalid value for instance, comes from a hub that knows
-  // it, so the refresh is not sent again without it.
-  private static boolean isPlatformContractRejected(HubResponse response) {
-    try {
-      JsonElement errors = JsonParser.parseString(response.body()).getAsJsonObject().get("errors");
-      if (errors == null || !errors.isJsonArray()) {
-        return false;
-      }
-      for (JsonElement error : errors.getAsJsonArray()) {
-        JsonElement message = error.isJsonObject() ? error.getAsJsonObject().get("message") : null;
-        if (message != null
-            && message.isJsonPrimitive()
-            && message.getAsString().contains(PLATFORM_CONTRACT_UNKNOWN_FIELD_ERROR)) {
-          return true;
-        }
-      }
-      return false;
-    } catch (Exception e) {
-      return false;
-    }
   }
 
   public boolean autoRegister(
@@ -249,9 +277,7 @@ public class XtmHubClient {
     input.addProperty("url", url);
     input.addProperty("tenantId", tenantId);
     input.addProperty("tenantName", tenantName);
-    if (platformContract != null) {
-      input.addProperty(PLATFORM_CONTRACT_FIELD, platformContract);
-    }
+    input.addProperty("platformContract", platformContract);
 
     JsonObject variables = new JsonObject();
     variables.add("input", input);
@@ -259,7 +285,7 @@ public class XtmHubClient {
     JsonObject body = new JsonObject();
     body.addProperty(
         "query",
-        "mutation refreshPlatformRegistrationConnectivityStatusSingleTenant($input: RefreshPlatformRegistrationConnectivityStatusSingleTenantInput!) { refreshPlatformRegistrationConnectivityStatusSingleTenant(input: $input) { status } }");
+        "mutation refreshPlatformRegistrationConnectivityStatusSingleTenant($input: RefreshPlatformRegistrationConnectivityStatusSingleTenantInput!) { refreshPlatformRegistrationConnectivityStatusSingleTenant(input: $input) { status commercialModel } }");
     body.add("variables", variables);
 
     return new StringEntity(body.toString());
@@ -287,9 +313,7 @@ public class XtmHubClient {
     input.addProperty("platformId", platformId);
     input.addProperty("platformVersion", platformVersion);
     input.addProperty("platformIdentifier", platformIdentifier);
-    if (platformContract != null) {
-      input.addProperty(PLATFORM_CONTRACT_FIELD, platformContract);
-    }
+    input.addProperty("platformContract", platformContract);
     input.add("tenants", tenantsArray);
 
     JsonObject variables = new JsonObject();
@@ -298,7 +322,7 @@ public class XtmHubClient {
     JsonObject body = new JsonObject();
     body.addProperty(
         "query",
-        "mutation refreshPlatformRegistrationConnectivityStatusAllTenants($input: RefreshPlatformRegistrationConnectivityStatusAllTenantsInput!) { refreshPlatformRegistrationConnectivityStatusAllTenants(input: $input) { statuses { tenantId status } } }");
+        "mutation refreshPlatformRegistrationConnectivityStatusAllTenants($input: RefreshPlatformRegistrationConnectivityStatusAllTenantsInput!) { refreshPlatformRegistrationConnectivityStatusAllTenants(input: $input) { statuses { tenantId status commercialModel } } }");
     body.add("variables", variables);
 
     return new StringEntity(body.toString());
@@ -350,29 +374,46 @@ public class XtmHubClient {
     return XtmHubConnectivityStatus.INACTIVE;
   }
 
-  private XtmHubConnectivityStatus parseResponseAsConnectivityStatus(HubResponse response) {
+  // The hub answers with its own CommercialModel enum: a value this platform does not know yet is
+  // ignored rather than stored.
+  private static XtmHubCommercialModel toCommercialModel(JsonObject refreshed) {
+    JsonElement value = refreshed.get(COMMERCIAL_MODEL_FIELD);
+    if (value == null || !value.isJsonPrimitive()) {
+      return null;
+    }
+    try {
+      return XtmHubCommercialModel.valueOf(value.getAsString());
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  private XtmHubConnectivityResult toConnectivityResult(JsonObject refreshed) {
+    return new XtmHubConnectivityResult(
+        toConnectivityStatus(refreshed.get("status").getAsString()), toCommercialModel(refreshed));
+  }
+
+  private XtmHubConnectivityResult parseResponseAsConnectivityResult(HubResponse response) {
     if (response.code() != HttpStatus.SC_OK) {
-      return XtmHubConnectivityStatus.INACTIVE;
+      return XtmHubConnectivityResult.INACTIVE;
     }
     try {
       JsonElement jsonResponse = JsonParser.parseString(response.body());
-      String status =
+      JsonObject refreshed =
           jsonResponse
               .getAsJsonObject()
               .get("data")
               .getAsJsonObject()
               .get("refreshPlatformRegistrationConnectivityStatusSingleTenant")
-              .getAsJsonObject()
-              .get("status")
-              .getAsString();
-      return toConnectivityStatus(status);
+              .getAsJsonObject();
+      return toConnectivityResult(refreshed);
     } catch (Exception e) {
       log.warn("Error occurred while parsing XTM Hub connectivity response: {}", e.getMessage(), e);
-      return XtmHubConnectivityStatus.INACTIVE;
+      return XtmHubConnectivityResult.INACTIVE;
     }
   }
 
-  private Map<String, XtmHubConnectivityStatus> parseAllTenantsResponseAsConnectivityStatus(
+  private Map<String, XtmHubConnectivityResult> parseAllTenantsResponseAsConnectivityResults(
       HubResponse response) {
     if (response.code() != HttpStatus.SC_OK) {
       return Map.of();
@@ -389,13 +430,12 @@ public class XtmHubClient {
               .get("statuses")
               .getAsJsonArray();
 
-      Map<String, XtmHubConnectivityStatus> result = new HashMap<>();
+      Map<String, XtmHubConnectivityResult> result = new HashMap<>();
       statuses.forEach(
           element -> {
             JsonObject tenantStatus = element.getAsJsonObject();
             String tenantId = tenantStatus.get("tenantId").getAsString();
-            String status = tenantStatus.get("status").getAsString();
-            result.put(tenantId, toConnectivityStatus(status));
+            result.put(tenantId, toConnectivityResult(tenantStatus));
           });
       return result;
     } catch (Exception e) {
@@ -405,6 +445,115 @@ public class XtmHubClient {
           e);
       return Map.of();
     }
+  }
+
+  private NewsFeedFetchResult parseNewsFeedResponse(HubResponse response) {
+    if (response.code() == HttpStatus.SC_UNAUTHORIZED
+        || response.code() == HttpStatus.SC_FORBIDDEN) {
+      return new NewsFeedFetchResult.TokenRejected();
+    }
+    if (response.code() != HttpStatus.SC_OK) {
+      log.warn("XTM Hub answered {} to the news feed items request", response.code());
+      return new NewsFeedFetchResult.Failed();
+    }
+    try {
+      JsonNode json = NEWS_FEED_MAPPER.readTree(response.body());
+      if (json.has("errors")) {
+        return parseNewsFeedErrors(json.get("errors"));
+      }
+      JsonNode data = json.path("data").path("consumeProvisionedNewsFeedItems");
+      JsonNode hubItems = data.path("news_feed_items");
+      if (!hubItems.isArray()) {
+        throw new IllegalArgumentException("missing news_feed_items");
+      }
+      // The Hub removes the items it answers: a malformed one is skipped, not the whole answer.
+      List<ProvisionedNewsFeedItem> items = new ArrayList<>();
+      for (JsonNode hubItem : hubItems) {
+        try {
+          items.add(
+              toProvisionedNewsFeedItem(
+                  NEWS_FEED_MAPPER.treeToValue(hubItem, HubNewsFeedItem.class)));
+        } catch (Exception e) {
+          log.warn(
+              "Skipping the malformed XTM Hub news feed item {}: {}",
+              describeNewsFeedItem(hubItem),
+              e.getMessage());
+        }
+      }
+      return new NewsFeedFetchResult.Fetched(
+          new ProvisionedNewsFeedItems(items, stringsOf(data.path("available_news_feed_types"))));
+    } catch (Exception e) {
+      log.warn("Error occurred while parsing XTM Hub news feed items response: {}", e.getMessage());
+      return new NewsFeedFetchResult.Failed();
+    }
+  }
+
+  private NewsFeedFetchResult parseNewsFeedErrors(JsonNode errors) {
+    boolean tokenRejected =
+        errors.isArray()
+            && StreamSupport.stream(errors.spliterator(), false)
+                .anyMatch(this::isTokenRejectedError);
+    if (tokenRejected) {
+      return new NewsFeedFetchResult.TokenRejected();
+    }
+    log.warn("XTM Hub answered errors to the news feed items request: {}", errors);
+    return new NewsFeedFetchResult.Failed();
+  }
+
+  private boolean isTokenRejectedError(JsonNode error) {
+    String code = textOrNull(error.path("extensions").path("code"));
+    if (code != null && TOKEN_REJECTED_CODES.contains(code)) {
+      return true;
+    }
+    String message = textOrNull(error.path("message"));
+    return message != null && TOKEN_REJECTED_MESSAGES.stream().anyMatch(message::contains);
+  }
+
+  private ProvisionedNewsFeedItem toProvisionedNewsFeedItem(HubNewsFeedItem item) {
+    String urlPath =
+        item.metadata() == null
+            ? null
+            : item.metadata().stream()
+                .filter(
+                    metadata -> metadata != null && URL_PATH_METADATA_KEY.equals(metadata.key()))
+                .findFirst()
+                .map(HubNewsFeedMetadata::value)
+                .orElse(null);
+    return new ProvisionedNewsFeedItem(
+        required(item.id(), "id"),
+        required(item.title(), "title"),
+        required(item.type(), "type"),
+        item.tags() == null ? List.of() : item.tags().stream().filter(Objects::nonNull).toList(),
+        urlPath,
+        Instant.parse(required(item.creationDate(), "creation_date")),
+        item.deleted());
+  }
+
+  private String describeNewsFeedItem(JsonNode hubItem) {
+    String id = textOrNull(hubItem.path("id"));
+    return id != null ? id : "(without id)";
+  }
+
+  private String required(String value, String field) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException("missing field " + field);
+    }
+    return value;
+  }
+
+  private String textOrNull(JsonNode node) {
+    return node.isValueNode() && !node.isNull() ? node.asText() : null;
+  }
+
+  private List<String> stringsOf(JsonNode node) {
+    if (!node.isArray()) {
+      return List.of();
+    }
+    return StreamSupport.stream(node.spliterator(), false)
+        .filter(JsonNode::isValueNode)
+        .filter(element -> !element.isNull())
+        .map(JsonNode::asText)
+        .toList();
   }
 
   private boolean parseResponseAsSuccess(ClassicHttpResponse response) {

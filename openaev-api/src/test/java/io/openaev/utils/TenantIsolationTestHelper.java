@@ -7,6 +7,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.service.tenants.TenantQueueService;
 import io.openaev.service.tenants.TenantService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
@@ -18,15 +19,20 @@ import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import org.hibernate.Session;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Reusable helper for tenant isolation integration tests.
@@ -44,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
  * // assert data is NOT visible via GET /api/tenants/{tenantYYY}/scenarios/{id}
  * }</pre>
  */
+@Slf4j
 @Component
 public class TenantIsolationTestHelper {
 
@@ -55,6 +62,8 @@ public class TenantIsolationTestHelper {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private TenantComposer tenantComposer;
+  @Autowired private TenantQueueService tenantQueueService;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   /**
    * Creates a tenant and attaches the current mock user to it.
@@ -94,8 +103,39 @@ public class TenantIsolationTestHelper {
    */
   @Transactional
   public void attachCurrentUserToTenant(String tenantId) {
-    String userId = testUserHolder.get().getId();
+    attachUserToTenant(testUserHolder.get().getId(), tenantId);
+  }
+
+  /**
+   * Same as {@link #attachCurrentUserToTenant} for a user the test composed itself rather than the
+   * current mock user.
+   *
+   * @param userId the persisted user to attach
+   * @param tenantId the existing tenant to attach it to
+   */
+  @Transactional
+  public void attachUserToTenant(String userId, String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  /**
+   * Detaches the current mock user from an EXISTING tenant, membership only.
+   *
+   * <p>{@link #createTenant} runs the production dependency managers, and one of them attaches the
+   * CREATING user to the tenant it just made ({@code TenantUserService#createDependencyForTenant}).
+   * A class whose premise is a caller outside that tenant therefore has to undo that membership:
+   * otherwise whichever test method happens to create the tenant runs as one of its members, and
+   * the case passes for a reason it does not state.
+   *
+   * @param tenantId the existing tenant to detach the current mock user from
+   */
+  @Transactional
+  public void detachCurrentUserFromTenant(String tenantId) {
+    String userId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
     entityManager.flush();
     entityManager.clear();
@@ -142,9 +182,12 @@ public class TenantIsolationTestHelper {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
 
-    // The role and group composers resolve the tenant via TenantContext.getCurrentTenant().
+    // The role and group composers resolve the tenant via TenantContext.getCurrentTenant(), and a
+    // role of that tenant is writable only in a scope that holds it.
     String previousTenantId = TenantContext.getCurrentTenant();
+    String previousScope = currentScope();
     TenantContext.setCurrentTenant(tenantId);
+    setCurrentScope(previousScope.isEmpty() ? tenantId : previousScope + "," + tenantId);
     try {
       // Create a role with the requested capabilities using fixture + composer
       TenantRoleComposer.Composer roleComposer =
@@ -160,6 +203,7 @@ public class TenantIsolationTestHelper {
       entityManager.flush();
       entityManager.clear();
     } finally {
+      setCurrentScope(previousScope);
       TenantContext.setCurrentTenant(previousTenantId);
     }
   }
@@ -169,6 +213,14 @@ public class TenantIsolationTestHelper {
    *
    * <p>Note: uses service layer directly because {@code POST /api/tenants} requires Enterprise
    * Edition license.
+   *
+   * <p><strong>This ENROLS the current mock user in the new tenant.</strong> Creation runs the
+   * production dependency managers and one of them attaches the creating user ({@code
+   * TenantUserService#createDependencyForTenant}), so the caller is a member of every tenant this
+   * method makes. A test whose premise is a caller outside the tenant must call {@link
+   * #detachCurrentUserFromTenant} on it, and assert the refusal it means to exercise rather than
+   * the status alone: a member who merely lacks the capability is refused with the same 403, with
+   * an empty body instead of {@code TENANT_ACCESS_DENIED}.
    *
    * <p>Onboarding self-scopes the ambient transaction to this tenant ({@code
    * ManagerFactory#createDependencyForTenant} -> {@code ManagerCreator#createManager}, see its
@@ -203,6 +255,23 @@ public class TenantIsolationTestHelper {
         }
       }
     }
+  }
+
+  private String currentScope() {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
+  }
+
+  /** Sets the current scope only, leaving the test's ambient scope marker as it is. */
+  private void setCurrentScope(String scope) {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
+        .setParameter("scope", scope)
+        .getResultList();
   }
 
   /**
@@ -251,7 +320,7 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Switches the current tenant context and enables the Hibernate tenant filter.
+   * Switches the current tenant context.
    *
    * @param tenantId the tenant ID to switch to
    * @param entityManager the current {@link EntityManager}
@@ -263,47 +332,98 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * Switches the current tenant context and enables the Hibernate tenant filter.
+   * Switches the current tenant context.
    *
    * @param tenantId the tenant ID to switch to
    */
   public void switchToTenantNoFlush(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 
   /**
-   * Removes tenants that were COMMITTED by a non-transactional test class (tests around the
-   * background transaction primitive cannot run inside a test transaction, so nothing rolls back).
-   * Deletes the tenant children without ON DELETE CASCADE first, in FK order: {@code collectors}
-   * references {@code collector_types} via {@code fk_collector_type_ref} with no cascade (migration
-   * V4_92), so a tenant onboarded through the normal flow (which seeds a default collector
-   * referencing its own collector type) fails the {@code collector_types} delete unless its {@code
-   * collectors} row is gone first. Every other tenant-scoped row cascades with the tenant. Null ids
-   * are skipped so a partially failed setup still cleans what it managed to create. Table-specific
-   * rows the caller created (and any join table without a cascading FK) must be removed by the
-   * caller BEFORE this call. External residue (per-tenant broker queues) cannot be removed here;
-   * that is the suite-wide pre-existing pattern for service-created tenants.
+   * Removes tenants that were COMMITTED by a test, with every row they own, in a transaction that
+   * commits: the transaction the caller opened when there is one (the deletes commit with it),
+   * otherwise a new one. Call it from a cleanup method ({@code @AfterEach}, {@code @AfterAll}),
+   * directly or inside a transaction the cleanup opens.
+   *
+   * <p>In a {@code @Transactional} test class the test-managed transaction is active here, and a
+   * delete that joined it would roll back with it while the broker teardown applies, leaving the
+   * tenant and its rows in the database for the next tests of the class, and in the startup
+   * snapshot of the next run when the JVM stops before the after-class restore. So that transaction
+   * ends first, rolled back as the test runner would have done (an uncommitted row of the test
+   * referencing the tenant would otherwise hold a lock the delete waits on), the deletes commit in
+   * a new transaction, and a new test-managed transaction starts in the test's ambient scope
+   * without the removed tenants, for the cleanup that follows; the runner rolls it back as usual.
+   * When a failed statement left the test transaction aborted, its scope cannot be read: the
+   * tenants are removed all the same, and the new test-managed transaction starts with no scope.
+   *
+   * <p>One delete of the tenant row removes what the tenant owns: every foreign key to {@code
+   * tenants} is {@code ON DELETE CASCADE}, and the {@code NO ACTION} keys into {@code
+   * collector_types} (from {@code collectors}, {@code payload_identities} and {@code
+   * detection_remediations}) are checked at the end of the statement, once the cascade has removed
+   * the referencing rows of the same tenant. Null ids are skipped so a partially failed setup
+   * cleans what it managed to create. Table-specific rows the caller created that do not cascade
+   * with the tenant must be removed by the caller BEFORE this call. The tenant's broker queues and
+   * exchanges are deleted through the production teardown, {@link
+   * TenantQueueService#deleteDependencyForTenant}, which is idempotent.
    */
-  @Transactional
   public void deleteCommittedTenants(String... tenantIds) {
-    for (String tenantId : tenantIds) {
-      if (tenantId == null) {
-        continue;
+    List<String> ids = Arrays.stream(tenantIds).filter(Objects::nonNull).toList();
+    boolean inTestTransaction = TestTransaction.isActive();
+    String ambientScope = inTestTransaction ? ambientScopeSetting() : "";
+    if (inTestTransaction) {
+      TestTransaction.flagForRollback();
+      TestTransaction.end();
+    }
+    try {
+      for (String tenantId : ids) {
+        try {
+          tenantQueueService.deleteDependencyForTenant(tenantId);
+        } catch (DependenciesManagerException e) {
+          throw new IllegalStateException(
+              "Could not delete the broker objects of test tenant " + tenantId, e);
+        }
       }
-      entityManager
-          .createNativeQuery("DELETE FROM collectors WHERE tenant_id = :id")
-          .setParameter("id", tenantId)
-          .executeUpdate();
-      entityManager
-          .createNativeQuery("DELETE FROM collector_types WHERE tenant_id = :id")
-          .setParameter("id", tenantId)
-          .executeUpdate();
-      entityManager
-          .createNativeQuery("DELETE FROM tenants WHERE tenant_id = :id")
-          .setParameter("id", tenantId)
-          .executeUpdate();
+      new TransactionTemplate(transactionManager)
+          .executeWithoutResult(
+              status ->
+                  ids.forEach(
+                      tenantId ->
+                          entityManager
+                              .createNativeQuery("DELETE FROM tenants WHERE tenant_id = :id")
+                              .setParameter("id", tenantId)
+                              .executeUpdate()));
+    } finally {
+      if (inTestTransaction) {
+        TestTransaction.start();
+        if (!ambientScope.isEmpty()) {
+          List<String> remaining =
+              Arrays.stream(ambientScope.split(",")).filter(id -> !ids.contains(id)).toList();
+          DefaultTenantScopeTestListener.setAmbientScope(
+              entityManager, String.join(",", remaining));
+        }
+      }
+    }
+  }
+
+  /**
+   * The test's ambient scope marker (see {@link DefaultTenantScopeTestListener}), empty if unset or
+   * unreadable: in a transaction a failed statement aborted (PostgreSQL {@code 25P02}) every read
+   * fails until the rollback, and the cleanup must reach that rollback.
+   */
+  private String ambientScopeSetting() {
+    try {
+      return (String)
+          entityManager
+              .createNativeQuery(
+                  "SELECT coalesce(current_setting('"
+                      + DefaultTenantScopeTestListener.AMBIENT_SCOPE_SETTING
+                      + "', true), '')")
+              .setFlushMode(FlushModeType.COMMIT)
+              .getSingleResult();
+    } catch (PersistenceException e) {
+      log.debug("Test ambient scope unreadable, no scope to restore after the cleanup", e);
+      return "";
     }
   }
 }
