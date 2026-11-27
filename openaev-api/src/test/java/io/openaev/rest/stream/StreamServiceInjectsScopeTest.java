@@ -202,11 +202,20 @@ class StreamServiceInjectsScopeTest extends IntegrationTest {
         });
   }
 
-  private boolean isUpdateOfTheInject(Object message) {
+  private boolean isEventOfTheInject(Object message) {
     return message instanceof ServerSentEvent<?> event
         && StreamService.EVENT_TYPE_MESSAGE.equals(event.event())
         && event.data() instanceof BaseEvent baseEvent
         && injectId.equals(baseEvent.getInstance().getId());
+  }
+
+  /**
+   * The update only. The setup's creation event of the same inject is dispatched on the stream
+   * executor after the setup commits, so it can reach a consumer registered right after the setup.
+   */
+  private boolean isUpdateOfTheInject(Object message) {
+    return isEventOfTheInject(message)
+        && DATA_UPDATE.equals(((BaseEvent) ((ServerSentEvent<?>) message).data()).getType());
   }
 
   @Nested
@@ -242,7 +251,7 @@ class StreamServiceInjectsScopeTest extends IntegrationTest {
 
       // Assert
       verify(tenantBSink, timeout(DELIVERY_TIMEOUT_MS)).next(argThat(m -> isUpdateOfTheInject(m)));
-      verify(tenantASink, after(2_000).never()).next(argThat(m -> isUpdateOfTheInject(m)));
+      verify(tenantASink, after(2_000).never()).next(argThat(m -> isEventOfTheInject(m)));
     }
   }
 
@@ -319,7 +328,7 @@ class StreamServiceInjectsScopeTest extends IntegrationTest {
 
       // Assert
       verify(tenantBSink, timeout(DELIVERY_TIMEOUT_MS)).next(argThat(m -> isUpdateOfTheInject(m)));
-      verify(tenantASink, after(2_000).never()).next(argThat(m -> isUpdateOfTheInject(m)));
+      verify(tenantASink, after(2_000).never()).next(argThat(m -> isEventOfTheInject(m)));
     }
   }
 }
