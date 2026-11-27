@@ -1,5 +1,4 @@
 import { CategoryOutlined } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { fetchAvailableActionFacetCounts, installAllCatalogPayloads, searchAvailableActions } from '../../../../actions/catalog/payload-catalog-actions';
@@ -11,21 +10,17 @@ import {
   CATALOG_ITEM_PLATFORM_FACET,
   CATALOG_ITEM_PLATFORMS,
   CATALOG_ITEM_PUBLISHED,
-  CATALOG_ITEM_SORT_OPTIONS,
 } from '../../../../components/common/marketplace/filter/catalogItemSearch';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/filter/MarketplaceFacetSidebar';
 import useMarketplaceSearch from '../../../../components/common/marketplace/filter/useMarketplaceSearch';
-import MarketplaceInstallActions from '../../../../components/common/marketplace/install/MarketplaceInstallActions';
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
 import MarketplaceCatalogTabs from '../../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import { bySection } from '../../../../components/common/marketplace/results/groupSections';
 import MarketplaceList, { type MarketplaceColumn, type MarketplaceRowTarget } from '../../../../components/common/marketplace/results/MarketplaceList';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
-import MarketplaceSortSelect from '../../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
-import MarketplaceViewToggle from '../../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
+import MarketplaceCatalogToolbar from '../../../../components/common/marketplace/toolbar/MarketplaceCatalogToolbar';
 import useMarketplaceView from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
 import { THREAT_ARSENAL_BASE_URL } from '../../../../constants/BaseUrls';
 import { type AvailableActionOutput, type AvailablePayloadActionOutput } from '../../../../utils/api-types';
@@ -63,10 +58,9 @@ const domainOf = (action: AvailableActionOutput) => action.action_domain;
 // The catalogue actions the tenant does not have yet: payloads first, then the actions of integrations.
 const ThreatArsenalAvailable = () => {
   const { t, nsd } = useFormatter();
-  const theme = useTheme();
   const nameOf = useActionName();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
-  const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal-catalog:view-mode');
+  const view = useMarketplaceView('threat-arsenal-catalog:view-mode');
   const payloads = usePayloadInstall();
   const [opened, setOpened] = useState<AvailablePayloadActionOutput | null>(null);
   const catalog = useMarketplaceSearch<AvailableActionOutput>({
@@ -83,6 +77,7 @@ const ThreatArsenalAvailable = () => {
       installing={payloads.isInstalling(action)}
       canInstall={canInstall}
       onInstall={() => payloads.install(action)}
+      size="sm"
     />
   );
   const card = byKind<ReactNode>({
@@ -178,38 +173,26 @@ const ThreatArsenalAvailable = () => {
           />
         )}
         toolbar={(
-          <PaginationComponentV2
-            {...catalog.pagination}
+          <MarketplaceCatalogToolbar
+            catalog={catalog}
+            view={view}
             entityPrefix="catalog_payload"
-            availableFilterNames={[DOMAIN, CATALOG_ITEM_PLATFORMS, AUTHOR]}
-            filtersEndSlot={viewMode === 'grid'
-              ? <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={CATALOG_ITEM_SORT_OPTIONS} descendingFields={[CATALOG_ITEM_PUBLISHED]} />
-              : null}
-            topBarButtons={(
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing(1),
-              }}
-              >
-                <MarketplaceInstallActions
-                  autoInstallSetting="payload_auto_install"
-                  autoInstallHelp={t('Installs each new Filigran action as soon as it is published.')}
-                  canInstall={canInstall}
-                  installAll={installAllCatalogPayloads}
-                  installedMessage={count => t('{count} actions installed', { count })}
-                  onInstalledAll={() => {
-                    payloads.forgetInstalled();
-                    catalog.reload();
-                  }}
-                />
-                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
-              </div>
-            )}
+            filterNames={[DOMAIN, CATALOG_ITEM_PLATFORMS, AUTHOR]}
+            install={{
+              autoInstallSetting: 'payload_auto_install',
+              autoInstallHelp: t('Installs each new Filigran action as soon as it is published.'),
+              canInstall,
+              installAll: installAllCatalogPayloads,
+              installedMessage: count => t('{count} actions installed', { count }),
+              onInstalledAll: () => {
+                payloads.forgetInstalled();
+                catalog.reload();
+              },
+            }}
           />
         )}
       >
-        {viewMode === 'grid'
+        {view.viewMode === 'grid'
           ? (
               <MarketplaceSections
                 items={actions}
@@ -241,12 +224,18 @@ const ThreatArsenalAvailable = () => {
             )}
         <MarketplaceLoadMore {...catalog.loadMore} />
       </MarketplaceBrowser>
-      <ThreatArsenalCatalogDrawer
-        action={opened}
-        canInstall={canInstall && !(opened && payloads.isInstalled(opened))}
-        onClose={() => setOpened(null)}
-        onInstalled={version => opened && payloads.markInstalled(opened, version)}
-      />
+      {opened && (
+        <ThreatArsenalCatalogDrawer
+          key={opened.action_id}
+          action={opened}
+          name={nameOf(opened)}
+          installed={payloads.isInstalled(opened)}
+          installing={payloads.isInstalling(opened)}
+          canInstall={canInstall}
+          onClose={() => setOpened(null)}
+          onInstall={version => payloads.install(opened, version).then(installed => installed && setOpened(null))}
+        />
+      )}
     </>
   );
 };

@@ -1,7 +1,6 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,12 +17,6 @@ vi.mock('../../../../../components/i18n', () => ({
 }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: () => mocks.canManageSettings }) }));
 vi.mock('../../../../../admin/components/scenarios/catalog/ScenarioCatalogFacts', () => ({ default: ({ values }: { values: unknown }) => <pre data-testid="scenario-facts">{JSON.stringify(values)}</pre> }));
-vi.mock('../../../../../components/common/Drawer', () => ({
-  default: ({ open, children }: {
-    open: boolean;
-    children: ReactNode;
-  }) => (open ? <div>{children}</div> : null),
-}));
 
 const { default: ScenarioCatalogDrawer } = await import('../../../../../admin/components/scenarios/catalog/ScenarioCatalogDrawer');
 
@@ -45,7 +38,7 @@ const NMAP = {
   requirement_integration_id: 'nmap-integration',
 };
 
-const renderDrawer = (scenario: CatalogScenarioOutput | null, {
+const renderDrawer = (scenario: CatalogScenarioOutput, {
   canInstall = true,
   onInstall = vi.fn(),
   onClose = vi.fn(),
@@ -225,13 +218,5 @@ describe('ScenarioCatalogDrawer', () => {
       // Assert
       expect(onClose).toHaveBeenCalled();
     });
-  });
-
-  it('given_noScenario_should_showNothing', () => {
-    // Act
-    const { container } = renderDrawer(null);
-
-    // Assert
-    expect(container.childElementCount).toBe(0);
   });
 });

@@ -6,6 +6,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.scenario.ScenarioRevision;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.catalog.CatalogFileService;
+import io.openaev.service.catalog.merge.MergeChoice;
 import io.openaev.service.catalog.scenario.CatalogScenarioOfferService;
 import io.openaev.service.catalog.scenario.InstallableScenarioVersion;
 import io.openaev.service.catalog.scenario.ReleasedScenario;
@@ -46,7 +47,7 @@ public class CatalogScenarioUpdater {
       String scenarioId,
       String version,
       String previewedVersion,
-      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, MergeChoice> choices,
       Map<String, String> edits) {
     InstalledScenario installed = installedScenarioService.installed(ctx, scenarioId);
     InstallableScenarioVersion released = offered(ctx, installed, version);
@@ -70,7 +71,7 @@ public class CatalogScenarioUpdater {
       String scenarioId,
       String revisionId,
       String previewedVersion,
-      Map<String, ScenarioMerge.Choice> choices,
+      Map<String, MergeChoice> choices,
       Map<String, String> edits) {
     catalogScenarioUpdateService.apply(
         ctx, toRevision(ctx, scenarioId, revisionId), previewedVersion, Map.of(), choices, edits);

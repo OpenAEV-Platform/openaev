@@ -15,10 +15,10 @@ describe('ConflictChoice', () => {
     render(
       <ConflictChoice
         title="Scan · Title"
-        theirsLabel="Version v1.1.0"
-        mineLabel="Yours"
-        theirs="nmap -sV"
-        mine="nmap -A"
+        appliedLabel="Version v1.1.0"
+        localLabel="Yours"
+        applied="nmap -sV"
+        local="nmap -A"
         onSelect={onSelect}
       />,
     );
@@ -29,7 +29,7 @@ describe('ConflictChoice', () => {
     // Assert
     expect(screen.getByRole('radiogroup')).toHaveAccessibleName('Scan · Title');
     expect(screen.getByRole('radio', { name: 'Version v1.1.0' })).toBeInTheDocument();
-    expect(onSelect).toHaveBeenCalledWith('mine');
+    expect(onSelect).toHaveBeenCalledWith('KEEP_MINE');
   });
 
   it('shows the side already picked as checked', () => {
@@ -37,11 +37,11 @@ describe('ConflictChoice', () => {
     render(
       <ConflictChoice
         title="Scan · Title"
-        theirsLabel="Version v1.1.0"
-        mineLabel="Yours"
-        theirs="nmap -sV"
-        mine="nmap -A"
-        selected="theirs"
+        appliedLabel="Version v1.1.0"
+        localLabel="Yours"
+        applied="nmap -sV"
+        local="nmap -A"
+        selected="TAKE_APPLIED"
         onSelect={vi.fn()}
       />,
     );

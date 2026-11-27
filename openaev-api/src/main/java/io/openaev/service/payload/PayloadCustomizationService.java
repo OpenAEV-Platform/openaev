@@ -9,16 +9,14 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.AuthorService;
 import io.openaev.service.catalog.CatalogListService;
-import io.openaev.service.payload.PayloadCustomizationMerge.Choice;
+import io.openaev.service.catalog.merge.MergeChoice;
 import io.openaev.service.payload.PayloadCustomizationMerge.Update;
-import io.openaev.utils.catalog.SemanticVersion;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,18 +63,15 @@ public class PayloadCustomizationService {
     return new Customization(
         payloadVersionService.versionAction(tenantId, base.getId()),
         update,
-        update.map(newer -> releaseNotes(base, newer.target())).orElse(List.of()));
-  }
-
-  private List<CatalogPayload> releaseNotes(Payload base, Payload target) {
-    return catalogListService.offeredVersions(CatalogPayload.class, base.getExternalId()).stream()
-        .filter(
-            release -> SemanticVersion.ORDER.compare(release.getVersion(), base.getVersion()) > 0)
-        .filter(
-            release ->
-                SemanticVersion.ORDER.compare(release.getVersion(), target.getVersion()) <= 0)
-        .filter(release -> StringUtils.isNotBlank(release.getChangelog()))
-        .toList();
+        update
+            .map(
+                newer ->
+                    CatalogListService.releaseNotes(
+                        catalogListService.offeredVersions(
+                            CatalogPayload.class, base.getExternalId()),
+                        base.getVersion(),
+                        newer.target().getVersion()))
+            .orElse(List.of()));
   }
 
   // -- CREATE --
@@ -108,7 +103,7 @@ public class PayloadCustomizationService {
       String tenantId,
       String actionId,
       String targetPayloadId,
-      Map<CustomizableBlock, Choice> choices) {
+      Map<CustomizableBlock, MergeChoice> choices) {
     InjectorContract action = payloadVersionService.payloadAction(tenantId, actionId);
     Payload current = customized(payloadOf(action));
     if (!current.isLatest()) {

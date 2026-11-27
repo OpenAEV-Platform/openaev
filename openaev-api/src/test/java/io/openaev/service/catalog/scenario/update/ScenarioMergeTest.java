@@ -6,10 +6,10 @@ import static org.assertj.core.api.Assertions.tuple;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.service.catalog.merge.MergeChoice;
+import io.openaev.service.catalog.merge.MergeStatus;
 import io.openaev.service.catalog.scenario.update.ScenarioMerge.Change;
-import io.openaev.service.catalog.scenario.update.ScenarioMerge.Choice;
 import io.openaev.service.catalog.scenario.update.ScenarioMerge.Result;
-import io.openaev.service.catalog.scenario.update.ScenarioMerge.Status;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -56,7 +56,7 @@ class ScenarioMergeTest {
       assertThat(merged(result, "content.command").asText()).isEqualTo("nmap -sV");
       assertThat(result.changes())
           .extracting(Change::id, Change::status)
-          .containsExactly(tuple(INJECT + "/content.command", Status.TAKE_APPLIED));
+          .containsExactly(tuple(INJECT + "/content.command", MergeStatus.TAKE_APPLIED));
       assertThat(result.resolved()).isTrue();
     }
 
@@ -74,7 +74,7 @@ class ScenarioMergeTest {
       assertThat(merged(result, "title").asText()).isEqualTo("My scan");
       assertThat(result.changes())
           .extracting(Change::id, Change::status)
-          .containsExactly(tuple(INJECT + "/title", Status.KEEP_MINE));
+          .containsExactly(tuple(INJECT + "/title", MergeStatus.KEEP_MINE));
     }
 
     @Test
@@ -90,7 +90,7 @@ class ScenarioMergeTest {
 
       // Assert
       assertThat(result.unresolved()).containsExactly(INJECT + "/content.command");
-      assertThat(result.changes()).extracting(Change::status).containsExactly(Status.CONFLICT);
+      assertThat(result.changes()).extracting(Change::status).containsExactly(MergeStatus.CONFLICT);
     }
 
     @Test
@@ -104,10 +104,10 @@ class ScenarioMergeTest {
       // Act
       Result taken =
           ScenarioMerge.merge(
-              base, applied, local, Map.of(INJECT + "/content.command", Choice.TAKE_APPLIED));
+              base, applied, local, Map.of(INJECT + "/content.command", MergeChoice.TAKE_APPLIED));
       Result kept =
           ScenarioMerge.merge(
-              base, applied, local, Map.of(INJECT + "/content.command", Choice.KEEP_MINE));
+              base, applied, local, Map.of(INJECT + "/content.command", MergeChoice.KEEP_MINE));
 
       // Assert
       assertThat(taken.resolved()).isTrue();
@@ -125,8 +125,8 @@ class ScenarioMergeTest {
           content("{'inject:a': {'title': 'Scan v2', 'contract': {'payload_version': '2'}}}");
       ObjectNode local =
           content("{'inject:a': {'title': 'My scan', 'contract': {'payload_version': '3'}}}");
-      Map<String, Choice> edit =
-          Map.of(INJECT + "/title", Choice.EDIT, INJECT + "/contract", Choice.EDIT);
+      Map<String, MergeChoice> edit =
+          Map.of(INJECT + "/title", MergeChoice.EDIT, INJECT + "/contract", MergeChoice.EDIT);
       Map<String, String> typed = Map.of(INJECT + "/title", "Our scan", INJECT + "/contract", "{}");
 
       // Act
@@ -170,7 +170,7 @@ class ScenarioMergeTest {
 
       // Assert
       assertThat(result.merged().has(INJECT)).isTrue();
-      assertThat(result.changes()).extracting(Change::status).containsExactly(Status.ADDED);
+      assertThat(result.changes()).extracting(Change::status).containsExactly(MergeStatus.ADDED);
     }
 
     @Test
@@ -195,7 +195,7 @@ class ScenarioMergeTest {
 
       // Assert
       assertThat(result.merged().has(INJECT)).isFalse();
-      assertThat(result.changes()).extracting(Change::status).containsExactly(Status.REMOVED);
+      assertThat(result.changes()).extracting(Change::status).containsExactly(MergeStatus.REMOVED);
     }
 
     @Test
@@ -207,7 +207,7 @@ class ScenarioMergeTest {
               inject("Scan", "nmap"),
               content("{}"),
               inject("Scan", "nmap -A"),
-              Map.of(INJECT, Choice.KEEP_MINE));
+              Map.of(INJECT, MergeChoice.KEEP_MINE));
 
       // Assert
       assertThat(result.resolved()).isTrue();

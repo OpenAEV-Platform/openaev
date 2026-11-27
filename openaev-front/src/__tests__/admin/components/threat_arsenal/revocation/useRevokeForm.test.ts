@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import useRevocationForm from '../../../../../admin/components/threat_arsenal/revocation/useRevocationForm';
+import useRevokeForm from '../../../../../admin/components/threat_arsenal/revocation/useRevokeForm';
 import { type PayloadVersionOutput } from '../../../../../utils/api-types';
 import { aUsage, aVersion, intlWrapper, someUsages } from '../threatArsenalTestUtils';
 
@@ -9,17 +9,13 @@ const mocks = vi.hoisted(() => ({
   fetchUsages: vi.fn(),
   move: vi.fn(),
   revoke: vi.fn(),
-  lift: vi.fn(),
 }));
 
 vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   fetchThreatArsenalUsages: mocks.fetchUsages,
   moveThreatArsenalUsages: mocks.move,
 }));
-vi.mock('../../../../../actions/payloads/payload-revocation-actions', () => ({
-  revokePayload: mocks.revoke,
-  liftPayloadRevocation: mocks.lift,
-}));
+vi.mock('../../../../../actions/payloads/payload-revocation-actions', () => ({ revokePayload: mocks.revoke }));
 
 const v1 = aVersion();
 const v2 = aVersion({
@@ -29,11 +25,10 @@ const v2 = aVersion({
 });
 const usages = someUsages([aUsage()]);
 
-const renderForm = (lift: boolean, versions: PayloadVersionOutput[] = [v1, v2], currentPayloadId = 'payload-v2') => {
+const renderForm = (versions: PayloadVersionOutput[] = [v1, v2], currentPayloadId = 'payload-v2') => {
   const onDone = vi.fn();
-  const hook = renderHook(() => useRevocationForm({
+  const hook = renderHook(() => useRevokeForm({
     open: true,
-    lift,
     versions,
     currentPayloadId,
     onDone,
@@ -44,7 +39,7 @@ const renderForm = (lift: boolean, versions: PayloadVersionOutput[] = [v1, v2], 
   };
 };
 
-describe('useRevocationForm', () => {
+describe('useRevokeForm', () => {
   beforeEach(() => {
     mocks.fetchUsages.mockResolvedValue({ data: usages });
     mocks.move.mockResolvedValue({
@@ -54,7 +49,6 @@ describe('useRevocationForm', () => {
       },
     });
     mocks.revoke.mockResolvedValue({});
-    mocks.lift.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -63,7 +57,7 @@ describe('useRevocationForm', () => {
 
   it('given the shown version among the choices should choose it and load its usages', async () => {
     // Act
-    const { result } = renderForm(false);
+    const { result } = renderForm();
 
     // Assert
     await waitFor(() => expect(result.current.usages).toEqual(usages));
@@ -74,7 +68,7 @@ describe('useRevocationForm', () => {
 
   it('given the shown version not among the choices should choose the first one', async () => {
     // Act
-    const { result } = renderForm(false, [v1]);
+    const { result } = renderForm([v1]);
 
     // Assert
     await waitFor(() => expect(result.current.selected).toBe('payload-v1'));
@@ -82,7 +76,7 @@ describe('useRevocationForm', () => {
 
   it('given a revocation without a reason should not submit', async () => {
     // Act
-    const { result } = renderForm(false);
+    const { result } = renderForm();
 
     // Assert
     await waitFor(() => expect(result.current.version).toBe(v2));
@@ -91,13 +85,13 @@ describe('useRevocationForm', () => {
 
   it('given a reason and injects in use should move them to another version, then revoke', async () => {
     // Arrange
-    const { result, onDone } = renderForm(false);
+    const { result, onDone } = renderForm();
     await waitFor(() => expect(result.current.version).toBe(v2));
     act(() => result.current.setReason('  Flagged by the EDR vendor  '));
     expect(result.current.canSubmit).toBe(true);
 
     // Act
-    await act(() => result.current.submit());
+    await act(() => result.current.revoke());
 
     // Assert
     expect(mocks.move).toHaveBeenCalledWith('action-v2', expect.objectContaining({ target_payload_id: 'payload-v1' }));
@@ -106,30 +100,16 @@ describe('useRevocationForm', () => {
     expect(result.current.submitting).toBe(false);
   });
 
-  it('given a lift should lift the chosen version without a reason', async () => {
-    // Arrange
-    const { result, onDone } = renderForm(true);
-    await waitFor(() => expect(result.current.canSubmit).toBe(true));
-    act(() => result.current.setSelected('payload-v1'));
-
-    // Act
-    await act(() => result.current.submit());
-
-    // Assert
-    expect(mocks.lift).toHaveBeenCalledWith('payload-v1');
-    expect(mocks.revoke).not.toHaveBeenCalled();
-    expect(onDone).toHaveBeenCalledWith(v1);
-  });
-
   it('given a failed revocation should not report it done', async () => {
     // Arrange
-    mocks.lift.mockRejectedValue(new Error('refused'));
-    const { result, onDone } = renderForm(true);
-    await waitFor(() => expect(result.current.canSubmit).toBe(true));
+    mocks.revoke.mockRejectedValue(new Error('refused'));
+    const { result, onDone } = renderForm();
+    await waitFor(() => expect(result.current.version).toBe(v2));
+    act(() => result.current.setReason('Flagged'));
 
     // Act
     await act(async () => {
-      await expect(result.current.submit()).rejects.toThrow('refused');
+      await expect(result.current.revoke()).rejects.toThrow('refused');
     });
 
     // Assert

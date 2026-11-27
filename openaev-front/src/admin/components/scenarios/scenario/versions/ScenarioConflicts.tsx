@@ -2,26 +2,20 @@ import { Button, Text, Textarea } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
-import ConflictChoice, { type ConflictSide } from '../../../../../components/common/update/ConflictChoice';
+import ConflictChoice, { type MergeChoice } from '../../../../../components/common/update/ConflictChoice';
 import TextDiff from '../../../../../components/common/update/TextDiff';
 import { useFormatter } from '../../../../../components/i18n';
 import { type ScenarioChangeOutput } from '../../../../../utils/api-types';
 import { changeLabel, valueText } from './scenarioChanges';
 import { type ScenarioUpdateTarget } from './scenarioUpdateTargets';
-import { type ScenarioUpdateChoice } from './useScenarioUpdate';
-
-const SIDES: Partial<Record<ScenarioUpdateChoice, ConflictSide>> = {
-  TAKE_APPLIED: 'theirs',
-  KEEP_MINE: 'mine',
-};
 
 interface Props {
   target: ScenarioUpdateTarget;
   conflicts: ScenarioChangeOutput[];
-  choices: Record<string, ScenarioUpdateChoice>;
+  choices: Record<string, MergeChoice>;
   edits: Record<string, string>;
-  choose: (changeId: string, choice: ScenarioUpdateChoice) => void;
-  chooseAll: (choice: ScenarioUpdateChoice) => void;
+  choose: (changeId: string, choice: MergeChoice) => void;
+  chooseAll: (choice: MergeChoice) => void;
   startEdit: (conflict: ScenarioChangeOutput) => void;
   edit: (changeId: string, value: string) => void;
 }
@@ -41,30 +35,30 @@ const ScenarioConflicts: FunctionComponent<Props> = ({ target, conflicts, choice
     <ConflictChoice
       key={conflict.scenario_change_id}
       title={`${changeLabel(conflict, t)} · ${target.removedConflictLabel}`}
-      theirsLabel={t('Delete it')}
-      mineLabel={t('Keep it as my own inject')}
-      theirs={null}
-      mine={null}
-      selected={SIDES[choices[conflict.scenario_change_id]]}
-      onSelect={side => choose(conflict.scenario_change_id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
+      appliedLabel={t('Delete it')}
+      localLabel={t('Keep it as my own inject')}
+      applied={null}
+      local={null}
+      selected={choices[conflict.scenario_change_id]}
+      onSelect={side => choose(conflict.scenario_change_id, side)}
     />
   );
 
   const fieldConflict = (conflict: ScenarioChangeOutput) => {
     const id = conflict.scenario_change_id;
     const editing = choices[id] === 'EDIT';
-    const theirs = valueText(conflict, conflict.scenario_change_applied);
-    const mine = valueText(conflict, conflict.scenario_change_local);
+    const applied = valueText(conflict, conflict.scenario_change_applied);
+    const local = valueText(conflict, conflict.scenario_change_local);
     return (
       <div key={id} style={column}>
         <ConflictChoice
           title={changeLabel(conflict, t)}
-          theirsLabel={target.theirsLabel}
-          mineLabel={t('Yours')}
-          theirs={<TextDiff text={theirs} other={mine} />}
-          mine={<TextDiff text={mine} other={theirs} />}
-          selected={SIDES[choices[id]]}
-          onSelect={side => choose(id, side === 'theirs' ? 'TAKE_APPLIED' : 'KEEP_MINE')}
+          appliedLabel={target.appliedLabel}
+          localLabel={t('Yours')}
+          applied={<TextDiff text={applied} other={local} />}
+          local={<TextDiff text={local} other={applied} />}
+          selected={choices[id]}
+          onSelect={side => choose(id, side)}
         />
         {conflict.scenario_change_editable && (
           <div>

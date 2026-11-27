@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import io.openaev.service.catalog.merge.MergeChoice;
+import io.openaev.service.catalog.merge.MergeStatus;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -23,52 +25,12 @@ import java.util.stream.StreamSupport;
  */
 public final class ScenarioMerge {
 
-  public enum Choice {
-    KEEP_MINE {
-      @Override
-      JsonNode value(Change conflict, JsonNode edit) {
-        return conflict.local();
-      }
-    },
-    TAKE_APPLIED {
-      @Override
-      JsonNode value(Change conflict, JsonNode edit) {
-        return conflict.applied();
-      }
-    },
-    EDIT {
-      @Override
-      boolean fits(Change conflict, JsonNode edit) {
-        return conflict.editable() && edit != null;
-      }
-
-      @Override
-      JsonNode value(Change conflict, JsonNode edit) {
-        return edit;
-      }
-    };
-
-    boolean fits(Change conflict, JsonNode edit) {
-      return true;
-    }
-
-    abstract JsonNode value(Change conflict, JsonNode edit);
-  }
-
-  public enum Status {
-    TAKE_APPLIED,
-    KEEP_MINE,
-    CONFLICT,
-    ADDED,
-    REMOVED
-  }
-
   /** A field, or a whole element when {@code field} is null, that the merge decides. */
   public record Change(
       String element,
       String field,
       String title,
-      Status status,
+      MergeStatus status,
       JsonNode base,
       JsonNode applied,
       JsonNode local) {
@@ -129,27 +91,27 @@ public final class ScenarioMerge {
     }
   }
 
-  private final Map<String, Choice> choices;
+  private final Map<String, MergeChoice> choices;
   private final Map<String, String> edits;
   private final List<Change> changes = new ArrayList<>();
   private final Set<String> unresolved = new LinkedHashSet<>();
 
-  private ScenarioMerge(Map<String, Choice> choices, Map<String, String> edits) {
+  private ScenarioMerge(Map<String, MergeChoice> choices, Map<String, String> edits) {
     this.choices = choices;
     this.edits = edits;
   }
 
   public static Result merge(
-      ObjectNode base, ObjectNode applied, ObjectNode local, Map<String, Choice> choices) {
+      ObjectNode base, ObjectNode applied, ObjectNode local, Map<String, MergeChoice> choices) {
     return merge(base, applied, local, choices, Map.of());
   }
 
-  /** {@code edits} holds the value typed for each conflict chosen {@link Choice#EDIT}. */
+  /** {@code edits} holds the value typed for each conflict chosen {@link MergeChoice#EDIT}. */
   public static Result merge(
       ObjectNode base,
       ObjectNode applied,
       ObjectNode local,
-      Map<String, Choice> choices,
+      Map<String, MergeChoice> choices,
       Map<String, String> edits) {
     ScenarioMerge merge = new ScenarioMerge(choices, edits);
     ObjectNode merged = JsonNodeFactory.instance.objectNode();
@@ -166,7 +128,7 @@ public final class ScenarioMerge {
   private Optional<JsonNode> element(String element, ObjectNode b, ObjectNode a, ObjectNode l) {
     if (l == null) {
       if (b == null && a != null) {
-        changes.add(new Change(element, null, title(a), Status.ADDED, null, a, null));
+        changes.add(new Change(element, null, title(a), MergeStatus.ADDED, null, a, null));
         return Optional.of(a);
       }
       return Optional.empty();
@@ -176,10 +138,10 @@ public final class ScenarioMerge {
         return Optional.of(l);
       }
       if (l.equals(b)) {
-        changes.add(new Change(element, null, title(l), Status.REMOVED, b, null, l));
+        changes.add(new Change(element, null, title(l), MergeStatus.REMOVED, b, null, l));
         return Optional.empty();
       }
-      return choose(new Change(element, null, title(l), Status.CONFLICT, b, null, l));
+      return choose(new Change(element, null, title(l), MergeStatus.CONFLICT, b, null, l));
     }
     return Optional.of(
         fields(element, b == null ? JsonNodeFactory.instance.objectNode() : b, a, l));
@@ -201,26 +163,26 @@ public final class ScenarioMerge {
       return Optional.ofNullable(l);
     }
     if (Objects.equals(a, b)) {
-      changes.add(new Change(element, field, title, Status.KEEP_MINE, b, a, l));
+      changes.add(new Change(element, field, title, MergeStatus.KEEP_MINE, b, a, l));
       return Optional.ofNullable(l);
     }
     if (Objects.equals(l, b)) {
-      changes.add(new Change(element, field, title, Status.TAKE_APPLIED, b, a, l));
+      changes.add(new Change(element, field, title, MergeStatus.TAKE_APPLIED, b, a, l));
       return Optional.ofNullable(a);
     }
-    return choose(new Change(element, field, title, Status.CONFLICT, b, a, l));
+    return choose(new Change(element, field, title, MergeStatus.CONFLICT, b, a, l));
   }
 
   private Optional<JsonNode> choose(Change conflict) {
     changes.add(conflict);
-    Choice choice = choices.get(conflict.id());
+    MergeChoice choice = choices.get(conflict.id());
     String typed = edits.get(conflict.id());
     JsonNode edit = typed == null ? null : TextNode.valueOf(typed);
-    if (choice == null || !choice.fits(conflict, edit)) {
+    if (choice == null || !choice.fits(conflict.editable(), edit)) {
       unresolved.add(conflict.id());
       return Optional.ofNullable(conflict.local());
     }
-    return Optional.ofNullable(choice.value(conflict, edit));
+    return Optional.ofNullable(choice.value(conflict.applied(), conflict.local(), edit));
   }
 
   private static String title(ObjectNode element) {

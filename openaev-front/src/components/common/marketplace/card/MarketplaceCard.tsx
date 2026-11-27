@@ -78,7 +78,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
       </CardInfoGroup>
     )}
     {chips && (
-      // FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see Figma 8486:41702
+      // FDS-WORKAROUND: Card's tags slot (Figma only), chips 8px apart — remove when the DS Card ships it — see fds-migration/LIBRARY-FEEDBACK.md #75
       <div style={{
         display: 'flex',
         alignItems: 'center',

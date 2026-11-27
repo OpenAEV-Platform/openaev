@@ -1,6 +1,5 @@
 import { Button } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -15,21 +14,17 @@ import {
   CATALOG_ITEM_PLATFORM_FACET,
   CATALOG_ITEM_PLATFORMS,
   CATALOG_ITEM_PUBLISHED,
-  CATALOG_ITEM_SORT_OPTIONS,
 } from '../../../../components/common/marketplace/filter/catalogItemSearch';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/filter/MarketplaceFacetSidebar';
 import useMarketplaceSearch from '../../../../components/common/marketplace/filter/useMarketplaceSearch';
-import MarketplaceInstallActions from '../../../../components/common/marketplace/install/MarketplaceInstallActions';
 import useNotifyInstalled from '../../../../components/common/marketplace/install/useNotifyInstalled';
 import MarketplaceBrowser from '../../../../components/common/marketplace/page/MarketplaceBrowser';
 import MarketplaceCatalogTabs from '../../../../components/common/marketplace/page/MarketplaceCatalogTabs';
 import MarketplaceList, { type MarketplaceColumn } from '../../../../components/common/marketplace/results/MarketplaceList';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/results/MarketplaceLoadMore';
 import MarketplaceSections from '../../../../components/common/marketplace/results/MarketplaceSections';
-import MarketplaceSortSelect from '../../../../components/common/marketplace/toolbar/MarketplaceSortSelect';
-import MarketplaceViewToggle from '../../../../components/common/marketplace/toolbar/MarketplaceViewToggle';
+import MarketplaceCatalogToolbar from '../../../../components/common/marketplace/toolbar/MarketplaceCatalogToolbar';
 import useMarketplaceView from '../../../../components/common/marketplace/toolbar/useMarketplaceView';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../../components/i18n';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { type CatalogScenarioOutput } from '../../../../utils/api-types';
@@ -82,14 +77,13 @@ const FACETS: MarketplaceFacet[] = [
 // The catalogue scenarios, installed or not.
 const ScenariosAvailable = () => {
   const { t, nsd } = useFormatter();
-  const theme = useTheme();
   const notifyInstalled = useNotifyInstalled();
   const navigate = useNavigate();
   const ability = useAbility();
   const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
   const { launch, launchDrawer } = useScenarioLaunch();
-  const { viewMode, handleViewModeChange } = useMarketplaceView('scenarios-catalog:view-mode');
+  const view = useMarketplaceView('scenarios-catalog:view-mode');
   const [opened, setOpened] = useState<CatalogScenarioOutput | null>(null);
   const [installing, setInstalling] = useState<{
     scenario: CatalogScenarioOutput;
@@ -212,35 +206,23 @@ const ScenariosAvailable = () => {
           />
         )}
         toolbar={(
-          <PaginationComponentV2
-            {...catalog.pagination}
+          <MarketplaceCatalogToolbar
+            catalog={catalog}
+            view={view}
             entityPrefix="catalog_scenario"
-            availableFilterNames={[TYPE, CATALOG_ITEM_PLATFORMS, CATEGORY, AUTHOR]}
-            filtersEndSlot={viewMode === 'grid'
-              ? <MarketplaceSortSelect sortHelpers={queryableHelpers.sortHelpers} options={CATALOG_ITEM_SORT_OPTIONS} descendingFields={[CATALOG_ITEM_PUBLISHED]} />
-              : null}
-            topBarButtons={(
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing(1),
-              }}
-              >
-                <MarketplaceInstallActions
-                  autoInstallSetting="scenario_auto_install"
-                  autoInstallHelp={t('Installs each new Filigran scenario as soon as it is published.')}
-                  canInstall={canInstall}
-                  installAll={installAllCatalogScenarios}
-                  installedMessage={count => t('{count} scenarios installed', { count })}
-                  onInstalledAll={catalog.reload}
-                />
-                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
-              </div>
-            )}
+            filterNames={[TYPE, CATALOG_ITEM_PLATFORMS, CATEGORY, AUTHOR]}
+            install={{
+              autoInstallSetting: 'scenario_auto_install',
+              autoInstallHelp: t('Installs each new Filigran scenario as soon as it is published.'),
+              canInstall,
+              installAll: installAllCatalogScenarios,
+              installedMessage: count => t('{count} scenarios installed', { count }),
+              onInstalledAll: catalog.reload,
+            }}
           />
         )}
       >
-        {viewMode === 'grid'
+        {view.viewMode === 'grid'
           ? (
               <MarketplaceSections
                 items={catalog.items}
@@ -283,13 +265,15 @@ const ScenariosAvailable = () => {
             )}
         <MarketplaceLoadMore {...catalog.loadMore} />
       </MarketplaceBrowser>
-      <ScenarioCatalogDrawer
-        scenario={opened}
-        canInstall={canInstall}
-        onClose={() => setOpened(null)}
-        onInstall={scenario => install(scenario)}
-        onUpdate={opened ? updateOf(opened) : undefined}
-      />
+      {opened && (
+        <ScenarioCatalogDrawer
+          scenario={opened}
+          canInstall={canInstall}
+          onClose={() => setOpened(null)}
+          onInstall={scenario => install(scenario)}
+          onUpdate={updateOf(opened)}
+        />
+      )}
       {updating && <ScenarioUpdateDialog target={updating} onClose={() => setUpdating(null)} onApplied={updated} />}
       {installing && (
         <CatalogScenarioInstallDrawer

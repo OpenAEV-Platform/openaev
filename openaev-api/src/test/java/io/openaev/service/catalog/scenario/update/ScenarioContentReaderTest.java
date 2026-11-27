@@ -14,6 +14,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Variable;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.catalog.merge.MergeStatus;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -280,8 +281,7 @@ class ScenarioContentReaderTest {
         String key) {
       // Arrange
       ScenarioMerge.Change change =
-          new ScenarioMerge.Change(
-              element, field, null, ScenarioMerge.Status.CONFLICT, null, null, null);
+          new ScenarioMerge.Change(element, field, null, MergeStatus.CONFLICT, null, null, null);
 
       // Act & Assert
       assertThat(change.elementKind()).isEqualTo(elementKind);
@@ -295,7 +295,7 @@ class ScenarioContentReaderTest {
       // Arrange
       ScenarioMerge.Change change =
           new ScenarioMerge.Change(
-              "inject:scan", null, "Scan", ScenarioMerge.Status.CONFLICT, null, null, null);
+              "inject:scan", null, "Scan", MergeStatus.CONFLICT, null, null, null);
 
       // Act & Assert
       assertThat(change.elementKind()).isEqualTo(ScenarioElementKind.INJECT);

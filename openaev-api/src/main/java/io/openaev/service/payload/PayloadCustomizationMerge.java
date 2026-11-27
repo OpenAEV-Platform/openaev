@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.service.catalog.merge.MergeChoice;
+import io.openaev.service.catalog.merge.MergeStatus;
 import io.openaev.utils.StringUtils;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Arrays;
@@ -25,37 +27,22 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PayloadCustomizationMerge {
 
-  public static final String CONFLICT_WITHOUT_CHOICE =
-      "Choose Filigran's or yours for every conflicting block";
-
   private final PayloadChangeKind payloadChangeKind;
   private final PayloadService payloadService;
 
-  public enum Choice {
-    KEEP_MINE,
-    TAKE_APPLIED
-  }
-
-  /** What the update does with a field, named as the scenario update names it. */
-  public enum Status {
-    TAKE_APPLIED,
-    KEEP_MINE,
-    CONFLICT;
-
-    boolean keepsMine(Choice choice) {
-      return this == CONFLICT ? choice == Choice.KEEP_MINE : this == KEEP_MINE;
-    }
-  }
-
   public record FieldUpdate(
-      CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours, Status status) {}
+      CustomizableField field,
+      JsonNode base,
+      JsonNode applied,
+      JsonNode local,
+      MergeStatus status) {}
 
   /** The fields either side changed. */
   public record Update(Payload current, Payload target, List<FieldUpdate> fields) {
 
     Set<CustomizableBlock> conflicts() {
       return fields.stream()
-          .filter(field -> field.status() == Status.CONFLICT)
+          .filter(field -> field.status() == MergeStatus.CONFLICT)
           .map(field -> field.field().getBlock())
           .collect(Collectors.toSet());
     }
@@ -76,9 +63,11 @@ public class PayloadCustomizationMerge {
   }
 
   /** The new content of the copy: the newer version, with the changes the copy keeps. */
-  public Payload merged(Update update, Map<CustomizableBlock, Choice> choices) {
-    if (!choices.keySet().containsAll(update.conflicts())) {
-      throw new BadRequestException(CONFLICT_WITHOUT_CHOICE);
+  public Payload merged(Update update, Map<CustomizableBlock, MergeChoice> choices) {
+    if (update.conflicts().stream()
+        .map(choices::get)
+        .anyMatch(choice -> choice == null || !choice.isSide())) {
+      throw new BadRequestException(MergeChoice.MISSING);
     }
     Payload current = update.current();
     Payload merged = customizedCopy(update.target());
@@ -98,17 +87,17 @@ public class PayloadCustomizationMerge {
 
   private Update compare(Payload current, Payload base, Payload target) {
     List<PayloadChange> changes = payloadChangeKind.since(base, List.of(target, current));
-    PayloadChange filigran = changes.get(0);
-    PayloadChange yours = changes.get(1);
+    PayloadChange applied = changes.get(0);
+    PayloadChange local = changes.get(1);
     List<Diff> diffs =
         Arrays.stream(CustomizableField.values())
             .map(
                 field ->
                     new Diff(
                         field,
-                        filigran.before().get(field.getKey()),
-                        filigran.after().get(field.getKey()),
-                        yours.after().get(field.getKey())))
+                        applied.before().get(field.getKey()),
+                        applied.after().get(field.getKey()),
+                        local.after().get(field.getKey())))
             .filter(Diff::changed)
             .toList();
     Set<CustomizableBlock> conflicts = conflicts(diffs);
@@ -122,29 +111,29 @@ public class PayloadCustomizationMerge {
     return diffs.stream().collect(Collectors.groupingBy(Diff::block)).entrySet().stream()
         .filter(
             block ->
-                block.getValue().stream().anyMatch(Diff::changedByFiligran)
-                    && block.getValue().stream().anyMatch(Diff::changedByYou)
+                block.getValue().stream().anyMatch(Diff::changedApplied)
+                    && block.getValue().stream().anyMatch(Diff::changedLocally)
                     && block.getValue().stream().anyMatch(Diff::differs))
         .map(Map.Entry::getKey)
         .collect(Collectors.toSet());
   }
 
-  private record Diff(CustomizableField field, JsonNode base, JsonNode filigran, JsonNode yours) {
+  private record Diff(CustomizableField field, JsonNode base, JsonNode applied, JsonNode local) {
 
     boolean changed() {
-      return changedByFiligran() || changedByYou();
+      return changedApplied() || changedLocally();
     }
 
-    boolean changedByFiligran() {
-      return !Objects.equals(base, filigran);
+    boolean changedApplied() {
+      return !Objects.equals(base, applied);
     }
 
-    boolean changedByYou() {
-      return !Objects.equals(base, yours);
+    boolean changedLocally() {
+      return !Objects.equals(base, local);
     }
 
     boolean differs() {
-      return !Objects.equals(filigran, yours);
+      return !Objects.equals(applied, local);
     }
 
     CustomizableBlock block() {
@@ -152,9 +141,11 @@ public class PayloadCustomizationMerge {
     }
 
     FieldUpdate update(boolean conflict) {
-      Status status =
-          conflict ? Status.CONFLICT : changedByYou() ? Status.KEEP_MINE : Status.TAKE_APPLIED;
-      return new FieldUpdate(field, base, filigran, yours, status);
+      MergeStatus status =
+          conflict
+              ? MergeStatus.CONFLICT
+              : changedLocally() ? MergeStatus.KEEP_MINE : MergeStatus.TAKE_APPLIED;
+      return new FieldUpdate(field, base, applied, local, status);
     }
   }
 }
