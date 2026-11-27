@@ -29,13 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
  * AttackPattern}, joined to the phases, correlated with {@code kcp.tenant.id = ap.tenant.id}. The
  * lazy {@code @ManyToMany} this class was first written for is no longer on the read path.
  *
- * <p>What that means for the claim this class can make: every assertion here holds with {@code
- * kill_chain_phases} removed from {@code openaev.tenant.active-tables}, because the query root
- * {@code AttackPattern} still carries the v1 {@code tenantFilter}, which restricts the projection
- * to the ambient tenant's patterns before the phases are reached. The activation also hides the
- * phases, through the join and the correlation, but it is not what makes these tests pass today, so
- * they must not be read as the proof that the table is active. That proof is {@code
- * KillChainPhaseHttpIsolationTest}, nine of whose assertions go red with the table disarmed.
+ * <p>What that means for the claim this class can make: the correlation on the query root {@code
+ * AttackPattern} restricts the projection to the scoped tenant's patterns before the phases are
+ * reached. The gating of {@code kill_chain_phases} also hides the phases, through the join, but it
+ * is not what makes these tests pass, so they must not be read as the proof that the table is
+ * gated. That proof is {@code KillChainPhaseHttpIsolationTest}.
  *
  * <p>What this class does pin, and is worth keeping: the phase ids served with a pattern are the
  * pattern's own tenant's, the list is never empty for the owner (the #7025 empty-list regression),

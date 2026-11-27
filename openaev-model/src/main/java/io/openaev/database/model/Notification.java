@@ -30,8 +30,8 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>Implements {@link UserScoped} so SSE delivery is restricted to the owning user.
  *
- * <p>v2-active table: tenant read isolation is enforced by TenantStatementInspector
- * (openaev.tenant.active-tables), and write attribution is explicit in application code.
+ * <p>Tenant read isolation is enforced by TenantStatementInspector, which gates every tenant table,
+ * and write attribution is explicit in application code.
  */
 @Entity
 @Getter

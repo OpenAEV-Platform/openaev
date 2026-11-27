@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * {@code MultiIdListSerializer} AFTER the controller's {@code @Transactional} method returned
  * (open-in-view), by which point the transaction's tenant scope was gone. The inspector then
  * fail-closed the lazy query and the endpoint returned 200 with an empty array, so nothing failed
- * loudly and CI never saw it either, because the test profile ships an empty {@code active-tables}.
+ * loudly and CI did not see it either, because the test profile gated no table at that time.
  *
  * <p>Activating {@code assets} recreates that exposure on twelve endpoints that return a raw entity
  * carrying a lazy association onto the table. Carrying a {@code TxCtx} is necessary but NOT

@@ -42,20 +42,20 @@ import org.springframework.stereotype.Service;
  * not per-tenant), like {@code total_users_count} in {@link GlobalMetricCollector}. How that is
  * achieved depends on which isolation the counted table is on, and the difference is easy to miss.
  *
- * <p>A table outside {@code openaev.tenant.active-tables} comes for free: the suppliers run on the
- * OpenTelemetry exporter thread outside any scope and the count spans every tenant.
+ * <p>A self-isolated table comes for free: the suppliers run on the OpenTelemetry exporter thread
+ * outside any scope and the count spans every tenant.
  *
- * <p>For a table in {@code openaev.tenant.active-tables} that reasoning does NOT hold. {@code
- * TenantStatementInspector} does not care whether a transaction is active: with {@code
- * app.current_tenants} unset, {@code can_access_tenant} returns false and the count is silently
- * ZERO. Such a gauge must open an explicit {@code TxCtx.allTenants()} scope through {@link
- * TenantScopedTransaction}, as {@link #countAssetGroups()} does.
+ * <p>For every other tenant table that reasoning does NOT hold. {@code TenantStatementInspector}
+ * does not care whether a transaction is active: with {@code app.current_tenants} unset, {@code
+ * can_access_tenant} returns false and the count is silently ZERO. Such a gauge must open an
+ * explicit {@code TxCtx.allTenants()} scope through {@link TenantScopedTransaction}, as {@link
+ * #countAssetGroups()} does.
  *
  * <p>{@link #collectSecurityPlatforms()} and {@link #collectEndpoints()} carry the same scope for
  * the same reason: both count rows of the {@code assets} table (#6438).
  *
  * <p>{@link #countFindings()} carries it too, for the same reason (#6420). The same applies to
- * every gauge here that counts a tenant table: under {@code *} each of them is armed.
+ * every gauge here that counts a tenant table, since every tenant table is gated.
  */
 @Slf4j
 @Service

@@ -24,9 +24,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "mitigations")
 @EntityListeners(ModelBaseListener.class)
-// mitigations is fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant).
-// The v1 @Filter has been removed. Do NOT add it back: if this table ever drops out of
-// openaev.tenant.active-tables without restoring @Filter, it would have no isolation at all.
+// mitigations is fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant),
+// which gates every tenant table but the self-isolated ones. Do NOT add a v1 @Filter: if this
+// table is ever made self-isolated, it needs explicit tenant predicates on every statement.
 public class Mitigation implements TenantBase {
 
   @Id

@@ -33,10 +33,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The vulnerability pending-indexing probe under the production activation of {@code findings} and
- * {@code assets}: the tenant statement inspector scopes the probe to the requested tenant, so a row
- * pending in another tenant must not hold this tenant's {@code indexed_through} back, while a row
- * pending in this tenant must.
+ * The vulnerability pending-indexing probe on the gated {@code findings} and {@code assets} tables:
+ * the tenant statement inspector scopes the probe to the requested tenant, so a row pending in
+ * another tenant must not hold this tenant's {@code indexed_through} back, while a row pending in
+ * this tenant must.
  *
  * <p>Dedicated class because {@link TestPropertySource} forks the Spring context. One tenant path
  * per test method: the first request sets the transaction tenant scope. The fixture only uses

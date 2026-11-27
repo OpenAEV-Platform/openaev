@@ -31,10 +31,10 @@
 #
 # A waiver that is honest only while some table is still v1 (the path resolves cross-tenant, or runs
 # an unscoped read/write that a v2 activation would turn into a wrong-tenant access) must carry an
-# 'until-active:<table>' tag in its reason, naming that table. The build fails the day <table> is in
-# openaev.tenant.active-tables (or the allowlist is the '*' wildcard, which activates every strict
-# table), so the waiver cannot outlive the reason it was granted. The named table must be a real
-# tenant-aware table, or the tag can never expire and the guard rejects it.
+# 'until-active:<table>' tag in its reason, naming that table. The build fails while <table> is gated
+# by the statement inspector, which is the case of every tenant table but the self-isolated ones, so
+# such a waiver cannot be granted on a tenant table. The named table must be a real tenant-aware
+# table, or the tag can never expire and the guard rejects it.
 #
 # This file is hand-authored and reviewed. New entries are stopped only by review (the checks below
 # enforce that every entry carries a reason and that no entry is stale, not that the list only ever

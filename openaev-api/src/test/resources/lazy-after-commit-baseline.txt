@@ -15,7 +15,7 @@
 # Format: <Controller.method> -> <Class.property> | <VERDICT> | <evidence>
 #
 # Verdicts, measured on 2026-10-13 by driving the HTTP integration tests with the lazy-after-commit
-# probe on, against production's activation list:
+# probe on, with every tenant table gated as in production:
 #   CONFIRMED        rows exist and the response comes back without them, read from the response or
 #                    by replaying the same statement under an empty scope, as production runs it.
 #   ATTENUATED       every time a test response wrote it, it was already initialised inside the

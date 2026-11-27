@@ -45,8 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
  * collectors table inside the expected-security-platforms guard; without a scope the guard is
  * fail-closed EMPTY (no error), so every platform-restricted AI adversarial expectation silently
  * disappears from the feed and is never validated. This runs the real HTTP endpoint with the table
- * active - the production configuration that {@code ExpectationApiTest} does not exercise (the test
- * properties leave {@code openaev.tenant.active-tables} empty).
+ * gated, as in production.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

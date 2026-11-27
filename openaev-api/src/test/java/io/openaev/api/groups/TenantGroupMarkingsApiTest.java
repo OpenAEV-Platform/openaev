@@ -337,8 +337,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   /**
    * Whether this test context runs with marking_definitions tenant-active, as the statement
-   * inspector resolves it: the active set of the application's {@link TenantTables}, which expands
-   * the {@value TenantTables#ALL_STRICT} wildcard.
+   * inspector resolves it: the gated set of the application's {@link TenantTables}.
    */
   private boolean isMarkingDefinitionsActive() {
     return tenantTables.family("marking_definitions") == TenantTables.Family.STRICT;

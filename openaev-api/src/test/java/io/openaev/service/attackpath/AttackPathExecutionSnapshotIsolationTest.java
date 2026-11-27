@@ -249,8 +249,8 @@ class AttackPathExecutionSnapshotIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("with no scope at all: the collector snapshot read fails closed")
   void given_noScopeSet_should_failClosedOnTheCollectorSnapshotRead() {
-    // Act & Assert - the control for the two tests above, on a different line than the
-    // active-tables property: those reads return rows BECAUSE a scope is set.
+    // Act & Assert - the control for the two tests above: those reads return rows BECAUSE a scope
+    // is set.
     assertThat(collectorRepository.findByExecutionIdAndTenantId(executionIdA, tenantA.getId()))
         .as("an active-table read with no tenant scope must return nothing")
         .isEmpty();

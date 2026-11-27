@@ -1448,9 +1448,9 @@ public class WorkflowService {
    * stays readable after the referenced object is deleted.
    *
    * <p>The lookup is tenant-scoped on purpose: a plain {@code findById} on a user-supplied id
-   * carries no tenant predicate on a table outside {@code active-tables}, so it snapshots (and
-   * later exposes) another tenant's name. Ids that do not resolve within the caller's tenant - or
-   * MANUAL / CSV rules - stay {@code null}.
+   * carries no tenant predicate on a self-isolated table or outside a transaction scope, so it can
+   * snapshot (and later expose) another tenant's name. Ids that do not resolve within the caller's
+   * tenant - or MANUAL / CSV rules - stay {@code null}.
    */
   private String resolveValueLabel(WorkflowScopeRuleInput input) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {

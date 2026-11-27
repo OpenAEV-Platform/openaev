@@ -116,8 +116,7 @@ class WidgetTenantScopeTest extends IntegrationTest {
     @WithoutTenantScope
     @DisplayName("with no scope at all: even the caller's own widget fails closed")
     void given_noScopeSet_should_failClosedEvenForItsOwnWidget() {
-      // Act & Assert - the control for the test above, on a different line than the active-tables
-      // property: the lookup succeeds BECAUSE a scope is set.
+      // Act & Assert - the control for the test above: the lookup succeeds BECAUSE a scope is set.
       assertThrows(
           EntityNotFoundException.class,
           () -> widgetService.widget(widgetIdA),

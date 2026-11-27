@@ -87,7 +87,7 @@ class PendingInjectAssetGroupScopeTest extends IntegrationTest {
   @DisplayName("with no scope the lookup throws, which is what stops the finalization job")
   void unscopedLookupThrows() {
     // Asserted, not described: if this ever stops throwing, either the scope handling changed or
-    // the table left active-tables, and handlePendingInject's scoping must be revisited.
+    // the table is ungated, and handlePendingInject's scoping must be revisited.
     assertThrows(
         ElementNotFoundException.class,
         () -> assetGroupService.assetsFromAssetGroup(assetGroupId),

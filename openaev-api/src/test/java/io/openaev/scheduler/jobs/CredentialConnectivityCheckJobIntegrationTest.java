@@ -68,9 +68,6 @@ import reactor.core.publisher.Mono;
  * connection — never through the entity manager, whose SQL the statement inspector rewrites, which
  * would make the assertion agree with the code instead of checking it.
  *
- * <p>{@code secret_references} and {@code secrets} are live in production's {@code active-tables},
- * but the test classpath keeps the allowlist empty, hence the explicit property here.
- *
  * <p>{@code CREDENTIAL_ASSET} is required too: the local secrets provider is spawned only when that
  * preview feature is on ({@code LocalSecretsProviderIntegrationFactory#findRelatedInstances}
  * returns nothing otherwise), so without it every probe short-circuits on {@code
@@ -388,8 +385,8 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
               .map(CredentialSecretReference::getId)
               .toList();
 
-      // Assert - the control for the two tests above, on a different line than the active-tables
-      // property: they return rows BECAUSE a scope is set, not because the query happens to match.
+      // Assert - the control for the two tests above: they return rows BECAUSE a scope is set, not
+      // because the query happens to match.
       assertTrue(
           dueWithNoScope.isEmpty(),
           "an active-table read with no tenant scope must return nothing at all");

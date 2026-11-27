@@ -1338,11 +1338,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
   }
 
-  // The test classpath's application.properties ships an empty
-  // openaev.tenant.active-tables, so IntegrationTest-based API tests never exercise the v2
-  // inspector's rewrite by default. Activate connector_instances explicitly here so the
-  // Tenant Isolation nested tests' cross-tenant assertions actually go through
-  // TenantStatementInspector instead of silently passing on an unscoped read.
+  // connector_instances is gated like every tenant table, so the cross-tenant assertions below
+  // go through TenantStatementInspector.
   @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser

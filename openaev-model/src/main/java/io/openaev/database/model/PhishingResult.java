@@ -30,9 +30,8 @@ import org.hibernate.annotations.UuidGenerator;
  * UPDATE for only the columns a transition actually dirties removes that cross-field clobbering: a
  * {@code markOpened} update never references the click/submit columns, so it cannot overwrite them.
  *
- * <p>Fully switched to v2 tenant isolation ({@code phishing_results} is in {@code
- * openaev.tenant.active-tables}): no {@code @Filter}, no {@code TenantBaseListener}. Keep both
- * removed.
+ * <p>Fully on v2 tenant isolation ({@code phishing_results} is gated by the statement inspector):
+ * no {@code @Filter}, no {@code TenantBaseListener}. Leave both out.
  *
  * <p>{@code phishing_result_token} keeps a GLOBAL unique index ({@code
  * phishing_results_token_unique}, not composite with {@code tenant_id}), a documented exception to

@@ -27,11 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
  * legacy /file route in #294. Runs as admin so RBAC is bypassed and only the tenant boundary is
  * under test.
  *
- * <p>The guard being pinned is controller code, so this test is green with {@code documents}
- * removed from {@code openaev.tenant.active-tables} as well: it proves the route's own scope check,
- * not the activation. The activation proofs for the table are elsewhere ({@code
- * DocumentHttpIsolationTest} and {@code DocumentByIdScopeTest}, whose cross-tenant assertions do go
- * red with it disarmed).
+ * <p>The guard being pinned is controller code: this test proves the route's own scope check, not
+ * the gating of {@code documents}. The proofs of the gating are elsewhere ({@code
+ * DocumentHttpIsolationTest} and {@code DocumentByIdScopeTest}).
  */
 @Transactional
 @WithMockUser(isAdmin = true)

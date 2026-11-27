@@ -30,13 +30,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *
  * <p>Each sweep runs on a bare thread, as a Quartz worker does: no transaction, no session, no
  * ambient tenant. Not {@code @Transactional}: rows are committed through JDBC in a tenant of their
- * own and removed after each test. The active-tables list is pinned, so a shadow run does not
- * change what this class arms. It arms {@code scenarios}: {@code ScenarioExecutionJob} reads each
- * tenant's scenarios in that tenant's scope, so the second tenant's scenario is read and cleared in
- * the second tenant's own pass, which the write-attribution gate checks. {@code exercises} and
- * {@code injects} are not armed here: the job sweeps read them under {@code TxCtx.allTenants()},
- * and the pending-inject read is called on a bare thread without the scope its caller, {@code
- * InjectsFinalizationJob.handlePendingInject}, gives it.
+ * own and removed after each test. Every tenant table is gated, as in production. {@code
+ * ScenarioExecutionJob} reads each tenant's scenarios in that tenant's scope, so the second
+ * tenant's scenario is read and cleared in the second tenant's own pass, which the
+ * write-attribution gate checks. The job sweeps read {@code exercises} and {@code injects} under
+ * {@code TxCtx.allTenants()}.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")
