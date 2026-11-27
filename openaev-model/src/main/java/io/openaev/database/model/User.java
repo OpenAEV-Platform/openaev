@@ -263,6 +263,12 @@ public class User implements Base {
     }
   }
 
+  /**
+   * Global RBAC bypass, reserved to the root user ({@link #ADMIN_UUID}). Only {@code
+   * InitAdminCommandLineRunner} may set it to {@code true}, and it clears it on every other user at
+   * startup. Never set it to {@code true} anywhere else: grant a role holding {@code BYPASS}
+   * instead.
+   */
   @Setter
   @Column(name = "user_admin")
   @JsonProperty("user_admin")
