@@ -9,15 +9,29 @@ import { type Page } from '@playwright/test';
  */
 export const disableAnimations = async (page: Page) => {
   await page.addInitScript(() => {
-    const addStyle = () => {
-      const style = document.createElement('style');
-      style.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; }';
-      document.head.appendChild(style);
-    };
+    const style = document.createElement('style');
+    style.textContent = `
+      *, *::before, *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    `;
+    // Init scripts run as soon as the document is created, before the parser adds <head>.
+    // Wait for it: the observer fires before the parser runs the first script, so the
+    // style is still in place before the app's code.
     if (document.head) {
-      addStyle();
-    } else {
-      document.addEventListener('DOMContentLoaded', addStyle, { once: true });
+      document.head.appendChild(style);
+      return;
     }
+    const observer = new MutationObserver(() => {
+      if (document.head) {
+        observer.disconnect();
+        document.head.appendChild(style);
+      }
+    });
+    observer.observe(document, {
+      childList: true,
+      subtree: true,
+    });
   });
 };
