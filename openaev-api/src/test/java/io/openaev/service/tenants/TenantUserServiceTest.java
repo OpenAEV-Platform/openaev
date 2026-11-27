@@ -379,10 +379,16 @@ class TenantUserServiceTest extends IntegrationTest {
       Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
       Group groupOfTenant =
           tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Left tenant")).persist().get();
+      entityManager.flush();
+      // Each group is written in its own tenant's scope, as a request addressed to that tenant
+      // writes it.
       TenantContext.setCurrentTenant(otherTenant.getId());
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, otherTenant.getId());
       Group groupOfOtherTenant =
           tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Kept tenant")).persist().get();
+      entityManager.flush();
       TenantContext.setCurrentTenant(tenant.getId());
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
       // Linked directly: re-persisting the groups through their composer would re-scope them.
       User user = getUser("Two", "Tenants", "detach-two-tenants@test.invalid");
       user.getUnscopedGroups().addAll(List.of(groupOfTenant, groupOfOtherTenant));

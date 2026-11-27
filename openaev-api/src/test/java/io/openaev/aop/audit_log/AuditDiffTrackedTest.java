@@ -260,7 +260,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Arrange
       GroupWithMembers group = groupWithMembers("Deleted audited group", 2);
 
-      // Act — through the service, which unlinks the members before the delete
+      // Act: through the service, which unlinks the members before the delete, in a
+      // platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       platformGroupService.delete(group.groupId());
       entityManager.flush();
 
@@ -283,7 +285,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Arrange
       GroupWithMembers group = groupWithMembers("Updated audited group", 2);
 
-      // Act — the members are loaded after the before-snapshot, then a field changes
+      // Act: the members are loaded after the before-snapshot, then a field changes, in a
+      // platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, group.groupId());
       assertThat(loaded.getUsers()).hasSize(2);
       loaded.setName("Renamed audited group");
@@ -304,7 +308,8 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Arrange
       String groupId = groupWithMembers("Untouched audited group", 2).groupId();
 
-      // Act
+      // Act: in a platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, groupId);
       loaded.setName("Renamed untouched group");
       entityManager.flush();
@@ -339,7 +344,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Arrange
       GroupWithMembers group = groupWithMembers("Twice flushed audited group", 2);
 
-      // Act — two flushes in one transaction: the second update snapshot replaces the first
+      // Act: two flushes in one platform-write transaction, as the platform group endpoint
+      // opens it: the second update snapshot replaces the first
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, group.groupId());
       loaded.setUsers(new ArrayList<>());
       entityManager.flush();
@@ -358,7 +365,8 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Arrange
       GroupWithMembers group = groupWithMembers("Read twice flushed audited group", 2);
 
-      // Act
+      // Act: in a platform-write transaction, as the platform group endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Group loaded = entityManager.find(Group.class, group.groupId());
       assertThat(loaded.getUsers()).hasSize(2);
       loaded.setUsers(new ArrayList<>());
