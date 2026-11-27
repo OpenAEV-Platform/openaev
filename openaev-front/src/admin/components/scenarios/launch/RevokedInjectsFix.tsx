@@ -1,6 +1,6 @@
 import { Button, Spinner, Text } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadUsageOutput, type RevokedInjectOutput } from '../../../../utils/api-types';
@@ -25,12 +25,6 @@ const RevokedInjectsFix: FunctionComponent<Props> = ({ actionId, injects, onMove
   const [moving, setMoving] = useState(false);
   useEffect(() => setTarget(defaultTarget), [defaultTarget]);
 
-  if (versions === null) {
-    return <Spinner size="sm" />;
-  }
-  if (targets.length === 0) {
-    return <Text variant="content-caption">{t('No other version to move to')}</Text>;
-  }
   const usages: PayloadUsageOutput[] = injects.map(inject => ({
     usage_id: inject.inject_id,
     usage_name: inject.inject_title,
@@ -43,6 +37,19 @@ const RevokedInjectsFix: FunctionComponent<Props> = ({ actionId, injects, onMove
       .catch(() => undefined)
       .finally(() => setMoving(false));
   };
+  let fix: ReactNode = (
+    <>
+      <PayloadVersionSelect value={target} versions={targets} onChange={setTarget} />
+      <Button type="button" size="sm" priority="secondary" disabled={target === ''} loading={moving} onClick={move}>
+        {t('Move to this version')}
+      </Button>
+    </>
+  );
+  if (versions === null) {
+    fix = <Spinner size="sm" />;
+  } else if (targets.length === 0) {
+    fix = <Text variant="content-caption">{t('No other version to move to')}</Text>;
+  }
   return (
     <div style={{
       display: 'flex',
@@ -51,10 +58,8 @@ const RevokedInjectsFix: FunctionComponent<Props> = ({ actionId, injects, onMove
       gap: theme.spacing(1),
     }}
     >
-      <PayloadVersionSelect value={target} versions={targets} onChange={setTarget} />
-      <Button type="button" size="sm" priority="secondary" disabled={target === ''} loading={moving} onClick={move}>
-        {t('Move to this version')}
-      </Button>
+      <Text variant="content-base-bold">{injects[0].inject_action_name}</Text>
+      {fix}
     </div>
   );
 };
