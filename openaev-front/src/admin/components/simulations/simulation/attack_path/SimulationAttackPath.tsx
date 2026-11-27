@@ -108,7 +108,7 @@ const CRITICALITY_WEIGHT: Record<string, number> = {
 const criticalityWeight = (criticality?: string): number => CRITICALITY_WEIGHT[criticality ?? ''] ?? 1;
 // Human label for a criticality value (falls back to "Unknown" / "Not set").
 const CRITICALITY_LABEL: Record<string, string> = {
-  VERY_HIGH: 'Very high',
+  VERY_HIGH: 'Very High',
   HIGH: 'High',
   MEDIUM: 'Medium',
   LOW: 'Low',

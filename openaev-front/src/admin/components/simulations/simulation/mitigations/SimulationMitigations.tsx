@@ -2,11 +2,14 @@ import { Button, Chip, Paper, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { type FunctionComponent, useMemo, useState } from 'react';
 
+import { criticalitySeverity } from '../../../../../components/criticalityColor';
 import { useFormatter } from '../../../../../components/i18n';
-import MitigationCard, { criticalitySeverity, type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
+import { humanizeEnum } from '../../../assets/asset-categories';
+import MitigationCard, { type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
 import { buildMitigations } from '../../../atomic_testings/atomic_testing/mitigationMock';
 import MitigationTargetsTable from '../../../atomic_testings/atomic_testing/MitigationTargetsTable';
 import GenerateAiButton from '../../../remediation_mitigation/GenerateAiButton';
+import { criticalityRank } from '../../../remediation_mitigation/itemCriticality';
 
 // ---------------------------------------------------------------------------------------------
 // PROTOTYPE - MOCK DATA ONLY. Nothing is sent to the backend or to XTM One.
@@ -100,18 +103,11 @@ const GROUPS: Group[] = [
   },
 ];
 
-const CRITICALITY_RANK = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
-
 const pad = (n: number) => String(n).padStart(2, '0');
 
 const assetsOf = (group: Group) => Array.from({ length: group.assetCount }, (_, i) => ({
   name: group.assetPrefix.endsWith('.') ? `${group.assetPrefix}${i + 10}` : `${group.assetPrefix}-${pad(i + 1)}`,
-  environment: group.environment ?? 'No agent (injector based)',
+  environment: group.environment ?? '',
 }));
 
 const AssetsTable = ({ group }: { group: Group }) => {
@@ -143,7 +139,7 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
       platform: group.platform,
     }),
   })).sort((a, b) => {
-    const rank = (m: MockMitigation[]) => Math.min(...m.map(item => CRITICALITY_RANK[item.criticality]));
+    const rank = (m: MockMitigation[]) => Math.min(...m.map(item => criticalityRank(item.criticality)));
     return rank(a.mitigations) - rank(b.mitigations);
   }), []);
 
@@ -221,13 +217,15 @@ const SimulationMitigations: FunctionComponent<Props> = ({ simulationLabel }) =>
               flexWrap: 'wrap',
             }}
             >
-              {isGenerated && !isOpen && <Chip label={`${t('Criticality')}: ${t(top.criticality)}`} severity={criticalitySeverity[top.criticality]} />}
+              {isGenerated && !isOpen && <Chip label={`${t('Criticality')}: ${t(humanizeEnum(top.criticality))}`} severity={criticalitySeverity(top.criticality)} />}
               {!isGenerated && <Chip label={t('Not generated')} severity="neutral" />}
               <Text variant="content-base-bold">{group.action}</Text>
               <Chip label={`${n(group.assetCount)} ${t('assets')}`} severity="info" />
-              <Text variant="content-caption" className="text-default-secondary">
-                {group.environment ?? t('No agent (injector based)')}
-              </Text>
+              {group.environment && (
+                <Text variant="content-caption" className="text-default-secondary">
+                  {group.environment}
+                </Text>
+              )}
               <div style={{
                 marginLeft: 'auto',
                 display: 'flex',

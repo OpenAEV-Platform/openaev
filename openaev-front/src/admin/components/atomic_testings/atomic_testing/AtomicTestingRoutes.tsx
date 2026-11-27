@@ -31,8 +31,22 @@ const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
         {(injectResultOverview.inject_injector_contract?.injector_contract_payload
           || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
           <Route
+            path="mitigations"
+            element={errorWrapper(AtomicTestingRemediationMitigation)({
+              category: 'mitigation',
+              injectId: injectResultOverview.inject_id,
+              injectTitle: injectResultOverview.inject_title,
+              injectType: injectResultOverview.inject_type,
+            })}
+          />
+        )}
+        {(injectResultOverview.inject_injector_contract?.injector_contract_payload
+          || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+          <Route
             path="remediations"
             element={errorWrapper(AtomicTestingRemediationMitigation)({
+              category: 'remediation',
+              injectId: injectResultOverview.inject_id,
               injectTitle: injectResultOverview.inject_title,
               injectType: injectResultOverview.inject_type,
             })}

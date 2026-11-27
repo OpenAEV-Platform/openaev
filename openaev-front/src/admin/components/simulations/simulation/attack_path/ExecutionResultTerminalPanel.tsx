@@ -25,9 +25,8 @@ import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
-import { type PanelContext } from '../../../remediation_mitigation/RemediationMitigationPanel';
+import RemediationMitigationPanel, { type PanelContext } from '../../../remediation_mitigation/RemediationMitigationPanel';
 import { type Verdict } from '../../../remediation_mitigation/remediationMitigationStore';
-import RemediationMitigationTabs from '../../../remediation_mitigation/RemediationMitigationTabs';
 import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
@@ -53,6 +52,7 @@ interface Props {
 const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
 const FINDINGS_TAB = 'findings';
+const MITIGATION_TAB = 'mitigation';
 const REMEDIATION_TAB = 'remediation';
 
 interface SecurityPlatformRow {
@@ -425,6 +425,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
   const wasPrevented = detail ? getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention') : false;
   const executionHost = endpointLabel || detail?.targetHostname || detail?.targetIp || detail?.endpointKey;
   const affectedHosts = executionHost && !wasPrevented ? [executionHost] : [];
+  // A result is one execution of the action on one endpoint: the mitigation is tied to it, the remediation to the action.
+  const resultId = [detail?.injectId, detail?.endpointKey].filter(Boolean).join(':') || undefined;
   const panelContext: PanelContext = {
     findingType: firstFindingType,
     verdicts: {
@@ -732,6 +734,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 key: REMEDIATION_TAB,
                 label: t('Remediation'),
               },
+              {
+                key: MITIGATION_TAB,
+                label: t('Mitigation'),
+              },
             ]}
             currentTab={currentTab}
             onChange={handleChangeTab}
@@ -850,13 +856,28 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               />
             )}
 
-            {currentTab === REMEDIATION_TAB && (
-              <RemediationMitigationTabs
+            {currentTab === MITIGATION_TAB && (
+              <RemediationMitigationPanel
+                category="mitigation"
                 payloadName={detail.payloadName}
+                resultId={resultId}
                 editable
                 context={panelContext}
                 affectedHosts={affectedHosts}
                 techniques={techniques}
+                onSwitchToRemediation={() => handleChangeTab(REMEDIATION_TAB)}
+              />
+            )}
+
+            {currentTab === REMEDIATION_TAB && (
+              <RemediationMitigationPanel
+                category="remediation"
+                payloadName={detail.payloadName}
+                resultId={resultId}
+                editable
+                context={panelContext}
+                affectedHosts={affectedHosts}
+                onSwitchToMitigation={() => handleChangeTab(MITIGATION_TAB)}
               />
             )}
           </div>

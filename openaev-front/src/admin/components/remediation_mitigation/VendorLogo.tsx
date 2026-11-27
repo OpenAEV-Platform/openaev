@@ -5,6 +5,7 @@ import microsoftDefender from '../../../static/images/vendors/microsoft_defender
 import microsoftSentinel from '../../../static/images/vendors/microsoft_sentinel.png';
 import paloAltoCortex from '../../../static/images/vendors/palo_alto_cortex.png';
 import sentinelone from '../../../static/images/vendors/sentinelone.png';
+import sigma from '../../../static/images/vendors/sigma.png';
 import splunk from '../../../static/images/vendors/splunk.png';
 
 // PROTOTYPE: the product resolves these from the security platform / collector image endpoints
@@ -16,6 +17,7 @@ const VENDOR_LOGOS: Record<string, string> = {
   microsoft_sentinel: microsoftSentinel,
   palo_alto_cortex: paloAltoCortex,
   sentinelone,
+  sigma,
   splunk,
   splunk_es: splunk,
 };

@@ -21,7 +21,7 @@ export interface AttackPathEndpointRow {
 
 // Short display label for a criticality value (raw enum otherwise reads poorly in a table).
 const CRITICALITY_DISPLAY: Record<string, string> = {
-  VERY_HIGH: 'Very high',
+  VERY_HIGH: 'Very High',
   HIGH: 'High',
   MEDIUM: 'Medium',
   LOW: 'Low',

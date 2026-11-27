@@ -63,7 +63,8 @@ const useRemediationMitigationLabels = () => {
     : t('Generic / host-level'));
 
   // "Category · Control type", e.g. "Mitigation · Detection".
-  const combinedTag = (item: RemediationMitigationItem) => `${category[item.category]} · ${controlType[item.control_type]}`;
+  // A hardening is a mitigation, wherever the sample data stores it.
+  const combinedTag = (item: RemediationMitigationItem) => `${category[item.control_type === 'hardening' ? 'mitigation' : item.category]} · ${controlType[item.control_type]}`;
 
   return {
     category,

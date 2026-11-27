@@ -7,7 +7,6 @@ import { useFormatter } from '../../../components/i18n';
 import { type CollectorType, type ControlType, type RemediationMitigationCategory } from './remediationMitigationMock';
 import { generateItem, type MockPayload, unsupportedReason } from './remediationMitigationStore';
 import { COLLECTOR_LABELS } from './useRemediationMitigationLabels';
-import XtmOnePreviewDrawer from './XtmOnePreviewDrawer';
 import { type RequestContext } from './xtmOneRequest';
 
 // PROTOTYPE: the "AI" is simulated (2 s delay, canned output). Nothing is sent to XTM One.
@@ -25,6 +24,8 @@ interface Props {
   onClose: () => void;
   payload: MockPayload;
   category: RemediationMitigationCategory;
+  // Where the answer is stored: the action for a remediation, the result for a mitigation.
+  scopeKey?: string;
   context?: RequestContext;
   defaults?: GenerateDefaults;
 }
@@ -66,12 +67,11 @@ const Choice = <T extends string>({ label, value, options, onChange }: {
   </div>
 );
 
-const GenerateDialog = ({ open, onClose, payload, category, context, defaults }: Props) => {
+const GenerateDialog = ({ open, onClose, payload, category, scopeKey, context, defaults }: Props) => {
   const { t } = useFormatter();
   const [controlType, setControlType] = useState<MitigationControl>('detection');
   const [collector, setCollector] = useState<CollectorType>('splunk');
   const [loading, setLoading] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   // XTM One answered that it has no suggestion: the reason it gave.
   const [noSuggestion, setNoSuggestion] = useState<string | undefined>();
 
@@ -99,12 +99,14 @@ const GenerateDialog = ({ open, onClose, payload, category, context, defaults }:
     generateItem({
       payload,
       category,
+      scopeKey,
       controlType: isMitigation ? controlType : undefined,
       collector: selectedCollector,
       findingType: context?.findingType,
     }).then((result) => {
       setLoading(false);
-      if (result.unsupported) {
+      // A remediation with no patch is an answer, shown by the tab itself (reason + link to the mitigations).
+      if (result.unsupported && isMitigation) {
         setNoSuggestion(result.unsupported);
       } else {
         onClose();
@@ -175,18 +177,9 @@ const GenerateDialog = ({ open, onClose, payload, category, context, defaults }:
         </div>
       </DialogContent>
       <DialogActions>
-        <Button priority="tertiary" onClick={() => setPreviewOpen(true)}>{t('Content sent to XTM One')}</Button>
         <Button priority="secondary" disabled={loading} onClick={onClose}>{t('Cancel')}</Button>
         <Button variant="ia" disabled={loading || !!unsupported} onClick={generate}>{t('Generate')}</Button>
       </DialogActions>
-      <XtmOnePreviewDrawer
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        payload={payload}
-        context={context}
-        controlType={isMitigation ? controlType : undefined}
-        collector={selectedCollector}
-      />
     </Dialog>
   );
 };

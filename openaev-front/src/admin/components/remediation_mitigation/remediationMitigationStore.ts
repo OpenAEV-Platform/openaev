@@ -430,26 +430,48 @@ const readNotice = () => {
   }
 };
 
+// Where the guidance is stored (the "scope key"):
+// - a remediation is tied to the ACTION (the payload): it is made once and it never changes, whichever result
+//   asks for it. The key is the payload id.
+// - a mitigation is tied to the RESULT of the action (the execution): two results of the same action have their
+//   own mitigations. The key is `<payload id>@<result id>`. Without a result (Threat Arsenal, no execution) it is
+//   the payload id.
+const RESULT_SEPARATOR = '@';
+
+export const scopeKeyOf = (
+  payloadId: string,
+  category: RemediationMitigationCategory,
+  resultId?: string | null,
+) => (category === 'mitigation' && resultId ? `${payloadId}${RESULT_SEPARATOR}${resultId}` : payloadId);
+
+// What a scope starts with: the sample items of its payload (a result copies them the first time it is read, then
+// has its own copy that nobody else changes).
+const seedItems = (scopeKey: string): RemediationMitigationItem[] => {
+  const payloadId = scopeKey.split(RESULT_SEPARATOR)[0];
+  return (PAYLOAD_ITEM_IDS[payloadId] ?? []).flatMap((id) => {
+    const item = SAMPLE_ITEMS.find(sample => sample.id === id);
+    return item
+      ? [{
+          ...item,
+          ...ITEM_APPLICATION[item.id],
+          id: `${scopeKey}:${item.id}`,
+          review_state: item.author_rule === 'AI' ? 'needs_review' as const : undefined,
+        }]
+      : [];
+  });
+};
+
 const initialItems = (): Record<string, RemediationMitigationItem[]> => Object.fromEntries(
-  Object.entries(PAYLOAD_ITEM_IDS).map(([payloadId, ids]) => [
-    payloadId,
-    ids.flatMap((id) => {
-      const item = SAMPLE_ITEMS.find(sample => sample.id === id);
-      return item
-        ? [{
-            ...item,
-            ...ITEM_APPLICATION[item.id],
-            id: `${payloadId}:${item.id}`,
-            review_state: item.author_rule === 'AI' ? 'needs_review' as const : undefined,
-          }]
-        : [];
-    }),
-  ]),
+  Object.keys(PAYLOAD_ITEM_IDS).map(payloadId => [payloadId, seedItems(payloadId)]),
 );
+
+// Sample answer shown from the start: XTM One was already asked for the LSASS dump and found no patch (the key is
+// the one of `unavailableKey`, spelled out because that function is defined further down).
+const initialUnavailable = (): Record<string, string> => ({ 'lsass-dump|remediation||': 'LSASS credential dump abuses a normal feature of the system, not a vulnerability, so there is no patch or fix to apply.' });
 
 let state: State = {
   items: initialItems(),
-  unavailable: {},
+  unavailable: initialUnavailable(),
   noticeDismissed: readNotice(),
   version: 0,
 };
@@ -478,9 +500,14 @@ export const useMockStore = () => useSyncExternalStore(subscribe, getSnapshot);
 
 export const getItems = (
   store: State,
-  payloadId: string,
+  scopeKey: string,
   category: RemediationMitigationCategory,
-) => (store.items[payloadId] ?? []).filter(item => item.category === category);
+) => (store.items[scopeKey] ?? seedItems(scopeKey)).filter(item => item.category === category);
+
+// Whether the scope already has guidance of this category (the report generates only what is missing).
+export const hasGenerated = (store: State, scopeKey: string, category: RemediationMitigationCategory) => (
+  getItems(store, scopeKey, category).length > 0
+);
 
 export const dismissNotice = () => {
   try {
@@ -499,22 +526,22 @@ export const resetMockData = () => {
   }
   update({
     items: initialItems(),
-    unavailable: {},
+    unavailable: initialUnavailable(),
     noticeDismissed: false,
   });
 };
 
-const patchItems = (payloadId: string, change: (items: RemediationMitigationItem[]) => RemediationMitigationItem[]) => {
+const patchItems = (scopeKey: string, change: (items: RemediationMitigationItem[]) => RemediationMitigationItem[]) => {
   update({
     items: {
       ...state.items,
-      [payloadId]: change(state.items[payloadId] ?? []),
+      [scopeKey]: change(state.items[scopeKey] ?? seedItems(scopeKey)),
     },
   });
 };
 
-export const markReviewed = (payloadId: string, itemId: string) => patchItems(
-  payloadId,
+export const markReviewed = (scopeKey: string, itemId: string) => patchItems(
+  scopeKey,
   items => items.map(item => (item.id === itemId
     ? {
         ...item,
@@ -523,14 +550,14 @@ export const markReviewed = (payloadId: string, itemId: string) => patchItems(
     : item)),
 );
 
-export const deleteItem = (payloadId: string, itemId: string) => patchItems(
-  payloadId,
+export const deleteItem = (scopeKey: string, itemId: string) => patchItems(
+  scopeKey,
   items => items.filter(item => item.id !== itemId),
 );
 
 // Edits the rule text of a mitigation, or the summary of a remediation.
-export const editItem = (payloadId: string, itemId: string, text: string) => patchItems(
-  payloadId,
+export const editItem = (scopeKey: string, itemId: string, text: string) => patchItems(
+  scopeKey,
   items => items.map(item => (item.id !== itemId
     ? item
     : {
@@ -548,6 +575,8 @@ export const editItem = (payloadId: string, itemId: string, text: string) => pat
 export interface GenerateInput {
   payload: MockPayload;
   category: RemediationMitigationCategory;
+  // Where the result is stored (see `scopeKeyOf`). Defaults to the payload.
+  scopeKey?: string;
   // Mitigation only.
   controlType?: Extract<ControlType, 'detection' | 'prevention'>;
   // Mitigation only: undefined means generic / host-level.
@@ -704,17 +733,17 @@ const remediationTemplate = (input: GenerateInput): Omit<RemediationMitigationIt
   const { payload } = input;
   const finding = input.findingType ? ` Observed finding type: ${input.findingType}.` : '';
   return {
-    control_type: 'hardening',
-    title: `Remove the root cause exploited by ${payload.name}`,
-    summary: `Removes the weakness that ${payload.name} (${payload.attack_techniques.join(', ')}) relies on, instead of detecting it.${finding}`,
+    control_type: 'patch',
+    title: `Close the weakness exploited by ${payload.name}`,
+    summary: `Closes the weakness that ${payload.name} (${payload.attack_techniques.join(', ')}) relies on, instead of detecting it.${finding}`,
     platform: payload.platform,
     verify: true,
     actions: [
       {
-        title: 'Apply the hardening change that closes the weakness',
+        title: 'Apply the fix that closes the weakness',
         steps: [
-          'Identify the configuration or credential that the payload relies on.',
-          'Change it to the secure setting recommended by the vendor baseline.',
+          'Identify the vulnerable component and the fixed version published by the vendor.',
+          'Install the fix on the affected hosts.',
           'Re-run the payload to confirm the weakness is gone.',
         ],
         prerequisites: ['Administrative rights on the affected hosts.'],
@@ -726,7 +755,8 @@ const remediationTemplate = (input: GenerateInput): Omit<RemediationMitigationIt
   };
 };
 
-// Key of a request XTM One could not answer with a suggestion.
+// Key of a request XTM One could not answer with a suggestion (the scope key: payload for a remediation, result
+// for a mitigation).
 export const unavailableKey = (
   payloadId: string,
   category: RemediationMitigationCategory,
@@ -737,11 +767,20 @@ export const unavailableKey = (
 // What XTM One can answer when it has no suggestion: `unsupported = true` with a reason (see the prompts).
 // Sample behaviour: listing the running services is normal administration, so there is nothing to
 // remove and nothing worth blocking.
+const hasPatchSample = (payloadId: string) => (PAYLOAD_ITEM_IDS[payloadId] ?? [])
+  .some(id => SAMPLE_ITEMS.find(item => item.id === id)?.control_type === 'patch');
+
 const noSuggestionReason = (input: GenerateInput): string | undefined => {
-  if (input.payload.id !== 'service-enumeration') return undefined;
   if (input.category === 'remediation') {
-    return 'Listing the running services is normal administration activity: there is no weakness to remove.';
+    if (input.payload.id === 'service-enumeration') {
+      return 'Listing the running services is normal administration activity: there is no weakness to remove.';
+    }
+    // No patch: the technique abuses a normal feature or behavior of the system, not a vulnerability.
+    return hasPatchSample(input.payload.id)
+      ? undefined
+      : `${input.payload.name} abuses a normal feature of the system, not a vulnerability, so there is no patch or fix to apply.`;
   }
+  if (input.payload.id !== 'service-enumeration') return undefined;
   return input.controlType === 'prevention'
     ? 'Blocking this command would also block legitimate administration. A detection rule is a better fit.'
     : undefined;
@@ -756,8 +795,17 @@ export interface GenerateResult {
 // Resolves after a simulated 2 s "AI" call and adds the new item to the payload.
 export const generateItem = (input: GenerateInput): Promise<GenerateResult> => new Promise((resolve) => {
   setTimeout(() => {
+    const scopeKey = input.scopeKey ?? input.payload.id;
+    // A remediation is made once for the action and never changes: a second request returns the one that exists.
+    const existingPatch = input.category === 'remediation'
+      ? getItems(state, scopeKey, 'remediation').find(item => item.control_type === 'patch')
+      : undefined;
+    if (existingPatch) {
+      resolve({ item: existingPatch });
+      return;
+    }
     const key = unavailableKey(
-      input.payload.id,
+      scopeKey,
       input.category,
       input.category === 'mitigation' ? input.controlType : undefined,
       input.category === 'mitigation' ? input.collector ?? 'generic' : undefined,
@@ -778,7 +826,7 @@ export const generateItem = (input: GenerateInput): Promise<GenerateResult> => n
       update({ unavailable: rest });
     }
     counter += 1;
-    const id = `${input.payload.id}:generated-${counter}`;
+    const id = `${scopeKey}:generated-${counter}`;
     let item: RemediationMitigationItem;
     if (input.category === 'remediation') {
       item = {
@@ -812,7 +860,7 @@ export const generateItem = (input: GenerateInput): Promise<GenerateResult> => n
         ...generated.extra,
       };
     }
-    patchItems(input.payload.id, items => [item, ...items]);
+    patchItems(scopeKey, items => [item, ...items]);
     resolve({ item });
   }, 2000);
 });

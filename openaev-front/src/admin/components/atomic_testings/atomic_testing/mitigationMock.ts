@@ -3,8 +3,9 @@ import { type MitigationFinding, type MockMitigation } from './MitigationCard';
 // PROTOTYPE - MOCK DATA ONLY. Canned mitigation suggestions used by the prototype screens.
 export const MOCK_MITIGATIONS: Record<'windows' | 'linux' | 'network', MockMitigation> = {
   windows: {
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
     addresses: [{ type: 'credentials' }],
+    title: 'Block and audit LSASS memory reads',
     summary: 'LSASS memory can be read from this Windows 10 22H2 host while running as SYSTEM. Block and detect credential dumping. The weakness stays until LSA protection is turned on (see Remediation).',
     steps: [
       {
@@ -20,8 +21,9 @@ export const MOCK_MITIGATIONS: Record<'windows' | 'linux' | 'network', MockMitig
     limitedContext: false,
   },
   linux: {
-    criticality: 'high',
+    criticality: 'HIGH',
     addresses: [{ type: 'credentials' }],
+    title: 'Confine the web service account',
     summary: 'The command ran as www-data and reached sensitive files. Confine the web service account and record what it reads. The exposed files themselves stay readable (see Remediation).',
     steps: [
       {
@@ -43,11 +45,12 @@ export const MOCK_MITIGATIONS: Record<'windows' | 'linux' | 'network', MockMitig
     limitedContext: false,
   },
   network: {
-    criticality: 'low',
+    criticality: 'LOW',
     addresses: [{
       type: 'portscan',
       value: '445/tcp',
     }],
+    title: 'Reduce what the network exposes',
     summary: 'The scan reached an exposed service. Without agent details this is a generic recommendation: reduce what the network exposes.',
     steps: [
       { text: 'Restrict the exposed service to the management VLAN with a firewall rule.' },
@@ -64,6 +67,7 @@ export const MOCK_MITIGATIONS: Record<'windows' | 'linux' | 'network', MockMitig
 // finding values are masked and never leave the platform). A mitigation is a compensating control, so each
 // finding type has a prevention (block or limit the attack) and a detection (see it and alert).
 interface MitigationPart {
+  title: string;
   summary: string;
   criticality: MockMitigation['criticality'];
   steps: MockMitigation['steps'];
@@ -75,8 +79,9 @@ interface MitigationPart {
 const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection', MitigationPart>> = {
   portscan: {
     prevention: {
+      title: 'Limit who can reach the exposed services',
       summary: 'The scan found services reachable from the attacker position. Limit who can reach them. The services stay exposed (see Remediation).',
-      criticality: 'low',
+      criticality: 'LOW',
       // Replaced by one step per reported port in buildMitigations (target OS unknown: no command).
       steps: [
         { text: 'Restrict the exposed ports to the management network at the host and network firewall.' },
@@ -86,8 +91,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
       risk: 'low',
     },
     detection: {
+      title: 'Make port scans visible',
       summary: 'Make a scan of these ports visible: a source that probes many ports is the first sign of an attack.',
-      criticality: 'low',
+      criticality: 'LOW',
       steps: [
         { text: 'Log inbound connections to the exposed ports on the host and network firewall.' },
         { text: 'Alert when one source address reaches many ports (or many hosts) in a few minutes.' },
@@ -99,8 +105,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
   },
   share: {
     prevention: {
+      title: 'Limit who can reach SMB',
       summary: 'Windows administrative shares are reachable from the attacker position. Limit who can reach SMB. The share configuration itself is not fixed (see Remediation).',
-      criticality: 'high',
+      criticality: 'HIGH',
       steps: [
         {
           text: 'Only accept inbound SMB from the networks that need the file service.',
@@ -112,8 +119,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
       risk: 'medium',
     },
     detection: {
+      title: 'Audit share access',
       summary: 'Record every share access and alert when the anonymous logon opens a share.',
-      criticality: 'high',
+      criticality: 'HIGH',
       steps: [
         {
           text: 'Audit share access on the file servers.',
@@ -128,8 +136,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
   },
   credentials: {
     prevention: {
+      title: 'Block untrusted processes from reading credentials',
       summary: 'Credentials were captured by the action. Block untrusted processes from reading them. The credentials themselves must be rotated (see Remediation).',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Enable the host rule of your EDR or operating system that blocks untrusted processes from reading credentials from memory.' },
       ],
@@ -138,8 +147,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
       risk: 'medium',
     },
     detection: {
+      title: 'Alert on credential read attempts',
       summary: 'Credentials were captured by the action. Make every attempt to read them visible.',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Alert on every process that opens the credential store (LSASS on Windows, the shadow file on Linux) in your SIEM or EDR.' },
         { text: 'Alert on the block and audit events of the endpoint protection that guards the credential store.' },
@@ -151,8 +161,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
   },
   zerologon: {
     prevention: {
+      title: 'Limit access to the domain controller RPC endpoint',
       summary: 'CVE-2020-1472 (Zerologon) lets an unauthenticated attacker on the network reset the domain controller machine account password. Limiting who can reach its RPC endpoint mapper removes the network path while the patch is pending (see Remediation).',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Only accept inbound RPC (TCP 135 and the dynamic high port) and SMB (445) to the domain controller from the management and server subnets, with a firewall rule.' },
       ],
@@ -161,8 +172,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
       risk: 'medium',
     },
     detection: {
+      title: 'Monitor the Netlogon vulnerable connection events',
       summary: 'Microsoft added dedicated Netlogon event IDs for this CVE. Event 5829 is a vulnerable connection that was still allowed; 5827 and 5828 are ones a patched domain controller already denied.',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Forward the System log of every domain controller to your SIEM and alert on Netlogon events 5827, 5828 and 5829.' },
       ],
@@ -173,8 +185,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
   },
   log4shell: {
     prevention: {
+      title: 'Reject JNDI lookups at the reverse proxy',
       summary: 'CVE-2021-44228 (Log4Shell) is triggered by an attacker-controlled string, for example a request header, that log4j evaluates as a JNDI lookup. A reverse-proxy rule that rejects the lookup syntax keeps the exploit string from reaching the application while the patch is pending (see Remediation).',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Block the JNDI lookup pattern at the reverse proxy or WAF, in the URI, User-Agent and X-Forwarded-For headers: reject any request containing the dollar-brace jndi: syntax.' },
       ],
@@ -183,8 +196,9 @@ const FINDING_TYPE_MITIGATIONS: Record<string, Record<'prevention' | 'detection'
       risk: 'low',
     },
     detection: {
+      title: 'Search the web logs for the Log4Shell pattern',
       summary: 'The exploit string appears in any field log4j later formats into a log line: URL, request body, or a header. Searching raw web events for the pattern, including its common obfuscated variants, catches both successful and scanning-only attempts.',
-      criticality: 'critical',
+      criticality: 'VERY_HIGH',
       steps: [
         { text: 'Search the web server or reverse-proxy access log for the JNDI lookup pattern (ldap, ldaps, rmi and dns forms, plus the nested-lookup obfuscation) and alert on a match.' },
       ],
@@ -202,14 +216,16 @@ const PORT_SERVICES: Record<string, string> = {
   21: 'FTP',
 };
 
-const GENERIC_MITIGATIONS: Record<'prevention' | 'detection', Pick<MockMitigation, 'summary' | 'steps' | 'impact' | 'rollback'>> = {
+const GENERIC_MITIGATIONS: Record<'prevention' | 'detection', Pick<MockMitigation, 'title' | 'summary' | 'steps' | 'impact' | 'rollback'>> = {
   prevention: {
+    title: 'Block the technique this action uses',
     summary: 'No typed finding was produced, so this is a generic suggestion: block the technique this action uses.',
     steps: [{ text: 'Enable the prevention rule of your EDR for the technique this action uses, in block mode, then re-run the action to validate.' }],
     impact: 'A legitimate tool that uses the same technique can be blocked. Start in monitor mode.',
     rollback: 'Switch the rule back to monitor mode.',
   },
   detection: {
+    title: 'Make the technique this action uses visible',
     summary: 'No typed finding was produced, so this is a generic suggestion: make the technique this action uses visible.',
     steps: [{ text: 'Create a detection rule in your SIEM or EDR for the command line of this action, then re-run the action to confirm it alerts.' }],
     impact: 'Administration scripts that use the same command can alert. Tune the rule.',
@@ -253,7 +269,7 @@ export const buildMitigations = (input: {
   if (byKey.size === 0) {
     return kinds.map(kind => ({
       ...GENERIC_MITIGATIONS[kind],
-      criticality: 'medium' as const,
+      criticality: 'MEDIUM' as const,
       addresses: [],
       risk: 'low' as const,
       limitedContext: !input.hasAgent,
@@ -286,6 +302,7 @@ export const buildMitigations = (input: {
       return {
         criticality: part.criticality,
         addresses,
+        title: part.title,
         summary: part.summary,
         steps,
         risk: part.risk,
@@ -312,6 +329,7 @@ export const buildMitigation = (input: {
 // What a REMEDIATION adds for each finding type: it removes the root cause (configuration, credential or
 // exposure) instead of detecting or blocking the attack. Same shape as a mitigation, for the shared cards.
 const FINDING_TYPE_REMEDIATIONS: Record<string, {
+  title: string;
   summary: string;
   criticality: MockMitigation['criticality'];
   steps: MockMitigation['steps'];
@@ -320,8 +338,9 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
   risk: MockMitigation['risk'];
 }> = {
   portscan: {
+    title: 'Remove the services that do not need to be exposed',
     summary: 'The scan found services that do not need to be exposed. Remove the exposure at its source.',
-    criticality: 'medium',
+    criticality: 'MEDIUM',
     steps: [
       { text: 'Uninstall or disable every service that is not needed on the host, then re-scan to confirm the ports are closed.' },
       { text: 'Keep the services that are needed behind the management network only, and document the owner of each one.' },
@@ -331,8 +350,9 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
     risk: 'low',
   },
   share: {
+    title: 'Fix the share configuration',
     summary: 'Network shares accept access that they should not. Fix the share configuration and the protocol settings.',
-    criticality: 'high',
+    criticality: 'HIGH',
     steps: [
       {
         text: 'Remove anonymous and "Everyone" access from every share and grant access to named groups only.',
@@ -352,8 +372,9 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
     risk: 'medium',
   },
   credentials: {
+    title: 'Make the exposed credentials useless',
     summary: 'The action could read credentials. Make the exposed ones useless and remove the way they were read.',
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
     steps: [
       { text: 'Rotate the exposed credentials now and reset the password of the affected accounts. A stolen hash is valid until the password changes.' },
       {
@@ -371,8 +392,9 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
     risk: 'high',
   },
   zerologon: {
+    title: 'Remove the Netlogon secure RPC exceptions',
     summary: 'Before the February 2021 enforcement date, a non-Windows device could be listed as an exception to Netlogon secure RPC and keep using the vulnerable connection. Remove any such exception: it is a bypass of the fix, not a fix itself. The vulnerability itself is only removed by the security update (see the patch below).',
-    criticality: 'high',
+    criticality: 'HIGH',
     steps: [
       { text: 'Open "Domain controller: Allow vulnerable Netlogon secure channel connections" in the Default Domain Controllers Policy and confirm every listed device has since been updated.' },
       { text: 'Set the policy back to Not Defined (or an empty list) once nothing still needs it.' },
@@ -382,8 +404,9 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
     risk: 'medium',
   },
   log4shell: {
+    title: 'Remove the JndiLookup class from log4j-core',
     summary: 'Apache\'s own advisory lists removing the JndiLookup class from the classpath as a workaround for log4j-core 2.10 and later: with the class gone, the vulnerable lookup cannot run, whatever the configuration. It stays in place until every copy of the library is upgraded (see the patch below), which it does not replace.',
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
     steps: [
       {
         text: 'Remove the vulnerable class from every log4j-core jar found on the host.',
@@ -401,7 +424,8 @@ const FINDING_TYPE_REMEDIATIONS: Record<string, {
 // have a vendor fix. A finding with no such service (credentials, for example) gets no patch.
 const SERVICE_PATCHES: Record<'smb' | 'rdp' | 'ssh', Omit<MockMitigation, 'addresses' | 'limitedContext' | 'controlType'>> = {
   smb: {
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
+    title: 'Install the MS17-010 security update (EternalBlue)',
     summary: 'An SMB server that misses the March 2017 security update is exposed to EternalBlue (CVE-2017-0144, MS17-010), which gives remote code execution without credentials.',
     steps: [
       { text: 'Install the March 2017 security update (MS17-010, CVE-2017-0143 to CVE-2017-0148) or any later cumulative update, then restart.' },
@@ -415,7 +439,8 @@ const SERVICE_PATCHES: Record<'smb' | 'rdp' | 'ssh', Omit<MockMitigation, 'addre
     rollback: 'Re-enable the SMB1Protocol feature (not recommended) and uninstall the update with wusa /uninstall.',
   },
   rdp: {
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
+    title: 'Install the BlueKeep and DejaBlue updates',
     summary: 'Remote Desktop Services that miss the 2019 updates are exposed to BlueKeep (CVE-2019-0708, fixed in May 2019) and DejaBlue (CVE-2019-1181 and CVE-2019-1182, fixed in August 2019).',
     steps: [
       { text: 'Install the May 2019 security update (CVE-2019-0708) and the August 2019 one (CVE-2019-1181, CVE-2019-1182), or any later cumulative update, then restart.' },
@@ -426,7 +451,8 @@ const SERVICE_PATCHES: Record<'smb' | 'rdp' | 'ssh', Omit<MockMitigation, 'addre
     rollback: 'Uninstall the update with wusa /uninstall /kb:<number>.',
   },
   ssh: {
-    criticality: 'high',
+    criticality: 'HIGH',
+    title: 'Upgrade OpenSSH to 9.8p1 or later',
     summary: 'Portable OpenSSH 8.5p1 to 9.7p1 is exposed to CVE-2024-6387 (regreSSHion), a race condition that can give remote code execution as root. OpenSSH 9.8p1 fixes it.',
     steps: [
       {
@@ -444,7 +470,8 @@ const SERVICE_PATCHES: Record<'smb' | 'rdp' | 'ssh', Omit<MockMitigation, 'addre
 // from a port number).
 const CVE_PATCHES: Record<'zerologon' | 'log4shell', Omit<MockMitigation, 'addresses' | 'limitedContext' | 'controlType'>> = {
   zerologon: {
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
+    title: 'Apply the Zerologon security update (CVE-2020-1472)',
     summary: 'CVE-2020-1472 (Zerologon, CVSS 10) lets an unauthenticated attacker on the network take over a domain controller. Microsoft fixed it on 11 August 2020; enforcement mode became mandatory on every domain controller on 9 February 2021.',
     steps: [
       { text: 'Install the 11 August 2020 security update (or any later one) on every domain controller, then restart. One unpatched domain controller keeps the domain exposed.' },
@@ -454,7 +481,8 @@ const CVE_PATCHES: Record<'zerologon' | 'log4shell', Omit<MockMitigation, 'addre
     rollback: 'Uninstall the update with wusa /uninstall /kb:<number> (not recommended: this reopens the vulnerability).',
   },
   log4shell: {
-    criticality: 'critical',
+    criticality: 'VERY_HIGH',
+    title: 'Upgrade log4j-core (CVE-2021-44228)',
     summary: 'CVE-2021-44228 (Log4Shell) affects log4j-core 2.0-beta9 through 2.14.1. The fixes released between 10 and 28 December 2021 removed JNDI lookups and message-lookup substitution by default.',
     steps: [
       { text: 'Upgrade log4j-core to 2.17.1 or later on Java 8, 2.12.4 on Java 7, or 2.3.2 on Java 6, in every application that bundles it, then redeploy.' },
@@ -517,8 +545,9 @@ export const buildRemediations = (input: {
   });
   if (byKey.size === 0) {
     return [{
-      criticality: 'medium',
+      criticality: 'MEDIUM',
       addresses: [],
+      title: 'Apply the vendor hardening baseline',
       summary: `"${input.actionName}" was not prevented. No typed finding was produced, so this is a generic remediation.`,
       steps: [GENERIC_REMEDIATION_STEP],
       risk: 'low',
@@ -544,6 +573,7 @@ export const buildRemediations = (input: {
     return {
       criticality: part.criticality,
       addresses,
+      title: part.title,
       summary: part.summary,
       steps: part.steps,
       risk: part.risk,

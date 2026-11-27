@@ -5,10 +5,12 @@
 // generated one in `api-types.d.ts`) does not touch the UI.
 //
 // Definitions the tabs are built on:
-// - Remediation removes the ROOT CAUSE of a weakness (patch, upgrade, configuration/hardening
-//   change, credential hygiene).
+// - Remediation closes the weakness the simulation exposed (patch, upgrade). Only 'patch' items are shown
+//   in the Remediation tab.
 // - Mitigation is a compensating control: the weakness stays, but the attack is detected or blocked.
-// Classification question: "Does it remove the root cause?" Yes -> remediation, no -> mitigation.
+//   Hardening (reducing the attack surface in general) is a mitigation too: it is shown with the generic
+//   mitigations. The 'hardening' items below are stored under 'remediation' only because of the sample data.
+// Classification question: "Does it close the exact hole that was exposed?" Yes -> remediation, no -> mitigation.
 //
 // The commands, rules, settings and CVE identifiers below are real and were checked against the vendor
 // documentation (Microsoft, OpenSSH, Apple, CrowdStrike). Host names, domains, indexes and accounts are
@@ -67,8 +69,6 @@ export interface RemediationMitigationItem {
   // AI items start as 'needs_review' until a person marks them as reviewed.
   review_state?: 'needs_review' | 'reviewed';
 }
-
-export const REMEDIATION_CONTROL_TYPES: ControlType[] = ['patch', 'hardening'];
 
 export const MITIGATION_CONTROL_TYPES: ControlType[] = ['detection', 'prevention'];
 

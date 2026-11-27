@@ -10,6 +10,7 @@ import CustomMarkdownModule from './modules/CustomMarkdownModule';
 import ExecutiveSummaryModule from './modules/ExecutiveSummaryModule';
 import FailedExpectationsModule from './modules/FailedExpectationsModule';
 import FindingsModule from './modules/FindingsModule';
+import InjectGuidanceModule from './modules/InjectGuidanceModule';
 import MitigationsModule from './modules/MitigationsModule';
 import MitreCoverageModule from './modules/MitreCoverageModule';
 import { ModuleSection } from './modules/ModuleSection';
@@ -103,7 +104,15 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
 
   const modules = reporting.reporting_modules ?? [];
   const coverModule = modules.find(module => module.module_type === 'COVER');
-  const bodyModules = modules.filter(module => module.module_type !== 'COVER');
+  // A report with both guidance modules shows one section, inject by inject: the Remediations module is folded into
+  // the Mitigations one.
+  const hasMitigations = modules.some(module => module.module_type === 'MITIGATIONS');
+  const hasRemediations = modules.some(module => module.module_type === 'REMEDIATIONS');
+  const bodyModules = modules.filter(module => module.module_type !== 'COVER'
+    && !(module.module_type === 'REMEDIATIONS' && hasMitigations));
+  const sectionTitle = (module: ReportingModule) => (module.module_type === 'MITIGATIONS' && hasRemediations && !module.module_title
+    ? t('Mitigations and remediations')
+    : moduleTitle(module, t));
 
   const renderModuleContent = (module: ReportingModule): ReactNode => {
     switch (module.module_type) {
@@ -126,7 +135,9 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
       case 'ATTACK_PATHS':
         return <AttackPathsModule attackPaths={data.attackPaths} />;
       case 'MITIGATIONS':
-        return <MitigationsModule module={module} />;
+        return hasRemediations
+          ? <InjectGuidanceModule module={module} showMitigation showRemediation />
+          : <MitigationsModule module={module} />;
       case 'REMEDIATIONS':
         return <RemediationsModule module={module} />;
       case 'CUSTOM_MARKDOWN':
@@ -303,7 +314,7 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
                               fontWeight: 500,
                             }}
                           >
-                            {moduleTitle(module, t)}
+                            {sectionTitle(module)}
                           </Typography>
                           {/* Dotted leader filling the gap toward the margin. */}
                           <Box sx={{
@@ -323,7 +334,7 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
                     // Modules have no id; order is the identity.
                     key={index}
                     id={`reporting-section-${index + 1}`}
-                    title={moduleTitle(module, t)}
+                    title={sectionTitle(module)}
                     subtitle={timeRangeLabel}
                   >
                     {renderModuleContent(module)}
