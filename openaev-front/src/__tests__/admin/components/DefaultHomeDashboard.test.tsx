@@ -168,6 +168,7 @@ describe('DefaultHomeDashboard first load (#7599)', () => {
 describe('DefaultHomeDashboard security platforms loading (#9813)', () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    mockCan.mockClear();
     adHocSeriesMock.mockReset();
     adHocSeriesMock.mockResolvedValue(probeResponse(0));
   });
