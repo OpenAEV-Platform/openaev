@@ -28,9 +28,9 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 | Layer | Does | Never |
 |---|---|---|
-| API (`io.openaev.api.*`) | validate (`@Valid`), map Input → entity/args, call **one** service method, map result → Output | inject a repository, hold a business rule, catch or translate an exception, chain service calls with logic in between |
-| Service | business rules, transactions; calls other services and **its own** repository | return an `*Output`, build HTTP (`ResponseEntity`, `ResponseStatusException`, servlet types), inject another aggregate's repository |
-| Repository | data access | be injected outside its owning service |
+| API (`io.openaev.api.*`) | validate (`@Valid`), map Input → entity/args, call **one** service method, map result → Output | inject a repository, hold a business rule, catch or translate an exception, chain service calls with logic in between. Absolutely NO SQL.|
+| Service | business rules, transactions; calls other services and **its own** repository | return an `*Output`, build HTTP (`ResponseEntity`, `ResponseStatusException`, servlet types), inject another aggregate's repository. Absolutely NO SQL. |
+| Repository | data access | be injected outside its owning service. Any SQL goes in the layer EXCLUSIVELY. |
 | Entity | state + JPA mapping | business logic (see Entities) |
 | Utils | static methods | hold state |
 
@@ -167,6 +167,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Names: PascalCase classes, camelCase methods and fields
 - `Optional` for a value that may be absent; null-check external inputs
 - Prefer `final` fields and unmodifiable collections, except entity collections (see Hibernate)
+- Use descriptive method names, starting with a verb appropriate for the method's action (e.g. filter-, get-, delete-, ...)
 
 ## Code Comments
 
