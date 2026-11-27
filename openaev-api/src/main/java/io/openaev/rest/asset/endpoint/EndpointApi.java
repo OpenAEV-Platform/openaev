@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.AgentSessionLinkService;
 import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.asset.dto.AssetBulkUpdateInput;
 import io.openaev.api.asset.dto.MarkedEndpointInput;
@@ -70,6 +71,7 @@ public class EndpointApi extends RestBehavior {
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final io.openaev.config.TenantWriteScopeResolver writeScopeResolver;
+  private final AgentSessionLinkService agentSessionLinkService;
 
   private final EndpointMapper endpointMapper;
   private final AssetGroupMapper assetGroupMapper;
@@ -120,7 +122,11 @@ public class EndpointApi extends RestBehavior {
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return this.endpointService.register(input, tenantId);
+    Endpoint endpoint = this.endpointService.register(input, tenantId);
+    // The account the agent runs as has a session on the endpoint (#9725).
+    agentSessionLinkService.recordSession(
+        endpoint, input.getExecutedByUser(), java.time.Instant.now());
+    return endpoint;
   }
 
   @LogExecutionTime
