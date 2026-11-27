@@ -422,6 +422,13 @@ public class CredentialService {
         .orElseThrow(() -> new ElementNotFoundException("Credential not found"));
   }
 
+  public CredentialSecretReference getCredentialById(
+      @NotBlank final String tenantId, @NotBlank final String credentialId) {
+    return credentialSecretReferenceRepository
+        .findByTenantIdAndId(tenantId, credentialId)
+        .orElseThrow(() -> new ElementNotFoundException("Credential not found"));
+  }
+
   /**
    * Retrieve full credential output enriched with non-sensitive secret metadata.
    *

@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.CredentialSecretReference;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -13,4 +14,6 @@ public interface CredentialSecretReferenceRepository
 
   @Query("select count(sr) from CredentialSecretReference sr")
   long globalCount();
+
+  Optional<CredentialSecretReference> findByTenantIdAndId(String tenantId, String id);
 }

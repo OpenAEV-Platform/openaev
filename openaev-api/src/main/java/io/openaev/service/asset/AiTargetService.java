@@ -43,7 +43,8 @@ public class AiTargetService {
 
   private Asset applyInput(Asset aiTarget, AiTargetInput input) {
     aiTarget.setUpdateAttributes(input);
-    aiTarget.setAiTargetCredential(apiTokenCredential(input.getAiTargetCredentialId()));
+    aiTarget.setAiTargetCredential(
+        apiTokenCredential(aiTarget.getTenant().getId(), input.getAiTargetCredentialId()));
     aiTarget.setCategory(AssetCategory.AI_TARGET);
     aiTarget.setTags(
         iterableToSet(
@@ -51,11 +52,12 @@ public class AiTargetService {
     return aiTarget;
   }
 
-  private CredentialSecretReference apiTokenCredential(String credentialId) {
+  private CredentialSecretReference apiTokenCredential(String tenantId, String credentialId) {
     if (credentialId == null) {
       return null;
     }
-    CredentialSecretReference credential = credentialService.getCredentialById(credentialId);
+    CredentialSecretReference credential =
+        credentialService.getCredentialById(tenantId, credentialId);
     if (credential.getCredentialAuthMethod()
         != CredentialSecretReference.CREDENTIAL_AUTH_METHOD.API_TOKEN) {
       throw new BadRequestException("An AI target needs an API token credential");
