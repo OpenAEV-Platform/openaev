@@ -161,10 +161,7 @@ const updatePreview: ScenarioUpdatePreviewOutput = {
       scenario_change_local: 'Old',
       scenario_change_applied: 'New',
     }),
-    change('scenario/category', 'KEEP_MINE', {
-      scenario_change_base: 'recon',
-      scenario_change_local: 'mine',
-    }),
+    change('scenario/category', 'KEEP_MINE', { scenario_change_local: 'mine' }),
     change('inject:c', 'ADDED', { scenario_change_title: 'Mail' }),
   ]),
   scenario_update_payloads_to_install: [{

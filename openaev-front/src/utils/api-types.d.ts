@@ -2808,12 +2808,9 @@ export interface CatalogInstallOutput {
 }
 
 export interface CatalogPayloadOutput {
-  catalog_payload_description?: string;
-  catalog_payload_domain?: string;
   /** @minLength 1 */
   catalog_payload_external_id: string;
   catalog_payload_name?: string;
-  catalog_payload_platforms: string[];
   /** @format date-time */
   catalog_payload_published_at?: string;
   /** @minLength 1 */
@@ -2854,18 +2851,6 @@ export interface CatalogScenarioRequirementOutput {
   /** @minLength 1 */
   requirement_name: string;
   requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
-}
-
-export interface CatalogScenarioVersionOutput {
-  catalog_scenario_changelog?: string;
-  /** @format int32 */
-  catalog_scenario_injects_count?: number;
-  catalog_scenario_main_focus?: string;
-  /** @format date-time */
-  catalog_scenario_published_at?: string;
-  catalog_scenario_severity?: string;
-  /** @minLength 1 */
-  catalog_scenario_version: string;
 }
 
 export interface CatalogSettingsInput {
@@ -12601,7 +12586,6 @@ export interface ScenarioChallengesReader {
 
 export interface ScenarioChangeOutput {
   scenario_change_applied?: JsonNode;
-  scenario_change_base?: JsonNode;
   scenario_change_editable: boolean;
   scenario_change_element_kind: "SCENARIO" | "VARIABLES" | "INJECT";
   scenario_change_field_key?: string;

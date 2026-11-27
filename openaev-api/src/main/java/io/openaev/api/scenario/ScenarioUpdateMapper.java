@@ -34,7 +34,6 @@ public class ScenarioUpdateMapper {
         change.title(),
         change.status(),
         change.editable(),
-        change.base(),
         change.applied(),
         change.local());
   }

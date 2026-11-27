@@ -1099,6 +1099,54 @@
       "files": [
         "openaev-front/src/admin/components/scenarios/scenario/versions/ScenarioUpdateDialog.tsx"
       ]
+    },
+    {
+      "component": "Button",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/launch/ScenarioLaunchReadiness.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/card/ScenarioCard.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/ScenarioTargetsDrawer.tsx"
+      ]
+    },
+    {
+      "component": "Alert",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
+      "files": [
+        "openaev-front/src/admin/components/threat_arsenal/revocation/PayloadRevocationDialog.tsx",
+        "openaev-front/src/admin/components/scenarios/targets/ScenarioTargetsDrawer.tsx"
+      ]
+    },
+    {
+      "component": "IconButton",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
+      "files": [
+        "openaev-front/src/components/common/content_history/ContentHistoryTable.tsx"
+      ]
+    },
+    {
+      "component": "CardBanner",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Scenario Factory screens: catalogue cards, launch check, revocation, targets and content history.",
+      "files": [
+        "openaev-front/src/admin/components/scenarios/card/ScenarioCard.tsx"
+      ]
     }
   ],
   "migratedZones": [

@@ -718,7 +718,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // catalog_items, scenario_identities: the Available tab of the Scenarios page.
           "io.openaev.api.catalog.scenario.CatalogScenarioApi#searchScenarios",
           "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioFacetCounts",
-          "io.openaev.api.catalog.scenario.CatalogScenarioApi#scenarioVersions",
           // exercises, injects: a scenario launched with targets for its simulation only.
           "io.openaev.api.scenario.ScenarioLaunchApi#launch",
           // injects, payload_revocations, catalog_items: what a scenario launch meets.

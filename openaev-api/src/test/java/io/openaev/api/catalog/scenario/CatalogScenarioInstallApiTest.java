@@ -594,41 +594,6 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("lists the offered versions of a scenario with their details, newest first")
-    void given_releasedVersions_should_listOfferedOnesNewestFirst() throws Exception {
-      // Arrange
-      publishVersions(
-          Map.of(
-              "1.0.0", Map.of(),
-              "1.2.0",
-                  Map.of(
-                      "changelog", "Adds a discovery step",
-                      "main_focus", "incident-response",
-                      "severity", "high",
-                      "injects_count", 3),
-              "1.1.0", Map.of(),
-              "1.3.0", Map.of("status", "DEPRECATED")),
-          scenarioPackage(RELEASED.file()));
-
-      // Act
-      ResultActions result =
-          mvc.perform(
-              get(
-                  TENANT_CATALOG_URI + "/scenarios/{externalId}/versions",
-                  DEFAULT_TENANT_UUID,
-                  SCENARIO_ID));
-
-      // Assert
-      result
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$[*].catalog_scenario_version", contains("1.2.0", "1.1.0", "1.0.0")))
-          .andExpect(jsonPath("$[0].catalog_scenario_changelog").value("Adds a discovery step"))
-          .andExpect(jsonPath("$[0].catalog_scenario_main_focus").value("incident-response"))
-          .andExpect(jsonPath("$[0].catalog_scenario_severity").value("high"))
-          .andExpect(jsonPath("$[0].catalog_scenario_injects_count").value(3));
-    }
-
-    @Test
     @DisplayName("lists a scenario with its facts and the payload versions its release names")
     void given_releasedScenario_should_listItsFactsAndPayloads() throws Exception {
       // Arrange
