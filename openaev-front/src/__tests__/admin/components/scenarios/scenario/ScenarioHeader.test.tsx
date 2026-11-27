@@ -83,7 +83,7 @@ const { default: ScenarioHeader } = await import('../../../../../admin/component
 
 const Header = () => {
   const [open, setOpen] = useState(false);
-  return <ScenarioHeader openInstantiateSimulationAndStart={open} setOpenInstantiateSimulationAndStart={setOpen} />;
+  return <ScenarioHeader healthchecks={[]} openInstantiateSimulationAndStart={open} setOpenInstantiateSimulationAndStart={setOpen} />;
 };
 
 const renderHeader = (devFeatures: string[]) => {

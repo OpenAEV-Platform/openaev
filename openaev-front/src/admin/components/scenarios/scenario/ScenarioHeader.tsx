@@ -39,7 +39,6 @@ import {
   fetchScenarioTeams,
   launchScenario,
   realignScenarioExpectations,
-  searchScenarioHealthcheks,
   updateScenarioRecurrence,
 } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -101,8 +100,10 @@ import {
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 import { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED } from './ScenarioType';
+import { latestInjectUpdate } from './useScenarioHealthchecks';
 
 interface ScenarioHeaderProps {
+  healthchecks: HealthCheck[];
   setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
   openInstantiateSimulationAndStart: boolean;
   /** The autonomous run owning this scenario (plan-mode design session or a live autonomous launch),
@@ -118,6 +119,7 @@ interface ScenarioHeaderProps {
 }
 
 const ScenarioHeader = ({
+  healthchecks,
   openInstantiateSimulationAndStart,
   setOpenInstantiateSimulationAndStart,
   autonomousRun = null,
@@ -144,7 +146,6 @@ const ScenarioHeader = ({
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [configurationInitialTab, setConfigurationInitialTab] = useState<ScenarioConfigurationTab>(ScenarioConfigurationTab.TEAMS);
   const [openScheduling, setOpenScheduling] = useState(false);
-  const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   // Number of authored attack-path steps on the scenario's chaining workflow. A chained scenario
   // builds its attack path as workflow step templates, not classic scenario injects, so this is the
@@ -399,16 +400,6 @@ const ScenarioHeader = ({
       filterValuesMap,
     );
 
-  useEffect(() => {
-    const refreshHealthchecks = () => {
-      searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
-    };
-    refreshHealthchecks();
-    // Step changes in the Logic tab touch none of the dependencies below: it signals them instead.
-    const subscription = MESSAGING$.refreshHealthchecks.subscribe(refreshHealthchecks);
-    return () => subscription.unsubscribe();
-  }, [scenarioId, scenario, workflowConfiguration]);
-
   // Count the attack-path steps that back the hero stat, read from the scenario's chaining workflow
   // (its authored step templates).
   useEffect(() => {
@@ -428,7 +419,8 @@ const ScenarioHeader = ({
   }, [scenarioWorkflowId]);
 
   // Expectation drift between the injector contract templates and the inject
-  // content - recomputed when the scenario or its inject set changes.
+  // content - recomputed when the scenario or one of its injects changes.
+  const injectsUpdatedAt = latestInjectUpdate(injects ?? []);
   useEffect(() => {
     // The header survives scenario switches (no remount): a stale response from
     // the previous scenario must not overwrite the current one. simpleCall has
@@ -442,7 +434,7 @@ const ScenarioHeader = ({
     return () => {
       stale = true;
     };
-  }, [scenarioId, scenario, injectsCount]);
+  }, [scenarioId, scenario.scenario_updated_at, injectsCount, injectsUpdatedAt]);
 
   const onRealignExpectations = async () => {
     await realignScenarioExpectations(scenarioId);

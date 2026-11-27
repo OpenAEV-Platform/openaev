@@ -31,6 +31,7 @@ import EntityGraph from '../../graph/EntityGraph';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
 import buildScenarioTabs from './scenarioTabs';
+import useScenarioHealthchecks from './useScenarioHealthchecks';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
@@ -127,6 +128,8 @@ const IndexScenarioComponent: FunctionComponent<{
     tabValue = `/admin/scenarios/${scenario.scenario_id}/tests`;
   }
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
+  // Shown by the header and the overview: loaded here once for both.
+  const healthchecks = useScenarioHealthchecks(scenario.scenario_id);
 
   // Chained scenarios expose Scope / Logic / Attack path (workflow-backed); time-based scenarios
   // keep the classic Injects / Tests / Lessons tab set. The Lessons tab is available in both
@@ -164,6 +167,7 @@ const IndexScenarioComponent: FunctionComponent<{
   // panel, and Scope / Logic still go read-only while the orchestrator owns them (see hasCockpit).
   const overviewElement = errorWrapper(ScenarioComponent)({
     autonomousRun,
+    healthchecks,
     setOpenInstantiateSimulationAndStart,
     onAutonomousRunCleared,
     timelineEvents: hasCockpit ? cockpitTimeline : undefined,
@@ -192,6 +196,7 @@ const IndexScenarioComponent: FunctionComponent<{
               ]}
             />
             <ScenarioHeader
+              healthchecks={healthchecks}
               setOpenInstantiateSimulationAndStart={setOpenInstantiateSimulationAndStart}
               openInstantiateSimulationAndStart={openInstantiateSimulationAndStart}
               autonomousRun={autonomousRun}

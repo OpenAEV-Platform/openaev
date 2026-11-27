@@ -95,6 +95,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -669,6 +670,15 @@ public class InjectService {
   }
 
   private List<AssetToExecute> resolveAllTargetedAssets(Inject inject) {
+    return resolveAllTargetedAssets(inject, this.assetGroupService::assetsFromAssetGroup);
+  }
+
+  /**
+   * @param assetsOfGroup the assets of an asset group, by group id: lets a caller checking several
+   *     injects resolve each group once
+   */
+  private List<AssetToExecute> resolveAllTargetedAssets(
+      Inject inject, Function<String, List<Asset>> assetsOfGroup) {
     List<AssetToExecute> assetToExecutes = new ArrayList<>();
 
     inject.getAssets().forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
@@ -677,8 +687,7 @@ public class InjectService {
         .getAssetGroups()
         .forEach(
             assetGroup -> {
-              List<Asset> assetsFromGroup =
-                  this.assetGroupService.assetsFromAssetGroup(assetGroup.getId());
+              List<Asset> assetsFromGroup = assetsOfGroup.apply(assetGroup.getId());
 
               assetsFromGroup.forEach(
                   asset -> {
@@ -1969,9 +1978,48 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors =
-        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
+    List<HealthCheck> healthChecks =
+        new ArrayList<>(
+            runChecksWithoutRevocation(
+                inject,
+                this.collectorService.securityPlatformCollectors(inject.getTenant().getId()),
+                this.injectorService.findAll(),
+                this.assetGroupService::assetsFromAssetGroup));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
+    return healthChecks;
+  }
+
+  /**
+   * The checks of every given inject, as {@link #runChecks(Inject)} returns them, in one list. The
+   * collectors, the injectors and the assets of each asset group are loaded once for all the
+   * injects, and the payload revocation check runs once over all of them: it reports the revoked
+   * payload once, whichever inject runs it.
+   */
+  public List<HealthCheck> runChecksOfInjects(final List<Inject> injects) {
     List<Injector> injectors = this.injectorService.findAll();
+    Map<String, List<Collector>> collectorsByTenantId = new HashMap<>();
+    Map<String, List<Asset>> assetsByAssetGroupId = new HashMap<>();
+    List<HealthCheck> healthChecks = new ArrayList<>();
+    for (Inject inject : injects) {
+      healthChecks.addAll(
+          runChecksWithoutRevocation(
+              inject,
+              collectorsByTenantId.computeIfAbsent(
+                  inject.getTenant().getId(), this.collectorService::securityPlatformCollectors),
+              injectors,
+              assetGroupId ->
+                  assetsByAssetGroupId.computeIfAbsent(
+                      assetGroupId, this.assetGroupService::assetsFromAssetGroup)));
+    }
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(injects));
+    return healthChecks;
+  }
+
+  private List<HealthCheck> runChecksWithoutRevocation(
+      Inject inject,
+      List<Collector> collectors,
+      List<Injector> injectors,
+      Function<String, List<Asset>> assetsOfGroup) {
     List<HealthCheck> healthChecks = new ArrayList<>();
 
     healthChecks.addAll(
@@ -1994,11 +2042,11 @@ public class InjectService {
         healthCheckUtils.runExecutorChecks(
             inject,
             toAgentsAndAgentlessAssets(
-                new ResolvedAssetsToExecute(resolveAllTargetedAssets(inject), Set.of()))));
+                new ResolvedAssetsToExecute(
+                    resolveAllTargetedAssets(inject, assetsOfGroup), Set.of()))));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
-    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }
