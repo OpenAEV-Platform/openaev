@@ -14,7 +14,9 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 ## TypeScript
 
 - Use auto-generated `api-types.d.ts` — prefer over manual types
-- Migrate `.js`/`.jsx` → `.ts`/`.tsx` when touching files
+- **No new `.js` / `.jsx` file under `src`**: write `.ts` / `.tsx` (enforced by `no-restricted-syntax` in `eslint.config.js`). The JavaScript files that still exist are listed in `legacyJsFiles` in `eslint.config.js`. Never add a file to that list: a file renamed to `.ts` / `.tsx` leaves it
+- Migrate `.js`/`.jsx` → `.ts`/`.tsx` when touching files: rename with `git mv` first (a pure rename), then add the types in a separate commit, with no change of logic
+- Typing a migrated file: a form payload takes the `*Input` type of `api-types.d.ts`; what the generator does not cover goes in `api-types-custom.d.ts`
 - TypeScript strict mode, annotate API responses with generated types
 - No `any` types, no `@ts-ignore` without explanatory comment
 - Props defined via explicit `interface Props` (not inline); no prop that no call site passes; over 8 props → split the component or use a context
