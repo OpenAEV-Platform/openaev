@@ -184,8 +184,17 @@ public class InjectorContractContentUtilsTest {
   @Nested
   @DisplayName("Expiration times")
   class ExpirationTimes {
-    private InjectorContract getContractWithContents() throws JsonProcessingException {
-      String contractContents =
+    private InjectorContract getContractWithContents(String contents)
+        throws JsonProcessingException {
+      InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
+      contract.setContent(contents);
+      contract.setConvertedContent(
+          contents == null ? null : (ObjectNode) mapper.readTree(contents));
+      return contract;
+    }
+
+    private InjectorContract getContractWithExpectationsContents() throws JsonProcessingException {
+      return getContractWithContents(
           """
                {
                   "fields" : [ {
@@ -247,21 +256,152 @@ public class InjectorContractContentUtilsTest {
                       "expectation_is_predefined" : true,
                       "expectation_order" : null,
                       "expectation_expected_security_platform_types" : [ "VULNERABILITY_SCANNER" ]
+                    }, {
+                      "expectation_type" : "MANUAL",
+                      "expectation_name" : "Not vulnerable",
+                      "expectation_description" : null,
+                      "expectation_score" : 100.0,
+                      "expectation_expectation_group" : false,
+                      "expectation_expiration_time" : 3600,
+                      "expectation_is_multi_selectable" : false,
+                      "expectation_is_predefined" : false,
+                      "expectation_order" : null,
+                      "expectation_expected_security_platform_types" : [ "SIEM" ]
                     } ],
                     "type" : "expectation"
                   } ]
                 }
-              """;
-      InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
-      contract.setContent(contractContents);
-      contract.setConvertedContent((ObjectNode) mapper.readTree(contractContents));
-      return contract;
+              """);
+    }
+
+    private InjectorContract getContractWithEmptyContents() throws JsonProcessingException {
+      return getContractWithContents(null);
+    }
+
+    private InjectorContract getContractWithMissingFieldsContents() throws JsonProcessingException {
+      return getContractWithContents("{}");
+    }
+
+    private InjectorContract getContractWithFieldsNotArrayContents()
+        throws JsonProcessingException {
+      return getContractWithContents(
+          """
+      {
+        "fields": { }
+      }
+      """);
+    }
+
+    private InjectorContract getContractWithMissingExpectationsContents()
+        throws JsonProcessingException {
+      return getContractWithContents(
+          """
+      {
+        "fields": [ {
+          "key": "not-what-we-look-for"
+         } ]
+      }
+      """);
+    }
+
+    private InjectorContract getContractWithMissingAvailableExpectationsField()
+        throws JsonProcessingException {
+      return getContractWithContents(
+          """
+      {
+        "fields": [ {
+          "key": "expectations"
+         } ]
+      }
+      """);
+    }
+
+    private InjectorContract getContractWithAvailableExpectationsNotArrayField()
+        throws JsonProcessingException {
+      return getContractWithContents(
+          """
+      {
+        "fields": [ {
+          "key": "expectations",
+          "availableExpectations": {}
+         } ]
+      }
+      """);
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when missing contents returns contract unchanged")
+    void noContentsReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithEmptyContents();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when missing fields attribute in contents returns contract unchanged")
+    void noFieldsReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithMissingFieldsContents();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent()).isEqualTo("{}");
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when fields attribute not an array returns contract unchanged")
+    void fieldsNotArrayReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithFieldsNotArrayContents();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent()).isEqualTo("{\"fields\":{}}");
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when no expectations contents returns contract unchanged")
+    void noExpectationsReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithMissingExpectationsContents();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent())
+          .isEqualTo("{\"fields\":[{\"key\":\"not-what-we-look-for\"}]}");
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when no available expectations field returns contract unchanged")
+    void noAvailableExpectationsReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithMissingAvailableExpectationsField();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent())
+          .isEqualTo("{\"fields\":[{\"key\":\"expectations\"}]}");
+    }
+
+    @Test
+    @DisplayName(
+        "Reset expectation expiration times when available expectations not an array returns contract unchanged")
+    void availableExpectationsNotArrayReturnContractUnchanged() throws JsonProcessingException {
+      InjectorContract contract = getContractWithAvailableExpectationsNotArrayField();
+
+      injectorContractContentUtils.resetExpirationTimesInContractContent(contract);
+
+      assertThatJson(contract.getConvertedContent())
+          .isEqualTo("{\"fields\":[{\"key\":\"expectations\",\"availableExpectations\":{}}]}");
     }
 
     @Test
     @DisplayName("Reset expectation expiration times in place in injector contract content")
     void shouldResetExpirationTimes() throws JsonProcessingException {
-      InjectorContract contract = getContractWithContents();
+      InjectorContract contract = getContractWithExpectationsContents();
 
       BigDecimal expectedDetectionExpirationTime = new BigDecimal(241);
       when(expectationPropertiesConfig.getDetectionExpirationTime())
