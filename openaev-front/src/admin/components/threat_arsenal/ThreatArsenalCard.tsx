@@ -36,18 +36,6 @@ interface Props {
   disableDuplicate: boolean;
   disableJsonExport: boolean;
   disableDelete: boolean;
-  /** Off on the review pages: a reviewer decides on a version, they do not run it from there. */
-  showRunTest?: boolean;
-  /** The card's action in place of Run a test, e.g. Review on the review pages. */
-  primaryAction?: {
-    label: string;
-    onClick: () => void;
-  };
-  /** On the review pages the card shows what a decision needs: who submitted which version, and when; no migration banner. */
-  review?: {
-    lastEditedBy?: string;
-    lastEditedAt?: string;
-  };
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
@@ -62,9 +50,6 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   disableDuplicate,
   disableJsonExport,
   disableDelete,
-  showRunTest = true,
-  primaryAction,
-  review,
 }) => {
   const { t, tPick, nsd } = useFormatter();
   const theme = useTheme();
@@ -125,9 +110,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
   const migrateLink = `${versionsLink}&focus=migrate`;
   let banner: ReactNode = null;
-  if (review) {
-    banner = null;
-  } else if (action.action_payload?.payload_revoked) {
+  if (action.action_payload?.payload_revoked) {
     banner = (
       <MarketplaceCardBanner
         tone="critical"
@@ -169,8 +152,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       title={name}
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
-      // Not on review cards: what a reviewer needs is what changed, which the Versions tab shows.
-      description={review ? undefined : action.action_payload?.payload_description ?? undefined}
+      description={action.action_payload?.payload_description ?? undefined}
       selected={selected}
       onClick={onSelect}
       banner={banner}
@@ -187,36 +169,20 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         </Tooltip>
       )}
       // Always the same three columns, so Version, Source and Updated line up across the grid.
-      info={review
-        ? [
-            {
-              label: t('Version'),
-              value: version ? `v${version}` : '–',
-            },
-            // Who last saved the version and when, not its first author (US1.2 AC11).
-            {
-              label: t('Last edited by'),
-              value: review.lastEditedBy ?? t('Unknown'),
-            },
-            {
-              label: t('Last edited'),
-              value: nsd(review.lastEditedAt ?? action.injector_contract_updated_at),
-            },
-          ]
-        : [
-            {
-              label: t('Version'),
-              value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
-            },
-            {
-              label: t('Source'),
-              value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
-            },
-            {
-              label: t('Updated'),
-              value: nsd(action.injector_contract_updated_at),
-            },
-          ]}
+      info={[
+        {
+          label: t('Version'),
+          value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
+        },
+        {
+          label: t('Source'),
+          value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
+        },
+        {
+          label: t('Updated'),
+          value: nsd(action.injector_contract_updated_at),
+        },
+      ]}
       chips={null}
       // Approval just above the strip, bottom left, only when it needs attention: the strip keeps
       // the DS layout (one status and the platforms), so nothing truncates.
@@ -276,8 +242,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             gap: 4,
           }}
         >
-          {primaryAction && <Button size="sm" priority="secondary" onClick={primaryAction.onClick}>{primaryAction.label}</Button>}
-          {!primaryAction && showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
+          {canRunTest && !action.action_payload?.payload_revoked && (
             <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
           )}
           <ThreatArsenalActionPopover

@@ -27,6 +27,3 @@ export const saveNewActionDraft = (draftId: string, input: PayloadDraftInput) =>
 export const discardNewActionDraft = (draftId: string) => simpleDelCall(`${newActionDraftsUri}/${draftId}`);
 
 export const publishNewActionDraft = (draftId: string, input: ThreatArsenalActionCreateInput) => simplePostCall(`${newActionDraftsUri}/${draftId}/publish`, input, undefined, true, true);
-
-// The drafts the current user started or saved last (My changes).
-export const fetchMyDrafts = () => simpleCall('/api/threat_arsenals/my_drafts');

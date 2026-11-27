@@ -141,7 +141,7 @@ describe('CreateThreatArsenalAction: a new action saved as a draft', () => {
     expect(calls.publishDraft).not.toHaveBeenCalled();
   });
 
-  it('given a saved draft opened from My changes should start from its content and save it again', async () => {
+  it('given a saved draft opened from the drafts of new actions should start from its content and save it again', async () => {
     // Arrange
     renderCreate(savedDraft);
     fireEvent.click(screen.getByText(OPEN));

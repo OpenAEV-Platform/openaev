@@ -359,13 +359,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#saveDraft",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#discardDraft",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#publishDraft",
-          // payload_drafts (v2): drafts of new actions (no payload yet) and my drafts
+          // payload_drafts (v2): drafts of new actions (no payload yet)
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#newActionDrafts",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#createNewActionDraft",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#saveNewActionDraft",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#discardNewActionDraft",
           "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#publishNewActionDraft",
-          "io.openaev.api.threat_arsenal.ThreatArsenalDraftApi#myDrafts",
           // threat arsenal reads: same InjectorContractService projection/association as
           // InjectorContractApi#injectorContracts (already listed above), reached through a
           // separate sibling controller - resolves injector_contract_injector_type via the v2

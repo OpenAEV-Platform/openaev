@@ -76,8 +76,6 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
   private static final String TENANT_NEW_ACTION_DRAFTS =
       "/api/tenants/{tenantId}/threat_arsenals/new_action_drafts";
   private static final String TENANT_NEW_ACTION_DRAFT = TENANT_NEW_ACTION_DRAFTS + "/{draftId}";
-  private static final String TENANT_MY_DRAFTS =
-      "/api/tenants/{tenantId}/threat_arsenals/my_drafts";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -416,23 +414,6 @@ class ThreatArsenalDraftHttpIsolationTest extends IntegrationTest {
       // Assert
       String created = JsonPath.read(response, "$.draft_id");
       assertThat(rawTenant(created)).isEqualTo(tenantA);
-    }
-
-    @Test
-    @DisplayName("given A's path, should list my drafts of tenant A only")
-    void given_ownPath_should_listOnlyOwnTenantMyDrafts() throws Exception {
-      // Act
-      String response =
-          mvc.perform(get(TENANT_MY_DRAFTS, tenantA))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      assertThat((List<String>) JsonPath.read(response, "$[*].draft_id"))
-          .contains(newActionDraftA)
-          .doesNotContain(newActionDraftB);
     }
   }
 

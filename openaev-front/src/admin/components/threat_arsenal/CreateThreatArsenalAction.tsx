@@ -29,7 +29,7 @@ interface Props {
   onCreate?: (action: ThreatArsenalAction) => void;
   /** Another way to open the form than the Create button, e.g. a "New action" row in a list. */
   renderTrigger?: (open: () => void) => ReactNode;
-  /** Payload drafts: opens on the saved draft of a new action (from My changes). */
+  /** Payload drafts: opens on the saved draft of a new action (from Drafts of new actions). */
   draft?: PayloadDraftOutput;
   /** A draft of a new action was saved, discarded or published. */
   onDraftsChange?: () => void;
@@ -61,7 +61,7 @@ const CreateThreatArsenalAction: FunctionComponent<Props> = ({ onCreate, renderT
   const handleOpen = () => setOpen(true);
   // Opened from Create (no draft given): a draft saved meanwhile is kept, but the next Create starts
   // a new action instead of overwriting it. It is found again in the Active list (Drafts of new
-  // actions), shared with everyone, and in My changes.
+  // actions), shared with everyone.
   const handleClose = () => {
     setOpen(false);
     if (!draft) {

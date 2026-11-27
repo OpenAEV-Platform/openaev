@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 
 import { type ThreatArsenalAction } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { THREAT_ARSENAL_MY_CHANGES_PATH } from '../threatArsenalDeepLink';
+import { ACTION_PARAM, THREAT_ARSENAL_PATH } from '../threatArsenalDeepLink';
 import { hasApprovedEarlierVersion } from './approvedEarlierVersion';
 
 type Translate = (message: string) => string;
@@ -10,7 +10,7 @@ type Translate = (message: string) => string;
 /**
  * Tells someone without "Approve content" what just happened to what they saved: it waits for an
  * approver (a new action cannot be used yet; a new version leaves the approved one running), with a
- * link to follow it in "My changes". Says nothing when the save needed no approval (cosmetic edit).
+ * link that opens it on the Active list. Says nothing when the save needed no approval (cosmetic edit).
  */
 const notifySubmittedForApproval = (t: Translate, action: ThreatArsenalAction | undefined) => {
   const payload = action?.action_payload;
@@ -24,7 +24,7 @@ const notifySubmittedForApproval = (t: Translate, action: ThreatArsenalAction | 
     MESSAGING$.notifySuccess(
       <span>
         {`${message} `}
-        <Link to={THREAT_ARSENAL_MY_CHANGES_PATH}>{t('Follow it in My changes')}</Link>
+        <Link to={`${THREAT_ARSENAL_PATH}?${ACTION_PARAM}=${encodeURIComponent(action.injector_contract_id)}`}>{t('View')}</Link>
       </span>,
     );
   });

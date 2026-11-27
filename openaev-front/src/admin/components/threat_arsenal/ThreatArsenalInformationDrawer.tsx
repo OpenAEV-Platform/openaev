@@ -65,7 +65,7 @@ interface Props {
   onRunTest?: (action: ThreatArsenalAction) => void;
   /** Called after an approve / reject decision, so the list can refresh the row. */
   onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status']) => void;
-  /** The tab shown first: the review queues open on Versions, where a pending version is decided. */
+  /** The tab shown first, e.g. Versions from a link to an action's versions (a card's Versions or Migrate link). */
   initialTab?: DrawerTab;
   /** Versions tab ready to migrate the usages left on older versions (a card's Migrate link). */
   focusMigration?: boolean;
@@ -105,7 +105,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   }
 
   const loadVersions = () => {
-    // An action opened from a link (notification, review queue) has no version on its row yet: the
+    // An action opened from a link (e.g. a notification) has no version on its row yet: the
     // versions say which one it is.
     if (!threatArsenalAction || !payload) {
       setVersions([]);

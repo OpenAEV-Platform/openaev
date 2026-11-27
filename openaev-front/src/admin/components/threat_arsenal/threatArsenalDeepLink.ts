@@ -3,9 +3,8 @@ import { type ThreatArsenalAction, type ThreatArsenalActionFullOutput } from '..
 /** Query parameter opening an action's drawer in the Threat Arsenal (`?action=<id>`), e.g. from a notification. */
 export const ACTION_PARAM = 'action';
 
-// The approver's review queue and the author's own submissions (tabs of the Threat Arsenal).
-export const THREAT_ARSENAL_TO_REVIEW_PATH = '/admin/threat-arsenal/to-review';
-export const THREAT_ARSENAL_MY_CHANGES_PATH = '/admin/threat-arsenal/my-changes';
+/** The Active list of the Threat Arsenal, where `?action=<id>` opens an action's drawer. */
+export const THREAT_ARSENAL_PATH = '/admin/threat-arsenal';
 
 /**
  * The list row of an action built from its detail, so a deep link can open the drawer of an action

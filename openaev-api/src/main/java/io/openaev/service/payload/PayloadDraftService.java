@@ -51,11 +51,6 @@ public class PayloadDraftService {
         .orElseThrow(() -> new ElementNotFoundException("Draft not found: " + draftId));
   }
 
-  /** The drafts a user started or saved last, of new actions and of existing payloads. */
-  public List<PayloadDraft> findUserDrafts(@NotNull final String userId) {
-    return payloadDraftRepository.findByUser(userId);
-  }
-
   /** Whether a rejected version is already being fixed in a draft. */
   public boolean isReworked(@NotNull final Payload version) {
     return payloadDraftRepository.existsByReworkId(version.getId());

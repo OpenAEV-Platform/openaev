@@ -32,10 +32,10 @@ import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArs
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
+import { ThreatArsenalHero } from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalList from './ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
-import { ThreatArsenalHero } from './ThreatArsenalPageHeader';
 import ThreatArsenalSelectAll from './ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
