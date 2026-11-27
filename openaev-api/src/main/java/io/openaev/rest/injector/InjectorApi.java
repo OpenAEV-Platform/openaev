@@ -1,6 +1,7 @@
 package io.openaev.rest.injector;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.config.TenantUriUtils.tenantImageCacheControl;
 import static io.openaev.database.specification.InjectorSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
@@ -35,6 +36,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -199,9 +201,14 @@ public class InjectorApi extends RestBehavior {
   @Operation(summary = "Get injector image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getInjectorImage(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorType) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String injectorType,
+      HttpServletRequest request) {
     return this.fileService.getConnectorImage(
-        requireOneTenantOfScope(ctx), ConnectorType.INJECTOR, injectorType);
+        requireOneTenantOfScope(ctx),
+        ConnectorType.INJECTOR,
+        injectorType,
+        tenantImageCacheControl(request));
   }
 
   @DeleteMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})

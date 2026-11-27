@@ -5,7 +5,6 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import java.io.InputStream;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
@@ -174,10 +173,11 @@ public class FileService {
    * @param tenantId the tenant the request reads in
    * @param connectorType the kind of connector
    * @param type the connector type
+   * @param cacheControl the cache policy of the image, which depends on the route it is served on
    * @return the image, or 404 when neither path holds it
    */
   public ResponseEntity<InputStreamResource> getConnectorImage(
-      String tenantId, ConnectorType connectorType, String type) {
+      String tenantId, ConnectorType connectorType, String type, CacheControl cacheControl) {
     String filePath;
     switch (connectorType) {
       case ConnectorType.COLLECTOR -> filePath = COLLECTORS_IMAGES_BASE_PATH;
@@ -194,7 +194,7 @@ public class FileService {
 
     try {
       return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+          .cacheControl(cacheControl)
           .body(new InputStreamResource(image.get()));
     } catch (Exception e) {
       log.warn("Unable to read connector image {}", type, e);

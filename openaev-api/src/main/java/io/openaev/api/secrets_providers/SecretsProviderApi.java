@@ -1,6 +1,7 @@
 package io.openaev.api.secrets_providers;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.config.TenantUriUtils.tenantImageCacheControl;
 import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import io.openaev.aop.AccessControl;
@@ -21,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
@@ -101,8 +103,13 @@ public class SecretsProviderApi extends RestBehavior {
   @Operation(summary = "Get secrets provider image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getSecretsProviderImage(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String secretProviderType) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String secretProviderType,
+      HttpServletRequest request) {
     return fileService.getConnectorImage(
-        requireOneTenantOfScope(ctx), ConnectorType.SECRETS_PROVIDER, secretProviderType);
+        requireOneTenantOfScope(ctx),
+        ConnectorType.SECRETS_PROVIDER,
+        secretProviderType,
+        tenantImageCacheControl(request));
   }
 }

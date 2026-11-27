@@ -14,10 +14,12 @@ import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 import static io.openaev.service.FileService.SECRETS_PROVIDERS_IMAGES_ICONS_BASE_PATH;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -60,6 +62,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -160,6 +163,20 @@ class StorageObjectKeyTenantTest extends ProductionTablesIntegrationTest {
     CHANNEL
   }
 
+  /** The connector image routes, each served on both routes. */
+  enum ConnectorImage {
+    COLLECTOR_BY_TYPE,
+    COLLECTOR_BY_ID,
+    EXECUTOR_ICON,
+    EXECUTOR_BANNER,
+    INJECTOR
+  }
+
+  static Stream<Arguments> connectorImagesAndRoutes() {
+    return Arrays.stream(ConnectorImage.values())
+        .flatMap(image -> Arrays.stream(Route.values()).map(route -> Arguments.of(image, route)));
+  }
+
   static Stream<Arguments> parentsAndRoutes() {
     return Arrays.stream(Parent.values())
         .flatMap(parent -> Arrays.stream(Route.values()).map(route -> Arguments.of(parent, route)));
@@ -249,6 +266,35 @@ class StorageObjectKeyTenantTest extends ProductionTablesIntegrationTest {
                 .with(csrf()))
         .andExpect(status().isOk());
     return input.getId();
+  }
+
+  /** Seeds a parent row of B with no logo, so its image falls back to the fake detector icon. */
+  private String seedParentOfB(Parent parent) {
+    return parent == Parent.SECURITY_PLATFORM ? seedSecurityPlatform() : seedChannel();
+  }
+
+  private String seedSecurityPlatform() {
+    String id = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO assets (asset_id, asset_type, asset_name, security_platform_type,"
+                + " tenant_id) VALUES (?, 'SecurityPlatform', ?, 'EDR', ?)",
+            id,
+            "storage-key-sp-" + id,
+            tenantB);
+    return id;
+  }
+
+  private String seedChannel() {
+    String id = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO channels (channel_id, channel_type, channel_name, tenant_id) VALUES (?,"
+                + " 'newsletter', ?, ?)",
+            id,
+            "storage-key-channel-" + id,
+            tenantB);
+    return id;
   }
 
   @Nested
@@ -629,7 +675,7 @@ class StorageObjectKeyTenantTest extends ProductionTablesIntegrationTest {
     void given_parentOfBWithoutLogo_should_serveBsFakeDetectorIconInBOnly(
         Parent parent, Route route) throws Exception {
       // Arrange
-      String parentId = parent == Parent.SECURITY_PLATFORM ? seedSecurityPlatform() : seedChannel();
+      String parentId = seedParentOfB(parent);
       String imagePath =
           parent == Parent.SECURITY_PLATFORM ? SECURITY_PLATFORM_IMAGE_PATH : CHANNEL_IMAGE_PATH;
       byte[] bIcon = markerUnder(tenantB, COLLECTORS_IMAGES_BASE_PATH + FAKE_DETECTOR + EXT_PNG);
@@ -641,29 +687,96 @@ class StorageObjectKeyTenantTest extends ProductionTablesIntegrationTest {
       assertThat(served).isEqualTo(bIcon);
       getIn(route, tenantA, imagePath, parentId).andExpect(status().isNotFound());
     }
+  }
 
-    private String seedSecurityPlatform() {
-      String id = UUID.randomUUID().toString();
-      new JdbcTemplate(dataSource)
-          .update(
-              "INSERT INTO assets (asset_id, asset_type, asset_name, security_platform_type,"
-                  + " tenant_id) VALUES (?, 'SecurityPlatform', ?, 'EDR', ?)",
-              id,
-              "storage-key-sp-" + id,
-              tenantB);
-      return id;
+  @Nested
+  @DisplayName("The cache policy of an image")
+  class ImageCachePolicy {
+
+    private static final String CACHEABLE = "max-age=300";
+    private static final String NOT_STORED = "no-store";
+
+    @ParameterizedTest(name = "{0}, {1} route")
+    @MethodSource("io.openaev.rest.document.StorageObjectKeyTenantTest#connectorImagesAndRoutes")
+    @DisplayName(
+        "given a connector image of B should be cacheable on the prefixed route and not stored on"
+            + " the non-prefixed route")
+    void given_connectorImageOfB_should_beCacheableOnlyOnThePrefixedRoute(
+        ConnectorImage image, Route route) throws Exception {
+      // Arrange
+      String type = "storage-key-" + UUID.randomUUID();
+      String path;
+      String var = type;
+      switch (image) {
+        case COLLECTOR_BY_TYPE -> {
+          markerUnder(tenantB, COLLECTORS_IMAGES_BASE_PATH + type + EXT_PNG);
+          path = COLLECTOR_IMAGE_PATH;
+        }
+        case COLLECTOR_BY_ID -> {
+          var =
+              registerCollector(Route.PREFIXED, tenantB, type, pngPart("icon", uniqueBytes(type)));
+          path = COLLECTOR_IMAGE_BY_ID_PATH;
+        }
+        case EXECUTOR_ICON -> {
+          markerUnder(tenantB, EXECUTORS_IMAGES_ICONS_BASE_PATH + type + EXT_PNG);
+          path = EXECUTOR_ICON_PATH;
+        }
+        case EXECUTOR_BANNER -> {
+          markerUnder(tenantB, EXECUTORS_IMAGES_BANNERS_BASE_PATH + type + EXT_PNG);
+          path = EXECUTOR_BANNER_PATH;
+        }
+        case INJECTOR -> {
+          markerUnder(tenantB, INJECTORS_IMAGES_BASE_PATH + type + EXT_PNG);
+          path = INJECTOR_IMAGE_PATH;
+        }
+        default -> throw new IllegalArgumentException(image.name());
+      }
+
+      // Act
+      ResultActions result = getIn(route, tenantB, path, var).andExpect(status().isOk());
+
+      // Assert
+      result.andExpect(
+          header()
+              .string(HttpHeaders.CACHE_CONTROL, route == Route.PREFIXED ? CACHEABLE : NOT_STORED));
     }
 
-    private String seedChannel() {
-      String id = UUID.randomUUID().toString();
-      new JdbcTemplate(dataSource)
-          .update(
-              "INSERT INTO channels (channel_id, channel_type, channel_name, tenant_id) VALUES (?,"
-                  + " 'newsletter', ?, ?)",
-              id,
-              "storage-key-channel-" + id,
-              tenantB);
-      return id;
+    @Test
+    @DisplayName(
+        "given a secrets provider image of B should be cacheable on its route, which is prefixed"
+            + " only")
+    void given_secretsProviderImageOfB_should_beCacheable() throws Exception {
+      // Arrange
+      String type = SecretsProviderType.LOCAL.type;
+      markerUnder(tenantB, SECRETS_PROVIDERS_IMAGES_ICONS_BASE_PATH + type + EXT_PNG);
+
+      // Act
+      ResultActions result =
+          getIn(Route.PREFIXED, tenantB, SECRETS_PROVIDER_IMAGE_PATH, type)
+              .andExpect(status().isOk());
+
+      // Assert
+      result.andExpect(header().string(HttpHeaders.CACHE_CONTROL, CACHEABLE));
+    }
+
+    @ParameterizedTest(name = "{0}, {1} route")
+    @MethodSource("io.openaev.rest.document.StorageObjectKeyTenantTest#parentsAndRoutes")
+    @DisplayName(
+        "given a parent of B without a logo should not store the fake detector image on either"
+            + " route")
+    void given_parentOfBWithoutLogo_should_notStoreTheFallbackImage(Parent parent, Route route)
+        throws Exception {
+      // Arrange
+      String parentId = seedParentOfB(parent);
+      String imagePath =
+          parent == Parent.SECURITY_PLATFORM ? SECURITY_PLATFORM_IMAGE_PATH : CHANNEL_IMAGE_PATH;
+      markerUnder(tenantB, COLLECTORS_IMAGES_BASE_PATH + FAKE_DETECTOR + EXT_PNG);
+
+      // Act
+      ResultActions result = getIn(route, tenantB, imagePath, parentId).andExpect(status().isOk());
+
+      // Assert: the response sets no cache policy, so the application default applies
+      result.andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString(NOT_STORED)));
     }
   }
 

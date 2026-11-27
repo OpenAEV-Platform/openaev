@@ -106,4 +106,38 @@ public class TenantUriUtilsTest {
       assertThat(tenantUriUtils.getTenantIdFromRequestUrl(mockRequest)).isEmpty();
     }
   }
+
+  @Nested
+  @DisplayName("The cache policy of a tenant image")
+  public class TenantImageCacheControl {
+    @Test
+    @DisplayName("given a tenant-prefixed route should be cacheable for five minutes")
+    void given_tenantPrefixedRoute_should_beCacheableForFiveMinutes() {
+      // Arrange
+      when(mockRequest.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE))
+          .thenReturn(Map.of(TENANT_ID_PATH_VARIABLE, tenantId));
+
+      // Act
+      String cacheControl = TenantUriUtils.tenantImageCacheControl(mockRequest).getHeaderValue();
+
+      // Assert
+      assertThat(TenantUriUtils.isTenantPrefixedRoute(mockRequest)).isTrue();
+      assertThat(cacheControl).isEqualTo("max-age=300");
+    }
+
+    @Test
+    @DisplayName("given a non-prefixed route should not be stored")
+    void given_nonPrefixedRoute_should_notBeStored() {
+      // Arrange
+      when(mockRequest.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE))
+          .thenReturn(Map.of("collectorType", "any-type"));
+
+      // Act
+      String cacheControl = TenantUriUtils.tenantImageCacheControl(mockRequest).getHeaderValue();
+
+      // Assert
+      assertThat(TenantUriUtils.isTenantPrefixedRoute(mockRequest)).isFalse();
+      assertThat(cacheControl).isEqualTo("no-store");
+    }
+  }
 }

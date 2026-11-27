@@ -3,6 +3,7 @@ package io.openaev.rest.document;
 import static io.openaev.collectors.utils.CollectorsUtils.FAKE_DETECTOR;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.config.TenantUriUtils.tenantImageCacheControl;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
@@ -37,13 +38,13 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
@@ -52,7 +53,6 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -513,9 +513,14 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String executorId) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String executorId,
+      HttpServletRequest request) {
     return this.fileService.getConnectorImage(
-        requireOneTenantOfScope(ctx), ConnectorType.EXECUTOR, executorId);
+        requireOneTenantOfScope(ctx),
+        ConnectorType.EXECUTOR,
+        executorId,
+        tenantImageCacheControl(request));
   }
 
   @GetMapping(
@@ -527,13 +532,15 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorBannerImage(
-      @RequireTenantSelector TxCtx ctx, @PathVariable String executorId) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String executorId,
+      HttpServletRequest request) {
     return fileService
         .getExecutorBannerImage(requireOneTenantOfScope(ctx), executorId)
         .map(
             inputStream ->
                 ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .cacheControl(tenantImageCacheControl(request))
                     .body(new InputStreamResource(inputStream)))
         .orElse(null);
   }
