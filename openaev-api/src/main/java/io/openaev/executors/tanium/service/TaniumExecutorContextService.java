@@ -67,7 +67,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
 
-    List<TaniumAction> actions = new ArrayList<>();
+    List<AgentAction<TaniumAction>> actions = new ArrayList<>();
     // Set implant script for each agent
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
       for (Endpoint.PLATFORM_ARCH arch : Endpoint.PLATFORM_ARCH.values()) {
@@ -95,12 +95,11 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
       }
     }
     // Launch payloads with Tanium API
-    executeActions(actions);
+    dispatch(inject, actions);
     return taniumAgents;
   }
 
-  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
-  // Tanium API to execute the implant, and each implant calls the OpenAEV API to set traces.
+  // Implant cleanup, tied to no inject: a send failure is only logged.
   public void executeActions(List<TaniumAction> actions) {
     dispatch(actions);
   }
@@ -117,17 +116,22 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
   }
 
   @Override
+  protected ExecutorService executorService() {
+    return executorService;
+  }
+
+  @Override
   protected Integer batchSize() {
     return this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
   }
 
-  private List<TaniumAction> getWindowsActions(
+  private List<AgentAction<TaniumAction>> getWindowsActions(
       List<Agent> agents,
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_ARCH arch,
       String token) {
-    List<TaniumAction> actions = new ArrayList<>();
+    List<AgentAction<TaniumAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
       actionWindows.setScriptId(this.taniumExecutorConfig.getWindowsPackageId());
@@ -157,19 +161,19 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
               Matcher.quoteReplacement(implantLocation));
       actionWindows.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionWindows);
+      actions.add(new AgentAction<>(agent, actionWindows));
     }
     return actions;
   }
 
-  private List<TaniumAction> getUnixActions(
+  private List<AgentAction<TaniumAction>> getUnixActions(
       List<Agent> agents,
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_TYPE platform,
       Endpoint.PLATFORM_ARCH arch,
       String token) {
-    List<TaniumAction> actions = new ArrayList<>();
+    List<AgentAction<TaniumAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionUnix = new TaniumAction();
       actionUnix.setScriptId(this.taniumExecutorConfig.getUnixPackageId());
@@ -198,7 +202,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
       actionUnix.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
       actionUnix.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionUnix);
+      actions.add(new AgentAction<>(agent, actionUnix));
     }
     return actions;
   }

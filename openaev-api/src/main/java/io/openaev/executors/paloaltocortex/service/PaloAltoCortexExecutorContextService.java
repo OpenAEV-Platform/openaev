@@ -73,7 +73,7 @@ public class PaloAltoCortexExecutorContextService
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
 
-    List<PaloAltoCortexAction> actions = new ArrayList<>();
+    List<AgentAction<PaloAltoCortexAction>> actions = new ArrayList<>();
     // Set implant script for each agent
     actions.addAll(
         getWindowsActions(
@@ -96,13 +96,11 @@ public class PaloAltoCortexExecutorContextService
             Endpoint.PLATFORM_TYPE.MacOS,
             token));
     // Launch payloads with Palo Alto Cortex API
-    executeActions(actions);
+    dispatch(inject, actions);
     return paloAltoCortexAgents;
   }
 
-  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
-  // Palo Alto Cortex API to execute the implant, and each implant calls the OpenAEV API to set
-  // traces.
+  // Implant cleanup, tied to no inject: a send failure is only logged.
   public void executeActions(List<PaloAltoCortexAction> actions) {
     dispatch(actions);
   }
@@ -121,13 +119,18 @@ public class PaloAltoCortexExecutorContextService
   }
 
   @Override
+  protected ExecutorService executorService() {
+    return executorService;
+  }
+
+  @Override
   protected Integer batchSize() {
     return this.config.getApiBatchExecutionActionPagination();
   }
 
-  private List<PaloAltoCortexAction> getWindowsActions(
+  private List<AgentAction<PaloAltoCortexAction>> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<PaloAltoCortexAction> actions = new ArrayList<>();
+    List<AgentAction<PaloAltoCortexAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionWindows = new PaloAltoCortexAction();
       actionWindows.setScriptId(this.config.getWindowsScriptUid());
@@ -180,18 +183,18 @@ public class PaloAltoCortexExecutorContextService
                       .encodeToString(command.getBytes(StandardCharsets.UTF_16LE))));
       actionWindows.setCommandWindows(commandWindows);
       actionWindows.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionWindows);
+      actions.add(new AgentAction<>(agent, actionWindows));
     }
     return actions;
   }
 
-  private List<PaloAltoCortexAction> getUnixActions(
+  private List<AgentAction<PaloAltoCortexAction>> getUnixActions(
       List<Agent> agents,
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_TYPE platform,
       String token) {
-    List<PaloAltoCortexAction> actions = new ArrayList<>();
+    List<AgentAction<PaloAltoCortexAction>> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
       actionUnix.setScriptId(this.config.getUnixScriptUid());
@@ -229,7 +232,7 @@ public class PaloAltoCortexExecutorContextService
       commandUnix.setCommand(Base64.getEncoder().encodeToString(command.getBytes()));
       actionUnix.setCommandUnix(commandUnix);
       actionUnix.setAgentExternalReference(agent.getExternalReference());
-      actions.add(actionUnix);
+      actions.add(new AgentAction<>(agent, actionUnix));
     }
     return actions;
   }

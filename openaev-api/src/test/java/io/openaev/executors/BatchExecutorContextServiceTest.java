@@ -4,11 +4,19 @@ import static io.openaev.executors.BatchExecutorContextService.DEFAULT_BATCH_SIZ
 import static io.openaev.executors.BatchExecutorContextService.MAX_ATTEMPTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.exception.ExecutorBusyException;
 import io.openaev.executors.exception.ExecutorException;
 import java.time.Duration;
@@ -82,6 +90,33 @@ class BatchExecutorContextServiceTest {
   }
 
   @Test
+  @DisplayName("Reports on the inject the agent its payload could not be sent to")
+  void given_failingDeviceOfInject_should_reportOnInject() {
+    // Arrange
+    executor.failing("device-2");
+    Tenant tenant = new Tenant();
+    tenant.setId("tenant-1");
+    Inject inject = new Inject();
+    inject.setId("inject-1");
+    inject.setTenant(tenant);
+
+    // Act
+    executor.dispatch(inject, List.of(agentAction("device-1"), agentAction("device-2")));
+
+    // Assert
+    verify(executor.executorService, timeout(5000))
+        .reportSendFailure(eq("tenant-1"), eq("inject-1"), eq("agent-device-2"), anyString());
+    verify(executor.executorService, never())
+        .reportSendFailure(any(), any(), eq("agent-device-1"), any());
+  }
+
+  private static BatchExecutorContextService.AgentAction<String> agentAction(String device) {
+    Agent agent = new Agent();
+    agent.setId("agent-" + device);
+    return new BatchExecutorContextService.AgentAction<>(agent, device);
+  }
+
+  @Test
   @DisplayName("Falls back to the default batch size when the configured one is null or under 1")
   void given_missingOrInvalidBatchSize_should_useDefault() {
     executor.configuredBatchSize = null;
@@ -115,6 +150,7 @@ class BatchExecutorContextServiceTest {
     private final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
     private final Set<String> failing = ConcurrentHashMap.newKeySet();
     private final Queue<String> sent = new ConcurrentLinkedQueue<>();
+    private final ExecutorService executorService = mock(ExecutorService.class);
 
     void busyTimes(String device, int times) {
       busyLeft.put(device, times);
@@ -143,6 +179,11 @@ class BatchExecutorContextServiceTest {
     @Override
     protected String agentReference(String device) {
       return device;
+    }
+
+    @Override
+    protected ExecutorService executorService() {
+      return executorService;
     }
 
     @Override

@@ -1,18 +1,26 @@
 package io.openaev.executors;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Inject;
 import io.openaev.executors.exception.ExecutorBusyException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.ConnectTimeoutException;
+import org.apache.hc.core5.http.NoHttpResponseException;
 
 /**
  * Sends the implant through an EDR API in paced batches. Subclasses only say how to send one
- * action; a busy device ({@link ExecutorBusyException}) is retried, any other failure is logged
- * without stopping the rest of the batch.
+ * action; a busy device ({@link ExecutorBusyException}) is retried, any other failure is reported
+ * on the inject without stopping the rest of the batch, unless the request may have reached the
+ * device.
  */
 @Slf4j
 public abstract class BatchExecutorContextService<A> extends ExecutorContextService {
@@ -25,9 +33,16 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
 
   private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+  /** The action that sends an inject's implant to one agent. */
+  public record AgentAction<A>(Agent agent, A action) {}
+
+  private record Delivery<A>(A action, Consumer<String> onFailure) {}
+
   protected abstract void send(A action);
 
   protected abstract String agentReference(A action);
+
+  protected abstract ExecutorService executorService();
 
   /**
    * The configured number of actions per batch. {@code null} or a value under 1 falls back to
@@ -53,12 +68,32 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
     return configured != null && configured > 0 ? configured : defaultBatchSize();
   }
 
+  /** Sends actions tied to no inject, such as the implant cleanup: a failure is only logged. */
   protected final void dispatch(List<A> actions) {
+    sendInBatches(actions.stream().map(action -> new Delivery<>(action, reason -> {})).toList());
+  }
+
+  /** Sends the implant of this inject: a failure ends the agent's execution in error. */
+  protected final void dispatch(Inject inject, List<AgentAction<A>> actions) {
+    String tenantId = inject.getTenant().getId();
+    String injectId = inject.getId();
+    List<Delivery<A>> deliveries = new ArrayList<>();
+    for (AgentAction<A> agentAction : actions) {
+      String agentId = agentAction.agent().getId();
+      deliveries.add(
+          new Delivery<>(
+              agentAction.action(),
+              reason -> executorService().reportSendFailure(tenantId, injectId, agentId, reason)));
+    }
+    sendInBatches(deliveries);
+  }
+
+  private void sendInBatches(List<Delivery<A>> deliveries) {
     int size = effectiveBatchSize();
-    for (int from = 0; from < actions.size(); from += size) {
-      List<A> batch = actions.subList(from, Math.min(from + size, actions.size()));
+    for (int from = 0; from < deliveries.size(); from += size) {
+      List<Delivery<A>> batch = deliveries.subList(from, Math.min(from + size, deliveries.size()));
       schedule(
-          () -> batch.forEach(action -> trySend(action, 1)),
+          () -> batch.forEach(delivery -> trySend(delivery, 1)),
           batchInterval().multipliedBy(from / size));
     }
   }
@@ -73,7 +108,8 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
     this.scheduler = scheduler;
   }
 
-  private void trySend(A action, int attempt) {
+  private void trySend(Delivery<A> delivery, int attempt) {
+    A action = delivery.action();
     try {
       send(action);
     } catch (ExecutorBusyException e) {
@@ -85,13 +121,36 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
             attempt,
             MAX_ATTEMPTS - 1,
             retryDelay().toSeconds());
-        schedule(() -> trySend(action, attempt + 1), retryDelay());
+        schedule(() -> trySend(delivery, attempt + 1), retryDelay());
         return;
       }
       log.error("Gave up on agent {}: {}", agentReference(action), e.getMessage(), e);
+      delivery
+          .onFailure()
+          .accept(
+              "The device stayed busy for "
+                  + retryDelay().multipliedBy(MAX_ATTEMPTS - 1).toMinutes()
+                  + " minutes, the payload was not sent: "
+                  + e.getMessage());
     } catch (RuntimeException e) {
       log.error("Sending to agent {} failed: {}", agentReference(action), e.getMessage(), e);
+      if (!mayHaveReachedDevice(e)) {
+        delivery.onFailure().accept("The payload could not be sent: " + e.getMessage());
+      }
     }
+  }
+
+  // The request left but its answer was lost: the payload may run, so the implant's report decides.
+  private static boolean mayHaveReachedDevice(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      if (cause instanceof ConnectTimeoutException) {
+        return false;
+      }
+      if (cause instanceof SocketTimeoutException || cause instanceof NoHttpResponseException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void schedule(Runnable task, Duration delay) {
