@@ -444,7 +444,7 @@ class AgentAndCollectorRoutesTenantTest extends IntegrationTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("installerPaths")
     @DisplayName("given a header naming two tenants asking for plain text should answer 400")
-    void given_headerNamingTwoTenants_should_answer400(String path) throws Exception {
+    void given_headerNamingTwoTenants_should_answer400AsPlainText(String path) throws Exception {
       // Arrange
       tenantHelper.attachCurrentUserToTenant(tenantA);
       assertAmbientTenantIsTheDefaultOne();
@@ -463,7 +463,8 @@ class AgentAndCollectorRoutesTenantTest extends IntegrationTest {
     @DisplayName(
         "given a header naming a tenant the caller is not a member of asking for plain text"
             + " should answer 403")
-    void given_headerNamingANonMemberTenant_should_answer403(String path) throws Exception {
+    void given_headerNamingANonMemberTenant_should_answer403AsPlainText(String path)
+        throws Exception {
       // Arrange
       assertAmbientTenantIsTheDefaultOne();
 
