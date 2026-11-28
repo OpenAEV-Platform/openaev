@@ -387,7 +387,12 @@ public class InjectsExecutionJob implements Job {
     // simulation's tenant scope like the classical injects below: the start resolves the scope's
     // assets and the steps' injector contracts, and with no scope it sees none of them.
     startedExercises.forEach(
-        exercise ->
+        exercise -> {
+          // One simulation's failed start must not keep the others, nor the classical injects
+          // below, from running: every started simulation is already RUNNING, and
+          // findAllShouldBeInRunningState never hands one back, so the tick that throws is the only
+          // chance the rest of the batch gets.
+          try {
             tenantScopedJobRunner.runInTenant(
                 exercise.getTenant().getId(),
                 () -> {
@@ -397,7 +402,12 @@ public class InjectsExecutionJob implements Job {
                     throw new IllegalStateException(
                         "Could not start workflow for scheduled simulation " + exercise.getId(), e);
                   }
-                }));
+                });
+          } catch (RuntimeException e) {
+            log.error(
+                "Could not start the workflow of scheduled simulation {}", exercise.getId(), e);
+          }
+        });
   }
 
   private void executeClassicalInjects() {
