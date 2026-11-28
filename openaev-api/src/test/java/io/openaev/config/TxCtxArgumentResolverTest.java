@@ -96,7 +96,7 @@ class TxCtxArgumentResolverTest {
   private void refusing(@RequireTenantSelector TxCtx ctx) {}
 
   @SuppressWarnings("unused")
-  private void keeping(@RequireTenantSelector(refuseAmbiguousCaller = false) TxCtx ctx) {}
+  private void fullSet(@RequireTenantSelector(refuseAmbiguousCaller = false) TxCtx ctx) {}
 
   private TxCtx resolve() {
     return (TxCtx) resolver.resolveArgument(parameter, null, webRequest, null);
@@ -131,12 +131,12 @@ class TxCtxArgumentResolverTest {
 
   @Test
   @DisplayName(
-      "given a parameter that keeps the ambiguous caller, should resolve a multi-tenant caller"
+      "given a parameter that accepts the ambiguous caller, should resolve a multi-tenant caller"
           + " without default-tenant access to its full allowed set")
-  void given_parameterKeepingTheAmbiguousCaller_should_resolveItsFullAllowedSet() {
+  void given_parameterAcceptingTheAmbiguousCaller_should_resolveItsFullAllowedSet() {
     // Arrange
     authorizeTenants("tenant-1", "tenant-2");
-    requireSelector("keeping");
+    requireSelector("fullSet");
 
     // Act
     TxCtx resolved = resolve();
