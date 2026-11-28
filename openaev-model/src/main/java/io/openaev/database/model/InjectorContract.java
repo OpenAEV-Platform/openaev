@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
-import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.database.model.author.Authored;
@@ -652,11 +651,9 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
 
   @Override
   public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
-    String namedTenant = CompositeIdResolvableI.namedTenant(ctxt);
-    String tenantId = namedTenant != null ? namedTenant : TenantContext.getCurrentTenant();
     InjectorContractId compositeId = new InjectorContractId();
     compositeId.setId(rawId);
-    compositeId.setTenantId(tenantId);
+    compositeId.setTenantId(CompositeIdResolvableI.namedTenant(ctxt, InjectorContract.class));
     return compositeId;
   }
 

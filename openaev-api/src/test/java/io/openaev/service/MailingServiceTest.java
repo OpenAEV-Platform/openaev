@@ -15,6 +15,7 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
@@ -69,6 +70,7 @@ class MailingServiceTest {
     Injector injector = new Injector();
     injector.setId("injector-1");
     injector.setType(INJECTOR_TYPE);
+    injector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     InjectorContract contract = new InjectorContract();
     contract.setId(EmailContract.EMAIL_DEFAULT);
     contract.addInjector(injector);

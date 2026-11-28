@@ -21,6 +21,7 @@ import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
@@ -4783,7 +4784,9 @@ class V1_DataImporterTest extends IntegrationTest {
             .setInjectableValues(
                 new InjectableValues.Std().addValue(EntityManager.class, this.entityManager))
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    return om.readValue(data, Inject.class);
+    return om.readerFor(Inject.class)
+        .withAttribute(CompositeIdResolvableI.TENANT_ATTRIBUTE, TenantContext.getCurrentTenant())
+        .readValue(data);
   }
 
   private static boolean hasCause(Throwable throwable, Class<? extends Throwable> type) {

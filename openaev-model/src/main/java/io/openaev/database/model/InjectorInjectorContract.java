@@ -1,7 +1,6 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.openaev.context.TenantContext;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -81,11 +80,9 @@ public class InjectorInjectorContract {
   private InjectorContract injectorContract;
 
   public InjectorInjectorContract(Injector injector, InjectorContract injectorContract) {
-    // Enforce the multi-tenancy invariant at the single point where every link is created (used by
-    // both InjectorContract.addInjector and Injector.linkContract): the join row's tenant is taken
-    // from the injector, so linking a foreign-tenant injector would silently write the row into the
-    // wrong tenant. Fail loud instead. Tenants may still be unset mid-construction (the id and
-    // tenant are assigned before linking), so only assert when both are known.
+    // Every link is created here (InjectorContract.addInjector and Injector.linkContract). The
+    // link takes the injector's tenant, else the contract's, and is refused when neither names
+    // one. An injector and a contract of two different tenants are refused too.
     String injectorTenantId = injector.getTenantId();
     String contractTenantId =
         injectorContract.getTenant() != null ? injectorContract.getTenant().getId() : null;
@@ -102,7 +99,15 @@ public class InjectorInjectorContract {
     this.injectorContract = injectorContract;
     this.injectorId = injector.getId();
     this.injectorContractId = injectorContract.getId();
-    this.tenantId = injectorTenantId != null ? injectorTenantId : TenantContext.getCurrentTenant();
+    this.tenantId = injectorTenantId != null ? injectorTenantId : contractTenantId;
+    if (this.tenantId == null) {
+      throw new IllegalStateException(
+          "Cannot create an InjectorInjectorContract: neither the injector "
+              + injector.getId()
+              + " nor the injector contract "
+              + injectorContract.getId()
+              + " names a tenant");
+    }
   }
 
   @Override

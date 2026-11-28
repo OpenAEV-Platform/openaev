@@ -59,10 +59,13 @@ import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.AopTestUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
@@ -334,6 +337,15 @@ public class InjectExecutionStepTest extends IntegrationTest {
         injectExecutionStep, "updateContentWithInputs", step, base);
   }
 
+  /**
+   * A ready step is saved in its workflow's tenant before it runs; the steps of these tests are
+   * built in memory, so they take the tenant of the test's fixtures here.
+   */
+  private static Step inTestTenant(Step step) {
+    step.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    return step;
+  }
+
   private Step stepWithPoolMapper(String stepId, String input) {
     Step step = new Step();
     step.setId(stepId);
@@ -555,7 +567,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setData("{ invalid json }");
 
     ChainingException ex =
-        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(step));
+        Assertions.assertThrows(
+            ChainingException.class, () -> injectExecutionStep.run(inTestTenant(step)));
     Assertions.assertEquals("Step (READY) : Error processing JSON to Inject ", ex.getMessage());
   }
 
@@ -567,10 +580,28 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setData("{}");
     // ACT
     ChainingException ex =
-        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(step));
+        Assertions.assertThrows(
+            ChainingException.class, () -> injectExecutionStep.run(inTestTenant(step)));
     // ASSERT
     Assertions.assertEquals(
         "Injector contract not found for step (READY) ID: step-ID", ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("given a ready step with no tenant should refuse the run naming the step")
+  void given_readyStepWithNoTenant_should_refuseTheRunNamingTheStep() {
+    // ARRANGE: a step that names no tenant, so its inject has no tenant to be read in
+    Step step = new Step();
+    step.setId("step-with-no-tenant");
+    step.setData("{}");
+
+    // ACT
+    ChainingException ex =
+        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(step));
+
+    // ASSERT: a ChainingException, which StepEventService#run answers by ending the step
+    Assertions.assertEquals(
+        "Step (READY) ID: step-with-no-tenant names no tenant", ex.getMessage());
   }
 
   /**
@@ -627,6 +658,27 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   /**
+   * Seeds an injector and an injector contract linked to it in {@code tenant}, written in that
+   * tenant's scope and flushed before the caller sets its own scope, so no statement writes them
+   * from the scope of the test's own tenant.
+   */
+  private InjectorContract seedLinkedInjectorAndContractIn(Tenant tenant)
+      throws JsonProcessingException {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenant.getId()));
+    Injector injectorToSave = InjectorFixture.createDefaultPayloadInjector();
+    injectorToSave.setTenantId(tenant.getId());
+    Injector injector = injectorRepository.save(injectorToSave);
+    InjectorContract contract = InjectorContractFixture.createImplantInjectorContract();
+    contract.setTenant(tenant);
+    contract.addInjector(injector);
+    InjectorContract contractSaved = injectorContractRepository.save(contract);
+    injector.linkContract(contractSaved);
+    injectorRepository.save(injector);
+    entityManager.flush();
+    return contractSaved;
+  }
+
+  /**
    * Pins the tenant {@code InjectExecutionStep#create} passes for the contract: the simulation's
    * own tenant, not the caller's ambient one. The contract service is a mock that answers only for
    * the exact (contract id, simulation tenant id) pair, and the contract row exists only under the
@@ -650,19 +702,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
             TenantFixture.getTenant("inject-execution-step-other-" + UUID.randomUUID()));
     entityManager.flush();
     String currentTenantId = TenantContext.getCurrentTenant();
-    // The rows of the other tenant are written in that tenant's scope and flushed before the scope
-    // goes back, so no statement writes them from the scope of the test's own tenant.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(otherTenant.getId()));
-    Injector otherInjectorToSave = InjectorFixture.createDefaultPayloadInjector();
-    otherInjectorToSave.setTenantId(otherTenant.getId());
-    Injector otherInjector = injectorRepository.save(otherInjectorToSave);
-    InjectorContract otherContract = InjectorContractFixture.createImplantInjectorContract();
-    otherContract.setTenant(otherTenant);
-    otherContract.addInjector(otherInjector);
-    InjectorContract otherContractSaved = injectorContractRepository.save(otherContract);
-    otherInjector.linkContract(otherContractSaved);
-    injectorRepository.save(otherInjector);
-    entityManager.flush();
+    InjectorContract otherContractSaved = seedLinkedInjectorAndContractIn(otherTenant);
     // The caller belongs to both tenants and names neither, so the request scope holds both.
     tenantTx.setScopeOnCurrentTransaction(
         TxCtx.forTenants(List.of(currentTenantId, otherTenant.getId())));
@@ -674,7 +714,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // No explicit injector id: resolveInjector's bare-id branch resolves by TenantContext, which
     // is this test's ambient tenant, not otherTenant, and is not the computation under test here.
     // Leaving the id blank exercises its other branch instead: auto-resolving from the contract's
-    // own linked injectors, which is otherInjector since it was linked to otherContractSaved above.
+    // own linked injectors, the injector the seed linked to otherContractSaved.
     String otherInjectInputJson =
         injectInputJson
             .replace(injectorContractSaved.getId(), otherContractSaved.getId())
@@ -861,7 +901,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
         injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady1 = stepReadyOpt.get();
-    Optional<Step> stepReadyOpt2 = injectExecutionStep.run(stepReady1);
+    Optional<Step> stepReadyOpt2 = injectExecutionStep.run(inTestTenant(stepReady1));
     assertTrue(stepReadyOpt2.isPresent());
     Step stepReady = stepReadyOpt2.get();
 
@@ -917,7 +957,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    Optional<Step> stepRunOpt = injectExecutionStep.run(inTestTenant(stepReady));
     assertTrue(stepRunOpt.isPresent());
 
     // ASSERT
@@ -969,7 +1009,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    Optional<Step> stepRunOpt = injectExecutionStep.run(inTestTenant(stepReady));
     assertTrue(stepRunOpt.isPresent());
 
     // ASSERT
@@ -1036,7 +1076,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // ACT
     ChainingException ex =
-        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+        Assertions.assertThrows(
+            ChainingException.class, () -> injectExecutionStep.run(inTestTenant(stepReady)));
     // ASSERT
     Assertions.assertEquals(
         "Injector not found for injectorId "
@@ -1082,7 +1123,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step stepReady = stepReadyOpt.get();
 
     ChainingException ex =
-        Assertions.assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+        Assertions.assertThrows(
+            ChainingException.class, () -> injectExecutionStep.run(inTestTenant(stepReady)));
 
     // ASSERT
 
@@ -1104,7 +1146,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step stepReady = createReadyStepForRun();
 
     // Act
-    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    Optional<Step> stepRunOpt = injectExecutionStep.run(inTestTenant(stepReady));
 
     // Assert
     assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
@@ -1133,7 +1175,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step stepReady = createReadyStepForRun();
 
     // Act
-    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    Optional<Step> stepRunOpt = injectExecutionStep.run(inTestTenant(stepReady));
 
     // Assert
     assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
@@ -1169,7 +1211,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     ChainingException ex =
-        assertThrows(ChainingException.class, () -> injectExecutionStep.run(stepReady));
+        assertThrows(
+            ChainingException.class, () -> injectExecutionStep.run(inTestTenant(stepReady)));
 
     // Assert
     assertTrue(ex.getMessage().startsWith("Inject execution failed. Inject ID: "));
@@ -1453,7 +1496,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: empty drawer audience falls back to the workflow scope's teams.
     assertNotNull(inject);
@@ -1476,7 +1520,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert
     assertNotNull(inject);
@@ -1493,7 +1538,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: the drawer audience stays authoritative, the scope is never consulted.
     assertNotNull(inject);
@@ -1524,7 +1570,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
     assertNotNull(inject);
     inject.setExercise(exercise);
     List<ExecutionContext> recipients =
@@ -1552,7 +1599,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: all-teams mode only targets the scope teams, never the simulation teams; the
     // MISSING_AUDIENCE_TARGETS healthcheck flags this case before launch.
@@ -1576,7 +1624,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Act: scope the run-path resolution to the current tenant, as the production queue run does.
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: the attachment round-trips and is re-parented onto the deserialized inject so the
     // cascade persist in run() can derive the @MapsId composite key.
@@ -1601,7 +1650,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Act: scope the run-path resolution to the current tenant, as the production queue run does.
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: the scalar form resolves too, with document_attached defaulting to true.
     assertNotNull(inject);
@@ -1623,7 +1673,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
     assertNotNull(inject);
@@ -1667,7 +1718,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // so the inspector scopes the document JPQL query and drops the foreign-tenant attachment.
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: the foreign-tenant attachment degrades exactly like a deleted one - dropped, with
     // the step still executable - instead of leaking another tenant's document.
@@ -1704,7 +1756,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: the injector is auto-resolved from the injector contract's linked injector instead
     // of failing with "Injector not found for injectorId null".
@@ -1735,7 +1788,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert
     assertNotNull(inject);
@@ -1743,6 +1797,68 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(
         injectorContractSaved.getInjectors().stream().findFirst().orElseThrow().getId(),
         inject.getInjector().getId());
+  }
+
+  @Test
+  @DisplayName(
+      "given a ready step of tenant B and the default ambient tenant should resolve the injector reference in B")
+  void given_readyStepOfTenantBAndDefaultAmbientTenant_should_resolveTheInjectorReferenceInB()
+      throws Exception {
+    // Arrange: an injector and a contract of tenant B, a ready step of B naming them, and the
+    // default tenant as the ambient one
+    String defaultTenantId = TenantContext.getCurrentTenant();
+    Tenant tenantB =
+        tenantRepository.save(
+            TenantFixture.getTenant("inject-execution-step-reader-" + UUID.randomUUID()));
+    entityManager.flush();
+    InjectorContract contractOfB = seedLinkedInjectorAndContractIn(tenantB);
+    String injectorOfBId = contractOfB.getInjectors().getFirst().getId();
+    tenantTx.setScopeOnCurrentTransaction(
+        TxCtx.forTenants(List.of(defaultTenantId, tenantB.getId())));
+    doReturn(contractOfB)
+        .when(injectorContractService)
+        .injectorContractInTenant(eq(contractOfB.getId()), eq(tenantB.getId()));
+    String injectOfBJson =
+        injectInputJson
+            .replace(injectorContractSaved.getId(), contractOfB.getId())
+            .replace(injectorContractSaved.getInjectors().getFirst().getId(), injectorOfBId);
+    StepsCreateInput.StepInput stepInput =
+        InjectExecutionStep.getInjectAsStepsCreateInput(
+            mapper.readValue(injectOfBJson, InjectInput.class));
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    Exercise simulationOfB = ExerciseFixture.createDefaultExercise();
+    simulationOfB.setTenant(tenantB);
+    workflowTemplate.setSimulation(simulationOfB);
+    Step stepTemplate = injectExecutionStep.create(stepInput, workflowTemplate).orElseThrow();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    Step readyStep = injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+    readyStep.setTenant(tenantB);
+    // The queue run of a step is scoped to the step's tenant
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantB.getId()));
+    // The reader resolves references through the entity manager: watch which injector it asks for
+    InjectExecutionStep target = AopTestUtils.getUltimateTargetObject(injectExecutionStep);
+    Object beanEntityManager = ReflectionTestUtils.getField(target, "em");
+    EntityManager readerEntityManager =
+        mock(EntityManager.class, AdditionalAnswers.delegatesTo(entityManager));
+    ReflectionTestUtils.setField(target, "em", readerEntityManager);
+
+    // Act
+    Inject inject;
+    try {
+      inject = ReflectionTestUtils.invokeMethod(target, "getInjectFromDataStep", readyStep);
+    } finally {
+      ReflectionTestUtils.setField(target, "em", beanEntityManager);
+    }
+
+    // Assert: the reader names the tenant of the step, never the ambient one
+    verify(readerEntityManager)
+        .getReference(Injector.class, ConnectorCompositeId.of(injectorOfBId, tenantB.getId()));
+    verify(readerEntityManager, never())
+        .getReference(Injector.class, ConnectorCompositeId.of(injectorOfBId, defaultTenantId));
+    assertNotNull(inject);
+    assertEquals(tenantB.getId(), inject.getTenant().getId());
+    assertEquals(injectorOfBId, inject.getInjector().getId());
+    assertEquals(tenantB.getId(), inject.getInjector().getTenantId());
   }
 
   // ---------------------------------------------------------------------------
@@ -1783,7 +1899,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert: no desync - the elements resolve by their id and the field AFTER the collections
     // still binds to its own value instead of being consumed by the misaligned array parsing.
@@ -1814,7 +1931,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Act
     Inject inject =
-        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getInjectFromDataStep", inTestTenant(readyStep));
 
     // Assert
     assertNotNull(inject);
@@ -1957,7 +2075,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
 
-    Optional<Step> stepReadyOpt2 = injectExecutionStep.run(stepReady);
+    Optional<Step> stepReadyOpt2 = injectExecutionStep.run(inTestTenant(stepReady));
     assertTrue(stepReadyOpt2.isPresent());
     Step stepRun = stepReadyOpt2.get();
 

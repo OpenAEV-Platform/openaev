@@ -26,6 +26,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -494,6 +495,7 @@ public class MapperServiceTest extends IntegrationTest {
     Injector injector = new Injector();
     injector.setId("injector-id");
     injector.setType("atomic-testing");
+    injector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     injectorContract.addInjector(injector);
 
     Payload payload = new Payload();

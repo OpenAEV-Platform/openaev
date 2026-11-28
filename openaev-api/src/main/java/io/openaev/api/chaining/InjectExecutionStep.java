@@ -10,7 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -1170,30 +1169,15 @@ public class InjectExecutionStep implements ActionStep {
   /**
    * Extracts an {@link Inject} object from the JSON data stored in a {@link Step}.
    *
-   * <p>This method performs the following steps:
-   *
-   * <ol>
-   *   <li>Deserializes the step's JSON data into an {@link Inject} object using {@link
-   *       ObjectMapper}.
-   *   <li>Parses the JSON to locate the associated {@link InjectorContract} and its {@link
-   *       Injector}.
-   *   <li>If the {@link Injector} is missing in the contract, it attempts to fetch it from the
-   *       database using the {@link EntityManager}.
-   *   <li>Logs warnings or info messages when required entities are not found.
-   * </ol>
-   *
-   * <p>Notes:
-   *
-   * <ul>
-   *   <li>If the step JSON does not contain a valid injector contract or injector, the method
-   *       returns {@code null}.
-   *   <li>If any {@link JsonProcessingException} or {@link IllegalArgumentException} occurs during
-   *       parsing, the exception is logged and {@code null} is returned.
-   * </ul>
+   * <p>The inject belongs to the tenant of its step: the references of the step data are resolved
+   * in that tenant and the inject is stamped with it. The injector contract and the injector are
+   * then looked up in the database, and the step inputs and expectations are applied to the
+   * content.
    *
    * @param step the {@link Step} containing the JSON data for the inject
-   * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
-   *     the injector contract is missing or if an exception occurs during deserialization
+   * @return the deserialized {@link Inject} with its injector contract and injector set
+   * @throws ChainingException when the step names no tenant, when its data is not a valid inject,
+   *     when it names no injector contract, or when no injector is found for it
    */
   private Inject getInjectFromDataStep(Step step) throws ChainingException {
     ObjectMapper om =
@@ -1202,21 +1186,19 @@ public class InjectExecutionStep implements ActionStep {
             .setInjectableValues(new InjectableValues.Std().addValue(EntityManager.class, em))
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+    // The inject belongs to the tenant of its step, and the step data does not carry it.
+    if (step.getTenant() == null) {
+      throw new ChainingException("Step (READY) ID: " + step.getId() + " names no tenant");
+    }
+    String tenantId = step.getTenant().getId();
+
     try {
-      // GET INJECT FROM JSON. The inject belongs to the tenant of its step, and the step data
-      // does not carry it: the references are resolved in that tenant and the inject is stamped
-      // with it. A step built in memory and never saved has no tenant: its references resolve in
-      // the ambient tenant, and the inject is stamped on save.
-      String tenantId = step.getTenant() != null ? step.getTenant().getId() : null;
-      ObjectReader injectReader = om.readerFor(Inject.class);
+      // GET INJECT FROM JSON
       Inject inject =
-          (tenantId != null
-                  ? injectReader.withAttribute(CompositeIdResolvableI.TENANT_ATTRIBUTE, tenantId)
-                  : injectReader)
+          om.readerFor(Inject.class)
+              .withAttribute(CompositeIdResolvableI.TENANT_ATTRIBUTE, tenantId)
               .readValue(step.getData());
-      if (tenantId != null) {
-        inject.setTenant(new Tenant(tenantId));
-      }
+      inject.setTenant(new Tenant(tenantId));
 
       // Ensure dependsDuration has a default value - it is a legacy scheduling field
       // that may not be present in the serialized step data but has a @NotNull constraint.
