@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 @Profile("!test")
 public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private static final ObjectMapper mapper = new ObjectMapper();
-  private static final String resourcePath = "/catalog/catalog-integrators.json";
+  public static final String resourcePath = "/catalog/catalog-integrators.json";
   private final CatalogConnectorIngestionService catalogConnectorIngestionService;
 
   @Override
