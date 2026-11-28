@@ -1,24 +1,23 @@
 package io.openaev.executors.sentinelone.service;
 
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
-import static java.util.Optional.ofNullable;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
-import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.ImplantCommand;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -28,6 +27,7 @@ import org.springframework.stereotype.Service;
 public class SentinelOneExecutorContextService
     extends BatchExecutorContextService<SentinelOneAction> {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;
+  private static final ImplantCommand IMPLANT_COMMAND = new ImplantCommand(ArchSource.AGENT, null);
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
@@ -57,12 +57,7 @@ public class SentinelOneExecutorContextService
     // Sometimes, assets from agents aren't fetched even with the EAGER property from Hibernate
     sentinelOneAgents.forEach(agent -> agent.setAsset((Asset) Hibernate.unproxy(agent.getAsset())));
 
-    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
-    if (inject.getInjector() == null && injectorContract.isEmpty()) {
-      throw new UnsupportedOperationException("Inject does not have a contract");
-    }
-    Injector injector =
-        ofNullable(inject.getInjector()).orElse(injectorContract.get().getFirstInjector());
+    Injector injector = injectorOf(inject);
 
     sentinelOneAgents =
         executorService.manageWithoutPlatformAgents(sentinelOneAgents, injectStatus);
@@ -78,7 +73,6 @@ public class SentinelOneExecutorContextService
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name(),
                       token));
           case Linux ->
               actions.addAll(
@@ -86,7 +80,6 @@ public class SentinelOneExecutorContextService
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name(),
                       token));
           case MacOS ->
               actions.addAll(
@@ -94,7 +87,6 @@ public class SentinelOneExecutorContextService
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name(),
                       token));
           default -> { // No need, only Mac, Windows and Linux for now
           }
@@ -129,36 +121,14 @@ public class SentinelOneExecutorContextService
   }
 
   private List<SentinelOneAction> getWindowsActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
+      List<Agent> agents, Injector injector, Inject inject, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionWindows = new SentinelOneAction();
       actionWindows.setScriptId(this.config.getWindowsScriptId());
-      String implantLocation =
-          "$location="
-              + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
-      String executorCommandKey = platform.name() + "." + arch;
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      command =
-          replaceArgs(
-              platform,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
-              Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(
+              openAEVConfig, injector, inject, agent, Endpoint.PLATFORM_TYPE.Windows, token);
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
@@ -168,13 +138,13 @@ public class SentinelOneExecutorContextService
   }
 
   private List<SentinelOneAction> getLinuxActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
+      List<Agent> agents, Injector injector, Inject inject, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
-          getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, arch, token));
+          getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, token));
       actionLinux.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionLinux);
     }
@@ -182,13 +152,13 @@ public class SentinelOneExecutorContextService
   }
 
   private List<SentinelOneAction> getMacOSActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
+      List<Agent> agents, Injector injector, Inject inject, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
-          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, arch, token));
+          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, token));
       actionMac.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionMac);
     }
@@ -200,31 +170,8 @@ public class SentinelOneExecutorContextService
       Injector injector,
       Inject inject,
       Agent agent,
-      String arch,
       String token) {
-    String implantLocation =
-        "location="
-            + ExecutorHelper.IMPLANT_LOCATION_UNIX
-            + ExecutorHelper.IMPLANT_BASE_NAME
-            + UUID.randomUUID()
-            + ";mkdir -p $location;filename=";
-    String executorCommandKey = platform.name() + "." + arch;
-    String command = injector.getExecutorCommands().get(executorCommandKey);
-    command =
-        replaceArgs(
-            platform,
-            command,
-            inject.getId(),
-            agent.getId(),
-            inject.getTenant().getId(),
-            token,
-            openAEVConfig.getBaseUrlForAgent(),
-            Integer.toString(openAEVConfig.getLogsMaxSize()),
-            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-            Boolean.toString(openAEVConfig.isWithProxy()));
-    command =
-        command.replaceFirst(
-            "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
+    String command = IMPLANT_COMMAND.build(openAEVConfig, injector, inject, agent, platform, token);
     return Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8));
   }
 }

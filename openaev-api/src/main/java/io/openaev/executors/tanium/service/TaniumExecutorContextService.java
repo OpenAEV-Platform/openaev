@@ -1,22 +1,22 @@
 package io.openaev.executors.tanium.service;
 
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import static io.openaev.utils.InjectUtils.injectorOf;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.executors.ArchSource;
 import io.openaev.executors.BatchExecutorContextService;
-import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.ImplantCommand;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
   public static final String SERVICE_NAME = TANIUM_EXECUTOR_NAME;
+  private static final ImplantCommand IMPLANT_COMMAND = new ImplantCommand(ArchSource.AGENT, null);
 
   @Override
   public void launchExecutorSubprocess(
@@ -56,16 +57,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
 
     taniumAgents = executorService.manageWithoutPlatformAgents(taniumAgents, injectStatus);
 
-    Injector injector = inject.getInjector();
-    if (injector == null) {
-      // Fallback for legacy injects without inject_injector populated
-      injector =
-          inject
-              .getInjectorContract()
-              .map(InjectorContract::getFirstInjector)
-              .orElseThrow(
-                  () -> new UnsupportedOperationException("Inject does not have a contract"));
-    }
+    Injector injector = injectorOf(inject);
 
     List<TaniumAction> actions = new ArrayList<>();
     // Set implant script for each agent
@@ -78,7 +70,6 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
                       injector,
                       inject,
-                      arch,
                       token));
           case Linux, MacOS ->
               actions.addAll(
@@ -87,7 +78,6 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
                       injector,
                       inject,
                       platform,
-                      arch,
                       token));
           default -> { // No need, only Mac, Windows and Linux for now
           }
@@ -122,39 +112,14 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
   }
 
   private List<TaniumAction> getWindowsActions(
-      List<Agent> agents,
-      Injector injector,
-      Inject inject,
-      Endpoint.PLATFORM_ARCH arch,
-      String token) {
+      List<Agent> agents, Injector injector, Inject inject, String token) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
       actionWindows.setScriptId(this.taniumExecutorConfig.getWindowsPackageId());
-      String implantLocation =
-          "$location="
-              + ExecutorHelper.IMPLANT_LOCATION_WINDOWS
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      String executorCommandKey = Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      command =
-          replaceArgs(
-              Endpoint.PLATFORM_TYPE.Windows,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
-              Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(
+              openAEVConfig, injector, inject, agent, Endpoint.PLATFORM_TYPE.Windows, token);
       actionWindows.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
       actionWindows.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionWindows);
@@ -167,35 +132,13 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_TYPE platform,
-      Endpoint.PLATFORM_ARCH arch,
       String token) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionUnix = new TaniumAction();
       actionUnix.setScriptId(this.taniumExecutorConfig.getUnixPackageId());
-      String implantLocation =
-          "location="
-              + ExecutorHelper.IMPLANT_LOCATION_UNIX
-              + ExecutorHelper.IMPLANT_BASE_NAME
-              + UUID.randomUUID()
-              + ";mkdir -p $location;filename=";
-      String executorCommandKey = platform.name() + "." + arch.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      command =
-          replaceArgs(
-              platform,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token,
-              openAEVConfig.getBaseUrlForAgent(),
-              Integer.toString(openAEVConfig.getLogsMaxSize()),
-              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
-              Boolean.toString(openAEVConfig.isWithProxy()));
-      command =
-          command.replaceFirst(
-              "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
+      String command =
+          IMPLANT_COMMAND.build(openAEVConfig, injector, inject, agent, platform, token);
       actionUnix.setCommandEncoded(Base64.getEncoder().encodeToString(command.getBytes()));
       actionUnix.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionUnix);
