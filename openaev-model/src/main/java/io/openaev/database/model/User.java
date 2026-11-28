@@ -482,10 +482,16 @@ public class User implements Base {
     return !isAdmin() && !isManager();
   }
 
+  /**
+   * {@code getCapabilities()} expands {@code BYPASS} into concrete capabilities and never returns
+   * the literal value (see {@link #capabilitiesOf}), so checking for it there would always be false
+   * for a non-admin user holding BYPASS only through a group. Read the raw group capabilities
+   * instead, in either scope.
+   */
   @JsonProperty("user_is_admin_or_bypass")
   @Schema(description = "True if the user is admin or has bypass capa")
   public boolean isAdminOrBypass() {
-    return isAdmin() || getCapabilities().contains(Capability.BYPASS);
+    return isAdmin() || hasPlatformBypass() || hasTenantBypass();
   }
 
   /**
