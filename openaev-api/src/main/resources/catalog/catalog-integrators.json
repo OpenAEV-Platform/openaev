@@ -1924,6 +1924,26 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
+                    },
+                    "NMAP_DEFAULT_HOST_TIMEOUT_SECONDS": {
+                        "default": 300,
+                        "description": "--host-timeout applied when an inject leaves 'Give up on a host after' empty, in seconds: nmap gives up on a host that has not finished after this time. An explicit value on the inject (0 included) wins. 0 here means no default (nmap's own: unbounded).",
+                        "maximum": 86400,
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "NMAP_DEFAULT_MAX_RETRIES": {
+                        "default": 2,
+                        "description": "--max-retries applied when an inject leaves 'Max retries per port' empty. An explicit value on the inject (0 included) wins.",
+                        "maximum": 10,
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "NMAP_SCAN_TIMEOUT": {
+                        "default": null,
+                        "description": "Hard ceiling in seconds for a whole Nmap run, greater than 0 when set. When exceeded, nmap is terminated, the hosts it finished are reported, the others are marked not scanned (scan time limit reached) and the inject ends WARNING (ERROR when no host was scanned). Unset (default): derived from the platform's inject execution threshold (runtime setting inject_execution_threshold_minutes) minus 60 s, or 540 s when the platform does not expose it. An inject may set its own ceiling with the scan_timeout_seconds field. Any ceiling is capped below the platform threshold, past which the platform no longer accepts the results.",
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
                     }
                 },
                 "required": [
@@ -2117,6 +2137,17 @@
                     "NUCLEI_SCAN_TIMEOUT": {
                         "default": 540,
                         "description": "Hard ceiling in seconds for a whole Nuclei scan. When exceeded, the scan process is terminated and the inject is reported as a timeout error. Keep it below the platform's inject execution threshold (inject.execution.threshold.minutes, default 10 minutes) so the injector reports the timeout before the platform marks the inject stale. Not a Nuclei flag.",
+                        "type": "integer"
+                    },
+                    "NUCLEI_COVERAGE_STATS": {
+                        "default": true,
+                        "description": "Ask Nuclei for its JSON progress statistics during a scan, so a scan cut at its time limit (and a completed one) reports how much it covered: requests sent / total, hosts, templates, elapsed. Off: no statistics flag is passed and the coverage reads 'unknown'. Nuclei Flags: -stats -stats-json -stats-interval",
+                        "type": "boolean"
+                    },
+                    "NUCLEI_COVERAGE_STATS_INTERVAL": {
+                        "default": 30,
+                        "description": "Seconds between two Nuclei progress statistics lines (the coverage reported at a cut-off is the last one written). Nuclei Flags: -si, -stats-interval",
+                        "exclusiveMinimum": 0,
                         "type": "integer"
                     },
                     "NUCLEI_TEMPLATE_UPDATE_TIMEOUT": {
@@ -2327,6 +2358,88 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
+            "title": "Prowler",
+            "slug": "openaev_prowler",
+            "description": "Run Prowler cloud security assessments from OpenAEV.",
+            "short_description": "Run cloud security assessments with Prowler",
+            "use_cases": [
+                "Technical"
+            ],
+            "verified": false,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/prowler",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-prowler",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAABmJLR0QA/wD/AP+gvaeTAAAYhElEQVR4nO3de7SddX3n8e9v75MTKAnaitayICcB8UaX0rEzWrE2S0mCHe2MMjBOvVS7xmKXLqaQk6DMoEdsvZATqXa6pmhXYaZelgGv4IJzQpSLOK0KWhwUFck5keKNiLkAyeHs/Zs/6HSqAgbI3r/9PL/Xay3+If98sgjZ7/N7nv08EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHRyo9gEdnem5tLr2BauyKiH5E3p0j3ZNS7IlId0WOH0fkO1PkH+WI76WUvt/vdXYsdrvfffPEZ+4qPRp4YAKg4QQAI+4nEWl7RNyaI38rRXyjH+kb9+T9X59adfW+0uOgZgKg4QQADdWLyN+MSF+JHDdEp/+lvUsOvXHqyMvuKT0MaiEAGk4A0CKLkfNXIjpfiJSujfF9104eefWdpUdBWwmAhhMAtFg/Im7KEVelFLPjC91rzzjuiv2lR0FbCICGEwBU5O7IaVuk/mVj/f5lf3LMth+UHgRNJgAaTgBQqX7KcX2/E5f2U7707BVb7yg9CJpGADScAIDoR8Q1OeJDvV7/0jcde9Wu0oOgCQRAwwkA+Cn3RsTHc8TfTE7Mfi6l8P8HPAgB0HACAB7UrTni/Wl84SLfJoCfJwAaTgDAL7QvIn+kn+N9G1dt/WrpMTAqBEDDCQB4WD4bEdPrJ2avdHmA2gmAhhMA8IjclHO88+6Vz90ylab6pcdACQKg4QQAPCq3RMSf7p147keEALXplB4AUNBTI+KDy+av/9rmuXWn5OyHIurhD3vDOQGAgyjnL6XUOXv9ypnPlZ4CgyYAGk4AwEBcHjk2TK6avaX0EBgUlwAAft6LI8VNm+fXXnDB9tWPLT0GBkEAADywJTnHn/TS+C2b59e92v0BtI0/0A3nEgAMR464JuV4vcsCtIUTAIADkCJ+J1J8dfPcmnMv/PKzlpTeA4+WAAA4cEtzpPP2HPG4L52/fc0JpcfAoyEAAB6+Z3ZS+uLmuTXnTuXVY6XHwCMhAAAemSU50nnL5sevO3/Hi44tPQYeLgEA8Og8p9PvfWXz/JpXlh4CD4cAAHj0luec/nZ6fu3Fm76/9rDSY+BACACAgyXHH6R98ffT29c+tfQU+EUEAMDBdXyk+OLmuXWnlB4CD0UAABx8y3PkSzbPr33HVJ7y9ywjyR9MgMFIOcebl8194ZPvvuX3lpceAz9LAAAMUoqXdA/Z9/l3feekFaWnwL8kAAAG7xlj3c7fnT+37l+VHgL/jwAAGI5f60S+Znr7SetKD4EIAQAwTMsidS6bnlv7itJDQAAADNeSiPhfm+bWvbH0EOomAACGr5Mi/8X03JpzSg+hXgIAoJj0Z5vm1p1XegV1EgAABaXI507Prfuz0juojwAAKC6f4ySAYRMAACMgRT53evvaN5XeQT0EAMCoSPHOzXNr3lB6BnUQAAAjJEd63/T2Nf+p9A7aTwAAjJZOpHTx+betWVt6CO0mAABGz3inky7dPHfSb5QeQnsJAIDRtDxH5/LNt649uvQQ2kkAAIyuI/NYXPaXP1y9rPQQ2kcAAIy2Z+67d/yDU3nK39ccVP5AAYy4nOPfLZv/wttK76BdBABAM/zXTXNrXlp6BO0hAACaIaVIF7/7tpOfUnoI7SAAAJrj8G6n/7GpO17yS6WH0HwCAKBZjl+2sO+/lx5B8wkAgMZJr52eW/uK0itoNgEA0Ez/44L5k44pPYLmEgAAzbS8lzsf3JJP7ZYeQjMJAIDm+q3vzu96U+kRNJMAAGiwHPGW87evOaH0DppHAAA023gnpYsu/PKzlpQeQrMIAIDmO2HPEY87u/QImkUAALTDf/OUQB4OAQDQDks7nf6FOUcqPYRmEAAALZEifmfzjnWvLL2DZhAAAG2S86Z3feekx5SewegTAADt8qtj3c5bS49g9AkAgPZ5oxsC+UUEAED7LOmm/qbSIxhtAgCgjVK8ZNP2k1eXnsHoEgAALZU6/Xf7WiAPRgAAtFWOf/Oe+XUvKz2D0SQAAFosR/88rwzmgQgAgFZLT98xv+vlpVcwegQAQPud6xSAnyUAANrvKd+d2/UfSo9gtAgAgArkFG/2jQD+JQEAUIdnXjC3bl3pEYwOAQBQiX6KydIbGB0CAKAa+YWbbjv5GaVXMBoEAEBFOp3+GaU3MBoEAEBFcsTvv+P2Fz6u9A7KEwAAdTl0fHHsNaVHUN5Y6QEwyiZXzrb+a1NTeaqzdMeXHrOklw+Psf4Tci8fGRGrIuUnR8TTU8QJEfGYwjM5uP4o53hPSpFLD6EcAQCVm0pT/Yi465/+mf/ZX8850ua5tU+JlJ8X0XlBRKyJyEcMeycHU37yBXNrnh+x9ZrSSyhHAAAP6f6fEmdviYhbIuKvt+RTuzt23PVbqd85Nac4LSKeWHgij0Av0h9GhACoWOuPN9tuem6tI7wBquESwKMxlVePLd8xfnI/xx+niJPDfUVNcndv3yG/dvZTP72n9BDKcAIAPGJT6erFiLg8Ii4//ztrjktjaX3K8ZqIWFp2GQfgsO7SfS+LiP9ZeghlqHXgoNh47NZvb5iYfX1vrPukyPH+iFgsvYlf6BWlB1COAAAOqrOPuuL2yVWzp3ej/4zIsbX0Hh5Cihf8+W0v/NXSMyhDAAADcebKq74xuWp2bU7pP0bE90vv4QF1e52O1wRXSgAAA7VhYmbLwljv1yPFR0tv4eflSKeU3kAZAgAYuHOO2rZzcmL25TmnP0wR95Tew095/vQdqz3XoUICABiaDatmLkrd/nMi4jult/DPunn/0peUHsHwCQBgqM46+qqvLYz1nh0pri29hft1UhYAFRIAwNCdc9S2neML3bURcWnpLUTkiJOmbj51vPQOhksAAEWccdwV+1dMPOblEfmi0luI5csP231i6REMlwAAijktXdLbO3HifxYBIyD315WewHAJAKCoqTTVXzHx2NdFpEtKb6lZTumk0hsYLgEAFHdauqQ3fl/nVW4MLOqEd87/218uPYLhEQDASDjjuCv2L3R7L4uI20pvqVR3rL/4/NIjGB4BAIyMc47atjP3Oy/1sKAyUur/dukNDI8AAEbKhmOuvKmf0xtL76hTel7pBQyPAABGzoZVMxe5KbCI35javvqQ0iMYDgEAjKSFscU/jogflN5RmfHlMXZC6REMhwAARtI5R23bmVM6o/SO2uRO51+X3sBwCABgZG2YmNmSUsyW3lGZZ5UewHAIAGCk5eieGRGLpXdUI4dLAJUQAMBIm5y44uspwqOCh+dpXgxUBwEAjL7FeHtE7C89oxLjhy3f9eTSIxg8AQCMvPVPmv1uRPrb0jtq0enF8aU3MHgCAGiEXj9NR0QuvaMGuZOeUnoDgycAgEY4+5grv5kjZkrvqEHKWQBUQAAAjZFyXFh6Qw1yiieV3sDgCQCgMZbv3PmZiPhh6R2tl+PY0hMYPAEANMbpv3nDfSnyltI7KvC4v/zh6mWlRzBYAgBolH7ufqz0hhrce++hK0pvYLAEANAod6/c9/mIuKv0jrbr9xaPKr2BwRIAQKNMpasXI+etpXe0XTfFkaU3MFgCAGicFPHZ0hvaLkd6YukNDJYAABqn303Xl97QeimeUHoCgyUAgMa5++jnfj0i9pTe0W75iNILGCwBADTOVJrqp4ibSu9osxzpcaU3MFgCAGiknOPm0hvaLEU8tvQGBksAAM2U0rdKT2i1HMtLT2CwBADQSClirvSGVkvhSYAtJwCAZsq9fyw9oeV+qfQABksAAI3U6y75UekNLXdo6QEMlgAAGmks9T0OeLDGSw9gsAQA0Ei7F/ffU3pDy42VHsBgCQCgmVauXig9oeV8PrSc/8AAUCEBADTT3NWuUQ9Wv/QABksAAI00vqR7WOkNLXdf6QEMlgAAGmmsP+5RtYPlHouWEwBAI6V+9rrawdpXegCDJQCARupEPrL0hpbzNcuWEwBAI+WIlaU3tFqOvaUnMFgCAGikFPkppTe0WUqxu/QGBksAAI2UI44vvaHN+hG7Sm9gsAQA0Dhb8qndiHhG6R1tliLvLL2BwRIAQOPcfvtdT4/wvvrBSneWXsBgCQCgcfqL3RNLb2i7nNIPSm9gsAQA0DwpXlB6Qtt1+n0B0HICAGiUqbx6LCKvKb2j7XIn/WPpDQyWAAAa5bD58edHhMcAD1g3928vvYHBEgBAo6SIU0pvqMHiIZ0dpTcwWAIAaIwLv/ysJRHptNI72i/dueGJs3eXXsFgCQCgMfYc8fiXROQjSu9ov/yd0gsYPAEANEfKf1R6QiVuLT2AwRMAQCNcMHfS0yLntaV31CBF/mbpDQyeAAAaoRedyYhIpXfUoJ86AqACAgAYedO3/e5ERLyy9I5adCNuLr2BwRMAwMhLncVzI2K89I5K7D/sR3d+q/QIBk8AACNtev5FT88Rrym9oyLfOP03b7iv9AgGTwAAoy333hsR3dIzqpHSV0tPYDgEADCyNm1f+/KIOKn0jprkHDeU3sBwCABgJE3fsfqIlOK9pXdUJ+cvlZ7AcAgAYDQtLLkwIp5QekZl9i9d7LoEUAkBAIycTfPrXheRXlZ6R4VuPOO4K/aXHsFwCABgpJy/fc0JKWdH/wXkiOtLb2B4BAAwMt737Rc9vpPSJyLi0NJbqpTi2tITGJ6x0gMAIiKmtq8+5L7U+0RErCy9pVK9sf7CdaVHMDxOAIDituRTu8vT+IdzxImlt9QqR3zlzFVX/6T0DoZHAABFTeWpzo75n1yUI15aekvNUoqrSm9guAQAUMyWfGp32fz1F0ekV5XeUrvc78yU3sBwuQcAKGJq++pDdszv+khE+veltxC7D9/5I98AqIwAAIbufd9+0ePvS71PuOY/GnLEVi8Aqo8AAIbq/O1rTlhwt/9I6aT06dIbGD73AABDs2l+3es6KX0hfPiPksX93cXPlB7B8DkBAAZu+o7VR8TCkgsjZ4/3HTnpmnOO2raz9AqGzwkAMFCb5tb9fiyM3+zZ/qMp5fyx0hsowwkAMBDvmV93fD/HeyPyC0tv4UEt9nshAColAICD6oLtJ6/spd5b+jm/OiK6pffwEFLatuFJMz8sPYMyBABwUFwwd9LTetGZ7EX/lRFpvPQeDsiHSg+gHAEAPGIXfvlZS3Yf8SsvTqlzei/ntRGRSm/igN2dl+aPlx5BOQIAeFim8uqxw+bHn58iTtkT6bQU+YjIufQsHq6ULtnwxJm7S8+gHAEAPKQt+dTu7bff9fS82Hlejrw65tOaiPjl+3/VB39T9VP8TekNlCUAoHJTN586vnTZPYd1U/9XUj8/oRP5yByxMnJ+cqT49R3zu54R0Vl2/+G+E/6WuGXD0TOf31h6BUUJAHgI03NrK/gRd9f9P8j/0+/0n3/DPutbK0X+QEqOb2rnQUAAFUkR96Ru5+LSOyhPAADU5UNnHT3z49IjKE8AANQjp5TeW3oEo0EAAFQipdh61sTMzaV3MBoEAEAlcsR06Q2MDt8CAKhAirhx/cTs1tI7GB1OAABqkPK7Sk9gtAgAgJbLEd/Ys+JEr/3lpwgAgJZLOb99Kk31S+9gtAgAgHb7P3tXnvjR0iMYPQIAoM1ynOunfx6IAABor79fv3L2U6VHMJoEAEBb9WOjl/7wYDwHAKCFUopPrT9m9trSOxhdTgAA2ue+WOxtLD2C0SYAAFomR/qL9cdu+1bpHYw2AQDQLt9fel/nbaVHMPoEAEC7TJ5x3BW7S49g9AkAgPb43PqJ2Q+XHkEzCACAdri338un+9ofB0oAALRBjvM2Hrv126Vn0BwCAKDhUsSNe1cuTJfeQbMIAIBm29/vd147la5eLD2EZhEAAA2WU3rrhmOuvKn0DppHAAA0VMpx3cSKwx3984gIAIBm2tWJzqtPS5f0Sg+hmQQAQAOlHKefuerKudI7aC4BANAwKeID61fNfrT0DppNAAA0y02pu+e/lB5B8wkAgObYlXq9U886+n/fW3oIzScAAJqhn1O8ymt+OVjGSg8A4BdLkacmJ7ZeVnoH7eEEAGD0XXrWxNY/LT2CdhEAAKPthr3jS//AW/442FwCABhVKb7bS/n3po687J7SU2gfJwAAo2l37nVefPaKrXeUHkI7CQCA0bM/R7zUS34YJJcAAEZLL6X8qsmJrZ8tPYR2cwIAMDpyyvkN6ye2XlJ6CO0nAABGRtqwftXWC0uvoA4uAQCMgpTeOjkxs7n0DOrhBACgsBzp7ZMTM+eV3kFdnAAAFJQiv2Vy5ezbS++gPgIAoIycIjauX7l1uvQQ6iQAAIavHzm9Yf2qmb8qPYR6CQCA4VrIKb1qw8qZLaWHUDcBADA8u1PKL5ucmN1WeggIAIDhuD3104vXHzP7D6WHQISvAQIMXIq4sdfJz15/zIwPf0aGAAAYoBzxsT3jS3/bW/0YNS4BAAxGP1J62+SKmbenFLn0GPhZTgAADr5dqZNfOjkxc54Pf0aVEwCAgynH1/r9fMrGlVu/XXoKPBQnAAAHSYr4QGdsz7M3HuvDn9HnBADg0duVcpy+ftXsR0sPgQMlAAAehZTjuk50Xn3mqivnSm+Bh0MAADwy+3NKb10xcfj0aemSXukx8HAJAICH74ZOt//as46+6mulh8Aj5SZAgAN3b07pTXsnFp7jw5+mcwIAcEDStk43Xn/W0TO3ll4CB4MAAHho38uRJjesnPlw6SFwMLkEAPDA7ovIm8fv6z7Vhz9t5AQA4Od9st/LGz3QhzYTAAD/39/1O2njxhUz15UeAoMmAAByfC1HOndy5cynvbyHWrgHAKhY/nrK8fK9K597woZVM5/y4U9NnAAANbohovOOvRPP+eRUmupHzJbeA0MnAIBa5EhpNkV/0/qJrdvu/1dXll0EBQkAoNVSxD0R8aGU0nvPmpi5ufQeGBUCAGirWyLH+xc6Sy5+88Rn7io9BkaNAADaZG+k+FhE/6/Xr7jqejf1wYMTAEDT9XLE1pTSh/PS/PENT5y9OyJisvQqGHECAGiixYh0TeS4NPfyxzc8afaHpQdB0wgAoCl2R8Rs5Lh8YUnv8nOO2raz9CBoMgEAjKpejvhKJ+dtkToze+4+/Pqp4y9ZKD0K2kIAAKNif0TckCO+ECmuHesvXHfmqqt/UnoUtJUAAEpYiEg3R/S/mqNzY7cfXxzrdf7hjOOu2F96GNRCAACDtDNyvi1S59ZIcUuOuKUbcfPuFfu/OZWuXiw9DmomAIADsS8i7o1IvYi8O3LcHSn25IifRMSPOynuzDn/KOW4I0f+XqfTvX3pofvn3/CEq/eWHg48MAEAD2Fy5WwqvQFgELwOGAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAqJAAAoEICAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeMT+L2rjTj5ea2kRAAAAAElFTkSuQmCC",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Prowler",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "PROWLER_EXECUTABLE_PATH": {
+                        "default": "/usr/local/bin/prowler",
+                        "description": "Absolute path to the Prowler executable.",
                         "type": "string"
                     }
                 },
