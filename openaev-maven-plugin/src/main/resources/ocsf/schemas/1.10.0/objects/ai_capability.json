@@ -1,0 +1,307 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the capability as advertised by its provider: the MCP tool, resource, or prompt name, the function name of a framework-native tool, or the identifier of a built-in tool. For example: <code>get_weather</code>.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The kind of capability primitive, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Capability Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The version of the capability as advertised by its provider, when versioned.",
+      "requirement" : "optional",
+      "caption" : "AI Capability Version",
+      "type_name" : "String"
+    },
+    "service" : {
+      "type" : "object_t",
+      "description" : "The logical serving system that advertised and served the capability - for MCP, the MCP server. This is provenance, not a network endpoint: when a gateway or proxy sits in the path, <code>dst_endpoint</code> identifies the gateway that was contacted, while this attribute identifies the logical server that actually served the primitive behind it. For <code>stdio</code>-transported servers there is no network endpoint at all, and this attribute is the only record of the serving system.",
+      "requirement" : "recommended",
+      "caption" : "Service",
+      "object_type" : "service",
+      "object_name" : "Service"
+    },
+    "uri" : {
+      "type" : "url_t",
+      "description" : "The URI of the capability. For <code>Resource</code> primitives this is the resource URI that was read, e.g. <code>file:///project/README.md</code>.",
+      "references" : [ {
+        "description" : "RFC 3986",
+        "url" : "https://datatracker.ietf.org/doc/html/rfc3986"
+      } ],
+      "requirement" : "optional",
+      "caption" : "URI",
+      "type_name" : "URL String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The stable identifier of the capability itself, when one exists: a registry or catalog identifier, or a producer-derived stable key (e.g., serving server identity plus capability name). Identifies the capability across invocations; per-invocation correlation is carried by <code>transaction_uid</code> instead.",
+      "requirement" : "recommended",
+      "caption" : "AI Capability ID",
+      "type_name" : "String"
+    },
+    "source" : {
+      "type" : "string_t",
+      "description" : "The tool source, normalized to the caption of <code>source_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Source",
+      "type_name" : "String"
+    },
+    "namespace" : {
+      "type" : "string_t",
+      "description" : "The namespace or grouping the capability belongs to, when the provider organizes capabilities into named collections. For example: <code>weather</code>.",
+      "requirement" : "optional",
+      "caption" : "Namespace",
+      "type_name" : "String"
+    },
+    "transport" : {
+      "type" : "string_t",
+      "description" : "The transport, normalized to the caption of <code>transport_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Transport",
+      "sibling" : "transport_id",
+      "type_name" : "String"
+    },
+    "mime_type" : {
+      "type" : "string_t",
+      "description" : "The declared MIME type of the capability's content. Primarily for <code>Resource</code> primitives, e.g. <code>text/markdown</code> or <code>application/json</code>.",
+      "requirement" : "optional",
+      "caption" : "MIME type",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A reusable, user-selectable prompt template; this is not the end user's prompt text.",
+          "caption" : "Prompt Template"
+        },
+        "0" : {
+          "description" : "The primitive kind is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A model-invocable executable function; it may retrieve data or cause side effects.",
+          "caption" : "Tool"
+        },
+        "2" : {
+          "description" : "Application-controlled contextual data or content, typically identified by a URI.",
+          "caption" : "Resource"
+        },
+        "99" : {
+          "description" : "The primitive kind is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the kind of capability primitive, per the Model Context Protocol primitive taxonomy. The three primitives carry different risk profiles; a first-class discriminator makes questions like \"resource reads vs. tool calls\" queryable rather than buried in free-text operation names.",
+      "requirement" : "recommended",
+      "caption" : "Capability Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "baseline_fingerprint" : {
+      "type" : "object_t",
+      "description" : "A fingerprint of the capability's declared contract as recorded at registration or approval time, identifying the approved contract version without embedding the contract body in the event. Compared against the contract fingerprints presented at invocation to detect a declared contract that changed after approval, such as supply-chain \"rug pull\" changes. Carries the approved value rather than a match verdict; consumers diff, the object does not assess.",
+      "requirement" : "optional",
+      "caption" : "Baseline Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "cache_scope" : {
+      "type" : "string_t",
+      "description" : "The declared cache scope, normalized to the caption of <code>cache_scope_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Cache Scope",
+      "sibling" : "cache_scope_id",
+      "type_name" : "String"
+    },
+    "cache_scope_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "0" : {
+          "description" : "The cache scope is unknown or was not declared.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The result may be cached by shared intermediaries and served across users, per MCP <code>cacheScope: public</code>.",
+          "caption" : "Public"
+        },
+        "2" : {
+          "description" : "The result is specific to a single user or client and must not be served from a shared cache, per MCP <code>cacheScope: private</code>.",
+          "caption" : "Private"
+        },
+        "99" : {
+          "description" : "The cache scope is not mapped. See the <code>cache_scope</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the cache scope the serving system declared for this capability's results, modeled on the MCP <code>cacheScope</code> field (itself modeled on HTTP Cache-Control). Determines whether shared intermediaries may cache the result - a data-exposure signal: a <code>Private</code> result cached in a shared scope is a cross-user exposure. Note this is declared caching metadata observed on the serving response, not an invariant property of the capability itself.",
+      "requirement" : "optional",
+      "caption" : "Cache Scope ID",
+      "sibling" : "cache_scope",
+      "type_name" : "Integer"
+    },
+    "cache_ttl" : {
+      "type" : "long_t",
+      "description" : "The declared freshness window for this capability's results, in milliseconds, per the MCP <code>ttlMs</code> field. Bounds how long a cached result was treated as valid by the consuming system.",
+      "requirement" : "optional",
+      "caption" : "Cache TTL",
+      "type_name" : "Long"
+    },
+    "desc_fingerprint" : {
+      "type" : "object_t",
+      "description" : "A fingerprint of the capability's declared natural-language description or instructions (e.g., the tool docstring or manifest description presented at discovery), identifying the description version without embedding the description body in the event. The object carries no <code>desc</code> attribute; this fingerprints the model-visible description by reference. Enables detecting description poisoning, where the description is altered without any schema change.",
+      "requirement" : "optional",
+      "caption" : "Description Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "input_schema_fingerprint" : {
+      "type" : "object_t",
+      "description" : "A fingerprint of the capability's declared input contract (e.g., its JSON Schema), identifying the contract version without embedding the schema body in the event. Enables grouping by tool-contract version and detecting contract drift, including \"rug pull\" changes where a tool's schema changes after initial approval. Use <code>serialization_id: JCS</code> when the fingerprint is computed over canonicalized JSON.",
+      "requirement" : "optional",
+      "caption" : "Input Schema Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "is_destructive" : {
+      "type" : "boolean_t",
+      "description" : "Indicates the capability declared that it may perform destructive updates, per the MCP <code>destructiveHint</code> tool annotation. This is a self-declared, unverified hint from the serving system: it supports triage and pivoting but must not be treated as an enforced property.",
+      "requirement" : "optional",
+      "caption" : "Destructive",
+      "type_name" : "Boolean"
+    },
+    "is_idempotent" : {
+      "type" : "boolean_t",
+      "description" : "Indicates the capability declared that repeated calls with the same arguments have no additional effect, per the MCP <code>idempotentHint</code> tool annotation. This is a self-declared, unverified hint from the serving system.",
+      "requirement" : "optional",
+      "caption" : "Idempotent",
+      "type_name" : "Boolean"
+    },
+    "is_open_world" : {
+      "type" : "boolean_t",
+      "description" : "Indicates the capability declared that it may interact with an open world of external entities (e.g., the web), rather than a closed domain, per the MCP <code>openWorldHint</code> tool annotation. This is a self-declared, unverified hint from the serving system.",
+      "requirement" : "optional",
+      "caption" : "Open World",
+      "type_name" : "Boolean"
+    },
+    "is_readonly" : {
+      "type" : "boolean_t",
+      "description" : "Indicates the capability declared that it does not modify its environment, per the MCP <code>readOnlyHint</code> tool annotation. This is a self-declared, unverified hint from the serving system: it supports triage and pivoting (e.g., \"every write-capable tool an agent invoked\") but must not be treated as an enforced property, and a mismatch between this hint and observed behavior is itself a signal.",
+      "requirement" : "optional",
+      "caption" : "Read-Only",
+      "type_name" : "Boolean"
+    },
+    "output_schema_fingerprint" : {
+      "type" : "object_t",
+      "description" : "A fingerprint of the capability's declared structured-output contract, identifying the contract version without embedding the schema body in the event. Use <code>serialization_id: JCS</code> when the fingerprint is computed over canonicalized JSON.",
+      "requirement" : "optional",
+      "caption" : "Output Schema Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "source_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The capability is built into the model provider's platform (e.g., a provider-hosted web search or code execution tool).",
+          "caption" : "Built-in"
+        },
+        "0" : {
+          "description" : "The tool source is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The capability was provided by a Model Context Protocol server.",
+          "caption" : "MCP"
+        },
+        "2" : {
+          "description" : "The capability is a framework-native or application-defined function tool, registered directly with the agent or model call (e.g., function calling / tool-use definitions).",
+          "caption" : "Function"
+        },
+        "99" : {
+          "description" : "The tool source is not mapped. See the <code>source</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the mechanism through which the capability was provided to the AI system. Orthogonal to <code>type_id</code>, which is the kind of primitive: a <code>Tool</code> may be sourced via MCP, via framework-native function calling, or as a model provider's built-in. In the case of 'Other', it is defined by the event source and carried by the <code>source</code> attribute.",
+      "requirement" : "recommended",
+      "caption" : "Source ID",
+      "sibling" : "source",
+      "type_name" : "Integer"
+    },
+    "task_uid" : {
+      "type" : "string_t",
+      "description" : "The task handle returned for a long-running invocation, per the MCP Tasks extension. Correlates the originating call with subsequent task lifecycle events (get, update, cancel) so an asynchronous tool invocation remains a single thread of activity across events.",
+      "requirement" : "optional",
+      "caption" : "Task UID",
+      "type_name" : "String"
+    },
+    "transaction_uid" : {
+      "type" : "string_t",
+      "description" : "The capability-layer invocation identifier that correlates a request with its result across events - for MCP, the JSON-RPC request id of the call. Distinct from <code>api.request.uid</code>, which is transport-scoped, and from <code>uid</code>, which identifies the capability itself rather than an invocation of it.",
+      "requirement" : "optional",
+      "caption" : "Transaction UID",
+      "type_name" : "String"
+    },
+    "transport_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The server is reached over the deprecated MCP HTTP with Server-Sent Events transport, retained for producers observing legacy servers.",
+          "caption" : "HTTP+SSE"
+        },
+        "0" : {
+          "description" : "The transport is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The server runs as a local subprocess and communicates over standard input/output, per the MCP stdio transport.",
+          "caption" : "stdio"
+        },
+        "2" : {
+          "description" : "The server is reached over HTTP using the MCP Streamable HTTP transport.",
+          "caption" : "Streamable HTTP"
+        },
+        "99" : {
+          "description" : "The transport is not mapped, e.g. a custom transport. See the <code>transport</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the transport binding the client used to reach the serving system. Distinguishes a local subprocess server from a remote networked server - a real trust boundary, and the reason an event's network endpoint attributes may legitimately be absent (a <code>stdio</code> server has no network endpoint). Not an IP-layer protocol: <code>protocol_name</code> does not apply, and <code>stdio</code> is not a network protocol at all.",
+      "requirement" : "optional",
+      "caption" : "Transport ID",
+      "sibling" : "transport",
+      "type_name" : "Integer"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "ai_capability",
+  "description" : "The AI Capability object describes a callable capability invoked by or on behalf of an AI system: a tool, a resource, or a prompt, in the sense of the Model Context Protocol (MCP) primitives. It records the invariant, advertised description of the capability - its identity, kind, provenance, declared contracts, and declared safety hints - not the per-call argument values or results, which are carried by the transport objects (e.g., <code>api.request.data</code> / <code>api.response.data</code>). The object is protocol-neutral: MCP is the motivating binding, but a framework-native function tool or a model provider's built-in tool populates the same shape, omitting the MCP-specific attributes. Distinguished from the <code>product</code> object, which describes the security product that generated the telemetry.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "Model Context Protocol specification - server primitives (tools, resources, prompts) and tool annotations",
+    "url" : "https://modelcontextprotocol.io/specification"
+  }, {
+    "description" : "MCP 2026-07-28 Release Candidate - cacheScope/ttlMs (SEP-2549) and the Tasks extension",
+    "url" : "https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/"
+  } ],
+  "caption" : "AI Capability",
+  "_links" : [ ]
+}

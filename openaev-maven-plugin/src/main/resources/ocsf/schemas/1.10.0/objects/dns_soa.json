@@ -1,0 +1,69 @@
+{
+  "attributes" : {
+    "sequence_number" : {
+      "type" : "long_t",
+      "description" : "The DNS SOA SERIAL field: the unsigned 32-bit version number of the zone, incremented when the zone contents change. Secondary name servers compare this value to decide whether a zone transfer is needed.",
+      "requirement" : "recommended",
+      "caption" : "Sequence Number",
+      "type_name" : "Long"
+    },
+    "expire_interval" : {
+      "type" : "object_t",
+      "description" : "The DNS SOA EXPIRE field: the time interval after which a secondary name server that has been unable to refresh the zone stops answering authoritatively for it. Populate <code>duration_secs</code>, as the wire value is always a count of seconds.",
+      "requirement" : "optional",
+      "caption" : "Expire Interval",
+      "object_type" : "timespan",
+      "object_name" : "Time Span"
+    },
+    "minimum_ttl" : {
+      "type" : "object_t",
+      "description" : "The DNS SOA MINIMUM field: the time interval that defines the TTL for negative caching of records from this zone. Populate <code>duration_secs</code>, as the wire value is always a count of seconds.",
+      "requirement" : "optional",
+      "caption" : "Minimum TTL",
+      "object_type" : "timespan",
+      "object_name" : "Time Span"
+    },
+    "primary_server" : {
+      "type" : "string_t",
+      "description" : "The DNS SOA MNAME field: the fully qualified domain name of the primary name server that is the original source of data for the zone. For example: <code>ns1.example.com</code>.",
+      "requirement" : "recommended",
+      "caption" : "Primary Server",
+      "type_name" : "String"
+    },
+    "refresh_interval" : {
+      "type" : "object_t",
+      "description" : "The DNS SOA REFRESH field: the time interval before a secondary name server should query the primary to check for zone updates. Populate <code>duration_secs</code>, as the wire value is always a count of seconds.",
+      "requirement" : "optional",
+      "caption" : "Refresh Interval",
+      "object_type" : "timespan",
+      "object_name" : "Time Span"
+    },
+    "responsible_party" : {
+      "type" : "string_t",
+      "description" : "The DNS SOA RNAME field: the email address of the party responsible for the zone, encoded as a domain name (the first label is the local part of the address). For example: <code>hostmaster.example.com</code> represents <code>hostmaster@example.com</code>.",
+      "requirement" : "recommended",
+      "caption" : "Responsible Party",
+      "type_name" : "String"
+    },
+    "retry_interval" : {
+      "type" : "object_t",
+      "description" : "The DNS SOA RETRY field: the time interval before a secondary name server should retry a failed zone refresh. Populate <code>duration_secs</code>, as the wire value is always a count of seconds.",
+      "requirement" : "optional",
+      "caption" : "Retry Interval",
+      "object_type" : "timespan",
+      "object_name" : "Time Span"
+    }
+  },
+  "name" : "dns_soa",
+  "description" : "The DNS SOA (Start of Authority) object represents the RDATA of a Start of Authority resource record. It carries the authoritative parameters of a DNS zone, including the serial number used to coordinate zone transfers between primary and secondary name servers.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "RFC 1035 — Domain Names, Implementation and Specification (SOA RDATA §3.3.13).",
+    "url" : "https://www.rfc-editor.org/rfc/rfc1035#section-3.3.13"
+  }, {
+    "description" : "RFC 2308 — Negative Caching of DNS Queries (DNS NCACHE), which redefines the SOA MINIMUM field as the negative-caching TTL.",
+    "url" : "https://www.rfc-editor.org/rfc/rfc2308"
+  } ],
+  "caption" : "DNS SOA Record",
+  "_links" : [ ]
+}

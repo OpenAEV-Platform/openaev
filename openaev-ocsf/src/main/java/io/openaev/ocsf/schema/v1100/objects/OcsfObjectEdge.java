@@ -1,0 +1,51 @@
+package io.openaev.ocsf.schema.v1100.objects;
+
+import io.openaev.ocsf.schema.OcsfObject;
+
+@lombok.Getter
+public class OcsfObjectEdge extends OcsfObject {
+  /** Additional data about the edge such as weight, distance, or custom properties. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v1100.JsonNodeDeserialiser.class)
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeJsonT dataField;
+
+  /** Indicates whether the edge is (<code>true</code>) or undirected (<code>false</code>). */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "is_directed")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeBooleanT isDirectedField;
+
+  /**
+   * The list of labels attached to this edge. Labels can be used to categorize, filter, and group
+   * edges within a graph.
+   */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "labels")
+  private java.util.List<io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT> labelsField;
+
+  /** The human-readable name or label for the edge. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT nameField;
+
+  /** The type of relationship between nodes (e.g. is-attached-to , depends-on, etc). */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "relation")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT relationField;
+
+  /** The unique identifier of the node where the edge originates. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "source")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT sourceField;
+
+  /** The unique identifier of the node where the edge terminates. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "target")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT targetField;
+
+  /** Unique identifier of the edge. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeStringT uidField;
+
+  /**
+   * The <code>uid</code> attribute in numeric form where applicable.<br>
+   * <strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to
+   * <code>uid</code> and not as an alternative to it.
+   */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid_numeric")
+  private io.openaev.ocsf.schema.v1100.datatypes.OcsfDatatypeLongT uidNumericField;
+}

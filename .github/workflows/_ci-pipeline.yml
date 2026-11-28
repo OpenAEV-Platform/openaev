@@ -70,7 +70,7 @@ jobs:
   ocsf-parser-generation-stability:
     strategy:
       matrix:
-        version: [ "1.9.0" ]
+        version: [ "1.10.0" ]
     name: "🔎 OCSF Parser Generation Stability"
     runs-on: ubuntu-24.04
     timeout-minutes: 3

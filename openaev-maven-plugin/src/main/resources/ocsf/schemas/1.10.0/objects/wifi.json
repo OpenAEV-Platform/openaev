@@ -1,0 +1,232 @@
+{
+  "attributes" : {
+    "band" : {
+      "type" : "string_t",
+      "description" : "The radio frequency band that the wireless link operates in, normalized to the caption of the <code>band_id</code> value. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Band",
+      "type_name" : "String"
+    },
+    "cipher" : {
+      "type" : "string_t",
+      "description" : "The negotiated encryption cipher. For example: <code>AES-CCMP</code>, <code>GCMP-256</code> or <code>TKIP</code>.",
+      "requirement" : "optional",
+      "caption" : "Cipher",
+      "type_name" : "String"
+    },
+    "access_point_status" : {
+      "type" : "string_t",
+      "description" : "The access point classification, normalized to the caption of the <code>access_point_status_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Access Point Status",
+      "type_name" : "String"
+    },
+    "access_point_status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The access point is unsanctioned and is treated as a threat.",
+          "caption" : "Rogue"
+        },
+        "0" : {
+          "description" : "The classification is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The access point is a known, sanctioned device, for example an access point of the monitored infrastructure.",
+          "caption" : "Authorized"
+        },
+        "2" : {
+          "description" : "The access point has been observed but not yet classified.",
+          "caption" : "Unclassified"
+        },
+        "4" : {
+          "description" : "The access point is being actively contained, over the air or on the wired network.",
+          "caption" : "Contained"
+        },
+        "99" : {
+          "description" : "The classification is not mapped. See the <code>access_point_status</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The classification assigned to an observed access point by a wireless intrusion detection or prevention system.",
+      "requirement" : "optional",
+      "caption" : "Access Point Status ID",
+      "sibling" : "access_point_status",
+      "type_name" : "Integer"
+    },
+    "band_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The 6 GHz band, used by IEEE 802.11ax and 802.11be.",
+          "caption" : "6 GHz"
+        },
+        "0" : {
+          "description" : "The band is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The 2.4 GHz band, used by IEEE 802.11b, 802.11g, 802.11n, 802.11ax and 802.11be.",
+          "caption" : "2.4 GHz"
+        },
+        "2" : {
+          "description" : "The 5 GHz band, used by IEEE 802.11a, 802.11n, 802.11ac, 802.11ax and 802.11be.",
+          "caption" : "5 GHz"
+        },
+        "4" : {
+          "description" : "The 60 GHz band, used by IEEE 802.11ad and 802.11ay.",
+          "caption" : "60 GHz"
+        },
+        "99" : {
+          "description" : "The band is not mapped. See the <code>band</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The radio frequency band that the wireless link operates in.",
+      "requirement" : "optional",
+      "caption" : "Band ID",
+      "sibling" : "band",
+      "type_name" : "Integer"
+    },
+    "bssid" : {
+      "type" : "mac_t",
+      "description" : "The Basic Service Set Identifier, the address of the access point radio that serves a wireless network.",
+      "requirement" : "recommended",
+      "caption" : "BSSID",
+      "type_name" : "MAC Address"
+    },
+    "channel_number" : {
+      "type" : "integer_t",
+      "description" : "The channel number that the wireless link operates on.",
+      "requirement" : "optional",
+      "caption" : "Channel Number",
+      "type_name" : "Integer"
+    },
+    "data_rate" : {
+      "type" : "float_t",
+      "description" : "The negotiated physical layer data rate, in megabits per second. For example: <code>5.5</code> or <code>866.7</code>.",
+      "requirement" : "optional",
+      "caption" : "Data Rate",
+      "type_name" : "Float"
+    },
+    "is_access_point_on_wired_network" : {
+      "type" : "boolean_t",
+      "description" : "Indicates that the observed access point was also detected on the monitored wired network, for example by a wireless intrusion detection or prevention system. It applies to an observed access point, not to a client, and distinguishes an access point attached to the monitored infrastructure from a neighboring one.",
+      "requirement" : "optional",
+      "caption" : "Access Point On Wired Network",
+      "type_name" : "Boolean"
+    },
+    "noise_floor" : {
+      "type" : "integer_t",
+      "description" : "The measured background noise power, in decibel-milliwatts.",
+      "requirement" : "optional",
+      "caption" : "Noise Floor",
+      "type_name" : "Integer"
+    },
+    "rssi" : {
+      "type" : "integer_t",
+      "description" : "The Received Signal Strength Indicator reported for the wireless link, on the reporting vendor's own scale, which may be a relative index or a power level. For the received power in decibel-milliwatts, see <code>signal_strength</code>.",
+      "requirement" : "optional",
+      "caption" : "RSSI",
+      "type_name" : "Integer"
+    },
+    "security_protocol" : {
+      "type" : "string_t",
+      "description" : "The Wi-Fi security protocol, normalized to the caption of the <code>security_protocol_id</code> value. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Security Protocol",
+      "type_name" : "String"
+    },
+    "security_protocol_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Wi-Fi Protected Access, which uses TKIP with a pre-shared key or IEEE 802.1X authentication.",
+          "caption" : "WPA"
+        },
+        "6" : {
+          "description" : "Wi-Fi Protected Access 3 with Simultaneous Authentication of Equals (SAE) in place of a pre-shared key handshake.",
+          "caption" : "WPA3-Personal"
+        },
+        "0" : {
+          "description" : "The security protocol is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The wireless network is unauthenticated and unencrypted.",
+          "caption" : "Open"
+        },
+        "2" : {
+          "description" : "Wired Equivalent Privacy, the original IEEE 802.11 security mechanism, which uses a static shared key. It is deprecated.",
+          "caption" : "WEP"
+        },
+        "4" : {
+          "description" : "Wi-Fi Protected Access 2 with a pre-shared key.",
+          "caption" : "WPA2-Personal"
+        },
+        "99" : {
+          "description" : "The security protocol is not mapped. See the <code>security_protocol</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "5" : {
+          "description" : "Wi-Fi Protected Access 2 with IEEE 802.1X authentication.",
+          "caption" : "WPA2-Enterprise"
+        },
+        "7" : {
+          "description" : "Wi-Fi Protected Access 3 with IEEE 802.1X authentication, including the optional 192-bit security mode.",
+          "caption" : "WPA3-Enterprise"
+        },
+        "8" : {
+          "description" : "Opportunistic Wireless Encryption (RFC 8110), which encrypts an open network without authentication.",
+          "caption" : "Opportunistic Wireless Encryption"
+        }
+      },
+      "description" : "The authentication and key management suite that protects the wireless link.",
+      "requirement" : "recommended",
+      "caption" : "Security Protocol ID",
+      "sibling" : "security_protocol",
+      "type_name" : "Integer"
+    },
+    "signal_noise_ratio" : {
+      "type" : "integer_t",
+      "description" : "The power of the received radio signal relative to the noise floor, in decibels (dB).",
+      "requirement" : "optional",
+      "caption" : "Signal-to-Noise Ratio",
+      "type_name" : "Integer"
+    },
+    "signal_strength" : {
+      "type" : "integer_t",
+      "description" : "The measured power of the received radio signal, in decibel-milliwatts.",
+      "requirement" : "optional",
+      "caption" : "Signal Strength",
+      "type_name" : "Integer"
+    },
+    "ssid" : {
+      "type" : "string_t",
+      "description" : "The Service Set Identifier, the advertised name of a wireless network.",
+      "requirement" : "recommended",
+      "caption" : "SSID",
+      "type_name" : "String"
+    },
+    "standard" : {
+      "type" : "string_t",
+      "description" : "The IEEE 802.11 amendment that the link operates under. For example: <code>802.11ax</code> or <code>802.11ac</code>.",
+      "requirement" : "optional",
+      "caption" : "Standard",
+      "type_name" : "String"
+    }
+  },
+  "name" : "wifi",
+  "description" : "The Wireless Network object describes an IEEE 802.11 wireless link: the identity of the network, the radio parameters it operates on, and the security negotiated for it.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "ssid", "bssid" ]
+  },
+  "references" : [ {
+    "description" : "IEEE 802.11 Wireless LAN Medium Access Control and Physical Layer Specifications",
+    "url" : "https://standards.ieee.org/ieee/802.11/7028/"
+  } ],
+  "caption" : "Wireless Network",
+  "_links" : [ ]
+}
