@@ -43,12 +43,37 @@ public final class TransactionTenantScope {
         : Optional.empty();
   }
 
+  /**
+   * Whether the scope last written on the current transaction holds more than one tenant. False
+   * outside a transaction and before a scope is written on it. Read without a query.
+   */
+  public static boolean holdsSeveralTenants() {
+    return TransactionSynchronizationManager.getResource(Pin.class) instanceof Pin pin
+        && pin.tenantCount > 1;
+  }
+
+  /**
+   * Whether the scope last written on the current transaction holds no tenant, the scope of a
+   * request that names none. False outside a transaction and before a scope is written on it. Read
+   * without a query.
+   */
+  public static boolean holdsNoTenant() {
+    return TransactionSynchronizationManager.getResource(Pin.class) instanceof Pin pin
+        && pin.tenantCount == 0;
+  }
+
   private static final class Pin implements TransactionSynchronization {
 
     private Optional<String> tenant;
+    private int tenantCount;
 
-    private Pin(Optional<String> tenant) {
-      this.tenant = tenant;
+    private Pin(Set<String> tenants) {
+      set(tenants);
+    }
+
+    private void set(Set<String> tenants) {
+      this.tenant = tenants.size() == 1 ? tenants.stream().findFirst() : Optional.empty();
+      this.tenantCount = tenants.size();
     }
 
     /**
@@ -61,22 +86,20 @@ public final class TransactionTenantScope {
       if (!TransactionSynchronizationManager.isActualTransactionActive()) {
         return;
       }
-      Optional<String> tenant = onlyTenant(scope);
+      Set<String> tenants = tenantsOf(scope);
       if (TransactionSynchronizationManager.getResource(Pin.class) instanceof Pin bound) {
-        bound.tenant = tenant;
+        bound.set(tenants);
         return;
       }
-      Pin pin = new Pin(tenant);
+      Pin pin = new Pin(tenants);
       TransactionSynchronizationManager.bindResource(Pin.class, pin);
       TransactionSynchronizationManager.registerSynchronization(pin);
     }
 
-    private static Optional<String> onlyTenant(String scope) {
-      Set<String> tenants =
-          scope.isEmpty()
-              ? Set.of()
-              : Arrays.stream(scope.split(",")).collect(Collectors.toUnmodifiableSet());
-      return tenants.size() == 1 ? tenants.stream().findFirst() : Optional.empty();
+    private static Set<String> tenantsOf(String scope) {
+      return scope.isEmpty()
+          ? Set.of()
+          : Arrays.stream(scope.split(",")).collect(Collectors.toUnmodifiableSet());
     }
 
     @Override

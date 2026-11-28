@@ -15,6 +15,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TransactionTenantScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
@@ -34,6 +35,7 @@ import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import jakarta.persistence.EntityManager;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -44,10 +46,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
@@ -57,7 +61,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import reactor.core.publisher.FluxSink;
 
 @MockitoSettings(strictness = Strictness.LENIENT) // class-wide
@@ -1051,10 +1060,10 @@ public class StreamServiceTest {
             communication.getPermissionResourceType(),
             Action.READ))
         .thenReturn(true);
+    BaseEvent event = eventWrittenIn(TENANT_ID, communication);
 
     // Act
-    streamService.listenDatabaseUpdate(
-        new BaseEvent(DATA_UPDATE, communication, mock(ObjectMapper.class)));
+    streamService.listenDatabaseUpdate(event);
 
     // Assert
     verify(sink).next(any());
@@ -1112,6 +1121,213 @@ public class StreamServiceTest {
 
     // Assert
     assertFalse(visible);
+  }
+
+  private static BaseEvent eventWrittenIn(String tenantId, Base row) {
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return new BaseEvent(DATA_UPDATE, row, mock(ObjectMapper.class));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @Test
+  public void given_rowWithoutTenantColumn_when_writtenInTheConsumersTenant_should_beVisible()
+      throws Exception {
+    // Arrange
+    Communication communication = new Communication();
+    communication.setId(RESOURCE_ID);
+    BaseEvent event = eventWrittenIn(TENANT_ID, communication);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void given_rowWithoutTenantColumn_when_writtenInAnotherTenant_should_notBeVisible()
+      throws Exception {
+    // Arrange
+    Communication communication = new Communication();
+    communication.setId(RESOURCE_ID);
+    BaseEvent event = eventWrittenIn(OTHER_TENANT_ID, communication);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertFalse(visible);
+  }
+
+  @Test
+  public void given_tenantRow_when_writtenInAnotherTenant_should_beVisible() throws Exception {
+    // Arrange: a tenant is a platform row, shown to the platform screens of every tenant
+    BaseEvent event = eventWrittenIn(OTHER_TENANT_ID, new Tenant(RESOURCE_ID));
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void given_rowOfOneUser_when_writtenInAnotherTenant_should_beVisible() throws Exception {
+    // Arrange: a row of one user goes to that user alone, whatever the tenant of the stream
+    NewsFeedItem item = new NewsFeedItem();
+    item.setId(RESOURCE_ID);
+    BaseEvent event = eventWrittenIn(OTHER_TENANT_ID, item);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  static Stream<Base> platformRowsOfNoTenant() {
+    return Stream.of(
+        new UserEvent(),
+        new CatalogConnector(),
+        new CatalogConnectorConfiguration(),
+        new CatalogConnectorInjectorContract());
+  }
+
+  @ParameterizedTest
+  @MethodSource("platformRowsOfNoTenant")
+  public void given_platformRow_when_writtenInAnotherTenant_should_beVisible(Base row)
+      throws Exception {
+    // Arrange: a row of the platform reaches the consumers of every tenant
+    BaseEvent event = eventWrittenIn(OTHER_TENANT_ID, row);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void given_rowOfOneUser_when_writtenInAnotherTenant_should_reachItsOwnerAlone()
+      throws Exception {
+    // Arrange: the owner and another user, both consumers of a tenant the row is not written in
+    FluxSink<Object> ownerSink = registerTenantConsumer(TENANT_ID);
+    FluxSink<Object> otherUserSink = mock(FluxSink.class);
+    OpenAEVPrincipal otherUser = mock(OpenAEVPrincipal.class);
+    when(otherUser.getId()).thenReturn(OTHER_USER_ID);
+    consumersOf(streamService)
+        .put(OTHER_SESSION_ID, buildStreamConsumer(otherUser, TENANT_ID, otherUserSink));
+    User owner = new User();
+    owner.setId(USER_ID);
+    NewsFeedItem item = new NewsFeedItem();
+    item.setId(RESOURCE_ID);
+    item.setUser(owner);
+    BaseEvent event = eventWrittenIn(OTHER_TENANT_ID, item);
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(ownerSink).next(any());
+    verify(otherUserSink, never()).next(any());
+  }
+
+  /**
+   * The event of {@code row} built on a request whose transaction scope holds two tenants and pins
+   * none, the ambient tenant set to {@link #TENANT_ID}: a short route with no header, for a caller
+   * in several tenants.
+   */
+  private static BaseEvent eventOfARequestScopedToTwoTenants(Base row) {
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest()));
+    TransactionSynchronizationManager.initSynchronization();
+    TransactionSynchronizationManager.setActualTransactionActive(true);
+    TenantContext.setCurrentTenant(TENANT_ID);
+    try {
+      TransactionTenantScope.write(
+          mock(EntityManager.class, RETURNS_DEEP_STUBS), TENANT_ID + "," + OTHER_TENANT_ID);
+      return new BaseEvent(DATA_UPDATE, row, mock(ObjectMapper.class));
+    } finally {
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_COMMITTED));
+      TransactionSynchronizationManager.clear();
+      RequestContextHolder.resetRequestAttributes();
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {TENANT_ID, OTHER_TENANT_ID})
+  public void given_rowWithoutTenantColumn_when_writtenOnARequestOfTwoTenants_should_notBeVisible(
+      String consumerTenantId) throws Exception {
+    // Arrange: the consumer of the ambient tenant and the one of the other tenant of the scope
+    Communication communication = new Communication();
+    communication.setId(RESOURCE_ID);
+    BaseEvent event = eventOfARequestScopedToTwoTenants(communication);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, consumerTenantId);
+
+    // Assert
+    assertFalse(visible);
+  }
+
+  @Test
+  public void given_platformRow_when_writtenOnARequestOfTwoTenants_should_beVisible()
+      throws Exception {
+    // Arrange
+    BaseEvent event = eventOfARequestScopedToTwoTenants(new CatalogConnector());
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, OTHER_TENANT_ID);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void
+      given_rowWithoutTenantColumn_when_writtenOnARequestOfTwoTenants_should_reachAConsumerWithNoTenant()
+          throws Exception {
+    // Arrange
+    Communication communication = new Communication();
+    communication.setId(RESOURCE_ID);
+    BaseEvent event = eventOfARequestScopedToTwoTenants(communication);
+
+    // Act
+    boolean visible = invokeIsVisibleForTenant(event, null);
+
+    // Assert
+    assertTrue(visible);
+  }
+
+  @Test
+  public void given_rowOfOneUser_when_writtenOnARequestOfTwoTenants_should_reachItsOwner()
+      throws Exception {
+    // Arrange
+    FluxSink<Object> ownerSink = registerTenantConsumer(OTHER_TENANT_ID);
+    User owner = new User();
+    owner.setId(USER_ID);
+    NewsFeedItem item = new NewsFeedItem();
+    item.setId(RESOURCE_ID);
+    item.setUser(owner);
+    BaseEvent event = eventOfARequestScopedToTwoTenants(item);
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(ownerSink).next(any());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> consumersOf(StreamService service) throws Exception {
+    Field consumersField = StreamService.class.getDeclaredField("consumers");
+    consumersField.setAccessible(true);
+    return (Map<String, Object>) consumersField.get(service);
   }
 
   @Test

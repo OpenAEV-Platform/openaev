@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -33,4 +34,13 @@ public interface ComcheckStatusRepository
     """,
       nativeQuery = true)
   List<RawComcheckTenant> findComchecksToSendWithTenant();
+
+  /**
+   * The comcheck of a status, with its simulation's tenant, null for a comcheck with no simulation.
+   * Empty when the scope reaches no status of that id.
+   */
+  @Query(
+      "select c.id as comcheck_id, e.tenant.id as tenant_id from ComcheckStatus s join s.comcheck c"
+          + " left join c.exercise e where s.id = :statusId")
+  Optional<RawComcheckTenant> findComcheckWithTenantByStatusId(@Param("statusId") String statusId);
 }

@@ -15,6 +15,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawComcheckTenant;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -103,7 +104,7 @@ public class ComchecksExecutionJob implements Job {
       // during network I/O ties up connections for the duration of the sends.
       List<ComcheckSendTask> tasks = prepareSendTasks(now);
 
-      // Phase 2 (no DB transaction): send the emails
+      // Phase 2 (no DB transaction around the sends): send the emails
       Objects.requireNonNullElse(tasks, List.<ComcheckSendTask>of()).stream()
           .parallel()
           .forEach(
@@ -111,7 +112,7 @@ public class ComchecksExecutionJob implements Job {
                 io.openaev.executors.Injector emailExecutor =
                     this.managerFactory.getManager(task.tenantId()).requestEmailInjector();
                 Execution execution = emailExecutor.executeInjection(task.injection());
-                // Save the status sent date (repository-managed transaction)
+                // Save the status sent date
                 List<String> usersSuccessfullyNotified =
                     execution.getTraces().stream()
                         .filter(
@@ -127,10 +128,15 @@ public class ComchecksExecutionJob implements Job {
                                     comcheckStatus.getUser().getId()))
                         .toList();
                 if (!statusToUpdate.isEmpty()) {
-                  comcheckStatusRepository.saveAll(
-                      statusToUpdate.stream()
-                          .peek(comcheckStatus -> comcheckStatus.setLastSent(now))
-                          .toList());
+                  // A status carries no tenant: written in its simulation's tenant, its event
+                  // goes to the consumers of that tenant.
+                  tenantTx.execute(
+                      TxCtx.forTenant(task.tenantId()),
+                      () ->
+                          comcheckStatusRepository.saveAll(
+                              statusToUpdate.stream()
+                                  .peek(comcheckStatus -> comcheckStatus.setLastSent(now))
+                                  .toList()));
                 }
               });
     } catch (Exception e) {
@@ -140,15 +146,25 @@ public class ComchecksExecutionJob implements Job {
   }
 
   /**
-   * Expires the outdated comchecks, then builds the send tasks. The comchecks to send are gathered
-   * across tenants, with only their ids and their simulation's tenant leaving that read; each
-   * tenant's tasks are then built in a transaction scoped to that tenant, so no comcheck is ever
-   * read under another tenant's scope.
+   * Expires the outdated comchecks, then builds the send tasks. The comchecks of both steps are
+   * gathered across tenants, with only their ids and their simulation's tenant leaving that read;
+   * each tenant's comchecks are then expired, and its tasks built, in a transaction scoped to that
+   * tenant. A comcheck carries no tenant, so the tenant of that scope is the tenant its event goes
+   * to, and no comcheck is ever read under another tenant's scope.
    */
   @VisibleForTesting
   List<ComcheckSendTask> prepareSendTasks(Instant now) {
+    // 01. Expire the outdated comchecks.
+    tenantTx
+        .execute(
+            TxCtx.allTenants(),
+            () -> byTenant(comcheckRepository.findComchecksToExpireWithTenant(now)))
+        .forEach((tenantId, comcheckIds) -> expireInTenant(tenantId, comcheckIds, now));
+    // 02. Gather the comchecks that have statuses to send, then build each tenant's tasks.
     Map<String, List<String>> comcheckIdsByTenant =
-        tenantTx.execute(TxCtx.allTenants(), () -> expireAndGatherComchecksToSend(now));
+        tenantTx.execute(
+            TxCtx.allTenants(),
+            () -> byTenant(comcheckStatusRepository.findComchecksToSendWithTenant()));
     List<ComcheckSendTask> tasks = new ArrayList<>();
     comcheckIdsByTenant.forEach(
         (tenantId, comcheckIds) ->
@@ -158,24 +174,40 @@ public class ComchecksExecutionJob implements Job {
     return tasks;
   }
 
-  private Map<String, List<String>> expireAndGatherComchecksToSend(Instant now) {
-    // 01. Manage expired comchecks. The table carries no tenant, and a comcheck with no simulation
-    // must expire too.
-    List<Comcheck> toExpired = comcheckRepository.thatMustBeExpired(now);
-    comcheckRepository.saveAll(
-        toExpired.stream().peek(comcheck -> comcheck.setState(EXPIRED)).toList());
-    // 02. Gather the comchecks that have statuses to send, by their simulation's tenant. A
-    // projection, not the entities: loading a simulation outside the scope fails and would stop
-    // the preparation for every tenant.
+  /**
+   * Groups comcheck ids by their simulation's tenant. A projection, not the entities: loading a
+   * simulation outside the scope fails and would stop the preparation for every tenant. A comcheck
+   * with no simulation goes with the default tenant: the API creates every comcheck in a simulation
+   * and deletes it with it, so only a row older than tenants has none, and every such row belongs
+   * to the default tenant.
+   */
+  private static Map<String, List<String>> byTenant(List<RawComcheckTenant> comchecks) {
     Map<String, List<String>> comcheckIdsByTenant = new LinkedHashMap<>();
-    comcheckStatusRepository
-        .findComchecksToSendWithTenant()
-        .forEach(
-            comcheck ->
-                comcheckIdsByTenant
-                    .computeIfAbsent(comcheck.getTenant_id(), key -> new ArrayList<>())
-                    .add(comcheck.getComcheck_id()));
+    comchecks.forEach(
+        comcheck ->
+            comcheckIdsByTenant
+                .computeIfAbsent(
+                    Objects.requireNonNullElse(comcheck.getTenant_id(), Tenant.DEFAULT_TENANT_UUID),
+                    key -> new ArrayList<>())
+                .add(comcheck.getComcheck_id()));
     return comcheckIdsByTenant;
+  }
+
+  /**
+   * Expires, in a transaction scoped to {@code tenantId}, those of {@code comcheckIds} that are
+   * running with an end date past {@code now}, read again under a lock: a comcheck a player
+   * finished, or whose end date moved, after the gather stays as it is.
+   */
+  @VisibleForTesting
+  void expireInTenant(String tenantId, List<String> comcheckIds, Instant now) {
+    tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          List<Comcheck> toExpire =
+              comcheckRepository.findRunningToExpireForUpdate(comcheckIds, now);
+          toExpire.forEach(comcheck -> comcheck.setState(EXPIRED));
+          comcheckRepository.saveAll(toExpire);
+        });
   }
 
   private List<ComcheckSendTask> buildSendTasks(String tenantId, List<String> comcheckIds) {

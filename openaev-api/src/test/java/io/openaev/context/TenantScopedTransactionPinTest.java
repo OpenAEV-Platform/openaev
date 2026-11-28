@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -253,6 +254,192 @@ class TenantScopedTransactionPinTest extends IntegrationTest {
       assertThat(inShell.get()).isEmpty();
       assertThat(inside.get()).contains(tenantB);
       assertThat(afterInnerCommit.get()).isEmpty();
+    }
+  }
+
+  /** Whether the current scope holds several tenants, and whether it holds none. */
+  private record Held(boolean several, boolean none) {
+    static Held now() {
+      return new Held(
+          TransactionTenantScope.holdsSeveralTenants(), TransactionTenantScope.holdsNoTenant());
+    }
+  }
+
+  private static final Held ONE_OR_NO_SCOPE = new Held(false, false);
+  private static final Held SEVERAL = new Held(true, false);
+  private static final Held NONE = new Held(false, true);
+
+  @Nested
+  @DisplayName("Tenants the scope holds")
+  class TenantsHeld {
+
+    @Test
+    @DisplayName(
+        "given a new transaction of one tenant inside a scope of two, should hold one tenant inside"
+            + " it and two again once the outer transaction resumes")
+    void given_newTransactionOfOneTenantInsideTwo_should_holdOneThenTwoAgain() {
+      // Arrange
+      AtomicReference<Held> outerBefore = new AtomicReference<>();
+      AtomicReference<Held> inner = new AtomicReference<>();
+      AtomicReference<Held> outerAfter = new AtomicReference<>();
+
+      // Act
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> {
+            outerBefore.set(Held.now());
+            tenantTx.executeNew(TxCtx.forTenant(tenantA), () -> inner.set(Held.now()));
+            outerAfter.set(Held.now());
+          });
+
+      // Assert
+      assertThat(outerBefore.get()).isEqualTo(SEVERAL);
+      assertThat(inner.get()).isEqualTo(ONE_OR_NO_SCOPE);
+      assertThat(outerAfter.get()).isEqualTo(SEVERAL);
+    }
+
+    @Test
+    @DisplayName(
+        "given a new transaction of two tenants inside a scope of none, should hold two inside it"
+            + " and none again once the outer transaction resumes")
+    void given_newTransactionOfTwoTenantsInsideNone_should_holdTwoThenNoneAgain() {
+      // Arrange
+      AtomicReference<Held> outerBefore = new AtomicReference<>();
+      AtomicReference<Held> inner = new AtomicReference<>();
+      AtomicReference<Held> outerAfter = new AtomicReference<>();
+
+      // Act
+      transaction(TransactionDefinition.PROPAGATION_REQUIRED)
+          .executeWithoutResult(
+              status -> {
+                // The scope a request with no tenant runs under, as the transaction aspect writes
+                // it.
+                TransactionTenantScope.write(manager, "");
+                outerBefore.set(Held.now());
+                tenantTx.executeNew(
+                    TxCtx.forTenants(List.of(tenantA, tenantB)), () -> inner.set(Held.now()));
+                outerAfter.set(Held.now());
+              });
+
+      // Assert
+      assertThat(outerBefore.get()).isEqualTo(NONE);
+      assertThat(inner.get()).isEqualTo(SEVERAL);
+      assertThat(outerAfter.get()).isEqualTo(NONE);
+    }
+
+    @Test
+    @DisplayName(
+        "given work suspended by a transaction of no scope, should hold nothing inside it and the"
+            + " outer tenants again after it")
+    void given_workSuspendedByATransactionOfNoScope_should_holdNothingInsideIt() {
+      // Arrange
+      AtomicReference<Held> inner = new AtomicReference<>();
+      AtomicReference<Held> outerAfter = new AtomicReference<>();
+
+      // Act
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> {
+            transaction(TransactionDefinition.PROPAGATION_REQUIRES_NEW)
+                .executeWithoutResult(status -> inner.set(Held.now()));
+            outerAfter.set(Held.now());
+          });
+
+      // Assert
+      assertThat(inner.get()).isEqualTo(ONE_OR_NO_SCOPE);
+      assertThat(outerAfter.get()).isEqualTo(SEVERAL);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope narrowed from two tenants to one, should hold one tenant and pin it")
+    void given_scopeNarrowedFromTwoToOne_should_holdOneAndPinIt() {
+      // Act
+      AtomicReference<Held> wide = new AtomicReference<>();
+      Optional<String> pin =
+          transaction(TransactionDefinition.PROPAGATION_REQUIRED)
+              .execute(
+                  status -> {
+                    tenantTx.setScopeOnCurrentTransaction(
+                        TxCtx.forTenants(List.of(tenantA, tenantB)));
+                    wide.set(Held.now());
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    assertThat(Held.now()).isEqualTo(ONE_OR_NO_SCOPE);
+                    return pinned();
+                  });
+
+      // Assert
+      assertThat(wide.get()).isEqualTo(SEVERAL);
+      assertThat(pin).contains(tenantA);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope widened from one tenant to two, should hold several tenants and pin none")
+    void given_scopeWidenedFromOneToTwo_should_holdSeveralAndPinNone() {
+      // Act
+      AtomicReference<Optional<String>> narrowPin = new AtomicReference<>();
+      AtomicReference<Held> wide = new AtomicReference<>();
+      Optional<String> pin =
+          transaction(TransactionDefinition.PROPAGATION_REQUIRED)
+              .execute(
+                  status -> {
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+                    narrowPin.set(pinned());
+                    tenantTx.setScopeOnCurrentTransaction(
+                        TxCtx.forTenants(List.of(tenantA, tenantB)));
+                    wide.set(Held.now());
+                    return pinned();
+                  });
+
+      // Assert
+      assertThat(narrowPin.get()).contains(tenantA);
+      assertThat(wide.get()).isEqualTo(SEVERAL);
+      assertThat(pin).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a scope of no tenant then one, should hold no tenant first and then pin the one")
+    void given_scopeOfNoTenantThenOne_should_holdNoneThenPinTheOne() {
+      // Act
+      AtomicReference<Held> empty = new AtomicReference<>();
+      AtomicReference<Held> one = new AtomicReference<>();
+      Optional<String> pin =
+          transaction(TransactionDefinition.PROPAGATION_REQUIRED)
+              .execute(
+                  status -> {
+                    // The scope a request with no tenant runs under, as the transaction aspect
+                    // writes it.
+                    TransactionTenantScope.write(manager, "");
+                    empty.set(Held.now());
+                    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantB));
+                    one.set(Held.now());
+                    return pinned();
+                  });
+
+      // Assert
+      assertThat(empty.get()).isEqualTo(NONE);
+      assertThat(one.get()).isEqualTo(ONE_OR_NO_SCOPE);
+      assertThat(pin).contains(tenantB);
+    }
+
+    @Test
+    @DisplayName(
+        "given a committed scope of two tenants, should hold nothing in the next transaction of"
+            + " the thread")
+    void given_committedScopeOfTwoTenants_should_holdNothingInTheNextTransaction() {
+      // Arrange
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenantA, tenantB)),
+          () -> assertThat(Held.now()).isEqualTo(SEVERAL));
+
+      // Act
+      Held next = transaction(TransactionDefinition.PROPAGATION_REQUIRED).execute(s -> Held.now());
+
+      // Assert
+      assertThat(Held.now()).isEqualTo(ONE_OR_NO_SCOPE);
+      assertThat(next).isEqualTo(ONE_OR_NO_SCOPE);
     }
   }
 }
