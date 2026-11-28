@@ -43,9 +43,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * the request, never from the ambient tenant: the {@code tenantId} path segment on the tracking
  * routes, the token's own tenant on the hosted routes. Each tenant holds a recipient player of a
  * team, the three step expectations of the player and of the team, a landing page that captures the
- * submitted data, and a second tracking row whose inject is to be read from its chaining
- * step. The ambient tenant of the test thread is cleared before each request and falls back to the
- * default tenant. No {@code @WithMockUser}: the token is the only authenticator.
+ * submitted data, and a second tracking row whose inject is to be read from its chaining step. The
+ * ambient tenant of the test thread is cleared before each request and falls back to the default
+ * tenant. No {@code @WithMockUser}: the token is the only authenticator.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @RecordApplicationEvents

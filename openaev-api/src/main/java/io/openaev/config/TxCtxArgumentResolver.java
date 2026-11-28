@@ -172,8 +172,8 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
    * convention for requests without an explicit tenant context (see {@link
    * io.openaev.context.TenantContext#getCurrentTenant()}, issues #6331 / #6332). Only a
    * multi-tenant caller without access to the default tenant remains genuinely ambiguous and is
-   * refused (400), since silently picking one of its tenants reads or writes the wrong one,
-   * unless the parameter resolves the caller's full allowed set ({@link
+   * refused (400), since silently picking one of its tenants reads or writes the wrong one, unless
+   * the parameter resolves the caller's full allowed set ({@link
    * RequireTenantSelector#refuseAmbiguousCaller()}).
    */
   private static Set<String> fallbackSelector(
