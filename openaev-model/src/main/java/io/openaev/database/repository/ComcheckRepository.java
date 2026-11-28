@@ -34,12 +34,13 @@ public interface ComcheckRepository
   /**
    * Among {@code ids}, the comchecks running with an end date past, locked until the end of the
    * transaction. A comcheck finished by a player's answer after the gather for expiry is left out:
-   * the lock waits for that answer to commit, then the state is read again.
+   * the lock waits for that answer to commit, then the state is read again. Ordered by id so two
+   * runners lock in the same order.
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(
       "select c from Comcheck c where c.id in :ids and c.state = 'RUNNING'"
-          + " and c.end <= :expirationDate")
+          + " and c.end <= :expirationDate order by c.id")
   List<Comcheck> findRunningToExpireForUpdate(
       @Param("ids") List<String> ids, @Param("expirationDate") Instant expirationDate);
 }

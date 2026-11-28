@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The one read across tenants behind the public comcheck route: resolving the tenant of the
  * simulation a comcheck status belongs to. The route has no tenant in its path and its caller is
- * anonymous, so its scope holds no tenant. Kept outside {@code io.openaev.api..} and {@code
+ * anonymous, so its scope holds no tenant. It lives outside {@code io.openaev.api..} and {@code
  * io.openaev.rest..} because {@code TenantScopedTransaction} is a background primitive (enforced by
  * {@code TenantBackgroundTransactionRules.NO_PRIMITIVE_ON_HTTP_PATH}), same shape as {@code
  * PhishingTrackingPublicLookupService}.
