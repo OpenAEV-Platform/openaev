@@ -6,11 +6,13 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type EsSeries } from '../../../utils/api-types';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
-const { mockDispatch, adHocSeriesMock, gridMountSpy } = vi.hoisted(() => ({
+const { mockDispatch, adHocSeriesMock, gridMountSpy, mockCan } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   adHocSeriesMock: vi.fn(),
   gridMountSpy: vi.fn(),
+  mockCan: vi.fn(() => true),
 }));
 
 vi.mock('../../../components/i18n', () => ({
@@ -37,6 +39,8 @@ vi.mock('../../../utils/hooks/useDataLoader', () => ({
     loader();
   },
 }));
+
+vi.mock('../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: mockCan }) }));
 
 vi.mock('../../../actions/assets/securityPlatform-actions', () => ({ fetchSecurityPlatforms: () => ({ type: 'fetchSecurityPlatforms' }) }));
 
@@ -158,5 +162,34 @@ describe('DefaultHomeDashboard first load (#7599)', () => {
     // Assert: the gauge defaults to hidden, the dashboard still renders
     expect(await screen.findByTestId('dashboard-grid')).toBeDefined();
     expect(gridMountSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DefaultHomeDashboard security platforms loading (#9813)', () => {
+  beforeEach(() => {
+    mockDispatch.mockClear();
+    mockCan.mockClear();
+    adHocSeriesMock.mockReset();
+    adHocSeriesMock.mockResolvedValue(probeResponse(0));
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockCan.mockReturnValue(true);
+  });
+
+  describe.each([true, false])('when the user can access security platforms: %s', (canAccess) => {
+    it('loads the security platforms only then', async () => {
+      // Arrange
+      mockCan.mockReturnValue(canAccess);
+
+      // Act
+      renderDashboard();
+      await act(async () => {});
+
+      // Assert
+      expect(mockCan).toHaveBeenCalledWith(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
+      expect(mockDispatch.mock.calls.some(([action]) => action?.type === 'fetchSecurityPlatforms')).toBe(canAccess);
+    });
   });
 });
