@@ -10,10 +10,13 @@ The Inject result page shows a detailed breakdown of your security posture again
 
 ## Overview
 
-Results are broken down into four categories:
+Results are broken down into these categories:
 
 - **Prevention**: whether your security stack blocked the Inject
 - **Detection**: whether your security stack detected the Inject
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+- **Logging**: whether your security stack recorded the Inject in its logs, even without an alert
+{%- endif %}
 - **Vulnerability**: whether CVEs (Common Vulnerabilities and Exposures) were identified
 - **Human response**: whether Teams reacted as expected
 
@@ -22,6 +25,12 @@ At the top, summary metrics show how all targets performed. On the left, a list 
 ![Inject result overview](assets/inject-result-overview.png)
 
 Switch to the **Agents** tab to see per-Agent results with Prevention and Detection status from each connected security platform.
+
+{% if feature_visible("LOGGING_EXPECTATION") %}
+For a Logging Expectation, a security platform that recorded the Inject reports **log events** instead of alerts. Each
+log event shows what matched the Inject: the **Marker** (the name of the implant process, the strongest evidence), the
+**Source IP** or the **Target IP** (weaker evidence, since a host also records its own unrelated traffic).
+{% endif %}
 
 ![Inject result overview - Agents](assets/inject-result-overview-agents.png)
 
