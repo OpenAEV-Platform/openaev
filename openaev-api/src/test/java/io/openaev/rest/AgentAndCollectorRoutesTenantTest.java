@@ -9,6 +9,7 @@ import static io.openaev.rest.expectation.ExpectationApi.TENANT_INJECTS_EXPECTAT
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -473,6 +474,28 @@ class AgentAndCollectorRoutesTenantTest extends IntegrationTest {
               get(AGENT_URI + path).accept(MediaType.TEXT_PLAIN).header(TENANT_IDS_HEADER, tenantA))
           .andExpect(status().isForbidden())
           .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("installerPaths")
+    @WithMockUser
+    @DisplayName(
+        "given a header naming a tenant where the caller lacks the right, asking for plain text,"
+            + " should answer 403 with the code as plain text")
+    void given_headerNamingATenantWithoutTheRight_should_answer403AsPlainText(String path)
+        throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, SERVICE_ACCOUNT_CAPABILITIES);
+      tenantHelper.attachCurrentUserToTenant(tenantA);
+      assertAmbientTenantIsTheDefaultOne();
+
+      // Act & Assert
+      mvc.perform(
+              get(AGENT_URI + path).accept(MediaType.TEXT_PLAIN).header(TENANT_IDS_HEADER, tenantA))
+          .andExpect(status().isForbidden())
+          .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+          .andExpect(content().string(containsString("TENANT_SCOPE_FORBIDDEN")));
     }
 
     @Test

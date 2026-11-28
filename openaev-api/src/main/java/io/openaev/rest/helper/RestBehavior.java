@@ -694,6 +694,17 @@ public class RestBehavior {
     return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
   }
 
+  // Same refusal for a client that accepts plain text only (the agent install script).
+  @ExceptionHandler(
+      value = TenantScopeForbiddenException.class,
+      produces = MediaType.TEXT_PLAIN_VALUE)
+  public ResponseEntity<String> handleTenantScopeForbiddenAsPlainText(
+      TenantScopeForbiddenException ex) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(ex.getReason());
+  }
+
   // The code the client translates: the default 403 body drops the message of a ForbiddenException.
   @ResponseStatus(HttpStatus.FORBIDDEN)
   @ExceptionHandler(MarkingAboveClearanceException.class)
