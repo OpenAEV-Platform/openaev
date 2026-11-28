@@ -2,8 +2,9 @@ package io.openaev.injectors.phishing.api;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.custom_domain.CustomDomainService;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Base;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingConfirmInput;
@@ -34,17 +35,17 @@ import org.springframework.web.bind.annotation.RestController;
  * shape so the address bar and email link read like {@code https://&lt;host&gt;/auth/&lt;token&gt;}
  * rather than exposing the word "phishing" and a duplicated tenant id. Every route is authenticated
  * solely by the opaque, globally-unique per-recipient token: the owning tenant is recovered from
- * the token and set on the legacy {@link TenantContext} before any {@code TenantBaseListener}-era
- * work runs.
+ * the token by {@link #resolveTenantAndAttributeEvents} and passed to every tenant-scoped call as
+ * an argument.
  *
- * <p>{@code TenantContext} is NOT the v2 {@link TxCtx}: none of these routes carry a {@code
- * {tenantId}} path segment, so {@code TxCtxArgumentResolver} resolves every {@code ctx} parameter
- * here to {@link TxCtx#missing()} regardless of {@link #bindTenant}, and the transaction aspect
+ * <p>None of these routes carry a {@code {tenantId}} path segment, so {@code TxCtxArgumentResolver}
+ * resolves every {@code ctx} parameter here to {@link TxCtx#missing()}, and the transaction aspect
  * locks that empty scope for the whole request. A lazy load of {@code phishing_landing_pages} (v2
  * isolation) must therefore never be touched directly from these methods: {@link #page} and {@link
  * #submit} resolve it explicitly through {@link PhishingLandingPagePublicLookupService}, scoped to
- * the one tenant {@link #bindTenant} already recovered from the token - same shape as {@code
- * domain-check} below, but narrowed to that single tenant since the token already resolved it.
+ * the one tenant {@link #resolveTenantAndAttributeEvents} already recovered from the token - same
+ * shape as {@code domain-check} below, but narrowed to that single tenant since the token already
+ * resolved it.
  *
  * <p>Registered under the {@code /api/hosted/**} prefix that {@code AppSecurityConfig} permits and
  * exempts from CSRF. The legacy {@code /api/phishing/tracking/**} endpoints remain for links in
@@ -80,7 +81,7 @@ public class HostedPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> open(
       TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
-    Optional<String> tenantId = bindTenant(token);
+    Optional<String> tenantId = resolveTenantAndAttributeEvents(token);
     if (tenantId.isEmpty()) {
       return pixelResponse();
     }
@@ -98,7 +99,7 @@ public class HostedPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
       TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
-    Optional<String> tenantId = bindTenant(token);
+    Optional<String> tenantId = resolveTenantAndAttributeEvents(token);
     if (tenantId.isEmpty()) {
       return null;
     }
@@ -135,7 +136,7 @@ public class HostedPublicApi extends RestBehavior {
       @PathVariable String token,
       @RequestBody PhishingConfirmInput input,
       HttpServletRequest request) {
-    Optional<String> tenantId = bindTenant(token);
+    Optional<String> tenantId = resolveTenantAndAttributeEvents(token);
     if (tenantId.isPresent()) {
       TxCtx resolved = TxCtx.forTenant(tenantId.get());
       String ip = clientIp(request);
@@ -158,7 +159,7 @@ public class HostedPublicApi extends RestBehavior {
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
       HttpServletRequest request) {
-    Optional<String> tenantId = bindTenant(token);
+    Optional<String> tenantId = resolveTenantAndAttributeEvents(token);
     if (tenantId.isEmpty()) {
       return Collections.singletonMap("redirect_url", null);
     }
@@ -197,18 +198,13 @@ public class HostedPublicApi extends RestBehavior {
   }
 
   /**
-   * Resolves the token's owning tenant and sets it on the legacy {@link TenantContext}: some of the
-   * tables the tracking transitions still touch through {@code PhishingTrackingService}
-   * (expectations, findings) are not tenant-active yet and still read that thread-local. The tables
-   * that ARE tenant-active ({@code phishing_results}, {@code phishing_landing_pages}) get their own
-   * scope from the resolved id instead, since {@code TenantContext} does not reach the v2 {@code
-   * app.current_tenants} scope: {@code phishing_results} through the {@link TxCtx} passed
-   * explicitly to the tracking calls, {@code phishing_landing_pages} through {@link
-   * PhishingLandingPagePublicLookupService}.
+   * Resolves the token's owning tenant. The tracking calls take it as an explicit {@link TxCtx},
+   * the landing page lookup as an argument, and the change events of the request are attributed to
+   * it: the request names no tenant, and an expectation the tracking flips carries none of its own.
    */
-  private Optional<String> bindTenant(final String token) {
+  private Optional<String> resolveTenantAndAttributeEvents(final String token) {
     Optional<String> tenantId = phishingTrackingService.resolveTenantIdByToken(token);
-    tenantId.ifPresent(TenantContext::setCurrentTenant);
+    tenantId.ifPresent(id -> BaseEvent.attributeRequestEventsTo(id, Base.class));
     return tenantId;
   }
 

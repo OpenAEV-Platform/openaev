@@ -19,4 +19,13 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-public @interface RequireTenantSelector {}
+public @interface RequireTenantSelector {
+
+  /**
+   * Whether the multi-tenant caller without access to the default tenant is refused (400) when the
+   * argument resolves. {@code false} resolves that caller to its full allowed set instead, for an
+   * endpoint that answers some requests without reading a tenant (a poll that is empty while its
+   * feature is off): the endpoint then refuses the caller itself where it needs one tenant.
+   */
+  boolean refuseAmbiguousCaller() default true;
+}

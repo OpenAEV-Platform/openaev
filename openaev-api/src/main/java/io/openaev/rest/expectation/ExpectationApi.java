@@ -3,10 +3,11 @@ package io.openaev.rest.expectation;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutput;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -86,9 +87,9 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsNotFilledAndNotExpired(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = requireOneTenantOfScope(ctx);
     if (expirationTime == null) {
       return toOutputs(
           Stream.of(
@@ -122,8 +123,8 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsNotFilledForSource(
-      TxCtx ctx, @PathVariable String sourceId) {
-    String tenantId = TenantContext.getCurrentTenant();
+      @RequireTenantSelector TxCtx ctx, @PathVariable String sourceId) {
+    String tenantId = requireOneTenantOfScope(ctx);
     return toOutputs(
         Stream.concat(
                 injectExpectationService.manualExpectationsNotFill(tenantId, sourceId).stream(),
@@ -148,10 +149,10 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = requireOneTenantOfScope(ctx);
     if (expirationTime == null) {
       return toOutputs(
           Stream.concat(
@@ -181,8 +182,9 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilled(TxCtx ctx) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilled(
+      @RequireTenantSelector TxCtx ctx) {
+    String tenantId = requireOneTenantOfScope(ctx);
     return toOutputs(
         injectExpectationService.preventionExpectationsNotFill(tenantId).stream().toList());
   }
@@ -198,8 +200,8 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilledForSource(
-      TxCtx ctx, @PathVariable String sourceId) {
-    String tenantId = TenantContext.getCurrentTenant();
+      @RequireTenantSelector TxCtx ctx, @PathVariable String sourceId) {
+    String tenantId = requireOneTenantOfScope(ctx);
     List<InjectExpectationOutput> results =
         toOutputs(
             injectExpectationService.preventionExpectationsNotFill(tenantId, sourceId).stream()
@@ -218,8 +220,9 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilled(TxCtx ctx) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilled(
+      @RequireTenantSelector TxCtx ctx) {
+    String tenantId = requireOneTenantOfScope(ctx);
     return toOutputs(
         injectExpectationService.detectionExpectationsNotFill(tenantId).stream().toList());
   }
@@ -235,8 +238,8 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilledForSource(
-      TxCtx ctx, @PathVariable String sourceId) {
-    String tenantId = TenantContext.getCurrentTenant();
+      @RequireTenantSelector TxCtx ctx, @PathVariable String sourceId) {
+    String tenantId = requireOneTenantOfScope(ctx);
     List<InjectExpectationOutput> results =
         toOutputs(
             injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream()
@@ -262,13 +265,14 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectLoggingExpectationsNotFilledForSource(
-      TxCtx ctx, @PathVariable String sourceId) {
-    // An empty list, not an error, while the flag is off: collectors poll this route
-    // unconditionally and must simply find nothing to answer.
+      @RequireTenantSelector(refuseAmbiguousCaller = false) TxCtx ctx,
+      @PathVariable String sourceId) {
+    // An empty list, not an error, while the flag is off, whatever the scope: collectors poll this
+    // route unconditionally and must simply find nothing to answer.
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
       return List.of();
     }
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = requireOneTenantOfScope(ctx);
     return toOutputs(injectExpectationService.loggingExpectationsNotFill(tenantId, sourceId));
   }
 
@@ -286,8 +290,8 @@ public class ExpectationApi extends RestBehavior {
   // expected-security-platforms guard reads collectors natively, and without a scope the guard is
   // fail-closed empty, silently dropping every platform-restricted expectation (#7014).
   public List<InjectExpectationOutput> getAiDefenseExpectationsNotFilledForSource(
-      TxCtx ctx, @PathVariable String sourceId) {
-    String tenantId = TenantContext.getCurrentTenant();
+      @RequireTenantSelector TxCtx ctx, @PathVariable String sourceId) {
+    String tenantId = requireOneTenantOfScope(ctx);
     return toOutputs(injectExpectationService.aiDefenseExpectationsNotFill(tenantId, sourceId));
   }
 

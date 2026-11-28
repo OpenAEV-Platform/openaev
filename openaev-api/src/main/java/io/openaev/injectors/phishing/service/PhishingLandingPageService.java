@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContractOutputType;
@@ -357,7 +356,7 @@ public class PhishingLandingPageService {
    */
   public InjectorContract synchroniseInjectorContract(
       @NotNull final PhishingLandingPage landingPage) {
-    String tenantId = resolveTenantId(landingPage);
+    String tenantId = landingPage.getTenant().getId();
     List<Injector> injectors =
         injectorRepository.findByPhishingContractTypeByTenantId(PhishingContract.TYPE, tenantId);
     if (injectors.isEmpty()) {
@@ -431,7 +430,7 @@ public class PhishingLandingPageService {
   }
 
   public void deleteInjectorContract(@NotNull final PhishingLandingPage landingPage) {
-    String tenantId = resolveTenantId(landingPage);
+    String tenantId = landingPage.getTenant().getId();
     InjectorContractId contractId = new InjectorContractId(landingPage.getId(), tenantId);
     if (injectorContractRepository.existsById(contractId)) {
       // The injects FK on injectors_contracts is ON DELETE CASCADE: deleting the landing page's
@@ -451,12 +450,6 @@ public class PhishingLandingPageService {
       chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
           List.of(landingPage.getId()), tenantId);
     }
-  }
-
-  private String resolveTenantId(final PhishingLandingPage landingPage) {
-    return landingPage.getTenant() != null
-        ? landingPage.getTenant().getId()
-        : TenantContext.getCurrentTenant();
   }
 
   private Contract buildContract(final PhishingLandingPage landingPage) {

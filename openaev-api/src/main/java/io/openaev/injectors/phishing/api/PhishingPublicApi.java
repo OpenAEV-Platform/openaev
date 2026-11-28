@@ -1,8 +1,9 @@
 package io.openaev.injectors.phishing.api;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Base;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
@@ -30,9 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
  * Public, unauthenticated tracking endpoints hit by the victim's browser. Every route is
  * authenticated solely by the opaque, unguessable per-recipient token (never RBAC, never an
  * exercise player session), so it is registered under the {@code /api/phishing/tracking/**} prefix
- * that {@code AppSecurityConfig} permits. The {@code tenantId} path variable is named so the {@code
- * TenantInterceptor} sets the tenant automatically; it is also set explicitly here as defense in
- * depth.
+ * that {@code AppSecurityConfig} permits. The {@code tenantId} path variable names the tenant of
+ * the tracking row: the {@link TxCtx} of an anonymous request is that tenant alone, so a token of
+ * another tenant resolves no row.
  */
 @RestController
 @RequiredArgsConstructor
@@ -54,7 +55,7 @@ public class PhishingPublicApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable String token,
       HttpServletRequest request) {
-    TenantContext.setCurrentTenant(tenantId);
+    attributeEventsToTheTenantOfTheRow(tenantId);
     phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
     return ResponseEntity.ok()
         .contentType(MediaType.IMAGE_GIF)
@@ -70,7 +71,7 @@ public class PhishingPublicApi extends RestBehavior {
       @PathVariable String tenantId,
       @PathVariable String token,
       HttpServletRequest request) {
-    TenantContext.setCurrentTenant(tenantId);
+    attributeEventsToTheTenantOfTheRow(tenantId);
     phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
     // Hand off to the themed public SPA renderer, which fetches the page content and posts creds.
     return ResponseEntity.status(HttpStatus.FOUND)
@@ -83,7 +84,7 @@ public class PhishingPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
       TxCtx ctx, @PathVariable String tenantId, @PathVariable String token) {
-    TenantContext.setCurrentTenant(tenantId);
+    attributeEventsToTheTenantOfTheRow(tenantId);
     PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
       return null;
@@ -103,7 +104,7 @@ public class PhishingPublicApi extends RestBehavior {
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
       HttpServletRequest request) {
-    TenantContext.setCurrentTenant(tenantId);
+    attributeEventsToTheTenantOfTheRow(tenantId);
     Optional<PhishingResult> result =
         phishingTrackingService.markSubmitted(
             token, submittedFields(input), clientIp(request), request.getHeader("User-Agent"));
@@ -141,6 +142,14 @@ public class PhishingPublicApi extends RestBehavior {
       fields.putIfAbsent("password", input.getPassword());
     }
     return fields;
+  }
+
+  /**
+   * Attributes the change events of the request to the path tenant. The request reads rows of that
+   * tenant only, and an expectation the tracking flips carries no tenant of its own.
+   */
+  private static void attributeEventsToTheTenantOfTheRow(String tenantId) {
+    BaseEvent.attributeRequestEventsTo(tenantId, Base.class);
   }
 
   /** Best-effort client IP, honoring a single X-Forwarded-For hop. */

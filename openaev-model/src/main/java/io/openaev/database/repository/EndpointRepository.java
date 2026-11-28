@@ -228,4 +228,6 @@ public interface EndpointRepository
   List<Endpoint> findDistinctByInjectsExerciseIdAndIdIn(String exerciseId, List<String> ids);
 
   Optional<Endpoint> findByIdAndTenantId(String id, String tenantId);
+
+  Optional<Endpoint> findByIdAndTenantIdIn(String id, Collection<String> tenantIds);
 }

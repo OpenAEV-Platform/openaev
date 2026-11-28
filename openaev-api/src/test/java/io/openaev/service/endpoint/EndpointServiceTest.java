@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Agent;
@@ -32,6 +33,7 @@ import io.openaev.utils.mapper.EndpointMapper;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -406,7 +408,8 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint existing = new Endpoint();
       existing.setId("ep-1");
-      when(endpointRepository.findByIdAndTenantId("ep-1", "tenant1"))
+      existing.setTenant(new Tenant("tenant1"));
+      when(endpointRepository.findByIdAndTenantIdIn("ep-1", Set.of("tenant1")))
           .thenReturn(Optional.of(existing));
 
       EndpointInput input = new EndpointInput();
@@ -421,12 +424,48 @@ class EndpointServiceTest {
           .thenReturn(Collections.emptyList());
 
       // -------- Act --------
-      Endpoint result = endpointService.buildUpdatedEndpoint("ep-1", input, "tenant1");
+      Endpoint result =
+          endpointService.buildUpdatedEndpoint(TxCtx.forTenant("tenant1"), "ep-1", input);
 
       // -------- Assert --------
       assertNotNull(result);
       assertFalse(result.isEoL());
       assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
+    }
+  }
+
+  @Nested
+  @DisplayName("Endpoint of the request scope")
+  class EndpointInScope {
+
+    @Test
+    @DisplayName("given a scope of two tenants should look the endpoint up in those tenants")
+    void given_scopeOfTwoTenants_should_lookTheEndpointUpInThoseTenants() {
+      // Arrange
+      Endpoint existing = new Endpoint();
+      existing.setId("ep-1");
+      when(endpointRepository.findByIdAndTenantIdIn("ep-1", Set.of("tenant-a", "tenant-b")))
+          .thenReturn(Optional.of(existing));
+
+      // Act
+      Endpoint result =
+          endpointService.endpointInScope(TxCtx.forTenants(Set.of("tenant-a", "tenant-b")), "ep-1");
+
+      // Assert
+      assertThat(result).isSameAs(existing);
+    }
+
+    @Test
+    @DisplayName("given an endpoint outside the scope should answer not found")
+    void given_endpointOutsideTheScope_should_answerNotFound() {
+      // Arrange
+      when(endpointRepository.findByIdAndTenantIdIn("ep-1", Set.of("tenant-a")))
+          .thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> endpointService.endpointInScope(TxCtx.forTenant("tenant-a"), "ep-1"));
     }
   }
 

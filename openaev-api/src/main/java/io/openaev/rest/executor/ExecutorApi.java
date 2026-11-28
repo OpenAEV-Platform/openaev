@@ -3,12 +3,12 @@ package io.openaev.rest.executor;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.service.EndpointService.SERVICE;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
+import static io.openaev.utils.TxCtxScopeUtils.requireOneTenantOfScope;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
@@ -461,7 +461,7 @@ public class ExecutorApi extends RestBehavior {
       })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
@@ -489,10 +489,8 @@ public class ExecutorApi extends RestBehavior {
           "Invalid installation directory or service name");
     }
 
-    // FIND TOKEN BY TENANT
-    String token =
-        agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
-            TenantContext.getCurrentTenant());
+    String tenantId = requireOneTenantOfScope(ctx);
+    String token = agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(tenantId);
 
     String installCommand =
         this.endpointService.generateInstallCommand(
@@ -501,7 +499,7 @@ public class ExecutorApi extends RestBehavior {
             resolvedInstallationMode,
             installationDir,
             serviceName,
-            TenantContext.getCurrentTenant());
+            tenantId);
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 
@@ -522,11 +520,12 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/installer/openaev/token"
       })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
-  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
+  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(
+      @RequireTenantSelector TxCtx ctx) {
     try {
       String token =
           agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
-              TenantContext.getCurrentTenant());
+              requireOneTenantOfScope(ctx));
       return ResponseEntity.ok()
           .contentType(MediaType.TEXT_PLAIN)
           .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")

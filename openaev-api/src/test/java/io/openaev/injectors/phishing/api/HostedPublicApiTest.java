@@ -142,12 +142,8 @@ class HostedPublicApiTest extends IntegrationTest {
    * through {@code PhishingLandingPagePublicLookupService}, scoped to the one tenant the token
    * already resolved.
    *
-   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}, not a freshly created tenant: the ambient
-   * {@code TenantContext} is read on transaction entry, i.e. BEFORE {@link
-   * HostedPublicApi#bindTenant} runs inside the method body - a separate, pre-existing gap that
-   * fails every {@code resolveAndBackfillByToken} lookup for a non-default tenant regardless of the
-   * fix under test here (see the report). The default tenant sidesteps it: {@code
-   * TenantContext#getCurrentTenant()} already falls back to it, so the early read matches.
+   * <p>Seeded under {@link Tenant#DEFAULT_TENANT_UUID}: {@code PhishingTrackingRoutesTenantTest}
+   * covers a token of another tenant on the same routes.
    */
   @Nested
   @DisplayName("GET /api/hosted/page/{token}")

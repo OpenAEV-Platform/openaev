@@ -45,6 +45,7 @@ import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -105,6 +106,8 @@ public class RestBehavior {
   }
 
   // -- 400 BAD_REQUEST --
+
+  private static final String TENANT_ACCESS_DENIED = "TENANT_ACCESS_DENIED";
 
   private static final int MAX_REJECTED_VALUE_LENGTH = 100;
   private static final int MAX_UNREADABLE_DETAIL_LENGTH = 300;
@@ -566,7 +569,7 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleTenantSelectorRequiredException(
       TenantSelectorRequiredException ex) {
     return new ResponseEntity<>(
-        new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
+        new ErrorMessage(TenantSelectorRequiredException.CODE), HttpStatus.BAD_REQUEST);
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -576,6 +579,19 @@ public class RestBehavior {
     log.debug("TenantSingleScopeRequiredException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(
         new ErrorMessage(TenantSingleScopeRequiredException.CODE), HttpStatus.BAD_REQUEST);
+  }
+
+  // A client that accepts plain text only (the agent install script) cannot read the JSON body of
+  // the two handlers above: it gets the same status with the code as its body.
+  @ExceptionHandler(
+      value = {TenantSelectorRequiredException.class, TenantSingleScopeRequiredException.class},
+      produces = MediaType.TEXT_PLAIN_VALUE)
+  public ResponseEntity<String> handleTenantSelectionAsPlainText(RuntimeException ex) {
+    String code =
+        ex instanceof TenantSingleScopeRequiredException
+            ? TenantSingleScopeRequiredException.CODE
+            : TenantSelectorRequiredException.CODE;
+    return ResponseEntity.badRequest().contentType(MediaType.TEXT_PLAIN).body(code);
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -646,13 +662,29 @@ public class RestBehavior {
       })
   public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
       TenantAccessDeniedException ex) {
+    logTenantAccessDenied(ex);
+    return new ResponseEntity<>(new ErrorMessage(TENANT_ACCESS_DENIED), HttpStatus.FORBIDDEN);
+  }
+
+  // Same refusal for a client that accepts plain text only (the agent install script).
+  @ExceptionHandler(
+      value = TenantAccessDeniedException.class,
+      produces = MediaType.TEXT_PLAIN_VALUE)
+  public ResponseEntity<String> handleTenantAccessDeniedAsPlainText(
+      TenantAccessDeniedException ex) {
+    logTenantAccessDenied(ex);
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(TENANT_ACCESS_DENIED);
+  }
+
+  private void logTenantAccessDenied(TenantAccessDeniedException ex) {
     log.warn(
         "TENANT_ACCESS_DENIED: {} (user={}, {} {})",
         ex.getMessage(),
         currentUser().getId(),
         requestMethod(),
         requestUri());
-    return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
   }
 
   @ResponseStatus(HttpStatus.FORBIDDEN)
@@ -660,6 +692,17 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleTenantScopeForbiddenException(
       TenantScopeForbiddenException ex) {
     return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
+  }
+
+  // Same refusal for a client that accepts plain text only (the agent install script).
+  @ExceptionHandler(
+      value = TenantScopeForbiddenException.class,
+      produces = MediaType.TEXT_PLAIN_VALUE)
+  public ResponseEntity<String> handleTenantScopeForbiddenAsPlainText(
+      TenantScopeForbiddenException ex) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(ex.getReason());
   }
 
   // The code the client translates: the default 403 body drops the message of a ForbiddenException.

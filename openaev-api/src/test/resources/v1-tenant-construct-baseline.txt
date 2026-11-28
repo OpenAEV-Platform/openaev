@@ -56,31 +56,12 @@ io.openaev.importer.V1_DataImporter#rewriteImportedTeamIds | TenantContext.getCu
 io.openaev.importer.V1_DataImporter#rewriteInjectInjector | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
 io.openaev.importer.V1_DataImporter#shouldResolveContractFromStepData | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
 io.openaev.importer.V1_DataImporter#upsertDomainFromNode | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
-io.openaev.injectors.phishing.api.HostedPublicApi#bindTenant | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
-io.openaev.injectors.phishing.api.PhishingPublicApi#click | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
-io.openaev.injectors.phishing.api.PhishingPublicApi#open | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
-io.openaev.injectors.phishing.api.PhishingPublicApi#page | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
-io.openaev.injectors.phishing.api.PhishingPublicApi#submit | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
-io.openaev.injectors.phishing.service.PhishingLandingPageService#resolveTenantId | TenantContext.getCurrentTenant | 1 | tenant resolution falls back to the ambient tenant when the landing page has none
 io.openaev.jsonapi.GenericJsonApiImporter#handleImportEntity | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.processor.MigrationProcessor#init | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.rest.asset.endpoint.EndpointApi#endpoint | TenantContext.getCurrentTenant | 1 | access-controlled route loads the endpoint with the ambient tenant of the request
-io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint | TenantContext.getCurrentTenant | 1 | access-controlled route updates the endpoint with the ambient tenant of the request
 io.openaev.rest.document.DocumentApi#updateDocumentInformation | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.rest.document.DocumentApi#uploadDocument | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.rest.document.DocumentService#upsert | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.rest.executor.ExecutorApi#getOpenAevAgentInstaller | TenantContext.getCurrentTenant | 2 | access-controlled route looks up the service account token and builds the install command with the ambient tenant
-io.openaev.rest.executor.ExecutorApi#getOpenAevAgentInstallerToken | TenantContext.getCurrentTenant | 1 | access-controlled route looks up the agent service account token with the ambient tenant
 io.openaev.rest.exercise.service.ExerciseService#exercise | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
-io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the AI defense expectation query with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectDetectionExpectationsNotFilled | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the detection expectation query with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectDetectionExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the detection expectation query by source with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsAssetsNotFilledAndNotExpiredForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the asset expectation queries by source with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsNotFilledAndNotExpired | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the pending expectation queries with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the pending expectation queries by source with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectLoggingExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the logging expectation query by source with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilled | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query with the ambient tenant
-io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query by source with the ambient tenant
 io.openaev.rest.inject.SimulationInjectApi#executeInject | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.rest.reporting.service.PlaywrightReportingRenderer#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.rest.reporting.service.PlaywrightReportingRenderer#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
