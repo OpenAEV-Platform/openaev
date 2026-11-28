@@ -1,0 +1,76 @@
+name: "[Core] Validate the injector catalog"
+
+# The platform lets an operator set, on a catalog-deployed injector, only the keys of its
+# catalog entry (config_schema.properties of catalog-integrators.json). A setting an
+# injector gains in OpenAEV-Platform/injectors without its catalog entry is refused with
+# "not a valid key for this integration" on every catalog deployment, while every test
+# stays green (#9889 for nuclei, #9974 for nmap). This check reads every injector of
+# OpenAEV-Platform/injectors main and fails on a declared setting the catalog lacks, or an
+# injector without a catalog entry. It runs on every catalog change, and daily, since the
+# drift usually arrives from the injectors repository.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'openaev-api/src/main/resources/catalog/catalog-integrators.json'
+      - '.github/scripts/check-catalog-injectors.py'
+      - '.github/workflows/validate-catalog-injectors.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'openaev-api/src/main/resources/catalog/catalog-integrators.json'
+      - '.github/scripts/check-catalog-injectors.py'
+      - '.github/workflows/validate-catalog-injectors.yml'
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-catalog-injectors:
+    name: "Compare the catalog with the injectors' settings"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check out the injectors
+        uses: actions/checkout@v7
+        with:
+          repository: OpenAEV-Platform/injectors
+          ref: main
+          path: .injectors
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+
+      - name: Every injector setting has its catalog key
+        run: python3 .github/scripts/check-catalog-injectors.py --injectors .injectors
+
+      - name: Prove the check can still fail
+        # A check nobody has seen fail is not a check. This removes one injector key from a
+        # throwaway copy of the catalog (the #9974 drift) and expects a non-zero exit.
+        run: |
+          set -euo pipefail
+          WORK=$(mktemp -d)
+          python3 - "$WORK/catalog.json" <<'EOF'
+          import json, sys
+          path = "openaev-api/src/main/resources/catalog/catalog-integrators.json"
+          catalog = json.load(open(path, encoding="utf-8"))
+          entry = next(c for c in catalog["contracts"] if c.get("slug") == "openaev_nmap")
+          del entry["config_schema"]["properties"]["NMAP_SCAN_TIMEOUT"]
+          json.dump(catalog, open(sys.argv[1], "w", encoding="utf-8"))
+          EOF
+          if python3 .github/scripts/check-catalog-injectors.py --injectors .injectors --catalog "$WORK/catalog.json"; then
+            echo "The catalog check passed a catalog missing NMAP_SCAN_TIMEOUT."
+            exit 1
+          fi
+          echo "The catalog check rejects a catalog entry missing an injector setting."
