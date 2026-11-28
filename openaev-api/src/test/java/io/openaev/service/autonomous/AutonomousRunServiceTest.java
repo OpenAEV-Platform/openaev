@@ -25,7 +25,6 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
@@ -56,7 +55,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -102,7 +100,6 @@ class AutonomousRunServiceTest {
   @Mock private OpenAEVConfig openAEVConfig;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TenantScopedTransaction tenantTx;
-  @Mock private AmbientTenantBridge ambientTenantBridge;
   // Only exercised by resolveLaunchedBy(), reached from the restart() tests below.
   @Mock private UserRepository userRepository;
 
@@ -117,10 +114,6 @@ class AutonomousRunServiceTest {
   void stubTenantWriteScope() {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
     lenient().when(scenarioService.scenarioTenantWithin(any(), any())).thenReturn("tenant-1");
-    // The ambient tenant switch is not under test: run the work as given.
-    lenient()
-        .when(ambientTenantBridge.callInTenant(any(), any()))
-        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
     // resolveLaunchedBy() reads the live caller via SessionHelper.currentUser() - not every test
     // reaches it (only restart(), via stubRestartCollaborators()), so both stubs are lenient.
     DefaultOpenAEVPrincipal principal =
@@ -586,7 +579,7 @@ class AutonomousRunServiceTest {
 
     service.enforceDeadline("run-1", "tenant-1");
 
-    verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
+    verify(exerciseService).changeExerciseStatus(TX, ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
         .appendTerminalStatusOnce(
             eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run timed out"), anyString());
@@ -651,7 +644,7 @@ class AutonomousRunServiceTest {
     service.enforceLiveness("run-1", "tenant-1");
 
     // Torn down like an operator Stop, and the end is narrated once with the distinct stall title.
-    verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
+    verify(exerciseService).changeExerciseStatus(TX, ExerciseStatus.CANCELED, "sim-1");
     verify(eventService)
         .appendTerminalStatusOnce(
             eq("run-1"), eq("tenant-1"), eq("sim-1"), eq("Run stalled"), anyString());
@@ -776,7 +769,7 @@ class AutonomousRunServiceTest {
 
     service.enforceLiveness("run-1", "tenant-1");
 
-    verify(exerciseService, never()).changeExerciseStatus(any(), anyString());
+    verify(exerciseService, never()).changeExerciseStatus(any(TxCtx.class), any(), anyString());
     verify(eventService, never())
         .appendTerminalStatusOnce(anyString(), anyString(), anyString(), anyString(), anyString());
   }

@@ -1,6 +1,5 @@
 package io.openaev.service.autonomous;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -55,42 +54,34 @@ public class AutonomousTimeoutService {
     Instant threshold = Instant.now().plusSeconds(AutonomousRunService.WINDDOWN_5M_SECONDS);
     tenantTx.forEachTenant(
         tenantId -> {
-          // forEachTenant sets the v2 GUC scope. The ambient tenant is set too, for two reasons:
-          // TenantBaseListener, which injects carry, stamps a row written with no tenant from it,
-          // and some reads are keyed by TenantContext explicitly (ExerciseService#exercise).
-          TenantContext.setCurrentTenant(tenantId);
-          try {
-            List<String> dueRunIds = runRepository.findRunIdsDueForTimeout(tenantId, threshold);
-            for (String runId : dueRunIds) {
-              try {
-                // REQUIRES_NEW isolates each run: one bad run rolls back alone and never poisons
-                // the tenant's outer sweep transaction or its siblings (see TenantScopedTransaction
-                // poisoning rule).
-                tenantTx.executeNew(
-                    TxCtx.forTenant(tenantId),
-                    () -> autonomousRunService.enforceDeadline(runId, tenantId));
-              } catch (RuntimeException e) {
-                log.warn("[Autonomous] Timeout enforcement failed for run {}", runId, e);
-              }
+          List<String> dueRunIds = runRepository.findRunIdsDueForTimeout(tenantId, threshold);
+          for (String runId : dueRunIds) {
+            try {
+              // REQUIRES_NEW isolates each run: one bad run rolls back alone and never poisons
+              // the tenant's outer sweep transaction or its siblings (see TenantScopedTransaction
+              // poisoning rule).
+              tenantTx.executeNew(
+                  TxCtx.forTenant(tenantId),
+                  () -> autonomousRunService.enforceDeadline(runId, tenantId));
+            } catch (RuntimeException e) {
+              log.warn("[Autonomous] Timeout enforcement failed for run {}", runId, e);
             }
-            // Independently of the 24h deadline, settle runs that have gone SILENT: a live run
-            // whose
-            // orchestrator crashed, disconnected, or cannot authenticate stops posting timeline
-            // heartbeats but never reaches its deadline, so without this it shows a frozen cockpit
-            // for up to 24h. enforceLiveness exempts a genuine await_finding park (a step result is
-            // still pending) and WAITING_INPUT / plan runs (excluded by the query).
-            List<String> liveRunIds = runRepository.findLiveRunIdsForStallCheck(tenantId);
-            for (String runId : liveRunIds) {
-              try {
-                tenantTx.executeNew(
-                    TxCtx.forTenant(tenantId),
-                    () -> autonomousRunService.enforceLiveness(runId, tenantId));
-              } catch (RuntimeException e) {
-                log.warn("[Autonomous] Stall enforcement failed for run {}", runId, e);
-              }
+          }
+          // Independently of the 24h deadline, settle runs that have gone SILENT: a live run
+          // whose
+          // orchestrator crashed, disconnected, or cannot authenticate stops posting timeline
+          // heartbeats but never reaches its deadline, so without this it shows a frozen cockpit
+          // for up to 24h. enforceLiveness exempts a genuine await_finding park (a step result is
+          // still pending) and WAITING_INPUT / plan runs (excluded by the query).
+          List<String> liveRunIds = runRepository.findLiveRunIdsForStallCheck(tenantId);
+          for (String runId : liveRunIds) {
+            try {
+              tenantTx.executeNew(
+                  TxCtx.forTenant(tenantId),
+                  () -> autonomousRunService.enforceLiveness(runId, tenantId));
+            } catch (RuntimeException e) {
+              log.warn("[Autonomous] Stall enforcement failed for run {}", runId, e);
             }
-          } finally {
-            TenantContext.clearCurrentTenant();
           }
         });
   }

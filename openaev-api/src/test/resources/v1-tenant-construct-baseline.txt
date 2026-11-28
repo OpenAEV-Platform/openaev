@@ -80,26 +80,6 @@ io.openaev.search.FullTextSearchService#searchSpecification | TenantContext.getC
 io.openaev.service.LogService#buildBaseAuditLog | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.PermissionService#checkedResource | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
 io.openaev.service.PermissionService#inTenant | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
-io.openaev.service.autonomous.AutonomousRunService#create | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#probeSimulationStatus | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
-io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
-io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
-io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
-io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
 io.openaev.service.catalog.event.CatalogAutoInstallListener#onReleaseApplied | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
 io.openaev.service.connector_instances.ConnectorInstanceService#getConnectorInstancesInMemoryByConnectorType | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
 io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes

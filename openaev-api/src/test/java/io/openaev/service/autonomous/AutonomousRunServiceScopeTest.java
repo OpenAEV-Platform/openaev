@@ -256,44 +256,58 @@ class AutonomousRunServiceScopeTest {
   }
 
   @Test
-  @DisplayName("Projections run under the run's v1 tenant scope, cleared again afterwards")
-  void given_theLegacyCallbackRoute_when_settingScope_then_projectionsRunUnderTheRunTenant() {
-    // The legacy non-prefixed orchestrator route never sets the v1 TenantContext, so the
-    // v1-filtered projection reads would otherwise fall back to the default tenant and silently
-    // match nothing for a run owned by another tenant. Clear the context the auto-registered
-    // DefaultTenantExtension seeds for every test to reproduce that route's no-tenant thread.
+  @DisplayName(
+      "The projections take the run's tenant as their scope, the thread's tenant untouched")
+  void given_aThreadWithNoTenant_should_scopeTheProjectionsToTheRunTenant() {
+    // Arrange
     TenantContext.clearCurrentTenant();
-    List<String> seenTenants = new ArrayList<>();
+    List<Boolean> ambientSetDuringProjections = new ArrayList<>();
     doAnswer(
             inv -> {
-              seenTenants.add(TenantContext.getCurrentTenant());
+              ambientSetDuringProjections.add(TenantContext.hasCurrentTenant());
+              return null;
+            })
+        .when(workflowService)
+        .writeAllowlistScopeIsolated(
+            ctxCaptor.capture(), anyString(), anyString(), anyList(), anyBoolean());
+    doAnswer(
+            inv -> {
+              ambientSetDuringProjections.add(TenantContext.hasCurrentTenant());
+              return null;
+            })
+        .when(exerciseService)
+        .enableTargetedTeamMembersIsolated(ctxCaptor.capture(), anyString(), anyList());
+
+    // Act
+    runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
+
+    // Assert
+    assertThat(ctxCaptor.getAllValues())
+        .containsExactly(TxCtx.forTenant("tenant-1"), TxCtx.forTenant("tenant-1"));
+    assertThat(ambientSetDuringProjections).containsExactly(false, false);
+    assertThat(TenantContext.hasCurrentTenant()).isFalse();
+  }
+
+  @Test
+  @DisplayName("A caller tenant on the thread is left as it is")
+  void given_aCallerTenantOnTheThread_should_leaveItUntouched() {
+    // Arrange
+    TenantContext.setCurrentTenant("caller-tenant");
+    List<String> ambientDuringMirror = new ArrayList<>();
+    doAnswer(
+            inv -> {
+              ambientDuringMirror.add(TenantContext.getCurrentTenant());
               return null;
             })
         .when(workflowService)
         .writeAllowlistScopeIsolated(
             any(TxCtx.class), anyString(), anyString(), anyList(), anyBoolean());
-    doAnswer(
-            inv -> {
-              seenTenants.add(TenantContext.getCurrentTenant());
-              return null;
-            })
-        .when(exerciseService)
-        .enableTargetedTeamMembersIsolated(any(), anyString(), anyList());
 
+    // Act
     runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
 
-    assertThat(seenTenants).containsExactly("tenant-1", "tenant-1");
-    // The thread carried no tenant before the callback - it must not keep one after it.
-    assertThat(TenantContext.hasCurrentTenant()).isFalse();
-  }
-
-  @Test
-  @DisplayName("The operator route's caller tenant is restored after the projections")
-  void given_aCallerTenantOnTheThread_when_settingScope_then_itIsRestored() {
-    TenantContext.setCurrentTenant("caller-tenant");
-
-    runService.setRunScope(RUN_ID, List.of(new AutonomousScopeTarget("TEAMS", "team-1")));
-
+    // Assert
+    assertThat(ambientDuringMirror).containsExactly("caller-tenant");
     assertThat(TenantContext.getCurrentTenant()).isEqualTo("caller-tenant");
   }
 
@@ -313,75 +327,70 @@ class AutonomousRunServiceScopeTest {
   }
 
   @Test
-  @DisplayName("The PRIMARY step author runs under the run's v1 tenant, cleared again afterwards")
-  void given_theLegacyCallbackRoute_when_appendingAStep_then_thePrimaryRunsUnderTheRunTenant()
-      throws Exception {
-    // Reproduce the legacy non-prefixed route's no-tenant thread (see the scope projections test).
+  @DisplayName("The primary step author sets no tenant on the thread")
+  void given_aThreadWithNoTenant_should_authorThePrimaryStepWithoutSettingOne() throws Exception {
+    // Arrange
     TenantContext.clearCurrentTenant();
-    List<String> seenTenants = new ArrayList<>();
+    List<Boolean> ambientSet = new ArrayList<>();
     when(workflowService.appendChainedStep(anyString(), any(), any(), anyList(), anyList()))
         .thenAnswer(
             inv -> {
-              seenTenants.add(TenantContext.getCurrentTenant());
+              ambientSet.add(TenantContext.hasCurrentTenant());
               return "sim-step-1";
             });
 
+    // Act
     runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
 
-    // The executing step is baked under the run's OWN tenant - not the callback route's DEFAULT -
-    // so the explicit injector-contract existence check (stepData -> assertInjectorContractExists)
-    // resolves a custom threat-arsenal contract that lives in the run's tenant. The thread carried
-    // no tenant before the callback, so it must carry none after it.
-    assertThat(seenTenants).containsExactly("tenant-1");
+    // Assert: the step resolves its references in the tenant of its workflow
+    assertThat(ambientSet).containsExactly(false);
     assertThat(TenantContext.hasCurrentTenant()).isFalse();
   }
 
   @Test
-  @DisplayName("A plan run (no simulation) authors onto the scenario under the run's v1 tenant")
-  void given_aPlanRun_when_appendingAStep_then_theScenarioAuthorRunsUnderTheRunTenant()
-      throws Exception {
+  @DisplayName("A plan run authors onto the scenario without setting a tenant on the thread")
+  void given_aPlanRun_should_authorOntoTheScenarioWithoutSettingATenant() throws Exception {
+    // Arrange
     run.setSimulationId(null);
     TenantContext.clearCurrentTenant();
-    List<String> seenTenants = new ArrayList<>();
+    List<Boolean> ambientSet = new ArrayList<>();
     when(workflowService.appendChainedStepToScenario(
             anyString(), any(), any(), anyList(), anyList()))
         .thenAnswer(
             inv -> {
-              seenTenants.add(TenantContext.getCurrentTenant());
+              ambientSet.add(TenantContext.hasCurrentTenant());
               return "scenario-step-1";
             });
 
+    // Act
     runService.appendAttackPathStep(RUN_ID, new InjectInput(), null);
 
-    assertThat(seenTenants).containsExactly("tenant-1");
+    // Assert
+    assertThat(ambientSet).containsExactly(false);
     assertThat(TenantContext.hasCurrentTenant()).isFalse();
   }
 
   @Test
-  @DisplayName(
-      "The PRIMARY in-place step update runs under the run's v1 tenant, cleared afterwards")
-  void given_theLegacyCallbackRoute_when_updatingAStep_then_thePrimaryRunsUnderTheRunTenant()
-      throws Exception {
-    // updateAttackPathStep now loads the run FOR UPDATE (row lock) too: a fresh-trigger update
-    // re-records the sim->scenario event twin (eventMirror) with a version-less full-entity write,
-    // so it must serialise with the other run writers. The lock read is lenient-stubbed in setUp.
+  @DisplayName("The primary in-place step update sets no tenant on the thread")
+  void given_aThreadWithNoTenant_should_updateThePrimaryStepWithoutSettingOne() throws Exception {
+    // Arrange
     TenantContext.clearCurrentTenant();
-    List<String> seenTenants = new ArrayList<>();
-    // A null trigger routes through the four-argument updateChainedStep with an EMPTY
-    // existing-event
-    // id list (data-only: conditions untouched, no event minted or reused), so the tenant probe is
-    // stubbed on that overload.
+    List<Boolean> ambientSet = new ArrayList<>();
+    // A null trigger routes through the four-argument updateChainedStep with an empty
+    // existing-event id list (data-only: conditions untouched).
     doAnswer(
             inv -> {
-              seenTenants.add(TenantContext.getCurrentTenant());
+              ambientSet.add(TenantContext.hasCurrentTenant());
               return null;
             })
         .when(workflowService)
         .updateChainedStep(eq("sim-step-1"), any(), any(), anyList());
 
+    // Act
     runService.updateAttackPathStep(RUN_ID, "sim-step-1", new InjectInput(), null);
 
-    assertThat(seenTenants).containsExactly("tenant-1");
+    // Assert
+    assertThat(ambientSet).containsExactly(false);
     assertThat(TenantContext.hasCurrentTenant()).isFalse();
   }
 
