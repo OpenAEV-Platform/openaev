@@ -38,16 +38,9 @@ const Executors = () => {
     dispatch(fetchExecutors());
   });
 
-  const order = {
-    openaev_agent: 0,
-    openaev_caldera: 1,
-    openaev_tanium: 2,
-    openaev_crowdstrike: 3,
-    openaev_sentinelone: 4,
-    openaev_paloaltocortex: 5,
-  };
-
-  const sortedExecutors = executors.sort((a: ExecutorOutput, b: ExecutorOutput) => order[a.executor_type as keyof typeof order] - order[b.executor_type as keyof typeof order]);
+  const agentFirst = (executor: ExecutorOutput) => (executor.executor_type === OPENAEV_AGENT ? 0 : 1);
+  const sortedExecutors = [...executors].sort((a: ExecutorOutput, b: ExecutorOutput) => agentFirst(a) - agentFirst(b)
+    || a.executor_name.localeCompare(b.executor_name));
   const needInformationStepper = (selectedExecutor?.executor_type === OPENAEV_AGENT || selectedExecutor?.executor_type === OPENAEV_CALDERA);
   const showEEChip = (executor: ExecutorOutput) => !settings.platform_license?.license_is_validated
     && executor.executor_enterprise;
