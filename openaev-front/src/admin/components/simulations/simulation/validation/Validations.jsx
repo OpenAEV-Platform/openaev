@@ -1,7 +1,6 @@
 import { FactCheckOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router';
@@ -67,31 +66,24 @@ const Validations = () => {
       || (n.inject_expectation_inject?.inject_description || '')
         .toLowerCase()
         .indexOf(keyword.toLowerCase()) !== -1;
-  const sort = items => items.toSorted(descendBy('inject_expectation_created_at'));
-  const sortedInjectExpectations = R.pipe(
-    (expectations) => {
-      // keeps the first expectation of each id
-      const seenIds = new Set();
-      return expectations.filter((n) => {
-        if (seenIds.has(n.inject_expectation_id)) return false;
-        seenIds.add(n.inject_expectation_id);
-        return true;
-      });
-    },
-    expectations => expectations.map(n => ({
-      ...n,
-      inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
-    })),
-    expectations => expectations.filter(n => HUMAN_EXPECTATION_TYPES.includes((n.inject_expectation_type).toUpperCase())),
-    expectations => expectations.filter(
-      n => tags.length === 0
-        || tags.map(tag => tag.id).some(
-          filter => n.inject_expectation_inject?.inject_tags.includes(filter),
-        ),
-    ),
-    expectations => expectations.filter(n => filterByKeyword(n)),
-    sort,
-  )(injectExpectations);
+  // keeps the first expectation of each id
+  const seenIds = new Set();
+  const uniqueExpectations = injectExpectations.filter((n) => {
+    if (seenIds.has(n.inject_expectation_id)) return false;
+    seenIds.add(n.inject_expectation_id);
+    return true;
+  });
+  const expectationsWithInject = uniqueExpectations.map(n => ({
+    ...n,
+    inject_expectation_inject: injectsMap[n.inject_expectation_inject] || {},
+  }));
+  const humanExpectations = expectationsWithInject.filter(n => HUMAN_EXPECTATION_TYPES.includes(n.inject_expectation_type.toUpperCase()));
+  const taggedExpectations = humanExpectations.filter(
+    n => tags.length === 0
+      || tags.some(tag => n.inject_expectation_inject?.inject_tags.includes(tag.id)),
+  );
+  const matchingExpectations = taggedExpectations.filter(n => filterByKeyword(n));
+  const sortedInjectExpectations = matchingExpectations.toSorted(descendBy('inject_expectation_created_at'));
 
   const groupedByInject = sortedInjectExpectations.reduce((group, expectation) => {
     const { inject_expectation_inject } = expectation;

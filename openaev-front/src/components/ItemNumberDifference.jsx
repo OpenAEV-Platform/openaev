@@ -1,6 +1,5 @@
 import { ArrowDownwardOutlined, ArrowForwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import * as PropTypes from 'prop-types';
-import { compose } from 'ramda';
 import { Component } from 'react';
 import { withStyles } from 'tss-react/mui';
 
@@ -108,9 +107,6 @@ ItemNumberDifferenceComponent.propTypes = {
   description: PropTypes.string.isRequired,
 };
 
-const ItemNumberDifference = compose(
-  inject18n,
-  Component => withStyles(Component, styles),
-)(ItemNumberDifferenceComponent);
+const ItemNumberDifference = inject18n(withStyles(ItemNumberDifferenceComponent, styles));
 
 export default ItemNumberDifference;

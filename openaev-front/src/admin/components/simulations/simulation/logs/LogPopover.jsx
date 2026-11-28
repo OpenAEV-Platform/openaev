@@ -2,7 +2,6 @@ import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
@@ -153,12 +152,9 @@ const select = (state, ownProps) => {
   };
 };
 
-const LogPopover = R.compose(
-  connect(select, {
-    updateLog,
-    deleteLog,
-  }),
-  inject18n,
-)(LogPopoverComponent);
+const LogPopover = connect(select, {
+  updateLog,
+  deleteLog,
+})(inject18n(LogPopoverComponent));
 
 export default LogPopover;

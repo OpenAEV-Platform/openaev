@@ -1,6 +1,5 @@
 import { RouteOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
@@ -143,13 +142,9 @@ const select = (state) => {
   };
 };
 
-const OldAttackPatternField = R.compose(
-  connect(select, {
-    fetchAttackPatterns,
-    addAttackPattern,
-  }),
-  inject18n,
-  Component => withStyles(Component, styles),
-)(OldAttackPatternFieldComponent);
+const OldAttackPatternField = connect(select, {
+  fetchAttackPatterns,
+  addAttackPattern,
+})(inject18n(withStyles(OldAttackPatternFieldComponent, styles)));
 
 export default OldAttackPatternField;

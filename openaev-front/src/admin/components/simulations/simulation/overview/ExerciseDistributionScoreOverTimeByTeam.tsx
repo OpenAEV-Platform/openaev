@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
@@ -30,37 +29,24 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
 
   const teamsColors = computeTeamsColors(teams, theme);
 
-  let cumulation = 0;
-  const teamsScores = R.pipe(
-    (expectationsList: InjectExpectationOutput[]) => expectationsList.filter(
-      (n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null,
-    ),
-    (list: InjectExpectationOutput[]) => Object.groupBy(list, item => String(item.inject_expectation_team)),
-    Object.entries,
-    (pairs: [string, InjectExpectationOutput[]][]) => pairs.map((n: [string, InjectExpectationOutput[]]) => {
-      cumulation = 0;
-      return [
-        n[0],
-        R.pipe(
-          (items: InjectExpectationOutput[]) => items.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
-            cumulation += i.inject_expectation_score ?? 0;
-            return {
-              ...i,
-              inject_expectation_cumulated_score: cumulation,
-            };
-          }),
-        )(n[1]),
-      ];
-    }),
-    (pairs: [string, Array<InjectExpectationOutput & { inject_expectation_cumulated_score: number }>][]) => pairs.map(n => ({
-      name: teamsMap[n[0]]?.team_name,
-      color: teamsColors[n[0]],
-      data: n[1].map((i: InjectExpectationOutput & { inject_expectation_cumulated_score: number }) => ({
-        x: i.inject_expectation_updated_at,
-        y: i.inject_expectation_cumulated_score,
-      })),
-    })),
-  )(injectExpectations);
+  const scoredTeamExpectations = injectExpectations.filter(
+    (n: InjectExpectationOutput) => n.inject_expectation_score != null && n.inject_expectation_team && n.inject_expectation_user === null,
+  );
+  const expectationsByTeam = Object.groupBy(scoredTeamExpectations, (item: InjectExpectationOutput) => String(item.inject_expectation_team));
+  const teamsScores = Object.entries(expectationsByTeam).map(([teamId, expectations = []]) => {
+    let cumulation = 0;
+    return {
+      name: teamsMap[teamId]?.team_name,
+      color: teamsColors[teamId],
+      data: expectations.toSorted(ascendBy('inject_expectation_updated_at')).map((i: InjectExpectationOutput) => {
+        cumulation += i.inject_expectation_score ?? 0;
+        return {
+          x: i.inject_expectation_updated_at,
+          y: cumulation,
+        };
+      }),
+    };
+  });
 
   // Dashboard convention: charts without real data render a greyed-out sample
   // (with a "Sample" chip) instead of a bare empty message.

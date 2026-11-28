@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
@@ -37,22 +36,21 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
   });
 
   // usersMap holds one object per user id, so the Set keeps each user once
-  const communicationsUsers = [...new Set(
+  const communicationsUsers = [...new Set<User | undefined>(
     communications.flatMap(
       (n: Communication) => n.communication_users!.map((u: string) => usersMap[u]),
     ),
   )];
-  const sortedUsersByCommunicationNumber = R.pipe(
-    (usersList: User[]) => usersList.map((n: User) => ({
-      ...n,
-      user_communications_number: communications.filter((c: Communication) => n && c.communication_users!.includes(n.user_id!)).length,
-    })),
-    (items: Array<User & { user_communications_number: number }>) => items.toSorted(descendBy('user_communications_number')).slice(0, 10),
-  )(communicationsUsers);
+  // A user not loaded yet is undefined in usersMap: it keeps its bar, with no name and no mail
+  const usersWithCommunicationNumber = communicationsUsers.map(n => ({
+    ...n,
+    user_communications_number: n ? communications.filter((c: Communication) => c.communication_users!.includes(n.user_id)).length : 0,
+  }));
+  const sortedUsersByCommunicationNumber = usersWithCommunicationNumber.toSorted(descendBy('user_communications_number')).slice(0, 10);
   const totalMailsByUserData = [
     {
       name: t('Total mails'),
-      data: sortedUsersByCommunicationNumber.map((u: User & { user_communications_number: number }) => ({
+      data: sortedUsersByCommunicationNumber.map(u => ({
         x: resolveUserName(u),
         y: u.user_communications_number,
       })),

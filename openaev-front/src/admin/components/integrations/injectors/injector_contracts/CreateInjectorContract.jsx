@@ -1,7 +1,6 @@
 import { SmartButtonOutlined } from '@mui/icons-material';
 import { List, ListItemButton, ListItemIcon, ListItemText, Step, StepLabel, Stepper } from '@mui/material';
 import * as PropTypes from 'prop-types';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import { v4 as uuid } from 'uuid';
@@ -175,9 +174,6 @@ CreateInjectorContractComponent.propTypes = {
   onCreated: PropTypes.func,
 };
 
-const CreateInjectorContract = R.compose(
-  connect(null, { addInjectorContract }),
-  inject18n,
-)(CreateInjectorContractComponent);
+const CreateInjectorContract = connect(null, { addInjectorContract })(inject18n(CreateInjectorContractComponent));
 
 export default CreateInjectorContract;

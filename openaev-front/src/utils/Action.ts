@@ -1,7 +1,6 @@
 import { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { FORM_ERROR } from 'final-form';
 import { type Schema } from 'normalizr';
-import * as R from 'ramda';
 import { type ErrorInfo } from 'react';
 import { createIntl, createIntlCache } from 'react-intl';
 import { type Dispatch } from 'redux';
@@ -11,6 +10,7 @@ import * as Constants from '../constants/ActionTypes';
 import { DATA_FETCH_ERROR } from '../constants/ActionTypes';
 import { api } from '../network';
 import { store } from '../store';
+import { type ValidationErrorBag } from './api-types';
 import { APP_BASE_PATH, MESSAGING$ } from './Environment';
 import { notifyErrorHandler } from './error/errorHandlerUtil';
 import { oaevLocaleMap } from './locales';
@@ -20,24 +20,13 @@ const cache = createIntlCache();
 
 export const buildUri = (uri: string) => `${APP_BASE_PATH}${buildTenantApiPath(uri)}`;
 
-const buildError = (data: AxiosError) => {
-  const errorsExtractor = R.pipe(
-    (source: { errors?: { children?: object } } | null | undefined) => source?.errors?.children ?? {},
-    Object.entries,
-    (pairs: [string, unknown][]) => pairs.map((elem: [string, unknown]) => {
-      const extractErrorsPipe = R.pipe(
-        (child: { errors?: unknown[] } | null | undefined) => child?.errors ?? [],
-        (errors: unknown[]) => errors[0],
-      );
-      return [elem[0], extractErrorsPipe(elem[1])];
-    }),
-    Object.fromEntries,
-    (errors: Record<string, unknown>) => ({
-      ...errors,
-      [FORM_ERROR]: data.message,
-    }),
-  );
-  return errorsExtractor(data);
+// The interceptor of network.ts rejects with the response body: on a 400, the backend ValidationErrorBag
+const buildError = (error: ValidationErrorBag) => {
+  const children = error.errors?.children ?? {};
+  return {
+    ...Object.fromEntries(Object.entries(children).map(([field, child]) => [field, child?.errors?.[0]])),
+    [FORM_ERROR]: error.message,
+  };
 };
 
 const notifySuccess = (message: string) => {

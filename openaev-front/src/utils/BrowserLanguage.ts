@@ -1,7 +1,4 @@
-import * as R from 'ramda';
-
 import { DEFAULT_LANG, supportedLanguages } from '../constants/Lang';
-import { pick } from './object';
 
 // These window.navigator contain language information
 // 1. languages -> [] of preferred languages (eg ["en-US", "zh-CN", "ja-JP"]) Firefox^32, Chrome^32
@@ -18,13 +15,12 @@ const browserLanguagePropertyKeys = [
   'systemLanguage',
 ];
 
-const detectedLocale = R.pipe(
-  (source: object) => pick(source as Record<string, unknown>, browserLanguagePropertyKeys), // Get only language properties
-  Object.values, // Get values of the properties
-  (values: unknown[]) => values.flat(Infinity), // flatten all arrays
-  (values: unknown[]) => values.filter(value => value != null), // Remove null and undefined values
-  (languages: string[]) => languages.map((x: string) => x.substring(0, 2)),
-  (languages: string[]) => languages.find((x: string) => supportedLanguages.includes(x)), // Returns first language matched in languages
-);
+const navigatorProperties = window.navigator as unknown as Record<string, unknown>;
+const detectedLocale = browserLanguagePropertyKeys
+  .map(key => navigatorProperties[key])
+  .flat(Infinity) // `languages` is a list
+  .filter((value): value is string => value != null)
+  .map(language => language.substring(0, 2))
+  .find(language => supportedLanguages.includes(language)); // first language matched
 
-export default detectedLocale(window.navigator) || DEFAULT_LANG; // If no locale is detected, fallback to 'en'
+export default detectedLocale || DEFAULT_LANG; // If no locale is detected, fallback to 'en'

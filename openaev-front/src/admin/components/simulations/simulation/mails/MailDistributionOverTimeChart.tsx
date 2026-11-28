@@ -1,5 +1,4 @@
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { fetchExerciseCommunications } from '../../../../../actions/Communication';
@@ -29,29 +28,20 @@ const MailDistributionOverTimeChart: FunctionComponent<Props> = ({ exerciseId })
     dispatch(fetchExerciseCommunications(exerciseId));
   });
 
-  let cumulation = 0;
-  const communicationsOverTime = R.pipe(
-    (items: Communication[]) => items.toSorted(ascendBy('communication_received_at')).map((i: Communication) => {
-      cumulation += 1;
-      return {
-        ...i,
-        communication_cumulated_number: cumulation,
-      };
-    }),
-  )(communications);
+  // the n-th mail, by reception date, brings the total to n
   const communicationsData = [
     {
       name: t('Total mails'),
-      data: communicationsOverTime.map((c: Communication & { communication_cumulated_number: number }) => ({
+      data: communications.toSorted(ascendBy('communication_received_at')).map((c: Communication, index: number) => ({
         x: c.communication_received_at,
-        y: c.communication_cumulated_number,
+        y: index + 1,
       })),
     },
   ];
 
   return (
     <>
-      {communicationsOverTime.length > 0 ? (
+      {communications.length > 0 ? (
         <Chart
           options={areaChartOptions(theme, true, nsdt, null, undefined)}
           series={communicationsData}

@@ -1,6 +1,5 @@
 import { RouteOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import { withStyles } from 'tss-react/mui';
@@ -128,10 +127,6 @@ const select = (state) => {
   return { killChainPhases: helper.getKillChainPhases().toJS() };
 };
 
-const KillChainPhaseField = R.compose(
-  connect(select, { addKillChainPhase }),
-  inject18n,
-  Component => withStyles(Component, styles),
-)(KillChainPhaseFieldComponent);
+const KillChainPhaseField = connect(select, { addKillChainPhase })(inject18n(withStyles(KillChainPhaseFieldComponent, styles)));
 
 export default KillChainPhaseField;
