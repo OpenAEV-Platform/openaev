@@ -1484,8 +1484,19 @@ public class ExerciseService {
       @NotNull final Exercise exercise,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
+    if (playerIds.isEmpty()) {
+      return exercise;
+    }
+    // Only members of the team's tenant can be enabled as players of that team.
+    Map<String, User> teamTenantMembers =
+        this.userRepository.findAllByIdInAndTenantId(playerIds, team.getTenant().getId()).stream()
+            .collect(Collectors.toMap(User::getId, Function.identity(), (first, second) -> first));
     playerIds.forEach(
         playerId -> {
+          User player = teamTenantMembers.get(playerId);
+          if (player == null) {
+            return;
+          }
           boolean alreadyLinked =
               this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
                   exercise.getId(), team.getId(), playerId);
@@ -1495,7 +1506,7 @@ public class ExerciseService {
           ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
           exerciseTeamUser.setExercise(exercise);
           exerciseTeamUser.setTeam(team);
-          exerciseTeamUser.setUser(this.userRepository.findById(playerId).orElseThrow());
+          exerciseTeamUser.setUser(player);
           this.exerciseTeamUserRepository.save(exerciseTeamUser);
         });
     return exercise;

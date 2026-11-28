@@ -374,6 +374,7 @@ public class UserService {
       entityManager.refresh(existing);
       assignAutoAssignGroups(existing, attachedTenantIds, false);
       revokeTenantGroups(existing, detachedTenantIds);
+      removeTenantPlayerLinks(userId, detachedTenantIds);
       // Both write the membership rows in SQL and leave the loaded groups as they were before:
       // reloaded, so the update event carries the groups the user holds now.
       if (!attachedTenantIds.isEmpty() || !detachedTenantIds.isEmpty()) {
@@ -1274,6 +1275,21 @@ public class UserService {
    * users_groups} row at a time, from the group side: the groups to revoke are only read off the
    * user here, never mutated on it.
    */
+  /**
+   * Removes the user from the teams of these tenants and from the simulation and scenario audiences
+   * of these tenants, so a user who leaves a tenant is no longer one of its players. The caller's
+   * transaction scope must cover these tenants.
+   */
+  public void removeTenantPlayerLinks(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    tenantIds.forEach(
+        tenantId -> {
+          userRepository.removeTeamsOfTenant(userId, tenantId);
+          userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
+          userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);
+        });
+  }
+
   private void revokeTenantGroups(User user, Collection<String> tenantIds) {
     if (tenantIds.isEmpty()) {
       return;

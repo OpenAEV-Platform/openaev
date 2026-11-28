@@ -12,19 +12,27 @@ import io.openaev.database.model.Asset;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.AfterAll;
@@ -47,6 +55,8 @@ class InjectHelperTenantReloadTest extends IntegrationTest {
 
   private record Seeded(String injectId, String endpointId, String agentId) {}
 
+  private record SeededPlayers(String injectId, String memberId, String outsiderId) {}
+
   @Autowired private InjectHelper injectHelper;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -55,9 +65,14 @@ class InjectHelperTenantReloadTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private UserComposer userComposer;
+  @Autowired private UserRepository userRepository;
 
   private String injectTenantId;
   private String otherTenantId;
+  // Users are platform rows: they are not removed with the tenants.
+  private final List<String> createdUserIds = new ArrayList<>();
 
   @BeforeEach
   void createTheTenantsAndResetComposers() throws Exception {
@@ -70,11 +85,14 @@ class InjectHelperTenantReloadTest extends IntegrationTest {
     injectStatusComposer.reset();
     endpointComposer.reset();
     agentComposer.reset();
+    teamComposer.reset();
+    userComposer.reset();
   }
 
   @AfterAll
   void deleteTheTenants() {
     tenantHelper.deleteCommittedTenants(injectTenantId, otherTenantId);
+    userRepository.deleteAllById(createdUserIds);
   }
 
   @Nested
@@ -104,6 +122,32 @@ class InjectHelperTenantReloadTest extends IntegrationTest {
           .extracting(InjectToRun::tenantId)
           .isEqualTo(injectTenantId);
       assertThat(agentIds).containsExactly(seeded.agentId()).doesNotContain(foreignAgentId);
+    }
+  }
+
+  @Nested
+  @DisplayName("Players of a targeted team")
+  class Players {
+
+    @Test
+    @DisplayName(
+        "given a team holding a user who is not a member of the inject's tenant should reach its"
+            + " tenant members only")
+    void given_teamPlayerOutsideInjectTenant_should_reachTenantMembersOnly() {
+      // Arrange
+      SeededPlayers seeded = seedAtomicTestingTargetingTeam();
+
+      // Act
+      List<String> reachedIds =
+          inTenant(
+              injectTenantId,
+              () ->
+                  injectHelper.executableInject(seeded.injectId()).orElseThrow().getUsers().stream()
+                      .map(context -> context.getUser().getId())
+                      .toList());
+
+      // Assert
+      assertThat(reachedIds).containsExactly(seeded.memberId()).doesNotContain(seeded.outsiderId());
     }
   }
 
@@ -144,6 +188,36 @@ class InjectHelperTenantReloadTest extends IntegrationTest {
                   .persist();
           return new Seeded(inject.get().getId(), endpoint.get().getId(), agent.get().getId());
         });
+  }
+
+  private SeededPlayers seedAtomicTestingTargetingTeam() {
+    return inTenant(
+        injectTenantId,
+        () -> {
+          InjectStatus status = new InjectStatus();
+          status.setName(ExecutionStatus.QUEUING);
+          UserComposer.Composer member = userComposer.forUser(uniqueUser("Member"));
+          UserComposer.Composer outsider = userComposer.forUser(uniqueUser("Outsider"));
+          TeamComposer.Composer team =
+              teamComposer.forTeam(TeamFixture.getEmptyTeam()).withUser(member).withUser(outsider);
+          InjectComposer.Composer inject =
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withInjectStatus(injectStatusComposer.forInjectStatus(status))
+                  .withTeam(team)
+                  .persist();
+          String memberId = member.get().getId();
+          String outsiderId = outsider.get().getId();
+          createdUserIds.addAll(List.of(memberId, outsiderId));
+          tenantHelper.attachUserToTenant(memberId, injectTenantId);
+          tenantHelper.attachUserToTenant(outsiderId, otherTenantId);
+          return new SeededPlayers(inject.get().getId(), memberId, outsiderId);
+        });
+  }
+
+  private static User uniqueUser(String firstName) {
+    return UserFixture.getUser(
+        firstName, "Player", firstName.toLowerCase() + "-" + UUID.randomUUID() + "@test.invalid");
   }
 
   private String addInactiveAgent(String endpointId) {

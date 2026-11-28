@@ -34,6 +34,7 @@ import io.openaev.service.InjectSearchService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -86,6 +87,7 @@ public class TeamApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final TeamService teamService;
   private final UserService userService;
+  private final TenantUserService tenantUserService;
   private final InjectSearchService injectSearchService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
@@ -329,7 +331,8 @@ public class TeamApi extends RestBehavior {
     Team team = teamService.teamInScope(ctx, teamId);
     List<String> nextUserIds =
         input.getUserIds() == null ? Collections.emptyList() : input.getUserIds();
-    Iterable<User> teamUsers = userRepository.findAllById(nextUserIds);
+    // Players of a team are members of the team's tenant: other ids are ignored.
+    List<User> teamUsers = tenantUserService.findMembers(team.getTenant().getId(), nextUserIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     List<User> nextTeamUsers = ReservedKeyValidator.excludeReservedUsers(teamUsers);

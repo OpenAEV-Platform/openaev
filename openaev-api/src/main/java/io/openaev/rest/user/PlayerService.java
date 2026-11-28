@@ -321,9 +321,6 @@ public class PlayerService {
     // groups as the last committed delete holds them, so revoking the groups of this tenant
     // rewrites the list from the committed groups.
     entityManager.refresh(userService.user(userId));
-    userRepository.removeTeamsOfTenant(userId, tenantId);
-    userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
-    userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);
     userRepository.removeTagsOfTenant(userId, tenantId);
     userRepository.removeOrganizationsOfTenant(userId, tenantId);
     tenantUserService.detach(ctx, userId);

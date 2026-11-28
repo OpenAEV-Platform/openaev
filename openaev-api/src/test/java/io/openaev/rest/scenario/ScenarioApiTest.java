@@ -811,10 +811,13 @@ public class ScenarioApiTest extends IntegrationTest {
 
     Team teamA = TeamFixture.getTeam(userTom, "TeamA", false);
     teamA.setUsers(List.of(userTom));
-    teamRepository.save(teamA);
+    teamA = teamRepository.save(teamA);
     Team teamB = TeamFixture.getTeam(userBen, "TeamB", false);
     teamB.setUsers(List.of(userBen));
-    teamRepository.save(teamB);
+    teamB = teamRepository.save(teamB);
+    // Players of a team are members of the team's tenant.
+    tenantIsolationHelper.attachUserToTenant(userTom.getId(), teamA.getTenant().getId());
+    tenantIsolationHelper.attachUserToTenant(userBen.getId(), teamB.getTenant().getId());
 
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setTeams(Collections.singletonList(teamA));

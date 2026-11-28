@@ -96,6 +96,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -1340,7 +1341,9 @@ public class ScenarioService {
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
     Team team = teamService.teamInScope(ctx, teamId);
-    Iterable<User> teamUsers = userRepository.findAllById(playerIds);
+    // Players of a team are members of the team's tenant: other ids are ignored.
+    List<User> teamUsers =
+        userRepository.findAllByIdInAndTenantId(playerIds, team.getTenant().getId());
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
@@ -1371,8 +1374,19 @@ public class ScenarioService {
       @NotNull final Scenario scenario,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
+    if (playerIds.isEmpty()) {
+      return scenario;
+    }
+    // Only members of the team's tenant can be enabled as players of that team.
+    Map<String, User> teamTenantMembers =
+        this.userRepository.findAllByIdInAndTenantId(playerIds, team.getTenant().getId()).stream()
+            .collect(Collectors.toMap(User::getId, Function.identity(), (first, second) -> first));
     playerIds.forEach(
         playerId -> {
+          User player = teamTenantMembers.get(playerId);
+          if (player == null) {
+            return;
+          }
           boolean alreadyLinked =
               this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
                   scenario.getId(), team.getId(), playerId);
@@ -1382,7 +1396,7 @@ public class ScenarioService {
           ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();
           scenarioTeamUser.setScenario(scenario);
           scenarioTeamUser.setTeam(team);
-          scenarioTeamUser.setUser(this.userRepository.findById(playerId).orElseThrow());
+          scenarioTeamUser.setUser(player);
           this.scenarioTeamUserRepository.save(scenarioTeamUser);
         });
     return scenario;

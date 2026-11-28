@@ -3668,9 +3668,11 @@ public class AutonomousRunService {
     }
     // Reserved service/connector accounts are system users, never players: drop them so an
     // autonomous agent can never wrap a system account into a targetable team (they are hidden
-    // from every player list, so their membership would be invisible yet counted).
+    // from every player list, so their membership would be invisible yet counted). Only members of
+    // the run's tenant can be wrapped into its team.
     List<User> players =
-        ReservedKeyValidator.excludeReservedUsers(userRepository.findAllById(requestedPlayerIds));
+        ReservedKeyValidator.excludeReservedUsers(
+            userRepository.findAllByIdInAndTenantId(requestedPlayerIds, runTenantId(run)));
     if (players.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "None of the provided player ids resolved to a person");
@@ -3705,7 +3707,7 @@ public class AutonomousRunService {
       // Idempotent reuse: augment an existing wrapper with any newly requested members.
       Team existing =
           teamRepository
-              .findById(teamId)
+              .findByIdAndTenantId(teamId, runTenantId(run))
               .orElseThrow(
                   () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Team not found"));
       LinkedHashMap<String, User> members = new LinkedHashMap<>();

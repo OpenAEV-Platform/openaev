@@ -36,6 +36,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -66,6 +67,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @DisplayName("Given a valid scenario and team input, should add team to scenario successfully")
   @Test
@@ -169,6 +171,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     User user = UserFixture.getUser();
     User userCreated = this.userRepository.save(user);
+    // Players of a team are members of the team's tenant.
+    tenantIsolationHelper.attachUserToTenant(userCreated.getId(), teamCreated.getTenant().getId());
 
     ScenarioTeamPlayersEnableInput input = new ScenarioTeamPlayersEnableInput();
     input.setPlayersIds(List.of(userCreated.getId()));
@@ -501,7 +505,9 @@ class ScenarioTeamApiTest extends IntegrationTest {
       Team team = TeamFixture.getEmptyTeam();
       team.setName("Team-SC-RT2");
       team.setUsers(List.of(userTom));
-      teamRepository.save(team);
+      team = teamRepository.save(team);
+      // Players of a team are members of the team's tenant.
+      tenantIsolationHelper.attachUserToTenant(userTom.getId(), team.getTenant().getId());
 
       Scenario scenario = getScenario();
       scenario.setTeams(List.of());
