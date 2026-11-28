@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # REST API
 
 OpenAEV provides a REST API that lets you perform any platform action programmatically. Any action available in the graphical interface can also be run through the API.

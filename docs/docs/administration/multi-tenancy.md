@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Multi-tenancy
 
 This page explains how to configure and manage multi-tenancy in OpenAEV, enabling multiple isolated workspaces on a single platform instance.

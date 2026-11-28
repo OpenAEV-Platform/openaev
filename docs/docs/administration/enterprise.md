@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Enterprise Edition
 
 OpenAEV Enterprise Edition (EE) adds features on top of the Community Edition. This page explains how to activate it and lists the features it unlocks.

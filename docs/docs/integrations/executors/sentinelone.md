@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # SentinelOne Executor
 
 The SentinelOne Executor runs OpenAEV implants through the SentinelOne agent already deployed on your endpoints, with Remote Ops scripts.

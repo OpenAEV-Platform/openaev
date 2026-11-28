@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Microsoft Defender for Endpoint (MDE) Executor
 
 The MDE Executor runs OpenAEV implants through the Microsoft Defender for Endpoint sensor already deployed on your endpoints.

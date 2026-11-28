@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # OpenAEV agent overview
 
 ## Introduction

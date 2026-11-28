@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Upgrade
 
 This page explains how to upgrade OpenAEV. The steps depend on your [installation mode](installation.md).

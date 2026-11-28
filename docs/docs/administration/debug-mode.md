@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Global debug mode
 
 OpenAEV ships a global, instance-wide debug mode for diagnosing bugs and performance problems on

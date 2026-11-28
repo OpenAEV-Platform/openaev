@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Palo Alto Cortex Executor
 
 The Palo Alto Cortex Executor runs OpenAEV implants through the Cortex agent already deployed on your endpoints, with scripts from the Agent Script Library.

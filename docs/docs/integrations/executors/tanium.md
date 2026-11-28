@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Tanium Executor
 
 The Tanium Executor runs OpenAEV implants through the Tanium agent already deployed on your endpoints.

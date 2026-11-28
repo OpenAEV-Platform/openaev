@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Users
 
 You can manage users in **Settings > Security > Users**. If you are using Single Sign-On (SSO), user accounts in OpenAEV are automatically created upon login.

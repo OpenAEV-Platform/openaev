@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-08
+---
+
 # Expectations
 
 Expectations define what success means when an Inject targets an Asset or a Player. They answer the question: what should happen for this Inject to be considered successful?

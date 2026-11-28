@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Security Coverage enrichment (XTM Suite)
 
 This page explains how to connect OpenAEV to OpenCTI, so that OpenCTI can trigger Scenarios in OpenAEV and receive their results, such as detection and prevention rates.

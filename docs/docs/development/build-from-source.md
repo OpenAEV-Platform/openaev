@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Build from source
 
 This page explains how to start the development services, then build and run the OpenAEV backend and frontend.

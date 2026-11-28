@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Filters
 
 In OpenAEV, you can filter lists, such as Scenarios or Simulations, to show only the items with specific attributes. This page explains how to filter in the UI and the `FilterGroup` format used by the [REST API](rest-api.md) search endpoints.

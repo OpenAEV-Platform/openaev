@@ -1,3 +1,7 @@
+---
+doc_status: release-managed
+---
+
 # Tenant users, groups and roles capabilities
 
 !!! info ""

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Inject status
 
 Every Inject execution produces a **status** that tells you the outcome at a glance: success, failure, or partial

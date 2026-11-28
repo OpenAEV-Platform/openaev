@@ -1,3 +1,7 @@
+---
+doc_status: release-managed
+---
+
 # Breaking changes and migrations
 
 This section lists breaking changes introduced in OpenAEV, per version starting with the latest.

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Profile
 
 This page explains how to manage your profile, including your password and email address.

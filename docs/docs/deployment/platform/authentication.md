@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Authentication
 
 This page explains how to configure user authentication: local users, OpenID Connect and SAML2. You can enable several methods at the same time.

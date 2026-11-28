@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-08
+---
+
 # Attack Chaining
 
 Attack Chaining lets you build a Scenario or Simulation that reacts to its own results while it runs, automatically

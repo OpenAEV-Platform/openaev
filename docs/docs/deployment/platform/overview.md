@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Overview
 
 This page describes the OpenAEV architecture, its dependencies and the minimum resources to run it in production.

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Translations
 
 This page explains how the OpenAEV front-end is translated, how to add or change a translation, and which checks the CI runs.

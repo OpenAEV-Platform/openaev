@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Policies
 
 This page explains how to configure security-related policies in OpenAEV, including login messages displayed to users during authentication.

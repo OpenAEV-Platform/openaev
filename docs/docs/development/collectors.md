@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Collector development
 
 This page explains what OpenAEV expects from a Collector: a process that reads the security events of a detection or prevention product, such as an **EDR (Endpoint Detection and Response)** or a **SIEM (Security Information and Event Management)**, and matches them against the expectations of the Injects that OpenAEV executed.

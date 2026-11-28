@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Run modes
 
 OpenAEV supports two startup run modes, set with `openaev.run-mode`.

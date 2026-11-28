@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-08
+---
+
 # Logic Creation
 
 The **Logic** tab is where you build the simulation engine that drives a chained Scenario or Simulation: **Actions** that execute,

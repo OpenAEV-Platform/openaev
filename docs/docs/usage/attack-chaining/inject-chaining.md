@@ -1,3 +1,8 @@
+---
+doc_status: outdated
+doc_notes: "Does not say whether a child Inject waits for a manual expectation of its parent."
+---
+
 
 # Inject chaining and transfer
 

@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Injectors
 
 Injectors push simulation actions to endpoints, people and third-party systems. This page lists the main types. To see the Injectors you can deploy, open **Integrations** and the **Available** tab, or browse the [injectors repository](https://github.com/OpenAEV-Platform/injectors).

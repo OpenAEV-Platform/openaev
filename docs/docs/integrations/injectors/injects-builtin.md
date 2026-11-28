@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-09
+---
+
 # Built-in Injectors
 
 OpenAEV ships with several built-in Injectors that are always available without installing external components. These Injectors cover the most common Simulation needs: email delivery, manual actions, media pressure, phishing, challenges, and endpoint execution.

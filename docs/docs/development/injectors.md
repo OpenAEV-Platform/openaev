@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-14
+---
+
 # Injector development
 
 This page explains what OpenAEV expects from an Injector: a process that adds new types of Injects to the platform.

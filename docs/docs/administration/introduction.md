@@ -1,3 +1,7 @@
+---
+last_verified: 2026-10-13
+---
+
 # Administration
 
 The Administration section covers the configuration of the OpenAEV platform, users and access control. Most of these settings are in the **Settings** menu:
