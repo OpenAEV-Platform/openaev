@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import io.openaev.database.model.Base;
@@ -86,8 +87,8 @@ public class MonoIdDeserializerHelper<T extends Base> extends JsonDeserializer<T
               (CompositeIdResolvableI) entityClass.getDeclaredConstructor().newInstance();
           resolvedId = instance.resolveCompositeId(id, ctxt);
         } catch (Exception e) {
-          throw new IOException(
-              "Cannot resolve composite id for " + entityClass.getSimpleName(), e);
+          throw JsonMappingException.from(
+              p, "Cannot resolve composite id for " + entityClass.getSimpleName(), e);
         }
       } else {
         resolvedId = id;

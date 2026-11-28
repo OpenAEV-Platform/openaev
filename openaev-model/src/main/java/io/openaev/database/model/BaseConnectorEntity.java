@@ -1,7 +1,6 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.databind.DeserializationContext;
-import io.openaev.context.TenantContext;
 import io.openaev.helper.CompositeIdResolvableI;
 import lombok.Data;
 
@@ -15,7 +14,7 @@ import lombok.Data;
  * lookups.
  *
  * <p>Implements {@link CompositeIdResolvableI} so a JSON reference carrying only the business id is
- * deserialized into the full composite id for the current tenant.
+ * deserialized into the full composite id, in the tenant its reader names.
  */
 @Data
 public abstract class BaseConnectorEntity implements Base, CompositeIdResolvableI {
@@ -26,8 +25,6 @@ public abstract class BaseConnectorEntity implements Base, CompositeIdResolvable
 
   @Override
   public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
-    String tenantId = CompositeIdResolvableI.namedTenant(ctxt);
-    return new ConnectorCompositeId(
-        rawId, tenantId != null ? tenantId : TenantContext.getCurrentTenant());
+    return new ConnectorCompositeId(rawId, CompositeIdResolvableI.namedTenant(ctxt, getClass()));
   }
 }

@@ -403,9 +403,14 @@ class AttackPathRunWiringTest extends IntegrationTest {
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
     Step stepTemplate = createTemplateInTransaction(stepInput, workflowTemplate);
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
-    return injectExecutionStep
-        .ready(stepTemplate, "{\"input\":\"do defined\"}", workflowRun)
-        .orElseThrow();
+    Step ready =
+        injectExecutionStep
+            .ready(stepTemplate, "{\"input\":\"do defined\"}", workflowRun)
+            .orElseThrow();
+    // A saved ready step takes its workflow's tenant; this one stays in memory, so it takes the
+    // tenant its run is scoped to.
+    ready.setTenant(tenant);
+    return ready;
   }
 
   // Commits the READY step (its workflow_run and its TEMPLATE step) so the consumer's

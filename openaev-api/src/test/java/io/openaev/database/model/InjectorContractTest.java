@@ -3,11 +3,13 @@ package io.openaev.database.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.openaev.context.TenantContext;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,48 @@ class InjectorContractTest {
     contract.addInjector(injector("email", "email", "tenant-A"));
 
     assertThat(contract.getInjectors()).extracting(Injector::getId).containsExactly("email");
+  }
+
+  @Nested
+  @DisplayName("The tenant of an injector link")
+  class LinkTenant {
+
+    private static final String AMBIENT_TENANT = "ambient-tenant";
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @DisplayName("given an injector with no tenant should link in the tenant of the contract")
+    void given_anInjectorWithNoTenant_should_linkInTheTenantOfTheContract() {
+      // ARRANGE
+      TenantContext.setCurrentTenant(AMBIENT_TENANT);
+      InjectorContract contract = contractInTenant("tenant-B");
+
+      // ACT
+      contract.addInjector(injector("email", "email", null));
+
+      // ASSERT
+      assertThat(contract.getInjectorLinks())
+          .extracting(InjectorInjectorContract::getTenantId)
+          .containsExactly("tenant-B");
+    }
+
+    @Test
+    @DisplayName("given neither an injector nor a contract tenant should refuse the link")
+    void given_neitherAnInjectorNorAContractTenant_should_refuseTheLink() {
+      // ARRANGE
+      TenantContext.setCurrentTenant(AMBIENT_TENANT);
+      InjectorContract contract = new InjectorContract();
+
+      // ACT & ASSERT
+      assertThatThrownBy(() -> contract.addInjector(injector("email", "email", null)))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("InjectorInjectorContract");
+      assertThat(contract.getInjectorLinks()).isEmpty();
+    }
   }
 
   @Nested
