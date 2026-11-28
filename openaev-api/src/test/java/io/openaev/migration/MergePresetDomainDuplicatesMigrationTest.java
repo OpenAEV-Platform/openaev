@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
@@ -16,8 +17,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -171,18 +170,7 @@ class MergePresetDomainDuplicatesMigrationTest extends IntegrationTest {
         .doWork(
             connection -> {
               try {
-                migration.migrate(
-                    new Context() {
-                      @Override
-                      public Configuration getConfiguration() {
-                        return null;
-                      }
-
-                      @Override
-                      public java.sql.Connection getConnection() {
-                        return connection;
-                      }
-                    });
+                migration.migrate(contextOn(connection));
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

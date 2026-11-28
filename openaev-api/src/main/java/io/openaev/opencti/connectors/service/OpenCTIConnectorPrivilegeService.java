@@ -81,8 +81,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     TxCtx ctx = TxCtx.forTenant(connector.getTenantId());
     tenantTx.setScopeOnCurrentTransaction(ctx);
 
-    String email =
-        ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
+    String email = ReservedServiceAccount.OPENCTI_CONNECTOR.emailFor(connector.getId());
 
     // TODO: remove once all deployments have been migrated to multi-tenant
     legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);

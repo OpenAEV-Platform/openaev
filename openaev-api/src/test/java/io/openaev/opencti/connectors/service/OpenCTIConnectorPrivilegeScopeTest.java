@@ -175,7 +175,7 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
   }
 
   private String connectorEmail() {
-    return OPENCTI_CONNECTOR.emailPattern().formatted(connectorUnderTest().getId());
+    return OPENCTI_CONNECTOR.emailFor(connectorUnderTest().getId());
   }
 
   private ConnectorBase connectorUnderTest() {

@@ -1,5 +1,7 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
+import static io.openaev.migration.MigrationSessions.withConnection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
@@ -11,11 +13,9 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.WithoutTenantScope;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,6 +66,7 @@ class ResetXtmHubConnectivityEmailMarkersMigrationTest extends IntegrationTest {
     // Act
     AtomicInteger changed = new AtomicInteger();
     withConnection(
+        jdbcTemplate,
         connection -> {
           Context context = contextOn(connection);
           changed.set(
@@ -85,7 +86,7 @@ class ResetXtmHubConnectivityEmailMarkersMigrationTest extends IntegrationTest {
   }
 
   private void migrate() {
-    withConnection(connection -> migration.migrate(contextOn(connection)));
+    withConnection(jdbcTemplate, connection -> migration.migrate(contextOn(connection)));
   }
 
   private String register(XtmHubRegistrationStatus status, boolean eligible) {
@@ -115,38 +116,5 @@ class ResetXtmHubConnectivityEmailMarkersMigrationTest extends IntegrationTest {
             + " where tenant_id = ?",
         Boolean.class,
         tenantId);
-  }
-
-  @FunctionalInterface
-  private interface ConnectionWork {
-    void run(Connection connection) throws Exception;
-  }
-
-  private void withConnection(ConnectionWork work) {
-    jdbcTemplate.execute(
-        (Connection connection) -> {
-          try {
-            work.run(connection);
-          } catch (RuntimeException e) {
-            throw e;
-          } catch (Exception e) {
-            throw new IllegalStateException(e);
-          }
-          return null;
-        });
-  }
-
-  private static Context contextOn(Connection connection) {
-    return new Context() {
-      @Override
-      public Configuration getConfiguration() {
-        return null;
-      }
-
-      @Override
-      public Connection getConnection() {
-        return connection;
-      }
-    };
   }
 }

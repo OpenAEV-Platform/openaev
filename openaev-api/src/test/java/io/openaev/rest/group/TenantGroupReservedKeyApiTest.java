@@ -228,8 +228,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
       // Seed a user with a reserved (service-*) email and attach to the current tenant
       // so it is found by `findAllByIdInAndTenantId`.
       User reservedUser =
-          UserFixture.getUser(
-              "Service", "Account", AGENT.emailPattern().formatted(UUID.randomUUID().toString()));
+          UserFixture.getUser("Service", "Account", AGENT.emailFor(UUID.randomUUID().toString()));
       reservedUser = userRepository.save(reservedUser);
       tenantRepository.addUserToTenant(reservedUser.getId(), TenantContext.getCurrentTenant());
       entityManager.flush();

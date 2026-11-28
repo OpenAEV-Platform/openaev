@@ -1,12 +1,12 @@
 package io.openaev.api.attackpath;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
 import io.openaev.migration.V6_20260723160000000__Add_attack_path_tables;
 import io.openaev.utils.mockUser.WithMockUser;
-import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
@@ -115,20 +115,7 @@ class AttackPathSchemaMigrationTest extends IntegrationTest {
             () ->
                 entityManager
                     .unwrap(Session.class)
-                    .doWork(
-                        connection ->
-                            runMigration(
-                                new Context() {
-                                  @Override
-                                  public Configuration getConfiguration() {
-                                    return null;
-                                  }
-
-                                  @Override
-                                  public java.sql.Connection getConnection() {
-                                    return connection;
-                                  }
-                                })))
+                    .doWork(connection -> runMigration(contextOn(connection))))
         .doesNotThrowAnyException();
   }
 

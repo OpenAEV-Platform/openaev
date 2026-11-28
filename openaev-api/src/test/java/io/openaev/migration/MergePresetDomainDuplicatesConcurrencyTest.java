@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -18,8 +19,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.sql.DataSource;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -186,18 +185,7 @@ class MergePresetDomainDuplicatesConcurrencyTest extends IntegrationTest {
   }
 
   private Void migrate(Connection connection) throws Exception {
-    migration.migrate(
-        new Context() {
-          @Override
-          public Configuration getConfiguration() {
-            return null;
-          }
-
-          @Override
-          public Connection getConnection() {
-            return connection;
-          }
-        });
+    migration.migrate(contextOn(connection));
     return null;
   }
 

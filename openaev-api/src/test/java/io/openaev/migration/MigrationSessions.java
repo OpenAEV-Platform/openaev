@@ -3,6 +3,7 @@ package io.openaev.migration;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.fail;
 
+import jakarta.persistence.EntityManager;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,30 +12,63 @@ import java.sql.Statement;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
+import org.hibernate.Session;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Sessions of a migration and of a platform on the earlier version, each on its own connection to
- * the real database, for the concurrency tests of migrations.
+ * Runs migrations on a given connection in the tests: on the session connection of the test
+ * transaction, or, for the concurrency tests, on sessions of a migration and of a platform on the
+ * earlier version, each on its own connection to the real database.
  */
-final class MigrationSessions {
+public final class MigrationSessions {
 
   private MigrationSessions() {}
 
+  @FunctionalInterface
+  interface ConnectionWork {
+    void run(Connection connection) throws Exception;
+  }
+
+  public static Context contextOn(Connection connection) {
+    return new Context() {
+      @Override
+      public Configuration getConfiguration() {
+        return null;
+      }
+
+      @Override
+      public Connection getConnection() {
+        return connection;
+      }
+    };
+  }
+
+  /** Runs the work on the connection of the session, so it sees the rows the test has flushed. */
+  static void withConnection(EntityManager entityManager, ConnectionWork work) {
+    entityManager.unwrap(Session.class).doWork(connection -> run(work, connection));
+  }
+
+  static void withConnection(JdbcTemplate jdbcTemplate, ConnectionWork work) {
+    jdbcTemplate.execute(
+        (Connection connection) -> {
+          run(work, connection);
+          return null;
+        });
+  }
+
+  private static void run(ConnectionWork work, Connection connection) {
+    try {
+      work.run(connection);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Runs the migration as Flyway does: in a transaction when the migration accepts one. */
   static Void migrate(BaseJavaMigration migration, Connection connection) throws Exception {
-    Context context =
-        new Context() {
-          @Override
-          public Configuration getConfiguration() {
-            return null;
-          }
-
-          @Override
-          public Connection getConnection() {
-            return connection;
-          }
-        };
+    Context context = contextOn(connection);
     if (migration.canExecuteInTransaction()) {
       connection.setAutoCommit(false);
       try {

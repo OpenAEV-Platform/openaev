@@ -61,7 +61,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
   public void ensurePrivilegedUserExists(TxCtx ctx, String tenantId) {
     Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(ctx, tenantId), tenantId);
     // UNIQUE by tenant
-    String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
+    String email = ReservedServiceAccount.AGENT.emailFor(tenantId);
 
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);
 
@@ -95,7 +95,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
   // Not @Transactional: every caller in this class is itself @Transactional, and a self-invocation
   // bypasses the Spring proxy — an annotation here would never take effect.
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
-    String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
+    String email = ReservedServiceAccount.AGENT.emailFor(tenantId);
 
     return userService.findByEmailIgnoreCase(email).stream().findFirst();
   }

@@ -78,7 +78,7 @@ class WellKnownRoleTenantScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM users_tenants WHERE tenant_id = ?", tenantId);
       List<String> accountEmails =
           List.of(
-              ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId),
+              ReservedServiceAccount.AGENT.emailFor(tenantId),
               CatalogConnectorPrivilegeService.accountEmail(tenantId));
       for (String email : accountEmails) {
         jdbc.update(

@@ -45,7 +45,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
   @InjectMocks private AgentServiceAccountPrivilegeService privilegeService;
 
   private static final String TENANT_ID = "tenant-123";
-  private static final String SERVICE_EMAIL = AGENT.emailPattern().formatted(TENANT_ID);
+  private static final String SERVICE_EMAIL = AGENT.emailFor(TENANT_ID);
 
   private Role mockRole;
   private Group mockGroup;

@@ -41,7 +41,11 @@ public class SecurityCoverageConnector extends ConnectorBase {
 
   @Override
   public String getId() {
-    return UUID.nameUUIDFromBytes((NAMESPACE + ":" + this.getTenantId()).getBytes()).toString();
+    return idOf(this.getTenantId());
+  }
+
+  public static String idOf(String tenantId) {
+    return UUID.nameUUIDFromBytes((NAMESPACE + ":" + tenantId).getBytes()).toString();
   }
 
   @Override

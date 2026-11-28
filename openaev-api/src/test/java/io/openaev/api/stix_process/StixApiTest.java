@@ -1,5 +1,6 @@
 package io.openaev.api.stix_process;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -96,6 +97,7 @@ class StixApiTest extends IntegrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
+  @Autowired private UserComposer userComposer;
 
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
@@ -146,6 +148,7 @@ class StixApiTest extends IntegrationTest {
     payloadComposer.reset();
     injectorContractComposer.reset();
     tagComposer.reset();
+    userComposer.reset();
 
     stixSecurityCoverage =
         loadJsonWithStixObjects("src/test/resources/stix-bundles/security-coverage.json");
@@ -418,6 +421,49 @@ class StixApiTest extends IntegrationTest {
               Tag.SECURITY_COVERAGE_LINUX_TAG_NAME,
               Tag.SECURITY_COVERAGE_MACOS_TAG_NAME,
               Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME);
+    }
+
+    @Test
+    @DisplayName("Should record the caller as scheduler of the scenario it schedules")
+    void given_scheduledCoverage_should_recordCallerAsScheduler() throws Exception {
+      // Arrange
+      String callerId = currentUser().getId();
+
+      // Act
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+
+      // Assert
+      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(createdScenario.getScheduledBy()).extracting(User::getId).isEqualTo(callerId);
+    }
+
+    @Test
+    @DisplayName("Should keep the scheduler of a scenario already scheduled")
+    void given_alreadyScheduledScenario_should_keepItsScheduler() throws Exception {
+      // Arrange
+      String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
+      User scheduler = userComposer.forUser(UserFixture.getUser()).persist().get();
+      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      scenario.setScheduledBy(scheduler);
+      scenarioRepository.save(scenario);
+      entityManager.flush();
+      entityManager.clear();
+      JsonNode newerCoverage =
+          updateStixObjectField(
+              stixSecurityCoverage,
+              CommonProperties.MODIFIED.toString(),
+              Instant.now().toString(),
+              emptyList(),
+              0);
+
+      // Act
+      getScenarioIdResponse(mapper.writeValueAsString(newerCoverage));
+
+      // Assert
+      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      assertThat(updatedScenario.getScheduledBy())
+          .extracting(User::getId)
+          .isEqualTo(scheduler.getId());
     }
 
     @Test

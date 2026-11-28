@@ -96,9 +96,9 @@ class ServiceAccountMembershipTest extends IntegrationTest {
   void cleanup() {
     List<String> emails =
         List.of(
-            ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA),
+            ReservedServiceAccount.AGENT.emailFor(tenantA),
             CatalogConnectorPrivilegeService.accountEmail(tenantA),
-            ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId()),
+            ReservedServiceAccount.OPENCTI_CONNECTOR.emailFor(connector.getId()),
             PEER_EMAIL);
     for (String email : emails) {
       for (String userId : accountIdOf(email)) {
@@ -134,10 +134,10 @@ class ServiceAccountMembershipTest extends IntegrationTest {
 
   private String emailOf(Family family) {
     return switch (family) {
-      case AGENT -> ReservedServiceAccount.AGENT.emailPattern().formatted(tenantA);
+      case AGENT -> ReservedServiceAccount.AGENT.emailFor(tenantA);
       case CATALOG_CONNECTOR -> CatalogConnectorPrivilegeService.accountEmail(tenantA);
       case OPENCTI_CONNECTOR ->
-          ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
+          ReservedServiceAccount.OPENCTI_CONNECTOR.emailFor(connector.getId());
       case XTM_PEER -> PEER_EMAIL;
     };
   }

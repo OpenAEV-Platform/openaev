@@ -93,10 +93,6 @@ public enum ReservedServiceAccount {
 
   private final WellKnownAccess access;
 
-  /**
-   * Email of the account, with {@code %s} standing for its tenant (agent, catalog connector) or
-   * connector id (OpenCTI).
-   */
   private final String emailPattern;
 
   ReservedServiceAccount(WellKnownAccess access, String emailPattern) {
@@ -108,7 +104,16 @@ public enum ReservedServiceAccount {
     return access;
   }
 
-  public String emailPattern() {
+  /**
+   * Email of the account of this tenant (agent, catalog connector) or connector (OpenCTI). The XTM
+   * peer emails are chosen by the caller: this throws for them.
+   */
+  public String emailFor(String id) {
+    return emailPattern.formatted(id);
+  }
+
+  /** Pattern of the emails of the account, {@code %s} standing for each varying part. */
+  String emailPattern() {
     return emailPattern;
   }
 }

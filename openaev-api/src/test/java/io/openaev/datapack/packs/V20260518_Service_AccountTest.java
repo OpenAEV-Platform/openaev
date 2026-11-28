@@ -81,7 +81,7 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
     entityManager.clear();
 
     // Assert — still only one user with one token
-    String expectedEmail = AGENT.emailPattern().formatted(TenantContext.getCurrentTenant());
+    String expectedEmail = AGENT.emailFor(TenantContext.getCurrentTenant());
     var user = userService.findByEmailIgnoreCase(expectedEmail);
     assertThat(user).isPresent();
     assertThat(user.get().getTokens()).hasSize(1);

@@ -1,5 +1,6 @@
 package io.openaev.migration;
 
+import static io.openaev.migration.MigrationSessions.contextOn;
 import static io.openaev.rest.document.DocumentService.DEFAULT_DOWNLOAD_FILE_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -10,8 +11,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
 import java.util.stream.Stream;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.migration.Context;
 import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -100,18 +99,7 @@ class SanitizeDocumentNamesMigrationTest extends IntegrationTest {
   private void runMigration() {
     withConnection(
         connection -> {
-          migration.migrate(
-              new Context() {
-                @Override
-                public Configuration getConfiguration() {
-                  return null;
-                }
-
-                @Override
-                public Connection getConnection() {
-                  return connection;
-                }
-              });
+          migration.migrate(contextOn(connection));
           return null;
         });
   }
