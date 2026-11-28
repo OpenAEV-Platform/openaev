@@ -17,16 +17,15 @@ import org.springframework.stereotype.Component;
 @Profile("!test")
 public class CatalogConnectorIngestionRunner implements CommandLineRunner {
   private static final ObjectMapper mapper = new ObjectMapper();
-  public static final String RESOURCE_PATH = "/catalog/catalog-integrators.json";
+  public static final String resourcePath = "/catalog/catalog-integrators.json";
   private final CatalogConnectorIngestionService catalogConnectorIngestionService;
 
   @Override
   public void run(String... args) {
 
-    try (InputStream is =
-        CatalogConnectorIngestionRunner.class.getResourceAsStream(RESOURCE_PATH)) {
+    try (InputStream is = CatalogConnectorIngestionRunner.class.getResourceAsStream(resourcePath)) {
       if (is == null) {
-        throw new IOException("File not found : " + RESOURCE_PATH);
+        throw new IOException("File not found : " + resourcePath);
       }
 
       JsonNode rootNode = mapper.readTree(is);
