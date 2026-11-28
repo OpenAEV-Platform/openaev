@@ -134,6 +134,7 @@ class NewsFeedItemApiTest extends IntegrationTest {
   class Categories {
 
     private NewsFeedItem blogPost;
+    private NewsFeedItem githubRelease;
     private NewsFeedItem scenario;
 
     @BeforeEach
@@ -141,6 +142,8 @@ class NewsFeedItemApiTest extends IntegrationTest {
       registerTenant(XtmHubRegistrationStatus.REGISTERED);
       User me = userService.currentUser();
       blogPost = newsFeedItemRepository.save(NewsFeedItemFixture.createBlogPost(me, "hub-blog"));
+      githubRelease =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createGithubRelease(me, "hub-release"));
       scenario = saveItem(me, "hub-scenario", false);
       entityManager.flush();
       entityManager.clear();
@@ -151,9 +154,19 @@ class NewsFeedItemApiTest extends IntegrationTest {
     void given_category_should_searchOnlyItsItemsWithMetadata() throws Exception {
       // Act
       String blogPosts = searchInCategory("BLOG_POST");
+      String releases = searchInCategory("GITHUB_RELEASE");
       String resources = searchInCategory("RESOURCE");
 
       // Assert
+      assertThatJson(releases).node("totalElements").isEqualTo(1);
+      assertThatJson(releases).node("content[0].news_feed_item_type").isEqualTo("GITHUB_RELEASE");
+      assertThatJson(releases)
+          .node("content[0].news_feed_item_metadata")
+          .isEqualTo(
+              """
+              [{"news_feed_item_metadata_key":"product_version",
+                "news_feed_item_metadata_value":"2.4.0"}]
+              """);
       assertThatJson(blogPosts).node("totalElements").isEqualTo(1);
       assertThatJson(blogPosts).node("content[0].news_feed_item_type").isEqualTo("BLOG_POST");
       assertThatJson(blogPosts)
@@ -177,8 +190,9 @@ class NewsFeedItemApiTest extends IntegrationTest {
     void given_category_should_countOnlyItsUnreadItems() throws Exception {
       // Act & Assert
       assertThat(unreadCountInCategory("BLOG_POST")).isEqualTo("1");
+      assertThat(unreadCountInCategory("GITHUB_RELEASE")).isEqualTo("1");
       assertThat(unreadCountInCategory("RESOURCE")).isEqualTo("1");
-      assertThat(unreadCount()).isEqualTo("2");
+      assertThat(unreadCount()).isEqualTo("3");
     }
 
     @Test
@@ -192,6 +206,22 @@ class NewsFeedItemApiTest extends IntegrationTest {
 
       // Assert
       assertThat(isRead(blogPost)).isTrue();
+      assertThat(isRead(githubRelease)).isFalse();
+      assertThat(isRead(scenario)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given the GitHub release category, should read the GitHub releases only")
+    void given_githubReleaseCategory_should_readGithubReleasesOnly() throws Exception {
+      // Act
+      mvc.perform(put(READ_ALL_URI, tenantId).param("category", "GITHUB_RELEASE").with(csrf()))
+          .andExpect(status().isNoContent());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(isRead(githubRelease)).isTrue();
+      assertThat(isRead(blogPost)).isFalse();
       assertThat(isRead(scenario)).isFalse();
     }
 
@@ -210,6 +240,7 @@ class NewsFeedItemApiTest extends IntegrationTest {
       // Act
       String resources = searchInCategory("RESOURCE");
       String blogPostsCount = unreadCountInCategory("BLOG_POST");
+      String releasesCount = unreadCountInCategory("GITHUB_RELEASE");
       String resourcesCount = unreadCountInCategory("RESOURCE");
       mvc.perform(put(READ_ALL_URI, tenantId).param("category", "RESOURCE").with(csrf()))
           .andExpect(status().isNoContent());
@@ -219,10 +250,12 @@ class NewsFeedItemApiTest extends IntegrationTest {
       // Assert
       assertThatJson(resources).node("totalElements").isEqualTo(2);
       assertThat(blogPostsCount).isEqualTo("1");
+      assertThat(releasesCount).isEqualTo("1");
       assertThat(resourcesCount).isEqualTo("2");
       assertThat(isRead(unknown)).isTrue();
       assertThat(isRead(scenario)).isTrue();
       assertThat(isRead(blogPost)).isFalse();
+      assertThat(isRead(githubRelease)).isFalse();
     }
 
     @Test

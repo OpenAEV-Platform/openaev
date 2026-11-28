@@ -130,7 +130,7 @@ class NewsFeedUtilsTest {
     void given_typeUnsubscribed_should_notSubscribeToIt() {
       // Act & Assert
       assertThat(NewsFeedUtils.subscribedTypes(new String[] {"RESOURCE_SCENARIO"}))
-          .containsExactly(NewsFeedType.BLOG_POST);
+          .containsExactly(NewsFeedType.BLOG_POST, NewsFeedType.GITHUB_RELEASE);
     }
 
     @Test

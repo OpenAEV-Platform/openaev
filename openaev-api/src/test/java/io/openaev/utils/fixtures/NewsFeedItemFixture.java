@@ -34,4 +34,14 @@ public class NewsFeedItemFixture {
     item.getMetadata().put("description", "About " + hubItemId);
     return item;
   }
+
+  public static NewsFeedItem createGithubRelease(User user, String hubItemId) {
+    NewsFeedItem item = createNewsFeedItem(user, hubItemId);
+    item.setTitle("Release " + hubItemId);
+    item.setType(NewsFeedType.GITHUB_RELEASE);
+    item.setTags(new String[0]);
+    item.setUrlPath("/redirect/release/" + hubItemId);
+    item.getMetadata().put("product_version", "2.4.0");
+    return item;
+  }
 }

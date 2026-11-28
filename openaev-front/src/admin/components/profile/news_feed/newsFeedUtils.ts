@@ -5,9 +5,16 @@ import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 /** The news feed type of the blogposts. */
 export const NEWS_FEED_BLOG_POST_TYPE = 'BLOG_POST';
 
+/** The news feed type of the OpenAEV GitHub releases. */
+export const NEWS_FEED_GITHUB_RELEASE_TYPE = 'GITHUB_RELEASE';
+
+/** The releases page of OpenAEV on GitHub: not a link of XTM Hub, it does not go through the redirect. */
+export const NEWS_FEED_GITHUB_RELEASES_URL = 'https://github.com/OpenAEV-Platform/openaev/releases';
+
 /** The categories the items are read, and counted unread, by: not types, RESOURCE gathers every other type. */
 export const NEWS_FEED_CATEGORIES = {
   BLOG_POST: 'BLOG_POST',
+  GITHUB_RELEASE: 'GITHUB_RELEASE',
   RESOURCE: 'RESOURCE',
 } as const satisfies Record<NewsFeedCategory, NewsFeedCategory>;
 
@@ -29,10 +36,10 @@ export const buildConfiguredHubUrl = (urlPath: string | undefined, configuredHub
 );
 
 /**
- * The XTM Hub redirect to a blogpost, which tells the Hub the platform the reader comes from. The tracking of the
- * campaign is in the path XTM Hub sends.
+ * The XTM Hub redirect to a blogpost or a GitHub release, which tells the Hub the platform the reader comes from. The
+ * tracking of the campaign is in the path XTM Hub sends.
  */
-export const buildBlogPostHubUrl = (urlPath: string | undefined, configuredHubUrl: string | undefined, platformId: string | undefined): string | null => {
+export const buildHubRedirectUrl = (urlPath: string | undefined, configuredHubUrl: string | undefined, platformId: string | undefined): string | null => {
   const hubUrl = buildConfiguredHubUrl(urlPath, configuredHubUrl);
   if (!hubUrl) {
     return null;
@@ -44,13 +51,14 @@ export const buildBlogPostHubUrl = (urlPath: string | undefined, configuredHubUr
   return url.toString();
 };
 
-/** The metadata of a blogpost that XTM Hub sends, and the card displays. */
+/** The metadata of a blogpost or a GitHub release that XTM Hub sends, and the card or the table displays. */
 export const NEWS_FEED_METADATA_KEYS = {
   DESCRIPTION: 'description',
   IMAGE_URL: 'image_url',
   IMAGE_ALT: 'image_alt',
   AUTHOR_NAMES: 'author_names',
   READ_MINUTES: 'read_minutes',
+  PRODUCT_VERSION: 'product_version',
 } as const;
 
 /** The value of a metadata, `undefined` when it is missing or empty: every metadata is optional. */

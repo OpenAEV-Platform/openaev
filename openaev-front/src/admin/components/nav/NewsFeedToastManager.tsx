@@ -13,7 +13,13 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { NEWS_FEED_PATH } from '../profile/news_feed/NewsFeedTabs';
-import { buildConfiguredHubUrl, buildNewsFeedBlogSeeAllUrl, NEWS_FEED_BLOG_POST_TYPE } from '../profile/news_feed/newsFeedUtils';
+import {
+  buildConfiguredHubUrl,
+  buildNewsFeedBlogSeeAllUrl,
+  NEWS_FEED_BLOG_POST_TYPE,
+  NEWS_FEED_GITHUB_RELEASE_TYPE,
+  NEWS_FEED_GITHUB_RELEASES_URL,
+} from '../profile/news_feed/newsFeedUtils';
 import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';
 import NewsFeedToastItem, { type NewsFeedToastData } from './NewsFeedToastItem';
 import { useNewsFeedToastStyles } from './newsFeedToastSurface';
@@ -80,10 +86,18 @@ const NewsFeedToastManager: FunctionComponent = () => {
   const { bannerHeightNumber } = computeBannerSettings(settings);
   const hiddenToasts = toasts.slice(MAX_VISIBLE_TOASTS);
   const hiddenCount = hiddenToasts.length;
-  const isOnlyBlogPostHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE);
-  // Every type but the blogposts is a resource of XTM Hub, including a type this version does not know.
-  const isOnlyResourceHidden = hiddenCount > 0 && hiddenToasts.every(toast => toast.news_feed_item_type !== NEWS_FEED_BLOG_POST_TYPE);
-  // The blogposts live on the Filigran blog, the resources on XTM Hub, and the news feed of the platform lists both.
+  // Every type but the blogposts and the GitHub releases is a resource of XTM Hub, including a type this version does
+  // not know.
+  const hiddenKinds = new Set(hiddenToasts.map(toast => (
+    toast.news_feed_item_type === NEWS_FEED_BLOG_POST_TYPE || toast.news_feed_item_type === NEWS_FEED_GITHUB_RELEASE_TYPE
+      ? toast.news_feed_item_type
+      : 'RESOURCE'
+  )));
+  const isOnlyBlogPostHidden = hiddenKinds.size === 1 && hiddenKinds.has(NEWS_FEED_BLOG_POST_TYPE);
+  const isOnlyGithubReleaseHidden = hiddenKinds.size === 1 && hiddenKinds.has(NEWS_FEED_GITHUB_RELEASE_TYPE);
+  const isOnlyResourceHidden = hiddenKinds.size === 1 && hiddenKinds.has('RESOURCE');
+  // The blogposts live on the Filigran blog, the GitHub releases on GitHub, the resources on XTM Hub, and the news feed
+  // of the platform lists them all.
   let overflowUrl: string | null = NEWS_FEED_PATH;
   let isOverflowExternal = false;
   let overflowMessage = t('(+{count}) Click to view all the new items', { count: String(hiddenCount) });
@@ -93,6 +107,11 @@ const NewsFeedToastManager: FunctionComponent = () => {
     isOverflowExternal = true;
     overflowMessage = t('(+{count}) Click to view all the new blogposts', { count: String(hiddenCount) });
     overflowLinkLabel = t('See all');
+  } else if (isOnlyGithubReleaseHidden) {
+    overflowUrl = NEWS_FEED_GITHUB_RELEASES_URL;
+    isOverflowExternal = true;
+    overflowMessage = t('(+{count}) Click to view all the new GitHub releases', { count: String(hiddenCount) });
+    overflowLinkLabel = t('See all releases');
   } else if (isOnlyResourceHidden) {
     overflowUrl = buildConfiguredHubUrl('/app', settings.xtm_hub_url);
     isOverflowExternal = true;

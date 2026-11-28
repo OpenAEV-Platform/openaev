@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildBlogPostHubUrl,
+  buildHubRedirectUrl,
   buildNewsFeedBlogSeeAllUrl,
   getNewsFeedMetadataValue,
   parseNewsFeedAuthorNames,
@@ -68,10 +68,10 @@ describe('newsFeedUtils', () => {
     });
   });
 
-  describe('buildBlogPostHubUrl', () => {
+  describe('buildHubRedirectUrl', () => {
     it('adds the platform to the XTM Hub redirect, keeping the tracking of its path', () => {
       // Act
-      const url = new URL(buildBlogPostHubUrl('/redirect/blog/1?utm_medium=newsfeed', HUB_URL, 'platform-1') as string);
+      const url = new URL(buildHubRedirectUrl('/redirect/blog/1?utm_medium=newsfeed', HUB_URL, 'platform-1') as string);
 
       // Assert
       expect(url.origin + url.pathname).toBe(`${HUB_URL}/redirect/blog/1`);
@@ -84,11 +84,11 @@ describe('newsFeedUtils', () => {
       ['a protocol-relative path', '//evil.example/steal'],
       ['a javascript scheme', 'javascript:alert(1)'],
     ])('links nowhere for %s', (_, urlPath) => {
-      expect(buildBlogPostHubUrl(urlPath, HUB_URL, 'platform-1')).toBeNull();
+      expect(buildHubRedirectUrl(urlPath, HUB_URL, 'platform-1')).toBeNull();
     });
 
     it('links nowhere without a path', () => {
-      expect(buildBlogPostHubUrl(undefined, HUB_URL, 'platform-1')).toBeNull();
+      expect(buildHubRedirectUrl(undefined, HUB_URL, 'platform-1')).toBeNull();
     });
   });
 

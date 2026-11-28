@@ -79,6 +79,7 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
   const typeLabels: Record<NewsFeedType, string> = {
     RESOURCE_SCENARIO: t('Scenario'),
     BLOG_POST: t('Blogpost'),
+    GITHUB_RELEASE: t('GitHub release'),
   };
 
   const toggleType = (type: NewsFeedType, checked: boolean) => {

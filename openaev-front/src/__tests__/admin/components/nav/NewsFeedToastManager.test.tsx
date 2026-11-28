@@ -225,6 +225,24 @@ describe('NewsFeedToastManager', () => {
         .toHaveAttribute('href', `${HUB_URL}/redirect/blog/threat-report?platform_id=${PLATFORM_ID}`);
     });
 
+    it('toasts a GitHub release with its label and a link through the XTM Hub redirect', async () => {
+      // Arrange
+      renderManager();
+
+      // Act
+      await pushEvents(streamEvent('OpenAEV 2.4.0', {
+        type: 'GITHUB_RELEASE',
+        urlPath: '/redirect/release/2.4.0',
+      }));
+
+      // Assert
+      const region = liveRegion();
+      expect(within(region).getByText('GitHub release')).toBeInTheDocument();
+      expect(within(region).queryByText('Unsupported type')).not.toBeInTheDocument();
+      expect(within(region).getByRole('link', { name: 'Open on GitHub' }))
+        .toHaveAttribute('href', `${HUB_URL}/redirect/release/2.4.0?platform_id=${PLATFORM_ID}`);
+    });
+
     describe('overflow banner', () => {
       const pushTypes = (types: string[]) => pushEvents(...types.map((type, index) => streamEvent(`item-${index}`, { type })));
 
@@ -244,6 +262,41 @@ describe('NewsFeedToastManager', () => {
         expect(url.searchParams.get('utm_source')).toBe('openaev');
         expect(url.searchParams.get('utm_content')).toBe('see_all');
         expect(url.searchParams.has('platform_id')).toBe(false);
+      });
+
+      it('links to the GitHub releases when only GitHub releases are hidden', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes(Array(7).fill('GITHUB_RELEASE'));
+
+        // Assert
+        const region = liveRegion();
+        expect(within(region).getByText('(+2) Click to view all the new GitHub releases')).toBeInTheDocument();
+        expect(within(region).getByRole('link', { name: 'See all releases' })).toHaveAttribute('href', 'https://github.com/OpenAEV-Platform/openaev/releases');
+      });
+
+      it('uses a neutral wording when GitHub releases and resources are hidden together', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes([...Array(5).fill('RESOURCE_SCENARIO'), 'GITHUB_RELEASE', 'RESOURCE_SCENARIO']);
+
+        // Assert
+        expect(within(liveRegion()).getByText('(+2) Click to view all the new items')).toBeInTheDocument();
+      });
+
+      it('keeps the XTM Hub wording when only an item of an unknown type is hidden', async () => {
+        // Arrange
+        renderManager();
+
+        // Act
+        await pushTypes([...Array(5).fill('GITHUB_RELEASE'), 'RESOURCE_PLAYBOOK']);
+
+        // Assert
+        expect(within(liveRegion()).getByText('(+1) Click to view all the new resources on the Hub')).toBeInTheDocument();
       });
 
       it('uses a neutral wording when blogposts and resources are hidden together', async () => {

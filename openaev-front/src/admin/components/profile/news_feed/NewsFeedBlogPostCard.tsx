@@ -8,7 +8,7 @@ import type { NewsFeedItemOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { toHttpUrl } from '../../../../utils/url-helper';
 import {
-  buildBlogPostHubUrl,
+  buildHubRedirectUrl,
   getNewsFeedMetadataValue,
   NEWS_FEED_METADATA_KEYS,
   parseNewsFeedAuthorNames,
@@ -29,7 +29,7 @@ const NewsFeedBlogPostCard = ({ item }: Props) => {
 
   // Every metadata is optional and comes from an external source: nothing is trusted.
   const metadata = item.news_feed_item_metadata;
-  const href = buildBlogPostHubUrl(item.news_feed_item_url_path, settings.xtm_hub_url, settings.platform_id);
+  const href = buildHubRedirectUrl(item.news_feed_item_url_path, settings.xtm_hub_url, settings.platform_id);
   const imageUrl = toHttpUrl(getNewsFeedMetadataValue(metadata, NEWS_FEED_METADATA_KEYS.IMAGE_URL));
   const isImageShown = imageUrl !== undefined && imageUrl !== brokenImageUrl;
   const imageAlt = getNewsFeedMetadataValue(metadata, NEWS_FEED_METADATA_KEYS.IMAGE_ALT) ?? '';

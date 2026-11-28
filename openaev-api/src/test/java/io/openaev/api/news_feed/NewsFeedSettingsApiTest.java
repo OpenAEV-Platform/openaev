@@ -116,7 +116,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       // Assert
       assertThatJson(response)
           .node(SUBSCRIBED_TYPES_FIELD)
-          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\"]");
+          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\", \"GITHUB_RELEASE\"]");
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(true);
       assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(true);
     }
@@ -210,12 +210,12 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       putSettings().andExpect(status().isOk());
 
       // Act
-      putSettings("RESOURCE_SCENARIO", "BLOG_POST").andExpect(status().isOk());
+      putSettings("RESOURCE_SCENARIO", "BLOG_POST", "GITHUB_RELEASE").andExpect(status().isOk());
 
       // Assert
       assertThatJson(getSettings())
           .node(SUBSCRIBED_TYPES_FIELD)
-          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\"]");
+          .isEqualTo("[\"RESOURCE_SCENARIO\", \"BLOG_POST\", \"GITHUB_RELEASE\"]");
       assertThat(userRepository.findById(userId).orElseThrow())
           .extracting(User::getUnsubscribedNewsFeedTypes)
           .isEqualTo(new String[0]);
