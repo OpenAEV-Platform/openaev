@@ -4464,10 +4464,9 @@ public class AutonomousRunService {
     }
     SimulationStatusProbe probe = probeSimulationStatus(run);
     if (probe.unreadable()) {
-      // Defense in depth on top of OrchestratorRunTenantInterceptor: an UNREADABLE simulation read
-      // (a scope miss, a DB blip, any non-not-found error) must never be mistaken for a deletion
-      // and cancel a healthy run. Leave the status untouched; the next read/poll re-probes. Only a
-      // genuine not-found (deleted) settles the run below.
+      // An UNREADABLE simulation read (a scope miss, a DB blip, any non-not-found error) must never
+      // be mistaken for a deletion and cancel a healthy run. Leave the status untouched; the next
+      // read/poll re-probes. Only a genuine not-found (deleted) settles the run below.
       return run;
     }
     ExerciseStatus simStatus = probe.status();
