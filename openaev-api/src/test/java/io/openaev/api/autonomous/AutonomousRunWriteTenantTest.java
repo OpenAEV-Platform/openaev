@@ -13,6 +13,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.security.token.XtmJwksExtractor;
@@ -176,6 +177,31 @@ class AutonomousRunWriteTenantTest extends IntegrationTest {
           .containsOnly(tenantId);
       assertThat(enabledMembers()).containsExactly(memberId);
       assertRunEventsInRunTenant();
+      assertStreamEventsInRunTenant(true);
+    }
+
+    @Test
+    @DisplayName("given_completedStatus_should_finishTheSimulationWithEventsInTheRunTenant")
+    void given_completedStatus_should_finishTheSimulationWithEventsInTheRunTenant()
+        throws Exception {
+      // Act
+      mvc.perform(
+              onHeaderRoute(
+                  post(PLAIN + "/{runId}/status", runId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{\"status\": \"COMPLETED\"}")))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT exercise_status FROM exercises WHERE exercise_id = ?",
+                  String.class,
+                  exerciseId))
+          .isEqualTo("FINISHED");
+      assertThat(applicationEvents.stream(BaseEvent.class))
+          .anyMatch(event -> event.getInstance() instanceof Exercise);
       assertStreamEventsInRunTenant(true);
     }
 

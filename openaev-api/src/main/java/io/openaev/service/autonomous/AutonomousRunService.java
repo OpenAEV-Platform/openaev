@@ -2096,6 +2096,9 @@ public class AutonomousRunService {
     // conditional UPDATEs). Without the lock, a callback that read a pre-pause state could pass
     // validation and overwrite a concurrently committed PAUSED or terminal transition.
     AutonomousRun run = requireForUpdate(runId);
+    // The callback writes the run, its timeline and its simulation, all in the run's tenant: the
+    // stream events of the request carry that tenant on every route.
+    BaseEvent.attributeRequestEventsTo(runTenantId(run), Base.class);
     // A terminal status is final: CANCELED (operator Stop / OpenAEV timeout hard-stop) and
     // COMPLETED / FAILED (settled orchestration) all tear the run down. A late status callback from
     // the orchestrator - a COMPLETED it emits after we already hard-stopped, the gap-1 completion
