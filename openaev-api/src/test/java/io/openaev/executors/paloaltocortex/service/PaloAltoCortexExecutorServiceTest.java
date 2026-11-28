@@ -13,7 +13,6 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -94,18 +93,17 @@ public class PaloAltoCortexExecutorServiceTest {
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
-    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
     ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> referenceCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
     verify(assetGroupService)
-        .createOrUpdateAssetGroupWithoutDynamicAssets(
-            assetGroupCaptor.capture(), tenantCaptor.capture());
+        .syncExternalAssetGroup(
+            tenantCaptor.capture(), referenceCaptor.capture(), nameCaptor.capture(), any(), any());
     assertEquals(
         paloAltoCortexExecutor.getTenantId(),
         tenantCaptor.getValue(),
         "the asset group must be attributed to the executor's own tenant");
-    assertEquals(
-        PALOALTOCORTEX_EXECUTOR_TYPE + "_groupName",
-        assetGroupCaptor.getValue().getExternalReference());
+    assertEquals(PALOALTOCORTEX_EXECUTOR_TYPE + "_groupName", referenceCaptor.getValue());
   }
 
   // FIXME: Commented for prerelease tests of solution, will fix later

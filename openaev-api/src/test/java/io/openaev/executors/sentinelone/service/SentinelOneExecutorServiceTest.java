@@ -100,25 +100,21 @@ public class SentinelOneExecutorServiceTest {
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
-    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
     ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> referenceCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
     verify(assetGroupService, times(3))
-        .createOrUpdateAssetGroupWithoutDynamicAssets(
-            assetGroupCaptor.capture(), tenantCaptor.capture());
+        .syncExternalAssetGroup(
+            tenantCaptor.capture(), referenceCaptor.capture(), nameCaptor.capture(), any(), any());
     assertEquals(
         sentinelOneExecutor.getTenantId(),
         tenantCaptor.getValue(),
         "the asset group must be attributed to the executor's own tenant");
-    assertEquals(3, assetGroupCaptor.getAllValues().size());
-    assertEquals(
-        sentinelOneAgent.getAccountId(),
-        assetGroupCaptor.getAllValues().get(0).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getGroupId(),
-        assetGroupCaptor.getAllValues().get(1).getExternalReference());
-    assertEquals(
-        sentinelOneAgent.getSiteId(),
-        assetGroupCaptor.getAllValues().get(2).getExternalReference());
+    assertThat(referenceCaptor.getAllValues())
+        .containsExactlyInAnyOrder(
+            sentinelOneAgent.getAccountId(),
+            sentinelOneAgent.getSiteId(),
+            sentinelOneAgent.getGroupId());
   }
 
   @Test
@@ -144,13 +140,15 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutorService.run();
 
     // Assert: each account, site and group holds the endpoint of its own agent only
-    ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
+    ArgumentCaptor<String> referenceCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<List<Asset>> assetsCaptor = ArgumentCaptor.forClass(List.class);
     verify(assetGroupService, times(6))
-        .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture(), any());
+        .syncExternalAssetGroup(
+            any(), referenceCaptor.capture(), any(), any(), assetsCaptor.capture());
     Map<String, List<Asset>> assetsByGroup = new HashMap<>();
-    assetGroupCaptor
-        .getAllValues()
-        .forEach(group -> assetsByGroup.put(group.getExternalReference(), group.getAssets()));
+    for (int i = 0; i < referenceCaptor.getAllValues().size(); i++) {
+      assetsByGroup.put(referenceCaptor.getAllValues().get(i), assetsCaptor.getAllValues().get(i));
+    }
     assertThat(assetsByGroup)
         .containsOnlyKeys(
             "accountId", "siteId", "groupId", "otherAccountId", "otherSiteId", "otherGroupId");
