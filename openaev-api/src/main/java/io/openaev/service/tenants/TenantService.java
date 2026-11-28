@@ -103,6 +103,12 @@ public class TenantService {
         .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
   }
 
+  /** Finds a tenant by ID, empty when it is unknown or soft-deleted. */
+  @Transactional(readOnly = true)
+  public Optional<Tenant> findActiveById(String tenantId) {
+    return tenantRepository.findByIdAndDeletedAtIsNull(tenantId);
+  }
+
   /** Searches tenants with pagination and filtering. */
   @Transactional(readOnly = true)
   public Page<TenantOutput> search(@NotNull SearchPaginationInput searchPaginationInput) {

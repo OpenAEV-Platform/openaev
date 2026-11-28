@@ -380,6 +380,24 @@ POST /api/tenants/{tenantId}/marking_definitions/stix
 - **Response**: one entry per `marking-definition` object, `{"stixId": "...", "type": "...", "definition": "...", "outcome": "..."}`, with `CREATED`, `EXISTING` (the Tenant already has this STIX id), `CONFLICT` (a Marking definition of the same type and definition exists under another id) or `INVALID`. Other object types are ignored and nothing is overwritten.
 - **Access**: the right to manage Marking definitions; a Marking definition above your own clearance on its type is refused, as when created by hand.
 
+## XTM Hub public key
+
+OpenAEV holds one Ed25519 key for each Tenant to authenticate to XTM Hub. So that XTM Hub can check a Tenant's key, OpenAEV serves its public half as a JSON Web Key Set, without authentication. An unknown or deleted Tenant gets a `404`.
+
+```http
+GET /api/tenants/{tenantId}/xtmhub/jwks
+```
+
+```json
+{"keys": [{"kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "use": "sig", "kid": "<key id>", "x": "<public key>"}]}
+```
+
+- **Key**: derived from `openaev.admin.encryption_key`, the key version and the Tenant id, and never stored. Every node serves the same key and a restart keeps it. A new encryption key gives new keys, which XTM Hub learns only when an administrator registers the platform again.
+- **Encryption key**: it must be at least 32 characters. A shorter one, such as the `ChangeMe` placeholder, gives no key: the endpoint answers `500` and OpenAEV signs nothing for XTM Hub.
+- **Content**: the public key only. A private key never leaves the platform.
+- **Not the XTM auth key**: `/xtm/auth/jwks` serves another key, the one that signs the tokens OpenAEV issues to other Filigran products.
+- **Access**: none.
+
 ## What's next?
 
 - [Filters](filters.md) -- Filter format and operators

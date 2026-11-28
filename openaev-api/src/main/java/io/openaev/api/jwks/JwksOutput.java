@@ -1,4 +1,4 @@
-package io.openaev.rest.xtm_auth;
+package io.openaev.api.jwks;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;

@@ -8412,10 +8412,12 @@ export interface JsonApiDocumentResourceObject {
 export type JsonNode = any;
 
 export interface JwkOutput {
+  alg?: string;
   crv?: string;
   key_ops?: string[];
   kid?: string;
   kty?: string;
+  use?: string;
   x?: string;
 }
 
